@@ -10,15 +10,26 @@ import {
   ShieldCheck,
   Brain,
   Network,
+  AlertCircle,
 } from "lucide-react";
+import { useApi } from "../../hooks/useApi";
+import { marketing } from "../../services/api";
 
 export default function CustomerDataPlatform() {
-  const [activeModule, setActiveModule, activeTab, setActiveTab] = useState("overview", "segmentation");
+  const [activeModule, setActiveModule] = useState("overview");
+
+  const { data: cdpMetrics, loading, error } = useApi(
+    () => marketing.cdp.metrics(), [], { pollingInterval: 60000 }
+  );
+  const { data: sources } = useApi(
+    () => marketing.cdp.sources(), [], { pollingInterval: 120000 }
+  );
+
+  const allSources = sources ?? [];
 
   return (
     <div className="min-h-full w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
 
-      {/* HEADER */}
       <div className="border-b border-slate-200 dark:border-slate-800 px-8 py-6 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
@@ -39,20 +50,31 @@ export default function CustomerDataPlatform() {
         </div>
       </div>
 
-      {/* EXECUTIVE STRIP */}
+      {error && (
+        <div className="mx-8 mt-4 flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-6 px-8 py-6">
-        <Metric label="Unified Profiles" value="2.4M" />
-        <Metric label="Active Data Sources" value="18" />
-        <Metric label="Identity Matches / Day" value="842K" />
-        <Metric label="Real-Time Events" value="3.1M" />
-        <Metric label="Segments Live" value="124" />
-        <Metric label="Predictive Models" value="9" />
+        {loading && !cdpMetrics ? (
+          <div className="col-span-6 grid grid-cols-6 gap-6 animate-pulse">
+            {[1,2,3,4,5,6].map(i => <div key={i} className="h-16 bg-slate-100 dark:bg-slate-700 rounded-xl" />)}
+          </div>
+        ) : cdpMetrics ? (
+          <>
+            <Metric label="Unified Profiles"       value={cdpMetrics.unifiedProfiles ?? "—"} />
+            <Metric label="Active Data Sources"    value={cdpMetrics.activeDataSources ?? allSources.length} />
+            <Metric label="Identity Matches / Day" value={cdpMetrics.identityMatchesPerDay ?? "—"} />
+            <Metric label="Real-Time Events"       value={cdpMetrics.realTimeEvents ?? "—"} />
+            <Metric label="Segments Live"          value={cdpMetrics.segmentsLive ?? "—"} />
+            <Metric label="Predictive Models"      value={cdpMetrics.predictiveModels ?? "—"} />
+          </>
+        ) : null}
       </div>
 
-      {/* MAIN GRID */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 px-8 pb-10">
 
-        {/* IDENTITY GRAPH */}
         <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
           <h2 className="font-semibold text-lg flex items-center gap-2 mb-4">
             <GitMerge size={18} /> Identity Resolution Engine
@@ -62,12 +84,13 @@ export default function CustomerDataPlatform() {
           </div>
         </div>
 
-        {/* DATA PIPELINES */}
         <div className="space-y-6">
           <Card
             icon={Network}
             title="Data Pipelines"
-            description="Web, CRM, Mobile, Network telemetry, Marketing automation."
+            description={allSources.length > 0
+              ? allSources.map(s => s.name).join(", ")
+              : "Web, CRM, Mobile, Network telemetry, Marketing automation."}
           />
           <Card
             icon={Activity}
@@ -82,46 +105,33 @@ export default function CustomerDataPlatform() {
         </div>
       </div>
 
-      {/* LOWER GRID */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 px-8 pb-12">
 
-      <div
-  onClick={() => setActiveModule("profiles")}
-  className="cursor-pointer transition hover:scale-[1.02]"
->
-  <Section title="Unified Profile Explorer" icon={Users}>
-    360° customer timeline, engagement score, predicted CLV, churn risk.
-  </Section>
-</div>
+        <div onClick={() => setActiveModule("profiles")} className="cursor-pointer transition hover:scale-[1.02]">
+          <Section title="Unified Profile Explorer" icon={Users}>
+            360° customer timeline, engagement score, predicted CLV, churn risk.
+          </Section>
+        </div>
 
-<div
-  onClick={() => setActiveModule("segmentation")}
-  className="cursor-pointer transition hover:scale-[1.02]"
->
-  <Section title="Segmentation Studio" icon={Layers}>
-    Behavioral rules, dynamic audiences, predictive lookalikes.
-  </Section>
-</div>
-<div
-  onClick={() => setActiveModule("predictive")}
-  className="cursor-pointer transition hover:scale-[1.02]"
->
-  <Section title="Predictive Intelligence Lab" icon={Brain}>
-    Propensity modeling, churn prediction, LTV forecasting.
-  </Section>
-</div>
-    
+        <div onClick={() => setActiveModule("segmentation")} className="cursor-pointer transition hover:scale-[1.02]">
+          <Section title="Segmentation Studio" icon={Layers}>
+            Behavioral rules, dynamic audiences, predictive lookalikes.
+          </Section>
+        </div>
+
+        <div onClick={() => setActiveModule("predictive")} className="cursor-pointer transition hover:scale-[1.02]">
+          <Section title="Predictive Intelligence Lab" icon={Brain}>
+            Propensity modeling, churn prediction, LTV forecasting.
+          </Section>
+        </div>
 
       </div>
-      {/*{activeModule === "overview" && <CDPOverview />}*/}
-{activeModule === "profiles" && <UnifiedProfileExplorer />}
-{activeModule === "segmentation" && <VisualSegmentationStudio />}
-{/*{activeModule === "predictive" && <PredictiveLab />}*/}
+
+      {activeModule === "profiles"     && <UnifiedProfileExplorer />}
+      {activeModule === "segmentation" && <VisualSegmentationStudio />}
     </div>
   );
 }
-
-/* COMPONENTS */
 
 function Metric({ label, value }) {
   return (

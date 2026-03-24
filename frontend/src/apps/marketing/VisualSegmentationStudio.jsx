@@ -10,17 +10,21 @@ import {
   Database,
   Clock,
   Users,
-  CheckCircle2,
 } from "lucide-react";
+import { useApi } from "../../hooks/useApi";
+import { marketing } from "../../services/api";
 
 export default function VisualSegmentationStudio() {
   const [segmentStatus, setSegmentStatus] = useState("Draft");
   const [predictionsEnabled, setPredictionsEnabled] = useState(true);
 
+  const { data: cdpMetrics, loading } = useApi(
+    () => marketing.cdp.metrics(), [], { pollingInterval: 30000 }
+  );
+
   return (
     <div className="min-h-full w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
 
-      {/* HEADER */}
       <div className="border-b border-slate-200 dark:border-slate-800 px-8 py-6 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
@@ -36,26 +40,26 @@ export default function VisualSegmentationStudio() {
           <button className="px-4 py-2 text-sm bg-slate-200 dark:bg-slate-800 rounded-md">
             Save Draft
           </button>
-          <button className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md">
+          <button
+            onClick={() => setSegmentStatus("Active")}
+            className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md"
+          >
             Activate Segment
           </button>
         </div>
       </div>
 
-      {/* KPI STRIP */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-6 px-8 py-6">
-        <Metric label="Estimated Audience" value="184,230" />
-        <Metric label="Data Sources Used" value="6" />
-        <Metric label="Refresh Frequency" value="Real-Time" />
-        <Metric label="Match Confidence" value="98.4%" />
-        <Metric label="Active Destinations" value="4" />
-        <Metric label="Version" value="v3.2" />
+        <Metric label="Estimated Audience"    value={loading ? "…" : (cdpMetrics?.estimatedAudience ?? cdpMetrics?.unifiedProfiles ?? "—")} />
+        <Metric label="Data Sources Used"     value={loading ? "…" : (cdpMetrics?.activeDataSources ?? "—")} />
+        <Metric label="Refresh Frequency"     value={loading ? "…" : (cdpMetrics?.refreshMode ?? "—")} />
+        <Metric label="Match Confidence"      value={loading ? "…" : (cdpMetrics?.matchConfidence != null ? `${cdpMetrics.matchConfidence}%` : "—")} />
+        <Metric label="Active Destinations"   value={loading ? "…" : (cdpMetrics?.activeDestinations ?? "—")} />
+        <Metric label="Version"               value={loading ? "…" : (cdpMetrics?.version ?? "—")} />
       </div>
 
-      {/* MAIN GRID */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 px-8 pb-10">
 
-        {/* LOGIC CANVAS */}
         <div className="xl:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
           <h2 className="font-semibold text-lg flex items-center gap-2 mb-4">
             <GitBranch size={18} /> Drag & Drop Logic Builder
@@ -66,19 +70,18 @@ export default function VisualSegmentationStudio() {
           </div>
         </div>
 
-        {/* RIGHT PANEL */}
         <div className="space-y-6">
 
           <Panel
             icon={Database}
             title="SQL Preview"
-            content="SELECT * FROM profiles WHERE lifecycle_stage = 'High Intent' AND last_activity < 7d"
+            content={cdpMetrics?.sqlPreview ?? "No active conditions yet."}
           />
 
           <Panel
             icon={Brain}
             title="Predictive Layer"
-            content="Lookalike Modeling Enabled — Propensity Score ≥ 0.72"
+            content={cdpMetrics?.predictiveLayer ?? "Lookalike Modeling — configure conditions to enable."}
             toggle={predictionsEnabled}
             onToggle={() => setPredictionsEnabled(!predictionsEnabled)}
           />
@@ -86,13 +89,12 @@ export default function VisualSegmentationStudio() {
           <Panel
             icon={ShieldCheck}
             title="Governance"
-            content="Requires Compliance Approval before activation."
+            content={cdpMetrics?.governanceNote ?? "Requires Compliance Approval before activation."}
           />
 
         </div>
       </div>
 
-      {/* LOWER GRID */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 px-8 pb-12">
 
         <Section icon={PlayCircle} title="Activation Destinations">
@@ -106,28 +108,23 @@ export default function VisualSegmentationStudio() {
         <Section icon={Users} title="Performance Simulation">
           Simulate expected conversion lift before publishing.
         </Section>
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-12">
 
-  {/* LEFT — LOGIC BUILDER */}
-  <div>
-    <LogicBuilder />
-  </div>
+        <div className="xl:col-span-3 grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-12">
+          <div>
+            <LogicBuilder />
+          </div>
 
-  {/* RIGHT — STICKY ESTIMATION PANEL */}
-  <div className="xl:col-span-1">
-    <div className="sticky top-6">
-      <RealTimeEstimationEngine />
-    </div>
-  </div>
-
-</div>
+          <div className="xl:col-span-1">
+            <div className="sticky top-6">
+              <RealTimeEstimationEngine />
+            </div>
+          </div>
+        </div>
 
       </div>
     </div>
   );
 }
-
-/* ================= COMPONENTS ================= */
 
 function Metric({ label, value }) {
   return (
@@ -149,9 +146,7 @@ function Panel({ icon: Icon, title, content, toggle, onToggle }) {
           <button
             onClick={onToggle}
             className={`px-3 py-1 text-xs rounded-full ${
-              toggle
-                ? "bg-green-500 text-white"
-                : "bg-slate-300 dark:bg-slate-700"
+              toggle ? "bg-green-500 text-white" : "bg-slate-300 dark:bg-slate-700"
             }`}
           >
             {toggle ? "Enabled" : "Disabled"}
@@ -176,13 +171,13 @@ function Section({ icon: Icon, title, children }) {
 
 function StatusBadge({ status }) {
   const colors = {
-    Draft: "bg-yellow-500",
-    Active: "bg-green-500",
+    Draft:    "bg-yellow-500",
+    Active:   "bg-green-500",
     Archived: "bg-slate-500",
   };
 
   return (
-    <span className={`px-3 py-1 text-xs rounded-full text-white ${colors[status]}`}>
+    <span className={`px-3 py-1 text-xs rounded-full text-white ${colors[status] ?? "bg-slate-500"}`}>
       {status}
     </span>
   );

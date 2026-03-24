@@ -2,17 +2,10 @@ import { useState } from "react";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import StatusBadge from "../../components/ui/StatusBadge";
-import { Plus, ArrowRight, Mail, MessageSquare, Globe, Zap, Save } from "lucide-react";
-
-const steps = [
-  { id: 1, type: "trigger",   label: "Trigger",         icon: Zap,          config: "Form submission on /demo" },
-  { id: 2, type: "wait",      label: "Wait 1 hour",      icon: ArrowRight,   config: "Delay: 1h" },
-  { id: 3, type: "email",     label: "Send Welcome Email",icon: Mail,        config: "Template: Welcome Series #1" },
-  { id: 4, type: "condition", label: "Opened?",          icon: ArrowRight,   config: "If opened → continue; else → branch B" },
-  { id: 5, type: "wait",      label: "Wait 2 days",      icon: ArrowRight,   config: "Delay: 2d" },
-  { id: 6, type: "email",     label: "Send Follow-up",   icon: Mail,         config: "Template: Follow-up #1" },
-  { id: 7, type: "sms",       label: "Send SMS Reminder",icon: MessageSquare,config: "Template: Demo reminder SMS" },
-];
+import { Plus, ArrowRight, Mail, MessageSquare, Globe, Zap, Save, AlertCircle, Loader2 } from "lucide-react";
+import { useApi, useMutation } from "../../hooks/useApi";
+import { marketing } from "../../services/api";
+import { useToast } from "../../components/ui/Toast";
 
 const typeColor = {
   trigger:   "bg-indigo-100 dark:bg-indigo-900/30 border-indigo-300 dark:border-indigo-600",
@@ -23,15 +16,45 @@ const typeColor = {
 };
 
 const typeIconColor = {
-  trigger: "text-indigo-600 dark:text-indigo-400",
-  email:   "text-sky-600    dark:text-sky-400",
-  sms:     "text-emerald-600 dark:text-emerald-400",
-  wait:    "text-slate-400",
+  trigger:   "text-indigo-600 dark:text-indigo-400",
+  email:     "text-sky-600    dark:text-sky-400",
+  sms:       "text-emerald-600 dark:text-emerald-400",
+  wait:      "text-slate-400",
   condition: "text-amber-600 dark:text-amber-400",
 };
 
+const ICON_MAP = { Mail, MessageSquare, ArrowRight, Zap };
+
 export default function CampaignBuilder() {
+  const toast = useToast();
   const [name, setName] = useState("New Campaign Flow");
+  const [selectedFlowId, setSelectedFlowId] = useState(null);
+
+  const { data: flows, loading: flowsLoading, error: flowsError } = useApi(
+    () => marketing.flows.list(), [], { pollingInterval: 120000 }
+  );
+
+  const { data: flowDetail, loading: detailLoading } = useApi(
+    () => selectedFlowId ? marketing.flows.get(selectedFlowId) : Promise.resolve(null),
+    [selectedFlowId]
+  );
+
+  const { data: stats, loading: statsLoading } = useApi(
+    () => selectedFlowId ? marketing.flows.stats(selectedFlowId) : Promise.resolve(null),
+    [selectedFlowId]
+  );
+
+  const { mutate: createFlow, loading: creating } = useMutation(
+    (data) => marketing.flows.create(data),
+    {
+      onSuccess: () => toast({ message: "Flow created", type: "success" }),
+      onError: (err) => toast({ message: err?.message ?? "Failed to create flow", type: "error" }),
+    }
+  );
+
+  const allFlows = flows ?? [];
+  const activeFlow = flowDetail ?? (allFlows[0] ?? null);
+  const steps = activeFlow?.steps ?? [];
 
   return (
     <div className="space-y-6">
@@ -39,14 +62,38 @@ export default function CampaignBuilder() {
         title="Campaign Builder"
         subtitle="Design trigger-based automation flows with branching and suppression rules"
         actions={
-          <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition">
-            <Save size={15} /> Save & Activate
+          <button
+            onClick={() => createFlow({ name, trigger: "form_submission" })}
+            disabled={creating}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition disabled:opacity-60"
+          >
+            {creating ? <Loader2 size={14} className="animate-spin" /> : <Save size={15} />} Save & Activate
           </button>
         }
       />
 
+      {flowsError && (
+        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {flowsError}
+        </div>
+      )}
+
+      {allFlows.length > 1 && (
+        <div className="flex items-center gap-2">
+          <select
+            className="px-3 py-2 rounded border bg-white dark:bg-slate-900 dark:border-slate-700 text-sm"
+            value={selectedFlowId ?? ""}
+            onChange={e => setSelectedFlowId(e.target.value || null)}
+          >
+            <option value="">New Flow</option>
+            {allFlows.map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Flow canvas */}
         <div className="xl:col-span-2">
           <Card>
             <CardHeader title="Automation Flow" icon={Zap} actions={
@@ -55,13 +102,22 @@ export default function CampaignBuilder() {
               </button>
             } />
             <CardBody>
+              {detailLoading && steps.length === 0 && (
+                <div className="space-y-2 animate-pulse">
+                  {[1,2,3].map(i => <div key={i} className="h-14 bg-slate-100 dark:bg-slate-700 rounded-xl" />)}
+                </div>
+              )}
+              {!detailLoading && steps.length === 0 && !flowsError && (
+                <p className="text-sm text-slate-500 text-center py-4">No steps yet. Add a step to begin.</p>
+              )}
+
               <div className="space-y-2">
                 {steps.map((step, i) => {
-                  const Icon = step.icon;
+                  const Icon = ICON_MAP[step.icon] ?? ArrowRight;
                   return (
-                    <div key={step.id}>
-                      <div className={`flex items-center gap-3 p-3 rounded-xl border ${typeColor[step.type]}`}>
-                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center bg-white dark:bg-slate-900 ${typeIconColor[step.type]}`}>
+                    <div key={step.id ?? i}>
+                      <div className={`flex items-center gap-3 p-3 rounded-xl border ${typeColor[step.type] ?? typeColor.wait}`}>
+                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center bg-white dark:bg-slate-900 ${typeIconColor[step.type] ?? "text-slate-400"}`}>
                           <Icon size={16} />
                         </div>
                         <div className="flex-1">
@@ -87,7 +143,6 @@ export default function CampaignBuilder() {
           </Card>
         </div>
 
-        {/* Settings panel */}
         <div className="space-y-4">
           <Card>
             <CardHeader title="Flow Settings" icon={Globe} />
@@ -128,12 +183,22 @@ export default function CampaignBuilder() {
           <Card>
             <CardHeader title="Flow Stats" icon={Zap} />
             <CardBody className="space-y-3 text-sm">
-              {[["Enrolled", "1,240"], ["Active", "318"], ["Completed", "814"], ["Unsubscribed", "22"]].map(([k, v]) => (
-                <div key={k} className="flex justify-between">
-                  <span className="text-slate-500">{k}</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">{v}</span>
+              {statsLoading && (
+                <div className="space-y-2 animate-pulse">
+                  {[1,2,3,4].map(i => <div key={i} className="h-5 bg-slate-100 dark:bg-slate-700 rounded" />)}
                 </div>
-              ))}
+              )}
+              {!statsLoading && stats && (
+                Object.entries(stats).map(([k, v]) => (
+                  <div key={k} className="flex justify-between">
+                    <span className="text-slate-500 capitalize">{k}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{String(v)}</span>
+                  </div>
+                ))
+              )}
+              {!statsLoading && !stats && !selectedFlowId && (
+                <p className="text-xs text-slate-400">Save a flow to see stats.</p>
+              )}
             </CardBody>
           </Card>
         </div>
