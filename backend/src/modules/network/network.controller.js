@@ -1,76 +1,77 @@
-import {
-  getNetworkOverview,
-  getNetworkAlerts,
-  getNetworkDocumentation,
-  getNetworkInventory,
-  getNetworkSettings,
-  getNetworkTopologyMap,
-  getNetworkTraffic,
-  updateTenantNetworkSettings
-} from "./network.service.js";
+import * as svc from "./network.service.js";
 
-const tenantIdFrom = (req) => req.user.tenantId;
+const tid = (req) => req.user.tenantId;
 
-export const getOverview = async (req, res) => {
+const handle = (fn) => async (req, res) => {
   try {
-    res.json(await getNetworkOverview(tenantIdFrom(req)));
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.json(await fn(req, res));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-export const getNetworkInventoryView = async (req, res) => {
-  try {
-    res.json(await getNetworkInventory(tenantIdFrom(req)));
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+// Devices
+export const listDevices  = handle((req) => svc.listDevices(tid(req), req.query));
+export const getDevice    = handle((req) => svc.getDevice(tid(req), req.params.id));
+export const updateDevice = handle((req) => svc.updateDevice(tid(req), req.params.id, req.body));
 
-export const getNetworkDocumentationView = async (req, res) => {
-  try {
-    res.json(await getNetworkDocumentation(tenantIdFrom(req)));
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+// Alerts
+export const listAlerts       = handle((req) => svc.listAlerts(tid(req), req.query));
+export const acknowledgeAlert = handle((req) => svc.acknowledgeAlert(tid(req), req.params.id));
+export const resolveAlert     = handle((req) => svc.resolveAlert(tid(req), req.params.id));
 
-export const getNetworkAlertsView = async (req, res) => {
-  try {
-    res.json(await getNetworkAlerts(tenantIdFrom(req)));
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+// Traffic
+export const getTrafficOverview  = handle((req) => svc.getTrafficOverview(tid(req)));
+export const getTopTalkers       = handle((req) => svc.getTopTalkers(tid(req)));
+export const getTrafficProtocols = handle((req) => svc.getTrafficProtocols(tid(req)));
+export const getTrafficAnomalies = handle((req) => svc.getTrafficAnomalies(tid(req)));
 
-export const getNetworkTrafficView = async (req, res) => {
-  try {
-    res.json(await getNetworkTraffic(tenantIdFrom(req)));
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+// Topology
+export const getTopologyRegions = handle((req) => svc.getTopologyRegions(tid(req)));
+export const getTopologyNodes   = handle((req) => svc.getTopologyNodes(tid(req)));
+export const getTopologyLinks   = handle((req) => svc.getTopologyLinks(tid(req)));
 
-export const getNetworkTopologyMapView = async (req, res) => {
-  try {
-    res.json(await getNetworkTopologyMap(tenantIdFrom(req)));
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+// Incidents
+export const listIncidents      = handle((req) => svc.listIncidents(tid(req), req.query));
+export const getIncident        = handle((req) => svc.getIncident(tid(req), req.params.id));
+export const createIncident     = handle((req) => svc.createIncident(tid(req), req.body));
+export const updateIncident     = handle((req) => svc.updateIncident(tid(req), req.params.id, req.body));
+export const getIncidentTimeline= handle((req) => svc.getIncidentTimeline(tid(req), req.params.id));
+export const resolveIncident    = handle((req) => svc.resolveIncident(tid(req), req.params.id));
+export const escalateIncident   = handle((req) => svc.escalateIncident(tid(req), req.params.id));
 
-export const getNetworkSettingsView = async (req, res) => {
-  try {
-    res.json(await getNetworkSettings(tenantIdFrom(req)));
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+// Service health
+export const listServiceHealth = handle((req) => svc.listServiceHealth(tid(req)));
+export const getServiceHealth  = handle((req) => svc.getServiceHealth(tid(req), req.params.id));
 
-export const updateSettings = async (req, res) => {
-  try {
-    res.json(await updateTenantNetworkSettings(tenantIdFrom(req), req.body));
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+// Capacity
+export const getCapacityLinks   = handle((req) => svc.getCapacityLinks(tid(req)));
+export const getCapacitySummary = handle((req) => svc.getCapacitySummary(tid(req)));
+
+// Automation
+export const listAutomationJobs      = handle((req) => svc.listAutomationJobs(tid(req), req.query));
+export const listAutomationTemplates = handle((req) => svc.listAutomationTemplates(tid(req)));
+export const runAutomationJob        = handle((req) => svc.runAutomationJob(tid(req), req.params.id));
+export const createAutomationJob     = handle((req) => svc.createAutomationJob(tid(req), req.body));
+
+// Changes
+export const listChanges   = handle((req) => svc.listChanges(tid(req), req.query));
+export const getChange     = handle((req) => svc.getChange(tid(req), req.params.id));
+export const createChange  = handle((req) => svc.createChange(tid(req), req.body));
+export const approveChange = handle((req) => svc.approveChange(tid(req), req.params.id));
+export const rejectChange  = handle((req) => svc.rejectChange(tid(req), req.params.id));
+
+// Docs
+export const listDocs = handle((req) => svc.listDocs(tid(req)));
+export const getDoc   = handle((req) => svc.getDoc(tid(req), req.params.id));
+
+// Policies
+export const listPolicies = handle((req) => svc.listPolicies(tid(req)));
+export const checkPolicy  = handle((req) => svc.checkPolicy(tid(req), req.params.id));
+
+// Settings
+export const getNetworkSettings    = handle((req) => svc.getNetworkSettings(tid(req)));
+export const updateNetworkSettings = handle((req) => svc.updateNetworkSettings(tid(req), req.body));
+export const listSettingsProfiles  = handle((req) => svc.listSettingsProfiles(tid(req)));
+export const getSettingsProfile    = handle((req) => svc.getSettingsProfile(tid(req), req.params.id));
+export const updateSettingsProfile = handle((req) => svc.updateSettingsProfile(tid(req), req.params.id, req.body));
