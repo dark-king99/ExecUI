@@ -1,20 +1,33 @@
+import { useMemo } from "react";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader, Stat } from "../../components/ui/Card";
-import { DollarSign, TrendingUp, Users, Target } from "lucide-react";
-
-const channels = [
-  { name: "Email",          revenue: "$420k", spend: "$28k",  roas: 15.0, cac: "$48",  touches: 1840 },
-  { name: "LinkedIn Ads",   revenue: "$310k", spend: "$62k",  roas: 5.0,  cac: "$142", touches: 980 },
-  { name: "Google Search",  revenue: "$280k", spend: "$41k",  roas: 6.8,  cac: "$98",  touches: 1210 },
-  { name: "Content / SEO",  revenue: "$190k", spend: "$18k",  roas: 10.6, cac: "$62",  touches: 2400 },
-  { name: "Events",         revenue: "$145k", spend: "$34k",  roas: 4.3,  cac: "$210", touches: 420 },
-  { name: "Paid Social",    revenue: "$88k",  spend: "$22k",  roas: 4.0,  cac: "$180", touches: 760 },
-];
-
-const totalRevenue = "$1.43M";
-const totalSpend   = "$205k";
+import { DollarSign, TrendingUp, Users, Target, AlertCircle } from "lucide-react";
+import { useApi } from "../../hooks/useApi";
+import { marketing } from "../../services/api";
 
 export default function AttributionROI() {
+  const { data: summary, loading: sumLoading, error: sumError } = useApi(
+    () => marketing.attribution.summary(), [], { pollingInterval: 60000 }
+  );
+  const { data: channels, loading: chLoading } = useApi(
+    () => marketing.attribution.channels(), [], { pollingInterval: 60000 }
+  );
+  const { data: models, loading: modLoading } = useApi(
+    () => marketing.attribution.models(), [], { pollingInterval: 120000 }
+  );
+  const { data: ltvCac, loading: ltvLoading } = useApi(
+    () => marketing.attribution.ltvCac(), [], { pollingInterval: 120000 }
+  );
+
+  const allChannels = channels ?? [];
+  const allModels = models ?? [];
+  const allLtvCac = ltvCac ?? [];
+
+  const maxRevenue = useMemo(() =>
+    allChannels.length > 0 ? Math.max(...allChannels.map(c => c.revenue ?? 0)) : 1,
+    [allChannels]
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -22,28 +35,40 @@ export default function AttributionROI() {
         subtitle="Multi-touch attribution, CAC / LTV dashboards and channel mix analysis"
       />
 
+      {sumError && (
+        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {sumError}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Attributed Revenue" value={totalRevenue} icon={DollarSign}  color="indigo" delta={22} />
-        <Stat label="Total Spend"        value={totalSpend}   icon={Target}      color="amber" />
-        <Stat label="Blended ROAS"       value="6.97x"        icon={TrendingUp}  color="emerald" delta={11} />
-        <Stat label="Blended CAC"        value="$104"         icon={Users}       color="sky" delta={-8} />
+        <Stat label="Attributed Revenue" value={sumLoading ? "…" : (summary?.attributedRevenue ?? "—")} icon={DollarSign} color="indigo" delta={summary?.revenueDelta} />
+        <Stat label="Total Spend"        value={sumLoading ? "…" : (summary?.totalSpend ?? "—")}       icon={Target}      color="amber" />
+        <Stat label="Blended ROAS"       value={sumLoading ? "…" : (summary?.blendedRoas ?? "—")}      icon={TrendingUp}  color="emerald" delta={summary?.roasDelta} />
+        <Stat label="Blended CAC"        value={sumLoading ? "…" : (summary?.blendedCac ?? "—")}       icon={Users}       color="sky" delta={summary?.cacDelta} />
       </div>
 
       <Card>
         <CardHeader title="Channel Attribution (Linear Multi-Touch)" icon={TrendingUp} />
         <CardBody className="space-y-4">
-          {channels.map(ch => {
-            const revNum  = parseFloat(ch.revenue.replace(/[$k]/g, "")) * (ch.revenue.includes("k") ? 1000 : 1);
-            const maxRev  = 420000;
-            const pct     = Math.round((revNum / maxRev) * 100);
+          {chLoading && allChannels.length === 0 && (
+            <div className="space-y-3 animate-pulse">
+              {[1,2,3,4].map(i => <div key={i} className="h-10 bg-slate-100 dark:bg-slate-700 rounded" />)}
+            </div>
+          )}
+          {!chLoading && allChannels.length === 0 && (
+            <p className="text-sm text-slate-500">No channel attribution data available.</p>
+          )}
+          {allChannels.map(ch => {
+            const pct = maxRevenue > 0 ? Math.round(((ch.revenue ?? 0) / maxRevenue) * 100) : 0;
             return (
               <div key={ch.name} className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium text-slate-700 dark:text-slate-300 w-36">{ch.name}</span>
                   <div className="flex gap-4 text-xs text-slate-500">
-                    <span>Revenue: <strong className="text-slate-800 dark:text-slate-200">{ch.revenue}</strong></span>
+                    <span>Revenue: <strong className="text-slate-800 dark:text-slate-200">{ch.revenueFormatted ?? ch.revenue}</strong></span>
                     <span>ROAS: <strong className="text-emerald-600 dark:text-emerald-400">{ch.roas}x</strong></span>
-                    <span>CAC: <strong className="text-slate-800 dark:text-slate-200">{ch.cac}</strong></span>
+                    <span>CAC: <strong className="text-slate-800 dark:text-slate-200">{ch.cacFormatted ?? ch.cac}</strong></span>
                   </div>
                 </div>
                 <div className="h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -59,18 +84,20 @@ export default function AttributionROI() {
         <Card>
           <CardHeader title="Attribution Models" icon={Target} />
           <CardBody className="space-y-2">
-            {[
-              { model: "First Touch",       top: "Content / SEO",  rev: "$380k" },
-              { model: "Last Touch",        top: "Email",           rev: "$490k" },
-              { model: "Linear",            top: "Email",           rev: "$420k" },
-              { model: "Time Decay",        top: "Email",           rev: "$440k" },
-              { model: "Data-Driven (AI)",  top: "Google Search",   rev: "$310k" },
-            ].map(m => (
+            {modLoading && allModels.length === 0 && (
+              <div className="space-y-2 animate-pulse">
+                {[1,2,3].map(i => <div key={i} className="h-12 bg-slate-100 dark:bg-slate-700 rounded-lg" />)}
+              </div>
+            )}
+            {!modLoading && allModels.length === 0 && (
+              <p className="text-sm text-slate-500">No model data available.</p>
+            )}
+            {allModels.map(m => (
               <div key={m.model} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
                 <span className="text-sm text-slate-700 dark:text-slate-300">{m.model}</span>
                 <div className="text-right text-xs">
-                  <p className="font-semibold text-slate-900 dark:text-white">{m.rev}</p>
-                  <p className="text-slate-400">Top: {m.top}</p>
+                  <p className="font-semibold text-slate-900 dark:text-white">{m.revenue ?? m.rev}</p>
+                  <p className="text-slate-400">Top: {m.topChannel ?? m.top}</p>
                 </div>
               </div>
             ))}
@@ -80,19 +107,22 @@ export default function AttributionROI() {
         <Card>
           <CardHeader title="LTV / CAC Ratio by Segment" icon={DollarSign} />
           <CardBody className="space-y-3">
-            {[
-              { segment: "Enterprise",  ltv: "$8,400",  cac: "$420", ratio: 20 },
-              { segment: "Mid-Market",  ltv: "$3,200",  cac: "$210", ratio: 15 },
-              { segment: "SMB",         ltv: "$1,100",  cac: "$98",  ratio: 11 },
-              { segment: "Trial Conv.", ltv: "$2,400",  cac: "$142", ratio: 17 },
-            ].map(s => (
+            {ltvLoading && allLtvCac.length === 0 && (
+              <div className="space-y-2 animate-pulse">
+                {[1,2,3].map(i => <div key={i} className="h-16 bg-slate-100 dark:bg-slate-700 rounded-xl" />)}
+              </div>
+            )}
+            {!ltvLoading && allLtvCac.length === 0 && (
+              <p className="text-sm text-slate-500">No LTV/CAC data available.</p>
+            )}
+            {allLtvCac.map(s => (
               <div key={s.segment} className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700">
                 <div>
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">{s.segment}</p>
-                  <p className="text-xs text-slate-400">LTV {s.ltv} · CAC {s.cac}</p>
+                  <p className="text-xs text-slate-400">LTV {s.ltvFormatted ?? s.ltv} · CAC {s.cacFormatted ?? s.cac}</p>
                 </div>
                 <div className="text-right">
-                  <p className={`text-lg font-bold ${s.ratio >= 15 ? "text-emerald-600 dark:text-emerald-400" : s.ratio >= 10 ? "text-amber-600 dark:text-amber-400" : "text-red-500"}`}>
+                  <p className={`text-lg font-bold ${(s.ratio ?? 0) >= 15 ? "text-emerald-600 dark:text-emerald-400" : (s.ratio ?? 0) >= 10 ? "text-amber-600 dark:text-amber-400" : "text-red-500"}`}>
                     {s.ratio}x
                   </p>
                   <p className="text-xs text-slate-400">LTV:CAC</p>

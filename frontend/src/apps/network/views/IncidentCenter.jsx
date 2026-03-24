@@ -3,37 +3,37 @@ import PageHeader from "../../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader, Stat } from "../../../components/ui/Card";
 import StatusBadge from "../../../components/ui/StatusBadge";
 import DataTable from "../../../components/ui/DataTable";
-import { AlertTriangle, Clock, Users, Activity, Plus, CheckCircle } from "lucide-react";
-
-const incidents = [
-  { id: "INC-001", title: "Core switch unreachable – DC-West", severity: "critical", status: "open",    owner: "J. Torres",   sla: "02:14 left",  blast: "3 sites" },
-  { id: "INC-002", title: "BGP session flapping – ISP-A",     severity: "high",     status: "in-progress","owner": "M. Patel",  sla: "05:40 left",  blast: "1 site" },
-  { id: "INC-003", title: "Packet loss >5% – Edge-12",        severity: "medium",   status: "in-progress","owner": "S. Lee",    sla: "11:00 left",  blast: "2 links" },
-  { id: "INC-004", title: "NTP sync failure – Server cluster", severity: "low",     status: "open",    owner: "A. Kim",      sla: "23:00 left",  blast: "1 cluster" },
-  { id: "INC-005", title: "Firewall policy violation – FW-03", severity: "medium",  status: "resolved",owner: "J. Torres",   sla: "—",           blast: "0" },
-];
+import { AlertTriangle, Clock, Users, Activity, Plus, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { useApi } from "../../../hooks/useApi";
+import { network } from "../../../services/api";
 
 const severityVariant = { critical: "danger", high: "warning", medium: "info", low: "neutral" };
 const statusVariant   = { open: "danger", "in-progress": "warning", resolved: "success" };
 
-const timeline = [
-  { time: "14:03", actor: "System",   text: "Alert fired: Core switch unreachable" },
-  { time: "14:05", actor: "J. Torres",text: "Acknowledged incident INC-001" },
-  { time: "14:08", actor: "J. Torres",text: "Escalated to Network Engineering" },
-  { time: "14:12", actor: "M. Patel", text: "Initiated runbook: Switch failover step 1/5" },
-  { time: "14:20", actor: "M. Patel", text: "Failover complete — monitoring recovery" },
-];
-
 export default function IncidentCenter() {
-  const [selected, setSelected] = useState("INC-001");
-  const open   = incidents.filter(i => i.status !== "resolved").length;
-  const critical = incidents.filter(i => i.severity === "critical").length;
+  const [selected, setSelected] = useState(null);
+
+  const { data: incidents, loading, error } = useApi(
+    () => network.incidents.list(), [], { pollingInterval: 15000 }
+  );
+  const { data: timeline, loading: tlLoading } = useApi(
+    () => selected ? network.incidents.timeline(selected) : Promise.resolve([]),
+    [selected]
+  );
+
+  const allIncidents = incidents ?? [];
+  const allTimeline  = timeline ?? [];
+
+  const open     = allIncidents.filter(i => i.status !== "resolved").length;
+  const critical = allIncidents.filter(i => i.severity === "critical").length;
+  const inProg   = allIncidents.filter(i => i.status === "in-progress").length;
+  const resolved = allIncidents.filter(i => i.status === "resolved").length;
 
   const columns = [
     { key: "id",       label: "ID",       sortable: false },
     { key: "title",    label: "Title",    sortable: false },
-    { key: "severity", label: "Severity", render: v => <StatusBadge label={v} variant={severityVariant[v]} dot /> },
-    { key: "status",   label: "Status",   render: v => <StatusBadge label={v} variant={statusVariant[v]} dot /> },
+    { key: "severity", label: "Severity", render: v => <StatusBadge label={v} variant={severityVariant[v] ?? "neutral"} dot /> },
+    { key: "status",   label: "Status",   render: v => <StatusBadge label={v} variant={statusVariant[v] ?? "neutral"} dot /> },
     { key: "owner",    label: "Owner" },
     { key: "sla",      label: "SLA Clock" },
     { key: "blast",    label: "Blast Radius" },
@@ -51,11 +51,17 @@ export default function IncidentCenter() {
         }
       />
 
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Open Incidents"   value={open}    icon={AlertTriangle} color="red" />
-        <Stat label="Critical"         value={critical} icon={Activity}     color="red" />
-        <Stat label="In Progress"      value="2"        icon={Clock}        color="amber" />
-        <Stat label="Resolved Today"   value="8"        icon={CheckCircle}  color="emerald" />
+        <Stat label="Open Incidents"  value={loading ? "…" : open}     icon={AlertTriangle} color="red" />
+        <Stat label="Critical"        value={loading ? "…" : critical}  icon={Activity}      color="red" />
+        <Stat label="In Progress"     value={loading ? "…" : inProg}    icon={Clock}         color="amber" />
+        <Stat label="Resolved Today"  value={loading ? "…" : resolved}  icon={CheckCircle}   color="emerald" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -63,29 +69,51 @@ export default function IncidentCenter() {
           <Card>
             <CardHeader title="Active Incidents" icon={AlertTriangle} />
             <CardBody>
-              <DataTable
-                columns={columns}
-                data={incidents}
-                searchable
-                searchKeys={["id", "title", "owner"]}
-              />
+              {loading && allIncidents.length === 0 && (
+                <div className="space-y-2 animate-pulse">
+                  {[1,2,3].map(i => <div key={i} className="h-10 bg-slate-100 dark:bg-slate-700 rounded" />)}
+                </div>
+              )}
+              {!loading && allIncidents.length === 0 && !error && (
+                <p className="text-sm text-slate-500 text-center py-4">No incidents found.</p>
+              )}
+              {allIncidents.length > 0 && (
+                <DataTable
+                  columns={columns}
+                  data={allIncidents}
+                  searchable
+                  searchKeys={["id", "title", "owner"]}
+                  onRowClick={(row) => setSelected(row.id)}
+                />
+              )}
             </CardBody>
           </Card>
         </div>
 
         <Card>
-          <CardHeader title="Incident Timeline" subtitle={selected} icon={Clock} />
+          <CardHeader title="Incident Timeline" subtitle={selected ?? "Select an incident"} icon={Clock} />
           <CardBody className="space-y-4">
-            {timeline.map((e, i) => (
-              <div key={i} className="flex gap-3">
+            {!selected && (
+              <p className="text-sm text-slate-500">Click an incident to view its timeline.</p>
+            )}
+            {tlLoading && selected && (
+              <div className="flex justify-center py-4">
+                <Loader2 size={18} className="animate-spin text-slate-400" />
+              </div>
+            )}
+            {!tlLoading && allTimeline.length === 0 && selected && (
+              <p className="text-sm text-slate-500">No timeline events.</p>
+            )}
+            {allTimeline.map((e, i) => (
+              <div key={e.id ?? i} className="flex gap-3">
                 <div className="flex flex-col items-center">
                   <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                  {i < timeline.length - 1 && <div className="w-px flex-1 bg-slate-200 dark:bg-slate-700 mt-1" />}
+                  {i < allTimeline.length - 1 && <div className="w-px flex-1 bg-slate-200 dark:bg-slate-700 mt-1" />}
                 </div>
                 <div className="pb-3">
-                  <span className="text-xs text-slate-400">{e.time}</span>
+                  <span className="text-xs text-slate-400">{e.time ?? e.ts}</span>
                   <p className="text-sm text-slate-900 dark:text-white font-medium">{e.actor}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{e.text}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{e.text ?? e.message}</p>
                 </div>
               </div>
             ))}

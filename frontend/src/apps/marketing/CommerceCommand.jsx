@@ -1,74 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   ShoppingCart,
   TrendingUp,
   Activity,
-  Users,
   BarChart3,
   AlertTriangle,
   Repeat,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
-import { connectOrderStream, disconnectOrderStream } from "../../App/services/orderSocket";
-
-
+import { useApi } from "../../hooks/useApi";
+import { marketing } from "../../services/api";
 
 export default function CommerceCommand() {
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [ setOrders] = useState([]);
-const [connectionStatus, setConnectionStatus] = useState("connecting");
 
-useEffect(() => {
-    connectOrderStream(
-      (newOrder) => {
-        setOrders(prev => [newOrder, ...prev.slice(0, 19)]);
-      },
-      (status) => {
-        setConnectionStatus(status);
-      }
-    );
-  
-    return () => {
-      disconnectOrderStream();
-    };
-  }, []);
+  const { data: metrics, loading: metricsLoading, error: metricsError } = useApi(
+    () => marketing.commerce.metrics(), [], { pollingInterval: 30000 }
+  );
+  const { data: orders, loading: ordersLoading } = useApi(
+    () => marketing.commerce.orders({ limit: 20 }), [], { pollingInterval: 15000 }
+  );
 
-  const orders = [
-    {
-      id: "ORD-91823",
-      customer: "Sarah Johnson",
-      product: "Pro Plan",
-      amount: 249,
-      campaign: "Q4 Retargeting",
-      channel: "Email",
-      status: "Completed",
-      ltv: 12480,
-    },
-    {
-      id: "ORD-91824",
-      customer: "Michael Chen",
-      product: "Enterprise License",
-      amount: 1200,
-      campaign: "LinkedIn ABM",
-      channel: "Paid Social",
-      status: "Processing",
-      ltv: 8200,
-    },
-    {
-      id: "ORD-91825",
-      customer: "Daniel Brooks",
-      product: "Marketing Toolkit",
-      amount: 89,
-      campaign: "SEO Organic",
-      channel: "Organic",
-      status: "Refunded",
-      ltv: 430,
-    },
-  ];
+  const allOrders = orders ?? [];
 
   return (
     <div className="min-h-full w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
 
-      {/* HEADER */}
       <div className="border-b border-slate-200 dark:border-slate-800 px-8 py-6">
         <h1 className="text-2xl font-semibold flex items-center gap-2">
           <ShoppingCart size={22} /> Commerce Intelligence Platform
@@ -76,46 +34,55 @@ useEffect(() => {
         <p className="text-sm text-slate-600 dark:text-slate-400">
           Order attribution, subscription tracking, revenue intelligence & marketing impact.
         </p>
-        <div className="flex items-center gap-2 text-xs">
-  <div
-    className={`h-2 w-2 rounded-full ${
-      connectionStatus === "connected"
-        ? "bg-green-500"
-        : connectionStatus === "connecting"
-        ? "bg-yellow-500"
-        : "bg-red-500"
-    }`}
-  />
-  {connectionStatus}
-</div>
       </div>
 
-      {/* REVENUE STRIP */}
+      {metricsError && (
+        <div className="mx-8 mt-4 flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {metricsError}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-6 px-8 py-6">
-        <Metric label="Revenue (30d)" value="$2.84M" />
-        <Metric label="Orders" value="18,492" />
-        <Metric label="AOV" value="$154" />
-        <Metric label="Refund Rate" value="2.1%" />
-        <Metric label="Subscriptions Active" value="4,212" />
-        <Metric label="High LTV Customers" value="1,094" />
+        {metricsLoading && !metrics ? (
+          <div className="col-span-6 grid grid-cols-6 gap-6 animate-pulse">
+            {[1,2,3,4,5,6].map(i => <div key={i} className="h-16 bg-slate-100 dark:bg-slate-700 rounded-xl" />)}
+          </div>
+        ) : metrics && (
+          <>
+            <Metric label="Revenue (30d)"        value={metrics.revenue ?? "—"} />
+            <Metric label="Orders"               value={metrics.orders ?? "—"} />
+            <Metric label="AOV"                  value={metrics.aov ?? "—"} />
+            <Metric label="Refund Rate"          value={metrics.refundRate ?? "—"} />
+            <Metric label="Subscriptions Active" value={metrics.subscriptionsActive ?? "—"} />
+            <Metric label="High LTV Customers"   value={metrics.highLtvCustomers ?? "—"} />
+          </>
+        )}
       </div>
 
-      {/* MAIN GRID */}
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-6 px-8 pb-10">
 
-        {/* LEFT PANEL */}
         <div className="space-y-6">
 
-          {/* CHANNEL MATRIX */}
           <Card title="Channel Revenue Matrix" icon={BarChart3}>
-            <MatrixRow channel="Email" revenue="$840k" lift="+12%" />
-            <MatrixRow channel="Paid Social" revenue="$620k" lift="+18%" />
-            <MatrixRow channel="Organic" revenue="$480k" lift="+4%" />
+            {metrics?.channelMatrix ? (
+              metrics.channelMatrix.map(row => (
+                <MatrixRow key={row.channel} channel={row.channel} revenue={row.revenue} lift={row.lift} />
+              ))
+            ) : (
+              <p className="text-sm text-slate-400">No channel data available.</p>
+            )}
           </Card>
 
-          {/* LIVE ORDERS */}
           <Card title="Live Order Stream" icon={Activity}>
-            {orders.map(order => (
+            {ordersLoading && allOrders.length === 0 && (
+              <div className="flex justify-center py-4">
+                <Loader2 size={18} className="animate-spin text-slate-400" />
+              </div>
+            )}
+            {!ordersLoading && allOrders.length === 0 && (
+              <p className="text-sm text-slate-400 text-center py-4">No orders found.</p>
+            )}
+            {allOrders.map(order => (
               <OrderRow
                 key={order.id}
                 order={order}
@@ -124,28 +91,34 @@ useEffect(() => {
             ))}
           </Card>
 
-          {/* COHORT GRID */}
           <Card title="Revenue Cohort Analysis" icon={TrendingUp}>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              30-day cohort revenue up +14% • 90-day retention steady at 82%
+              {metrics?.cohortSummary ?? "Loading cohort data…"}
             </p>
           </Card>
 
         </div>
 
-        {/* RIGHT SIDE INTELLIGENCE PANEL */}
         <div className="space-y-6">
 
           <Card title="Subscription Lifecycle" icon={Repeat}>
-            <p className="text-sm">New Subscriptions: 482</p>
-            <p className="text-sm">Upgrades: 138</p>
-            <p className="text-sm">Cancellations: 64</p>
+            {metrics?.subscriptions ? (
+              <>
+                <p className="text-sm">New Subscriptions: {metrics.subscriptions.new ?? "—"}</p>
+                <p className="text-sm">Upgrades: {metrics.subscriptions.upgrades ?? "—"}</p>
+                <p className="text-sm">Cancellations: {metrics.subscriptions.cancellations ?? "—"}</p>
+              </>
+            ) : (
+              <p className="text-sm text-slate-400">No subscription data.</p>
+            )}
           </Card>
 
           <Card title="Refund & Risk Signals" icon={AlertTriangle}>
-            <p className="text-sm text-red-500">
-              12 high-value customers triggered churn flags
-            </p>
+            {metrics?.riskSignals ? (
+              <p className="text-sm text-red-500">{metrics.riskSignals}</p>
+            ) : (
+              <p className="text-sm text-slate-400">No risk signals.</p>
+            )}
           </Card>
 
           {selectedOrder && (
@@ -158,8 +131,6 @@ useEffect(() => {
     </div>
   );
 }
-
-/* COMPONENTS */
 
 function Metric({ label, value }) {
   return (
@@ -193,9 +164,9 @@ function MatrixRow({ channel, revenue, lift }) {
 
 function OrderRow({ order, onClick }) {
   const statusColor =
-    order.status === "Completed"
+    order.status === "Completed" || order.status === "completed"
       ? "text-green-500"
-      : order.status === "Processing"
+      : order.status === "Processing" || order.status === "processing"
       ? "text-yellow-500"
       : "text-red-500";
 
@@ -226,10 +197,10 @@ function OrderDrawer({ order, onClose }) {
         <button onClick={onClose}>✕</button>
       </div>
       <p><strong>Customer:</strong> {order.customer}</p>
-      <p><strong>Campaign:</strong> {order.campaign}</p>
-      <p><strong>Channel:</strong> {order.channel}</p>
-      <p><strong>LTV:</strong> ${order.ltv}</p>
+      <p><strong>Campaign:</strong> {order.campaign ?? "—"}</p>
+      <p><strong>Channel:</strong> {order.channel ?? "—"}</p>
+      <p><strong>LTV:</strong> {order.ltv != null ? `$${order.ltv}` : "—"}</p>
       <p><strong>Status:</strong> {order.status}</p>
-    </div>    
+    </div>
   );
 }

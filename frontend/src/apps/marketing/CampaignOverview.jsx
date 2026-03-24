@@ -1,27 +1,21 @@
+import { useMemo } from "react";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader, Stat } from "../../components/ui/Card";
 import StatusBadge from "../../components/ui/StatusBadge";
-import { ScreenShareIcon, DollarSign, Users, TrendingUp, Plus } from "lucide-react";
-
-const campaigns = [
-  { name: "Q1 Enterprise Push",      channel: "Email + LinkedIn", status: "active",   budget: "$45k", spent: "$28k", leads: 184, ctr: "4.2%" },
-  { name: "Product Launch – EMMA v2", channel: "Multi-channel",   status: "active",   budget: "$80k", spent: "$61k", leads: 312, ctr: "6.8%" },
-  { name: "Summer Retargeting",       channel: "Display + Social", status: "scheduled",budget: "$30k", spent: "$0",  leads: 0,   ctr: "—" },
-  { name: "SMB Awareness Wave",       channel: "Email + Ads",     status: "paused",   budget: "$20k", spent: "$18k", leads: 94,  ctr: "2.9%" },
-  { name: "Partner Co-Marketing",     channel: "Events + Email",   status: "active",   budget: "$55k", spent: "$41k", leads: 208, ctr: "5.1%" },
-];
+import { ScreenShareIcon, DollarSign, Users, TrendingUp, Plus, AlertCircle } from "lucide-react";
+import { useApi } from "../../hooks/useApi";
+import { marketing } from "../../services/api";
 
 const statusVariant = { active: "success", scheduled: "info", paused: "warning", completed: "neutral" };
 
 function BudgetPacing({ budget, spent }) {
-  const bNum = parseFloat(budget.replace(/[$k]/g, "")) * (budget.includes("k") ? 1000 : 1);
-  const sNum = parseFloat(spent.replace(/[$k]/g, "")) * (spent.includes("k") ? 1000 : 1);
-  const pct  = spent === "$0" ? 0 : Math.round((sNum / bNum) * 100);
+  const pct = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
   const color = pct > 85 ? "bg-red-500" : pct > 65 ? "bg-amber-500" : "bg-emerald-500";
+  const fmt = (n) => n != null ? `$${Number(n).toLocaleString()}` : "—";
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs text-slate-500">
-        <span>{spent}</span><span>{budget}</span>
+        <span>{fmt(spent)}</span><span>{fmt(budget)}</span>
       </div>
       <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-700">
         <div className={`h-1.5 rounded-full ${color}`} style={{ width: `${pct}%` }} />
@@ -31,8 +25,19 @@ function BudgetPacing({ budget, spent }) {
 }
 
 export default function CampaignOverview() {
-  const active = campaigns.filter(c => c.status === "active").length;
-  const totalLeads = campaigns.reduce((s, c) => s + c.leads, 0);
+  const { data: campaigns, loading, error } = useApi(
+    () => marketing.campaigns.list({ limit: 100 }), [], { pollingInterval: 60000 }
+  );
+  const { data: summary, loading: sumLoading } = useApi(
+    () => marketing.campaigns.summary(), [], { pollingInterval: 60000 }
+  );
+
+  const allCampaigns = campaigns ?? [];
+
+  const derived = useMemo(() => ({
+    active:      allCampaigns.filter(c => c.status === "active").length,
+    totalLeads:  allCampaigns.reduce((s, c) => s + (c.leads ?? 0), 0),
+  }), [allCampaigns]);
 
   return (
     <div className="space-y-6">
@@ -46,31 +51,45 @@ export default function CampaignOverview() {
         }
       />
 
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Active Campaigns" value={active}     icon={ScreenShareIcon} color="indigo" />
-        <Stat label="Total Leads"      value={totalLeads} icon={Users}           color="sky" delta={14} />
-        <Stat label="Avg CTR"          value="4.8%"       icon={TrendingUp}      color="emerald" delta={8} />
-        <Stat label="Budget Spent"     value="$148k"      icon={DollarSign}      color="amber" />
+        <Stat label="Active Campaigns" value={loading ? "…" : derived.active}                    icon={ScreenShareIcon} color="indigo" />
+        <Stat label="Total Leads"      value={loading ? "…" : derived.totalLeads.toLocaleString()} icon={Users}         color="sky" delta={summary?.leadsDelta} />
+        <Stat label="Avg CTR"          value={sumLoading ? "…" : (summary?.avgCtr ?? "—")}        icon={TrendingUp}     color="emerald" delta={summary?.ctrDelta} />
+        <Stat label="Budget Spent"     value={sumLoading ? "…" : (summary?.totalSpent ?? "—")}    icon={DollarSign}     color="amber" />
       </div>
 
       <Card>
         <CardHeader title="All Campaigns" icon={ScreenShareIcon} />
         <CardBody className="space-y-3">
-          {campaigns.map(c => (
-            <div key={c.name} className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition">
+          {loading && allCampaigns.length === 0 && (
+            <div className="space-y-3 animate-pulse">
+              {[1,2,3].map(i => <div key={i} className="h-24 bg-slate-100 dark:bg-slate-700 rounded-xl" />)}
+            </div>
+          )}
+          {!loading && !error && allCampaigns.length === 0 && (
+            <p className="text-sm text-slate-500 text-center py-4">No campaigns found.</p>
+          )}
+          {allCampaigns.map(c => (
+            <div key={c.id ?? c.name} className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition">
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">{c.name}</p>
                   <p className="text-xs text-slate-400 mt-0.5">{c.channel}</p>
                 </div>
-                <StatusBadge label={c.status} variant={statusVariant[c.status]} dot />
+                <StatusBadge label={c.status} variant={statusVariant[c.status] ?? "neutral"} dot />
               </div>
               <div className="grid grid-cols-3 gap-4 text-xs text-slate-500 mb-3">
-                <div><span className="font-semibold text-slate-800 dark:text-slate-200 block">{c.leads}</span>Leads</div>
-                <div><span className="font-semibold text-slate-800 dark:text-slate-200 block">{c.ctr}</span>CTR</div>
-                <div><span className="font-semibold text-slate-800 dark:text-slate-200 block">{c.spent}</span>Spent</div>
+                <div><span className="font-semibold text-slate-800 dark:text-slate-200 block">{(c.leads ?? 0).toLocaleString()}</span>Leads</div>
+                <div><span className="font-semibold text-slate-800 dark:text-slate-200 block">{c.ctr ?? "—"}</span>CTR</div>
+                <div><span className="font-semibold text-slate-800 dark:text-slate-200 block">{c.spentFormatted ?? (c.spent != null ? `$${Number(c.spent).toLocaleString()}` : "—")}</span>Spent</div>
               </div>
-              <BudgetPacing budget={c.budget} spent={c.spent} />
+              <BudgetPacing budget={c.budget ?? 0} spent={c.spent ?? 0} />
             </div>
           ))}
         </CardBody>

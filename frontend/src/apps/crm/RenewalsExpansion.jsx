@@ -1,24 +1,23 @@
 import PageHeader from "../../components/ui/PageHeader";
-import { Card, CardBody, CardHeader, Stat } from "../../components/ui/Card";
+import { Card, CardBody, Stat } from "../../components/ui/Card";
 import StatusBadge from "../../components/ui/StatusBadge";
-import { RefreshCw, TrendingUp, AlertTriangle, DollarSign } from "lucide-react";
+import { RefreshCw, TrendingUp, AlertTriangle, DollarSign, AlertCircle } from "lucide-react";
+import { useApi } from "../../hooks/useApi";
+import { crm } from "../../services/api";
 
-const renewals = [
-  { account: "Solstice Energy",  arr: "$240k", health: "green",  daysLeft: 42,  expansion: "$60k",   status: "on-track" },
-  { account: "Atlas Retail",     arr: "$180k", health: "yellow", daysLeft: 18,  expansion: "$0",     status: "at-risk" },
-  { account: "Meridian Labs",    arr: "$320k", health: "green",  daysLeft: 71,  expansion: "$80k",   status: "on-track" },
-  { account: "NordVentures",     arr: "$95k",  health: "red",    daysLeft: 8,   expansion: "$0",     status: "critical" },
-  { account: "Osaka Digital",    arr: "$48k",  health: "green",  daysLeft: 120, expansion: "$24k",   status: "on-track" },
-  { account: "CapitalGroup",     arr: "$520k", health: "yellow", daysLeft: 35,  expansion: "$150k",  status: "at-risk" },
-];
-
-const healthDot = { green: "bg-emerald-500", yellow: "bg-amber-500", red: "bg-red-500" };
-const statusVariant = { "on-track": "success", "at-risk": "warning", critical: "danger" };
+const HEALTH_DOT   = { green: "bg-emerald-500", yellow: "bg-amber-500", red: "bg-red-500" };
+const STATUS_VARIANT = { "on-track": "success", "at-risk": "warning", critical: "danger" };
 
 export default function RenewalsExpansion() {
-  const atRisk   = renewals.filter(r => r.status !== "on-track").length;
-  const totalARR = "$1.4M";
-  const expPotential = "$314k";
+  const { data: renewals, loading: renewalsLoading, error: renewalsError } = useApi(
+    () => crm.renewals.list({ limit: 100 }), [], { pollingInterval: 60000 }
+  );
+  const { data: summary, loading: summaryLoading } = useApi(
+    () => crm.renewals.summary(), [], { pollingInterval: 60000 }
+  );
+
+  const allRenewals = renewals ?? [];
+  const atRisk = allRenewals.filter(r => r.status !== "on-track").length;
 
   return (
     <div className="space-y-6">
@@ -28,22 +27,38 @@ export default function RenewalsExpansion() {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Renewing ARR"       value={totalARR}     icon={DollarSign}  color="indigo" />
-        <Stat label="Expansion Pipeline" value={expPotential} icon={TrendingUp}  color="emerald" />
-        <Stat label="At Risk"            value={atRisk}       icon={AlertTriangle} color="amber" />
-        <Stat label="Avg Days to Renew"  value="49"           icon={RefreshCw}   color="sky" />
+        <Stat label="Renewing ARR"       value={summaryLoading ? "…" : (summary?.renewingArr    ?? "—")} icon={DollarSign}    color="indigo" />
+        <Stat label="Expansion Pipeline" value={summaryLoading ? "…" : (summary?.expansionTotal ?? "—")} icon={TrendingUp}    color="emerald" />
+        <Stat label="At Risk"            value={summaryLoading ? "…" : (summary?.atRisk         ?? atRisk)} icon={AlertTriangle} color="amber" />
+        <Stat label="Avg Days to Renew"  value={summaryLoading ? "…" : (summary?.avgDays        ?? "—")} icon={RefreshCw}     color="sky" />
       </div>
 
+      {renewalsError && (
+        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {renewalsError}
+        </div>
+      )}
+
+      {renewalsLoading && allRenewals.length === 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 animate-pulse">
+          {[1,2,3,4,5,6].map(i => <div key={i} className="h-36 bg-slate-100 dark:bg-slate-700 rounded-xl" />)}
+        </div>
+      )}
+
+      {!renewalsLoading && !renewalsError && allRenewals.length === 0 && (
+        <p className="text-sm text-slate-500 text-center py-8">No renewal records found.</p>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {renewals.map(r => (
-          <Card key={r.account}>
+        {allRenewals.map(r => (
+          <Card key={r.account ?? r.id}>
             <CardBody>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className={`h-2.5 w-2.5 rounded-full ${healthDot[r.health]}`} />
+                  {r.health && <div className={`h-2.5 w-2.5 rounded-full ${HEALTH_DOT[r.health] ?? "bg-slate-400"}`} />}
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">{r.account}</p>
                 </div>
-                <StatusBadge label={r.status.replace("-", " ")} variant={statusVariant[r.status]} />
+                <StatusBadge label={r.status?.replace("-", " ")} variant={STATUS_VARIANT[r.status] ?? "neutral"} />
               </div>
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
@@ -52,12 +67,12 @@ export default function RenewalsExpansion() {
                 </div>
                 <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
                   <span className="block text-slate-400">Renews in</span>
-                  <span className={`font-bold ${r.daysLeft <= 14 ? "text-red-600 dark:text-red-400" : r.daysLeft <= 30 ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-white"}`}>
-                    {r.daysLeft}d
+                  <span className={`font-bold ${(r.daysLeft ?? 99) <= 14 ? "text-red-600 dark:text-red-400" : (r.daysLeft ?? 99) <= 30 ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-white"}`}>
+                    {r.daysLeft ?? "—"}d
                   </span>
                 </div>
               </div>
-              {r.expansion !== "$0" && (
+              {r.expansion && r.expansion !== "$0" && r.expansion !== 0 && (
                 <div className="mt-3 p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
                   <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
                     Expansion opportunity: {r.expansion}

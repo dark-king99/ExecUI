@@ -14,34 +14,37 @@ import {
   Search,
   Settings,
   FileText,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
-
-// ---- MOCK ENTERPRISE DATA ----
-const MOCK_ACCOUNTS = [
-  { id: "A-001", name: "Acme Industries", tier: "Tier 1", intent: "High", pipeline: "$420k", status: "Active" },
-  { id: "A-002", name: "Nova Retail", tier: "Tier 2", intent: "Medium", pipeline: "$180k", status: "Active" },
-  { id: "A-003", name: "Atlas Energy", tier: "Tier 1", intent: "High", pipeline: "$760k", status: "Paused" },
-];
-
-const MOCK_JOURNEYS = [
-  { id: "J-01", name: "Enterprise ABM Nurture", channels: ["Email", "LinkedIn", "Web"], status: "Running" },
-  { id: "J-02", name: "Reactivation Play", channels: ["Email", "Ads"], status: "Paused" },
-];
+import { useApi } from "../../hooks/useApi";
+import { marketing } from "../../services/api";
 
 export default function B2BMarketing() {
   const [tab, setTab] = useState("dashboard");
   const [query, setQuery] = useState("");
   const [selectedAccount, setSelectedAccount] = useState(null);
 
-  const filteredAccounts = useMemo(() => {
-    return MOCK_ACCOUNTS.filter((a) =>
-      a.name.toLowerCase().includes(query.toLowerCase())
-    );
-  }, [query]);
+  const { data: accounts, loading: acctLoading, error: acctError } = useApi(
+    () => marketing.b2b.accounts.list({ limit: 100 }), [], { pollingInterval: 60000 }
+  );
+  const { data: journeys, loading: jLoading, error: jError } = useApi(
+    () => marketing.b2b.journeys.list(), [], { pollingInterval: 60000 }
+  );
+  const { data: summary, loading: sumLoading } = useApi(
+    () => marketing.analytics.summary(), [], { pollingInterval: 60000 }
+  );
+
+  const allAccounts = accounts ?? [];
+  const allJourneys = journeys ?? [];
+
+  const filteredAccounts = useMemo(() =>
+    allAccounts.filter(a => a.name.toLowerCase().includes(query.toLowerCase())),
+    [allAccounts, query]
+  );
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">B2B Marketing Automation</h1>
@@ -59,16 +62,15 @@ export default function B2BMarketing() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-2 border-b">
         {[
-          { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-          { id: "accounts", label: "Target Accounts", icon: Building2 },
-          { id: "journeys", label: "Journeys & Automation", icon: Workflow },
-          { id: "channels", label: "Channels", icon: Mail },
-          { id: "ai", label: "AI & Scoring", icon: Bot },
-          { id: "reports", label: "Reports & Attribution", icon: FileText },
-          { id: "compliance", label: "Compliance", icon: ShieldCheck },
+          { id: "dashboard",  label: "Dashboard",           icon: BarChart3 },
+          { id: "accounts",   label: "Target Accounts",     icon: Building2 },
+          { id: "journeys",   label: "Journeys & Automation",icon: Workflow },
+          { id: "channels",   label: "Channels",            icon: Mail },
+          { id: "ai",         label: "AI & Scoring",        icon: Bot },
+          { id: "reports",    label: "Reports & Attribution",icon: FileText },
+          { id: "compliance", label: "Compliance",          icon: ShieldCheck },
         ].map((t) => (
           <button
             key={t.id}
@@ -85,24 +87,22 @@ export default function B2BMarketing() {
         ))}
       </div>
 
-      {/* DASHBOARD */}
       {tab === "dashboard" && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <KPI title="Target Accounts" value="128" icon={Building2} />
-          <KPI title="Active Journeys" value="12" icon={Workflow} />
-          <KPI title="Pipeline Influenced" value="$4.2M" icon={Target} />
-          <KPI title="Revenue Attributed" value="$1.6M" icon={BarChart3} />
+          <KPI title="Target Accounts"    value={sumLoading ? "…" : (summary?.targetAccounts ?? allAccounts.length)} icon={Building2} />
+          <KPI title="Active Journeys"    value={sumLoading ? "…" : (summary?.activeJourneys ?? allJourneys.filter(j => j.status === "Running").length)} icon={Workflow} />
+          <KPI title="Pipeline Influenced" value={sumLoading ? "…" : (summary?.pipelineInfluenced ?? "—")} icon={Target} />
+          <KPI title="Revenue Attributed"  value={sumLoading ? "…" : (summary?.revenueAttributed ?? "—")} icon={BarChart3} />
 
           <div className="md:col-span-4 rounded-xl border p-4 bg-white dark:bg-slate-900">
             <div className="font-medium mb-2">Performance Overview</div>
             <div className="h-32 flex items-center justify-center text-slate-400 text-sm">
-              Funnel, pipeline, and attribution charts placeholder
+              Connect analytics endpoints to render funnel and attribution charts
             </div>
           </div>
         </div>
       )}
 
-      {/* ACCOUNTS */}
       {tab === "accounts" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 rounded-xl border bg-white dark:bg-slate-900">
@@ -115,6 +115,22 @@ export default function B2BMarketing() {
                 className="flex-1 outline-none text-sm bg-transparent"
               />
             </div>
+
+            {acctError && (
+              <div className="p-3 flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+                <AlertCircle size={14} /> {acctError}
+              </div>
+            )}
+
+            {acctLoading && allAccounts.length === 0 && (
+              <div className="flex justify-center py-8">
+                <Loader2 size={20} className="animate-spin text-slate-400" />
+              </div>
+            )}
+
+            {!acctLoading && filteredAccounts.length === 0 && !acctError && (
+              <p className="text-sm text-slate-500 text-center py-6">No accounts found.</p>
+            )}
 
             <div className="divide-y">
               {filteredAccounts.map((a) => (
@@ -133,7 +149,7 @@ export default function B2BMarketing() {
                     <span className="text-xs text-slate-500">{a.status}</span>
                   </div>
                   <div className="text-xs text-slate-400 mt-1">
-                    Pipeline influenced: {a.pipeline}
+                    Pipeline influenced: {a.pipeline ?? a.pipelineFormatted ?? "—"}
                   </div>
                 </button>
               ))}
@@ -149,7 +165,7 @@ export default function B2BMarketing() {
                 <div className="text-sm"><strong>Tier:</strong> {selectedAccount.tier}</div>
                 <div className="text-sm"><strong>Intent:</strong> {selectedAccount.intent}</div>
                 <div className="text-sm"><strong>Status:</strong> {selectedAccount.status}</div>
-                <div className="text-sm"><strong>Pipeline:</strong> {selectedAccount.pipeline}</div>
+                <div className="text-sm"><strong>Pipeline:</strong> {selectedAccount.pipeline ?? selectedAccount.pipelineFormatted ?? "—"}</div>
 
                 <div className="pt-2 flex gap-2">
                   <button className="px-3 py-1 rounded border text-sm">View Journey</button>
@@ -161,17 +177,33 @@ export default function B2BMarketing() {
         </div>
       )}
 
-      {/* JOURNEYS */}
       {tab === "journeys" && (
         <div className="rounded-xl border bg-white dark:bg-slate-900 p-4 space-y-3">
           <div className="font-medium">Journeys & Automation</div>
+
+          {jError && (
+            <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+              <AlertCircle size={14} /> {jError}
+            </div>
+          )}
+
+          {jLoading && allJourneys.length === 0 && (
+            <div className="flex justify-center py-4">
+              <Loader2 size={18} className="animate-spin text-slate-400" />
+            </div>
+          )}
+
+          {!jLoading && allJourneys.length === 0 && !jError && (
+            <p className="text-sm text-slate-500">No journeys found.</p>
+          )}
+
           <div className="divide-y">
-            {MOCK_JOURNEYS.map((j) => (
+            {allJourneys.map((j) => (
               <div key={j.id} className="py-3 flex items-center justify-between">
                 <div>
                   <div className="font-medium">{j.name}</div>
                   <div className="text-xs text-slate-500">
-                    Channels: {j.channels.join(", ")}
+                    Channels: {Array.isArray(j.channels) ? j.channels.join(", ") : j.channels}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -188,7 +220,6 @@ export default function B2BMarketing() {
         </div>
       )}
 
-      {/* CHANNELS */}
       {tab === "channels" && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <ChannelCard title="Email" />
@@ -198,7 +229,6 @@ export default function B2BMarketing() {
         </div>
       )}
 
-      {/* AI */}
       {tab === "ai" && (
         <div className="rounded-xl border p-4 bg-white dark:bg-slate-900 space-y-2">
           <div className="font-medium">AI Scoring & Recommendations</div>
@@ -212,7 +242,6 @@ export default function B2BMarketing() {
         </div>
       )}
 
-      {/* REPORTS */}
       {tab === "reports" && (
         <div className="rounded-xl border p-4 bg-white dark:bg-slate-900 space-y-2">
           <div className="font-medium">Reports & Revenue Attribution</div>
@@ -226,7 +255,6 @@ export default function B2BMarketing() {
         </div>
       )}
 
-      {/* COMPLIANCE */}
       {tab === "compliance" && (
         <div className="rounded-xl border p-4 bg-white dark:bg-slate-900 space-y-2">
           <div className="font-medium">Compliance & Governance</div>

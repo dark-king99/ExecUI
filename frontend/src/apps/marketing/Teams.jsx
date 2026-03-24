@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useApi } from "../../hooks/useApi";
+import { marketing } from "../../services/api";
 import {
   Users,
   Briefcase,
@@ -6,15 +7,30 @@ import {
   Activity,
   BarChart3,
   Plus,
+  AlertCircle,
 } from "lucide-react";
 
 export default function Teams() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const { data: members, loading: membersLoading, error: membersError } = useApi(
+    () => marketing.teams.list(), [], { pollingInterval: 60000 }
+  );
+  const { data: tasks, loading: tasksLoading, error: tasksError } = useApi(
+    () => marketing.teams.tasks(), [], { pollingInterval: 30000 }
+  );
+  const { data: metrics, loading: metricsLoading } = useApi(
+    () => marketing.teams.metrics(), [], { pollingInterval: 60000 }
+  );
+
+  const allMembers = members ?? [];
+  const allTasks = tasks ?? [];
+
+  const backlog    = allTasks.filter(t => t.status === "backlog" || t.column === "Backlog");
+  const inProgress = allTasks.filter(t => t.status === "in_progress" || t.column === "In Progress");
+  const completed  = allTasks.filter(t => t.status === "completed" || t.column === "Completed");
 
   return (
     <div className="min-h-full w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-8 space-y-8">
 
-      {/* HEADER */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
@@ -35,69 +51,90 @@ export default function Teams() {
         </div>
       </div>
 
-      {/* KPI GRID */}
+      {(membersError || tasksError) && (
+        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {membersError ?? tasksError}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <StatCard icon={Users} label="Active Agents" value="12" />
-        <StatCard icon={Briefcase} label="Open Tasks" value="38" />
-        <StatCard icon={CheckCircle} label="SLA Compliance" value="96%" />
-        <StatCard icon={Activity} label="Campaign Velocity" value="+14%" />
+        <StatCard icon={Users}       label="Active Agents"      value={metricsLoading ? "…" : (metrics?.activeAgents ?? allMembers.length)} />
+        <StatCard icon={Briefcase}   label="Open Tasks"         value={metricsLoading ? "…" : (metrics?.openTasks ?? (backlog.length + inProgress.length))} />
+        <StatCard icon={CheckCircle} label="SLA Compliance"     value={metricsLoading ? "…" : (metrics?.slaCompliance ?? "—")} />
+        <StatCard icon={Activity}    label="Campaign Velocity"  value={metricsLoading ? "…" : (metrics?.campaignVelocity ?? "—")} />
       </div>
 
-      {/* MAIN GRID */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
-        {/* TEAM DIRECTORY */}
         <div className="xl:col-span-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
           <h2 className="font-semibold text-lg mb-4">Team Members</h2>
 
+          {membersLoading && allMembers.length === 0 && (
+            <div className="space-y-3 animate-pulse">
+              {[1,2,3].map(i => <div key={i} className="h-20 bg-slate-100 dark:bg-slate-700 rounded-md" />)}
+            </div>
+          )}
+          {!membersLoading && allMembers.length === 0 && !membersError && (
+            <p className="text-sm text-slate-500">No team members found.</p>
+          )}
+
           <div className="space-y-4">
-            <TeamMember name="Sarah Lee" role="Team Manager" workload={70} status="Available" />
-            <TeamMember name="Daniel Brooks" role="Media Buyer" workload={85} status="Busy" />
-            <TeamMember name="Ava Johnson" role="Content Strategist" workload={55} status="Available" />
-            <TeamMember name="Michael Chen" role="Marketing Analyst" workload={92} status="Busy" />
+            {allMembers.map(m => (
+              <TeamMember
+                key={m.id ?? m.name}
+                name={m.name}
+                role={m.role}
+                workload={m.workload ?? 0}
+                status={m.status ?? "Available"}
+              />
+            ))}
           </div>
         </div>
 
-        {/* TASK BOARD */}
         <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
           <h2 className="font-semibold text-lg mb-6">Task Board</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {tasksLoading && allTasks.length === 0 && (
+            <div className="grid grid-cols-3 gap-4 animate-pulse">
+              {[1,2,3].map(i => <div key={i} className="h-32 bg-slate-100 dark:bg-slate-700 rounded-md" />)}
+            </div>
+          )}
 
-            <TaskColumn title="Backlog">
-              <TaskCard title="Launch Q3 Campaign" priority="High" />
-              <TaskCard title="Email Automation Audit" priority="Medium" />
-            </TaskColumn>
+          {!tasksLoading && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <TaskColumn title="Backlog">
+                {backlog.map(t => <TaskCard key={t.id ?? t.title} title={t.title} priority={t.priority} />)}
+                {backlog.length === 0 && <p className="text-xs text-slate-400 text-center py-2">Empty</p>}
+              </TaskColumn>
 
-            <TaskColumn title="In Progress">
-              <TaskCard title="SEO Optimization Sprint" priority="High" />
-            </TaskColumn>
+              <TaskColumn title="In Progress">
+                {inProgress.map(t => <TaskCard key={t.id ?? t.title} title={t.title} priority={t.priority} />)}
+                {inProgress.length === 0 && <p className="text-xs text-slate-400 text-center py-2">Empty</p>}
+              </TaskColumn>
 
-            <TaskColumn title="Completed">
-              <TaskCard title="Paid Ads Performance Review" priority="Low" />
-            </TaskColumn>
-
-          </div>
+              <TaskColumn title="Completed">
+                {completed.map(t => <TaskCard key={t.id ?? t.title} title={t.title} priority={t.priority} />)}
+                {completed.length === 0 && <p className="text-xs text-slate-400 text-center py-2">Empty</p>}
+              </TaskColumn>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* PERFORMANCE SECTION */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
         <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
           <BarChart3 size={18} /> Performance Overview
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-          <PerformanceMetric label="Top Performer" value="Sarah Lee" />
-          <PerformanceMetric label="Campaign Contribution" value="+22% Revenue Impact" />
-          <PerformanceMetric label="Average Task Completion" value="2.4 Days" />
+          <PerformanceMetric label="Top Performer"           value={metricsLoading ? "…" : (metrics?.topPerformer ?? "—")} />
+          <PerformanceMetric label="Campaign Contribution"   value={metricsLoading ? "…" : (metrics?.campaignContribution ?? "—")} />
+          <PerformanceMetric label="Avg Task Completion"     value={metricsLoading ? "…" : (metrics?.avgTaskCompletion ?? "—")} />
         </div>
       </div>
     </div>
   );
 }
-
-/* ===================== COMPONENTS ===================== */
 
 function StatCard({ icon: Icon, label, value }) {
   return (
@@ -121,10 +158,7 @@ function TeamMember({ name, role, workload, status }) {
       <div className="mt-2 text-xs">
         Workload: {workload}%
         <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded mt-1">
-          <div
-            className="h-2 bg-indigo-600 rounded"
-            style={{ width: `${workload}%` }}
-          />
+          <div className="h-2 bg-indigo-600 rounded" style={{ width: `${workload}%` }} />
         </div>
       </div>
 
@@ -149,9 +183,9 @@ function TaskCard({ title, priority }) {
     <div className="border border-slate-200 dark:border-slate-800 rounded-md p-4 text-sm bg-slate-100 dark:bg-slate-800">
       <div className="font-medium">{title}</div>
       <div className={`mt-1 text-xs ${
-        priority === "High"
+        priority === "High" || priority === "high"
           ? "text-red-500"
-          : priority === "Medium"
+          : priority === "Medium" || priority === "medium"
           ? "text-yellow-500"
           : "text-green-500"
       }`}>
