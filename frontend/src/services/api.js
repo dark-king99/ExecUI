@@ -18,6 +18,19 @@ function getToken() {
   }
 }
 
+// ── Safe JSON parser – never throws on non-JSON bodies ────────────────────
+async function safeJson(response) {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Server returned HTML or plain text (e.g. a proxy error page).
+    // Surface a readable message instead of a raw JSON.parse crash.
+    throw new Error(`Non-JSON response (${response.status}): ${text.slice(0, 120)}`);
+  }
+}
+
 // ── Core request ──────────────────────────────────────────────────────────
 async function request(path, options = {}) {
   const token = getToken();
@@ -27,19 +40,26 @@ async function request(path, options = {}) {
     ...options.headers,
   };
 
-  const response = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  } catch (networkErr) {
+    throw new Error(`Network error: ${networkErr.message}`);
+  }
 
   if (!response.ok) {
     let message = `HTTP ${response.status}`;
     try {
-      const body = await response.json();
+      const body = await safeJson(response);
       message = body?.message ?? body?.error ?? message;
-    } catch { /* ignore */ }
+    } catch (parseErr) {
+      message = parseErr.message;
+    }
     throw new Error(message);
   }
 
   if (response.status === 204) return null;
-  return response.json();
+  return safeJson(response);
 }
 
 const get    = (path, params) => {
