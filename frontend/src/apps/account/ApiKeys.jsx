@@ -3,25 +3,41 @@ import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { useToast } from "../../components/ui/Toast";
-import { Key, Copy, Plus, Trash2 } from "lucide-react";
-
-const keys = [
-  { name: "Production API Key",  prefix: "ak_live_xKf2...", created: "Jan 12, 2026", lastUsed: "2h ago",  scopes: ["read", "write"], status: "active" },
-  { name: "Analytics Read-Only", prefix: "ak_live_mNp8...", created: "Feb 5, 2026",  lastUsed: "1d ago",  scopes: ["read"],          status: "active" },
-  { name: "CI/CD Pipeline",      prefix: "ak_live_qRs7...", created: "Dec 1, 2025",  lastUsed: "10d ago", scopes: ["read", "write"], status: "active" },
-  { name: "Legacy Integration",  prefix: "ak_live_hTw3...", created: "Aug 20, 2025", lastUsed: "Never",   scopes: ["read"],          status: "inactive" },
-];
+import { Key, Copy, Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { useApi, useMutation } from "../../hooks/useApi";
+import { account } from "../../services/api";
 
 export default function ApiKeys() {
   const toast = useToast();
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState("");
 
-  const create = () => {
+  const { data: keys, loading, error, refetch } = useApi(() => account.apiKeys.list(), []);
+
+  const { mutate: createKey, loading: creating } = useMutation(
+    (data) => account.apiKeys.create(data),
+    {
+      onSuccess: () => {
+        setShowNew(false);
+        setNewName("");
+        toast({ message: "API key created. Copy it now — it won't be shown again.", type: "info", duration: 5000 });
+        refetch();
+      },
+      onError: (err) => toast({ message: err?.message ?? "Failed to create API key", type: "error" }),
+    }
+  );
+
+  const { mutate: deleteKey } = useMutation(
+    (id) => account.apiKeys.delete(id),
+    {
+      onSuccess: () => { toast({ message: "API key revoked", type: "warning" }); refetch(); },
+      onError: (err) => toast({ message: err?.message ?? "Failed to revoke key", type: "error" }),
+    }
+  );
+
+  const handleCreate = () => {
     if (!newName.trim()) return;
-    setShowNew(false);
-    setNewName("");
-    toast({ message: "API key created. Copy it now — it won't be shown again.", type: "info", duration: 5000 });
+    createKey({ name: newName.trim() });
   };
 
   return (
@@ -48,12 +64,20 @@ export default function ApiKeys() {
               <input
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleCreate()}
                 placeholder="e.g. Production Backend"
                 className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
             <div className="flex gap-2">
-              <button onClick={create} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition">Create</button>
+              <button
+                onClick={handleCreate}
+                disabled={creating}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm px-4 py-2 rounded-lg transition"
+              >
+                {creating && <Loader2 size={14} className="animate-spin" />}
+                Create
+              </button>
               <button onClick={() => setShowNew(false)} className="border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm px-4 py-2 rounded-lg hover:border-slate-400 transition">Cancel</button>
             </div>
           </CardBody>
@@ -63,8 +87,29 @@ export default function ApiKeys() {
       <Card>
         <CardHeader title="Your API Keys" icon={Key} />
         <CardBody className="space-y-3">
-          {keys.map(k => (
-            <div key={k.name} className="p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+          {error && (
+            <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
+              <AlertCircle size={16} /> {error}
+            </div>
+          )}
+
+          {loading && !keys && (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 animate-pulse">
+                  <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-2" />
+                  <div className="h-3 bg-slate-100 dark:bg-slate-700/60 rounded w-1/4" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!loading && !error && keys?.length === 0 && (
+            <p className="text-sm text-slate-500 text-center py-6">No API keys yet. Generate your first key above.</p>
+          )}
+
+          {keys?.map(k => (
+            <div key={k.id ?? k.name} className="p-4 rounded-xl border border-slate-200 dark:border-slate-700">
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">{k.name}</p>
@@ -73,13 +118,13 @@ export default function ApiKeys() {
                 <div className="flex items-center gap-2">
                   <StatusBadge label={k.status} variant={k.status === "active" ? "success" : "neutral"} dot />
                   <button
-                    onClick={() => { navigator.clipboard?.writeText(k.prefix); toast({ message: "Key prefix copied", type: "info" }); }}
+                    onClick={() => { navigator.clipboard?.writeText(k.prefix ?? k.name); toast({ message: "Key prefix copied", type: "info" }); }}
                     className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition"
                   >
                     <Copy size={14} />
                   </button>
                   <button
-                    onClick={() => toast({ message: "API key revoked", type: "warning" })}
+                    onClick={() => deleteKey(k.id)}
                     className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-600 transition"
                   >
                     <Trash2 size={14} />
@@ -87,13 +132,15 @@ export default function ApiKeys() {
                 </div>
               </div>
               <div className="flex gap-4 text-xs text-slate-400">
-                <span>Created: {k.created}</span>
-                <span>Last used: {k.lastUsed}</span>
-                <div className="flex gap-1">
-                  {k.scopes.map(s => (
-                    <span key={s} className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">{s}</span>
-                  ))}
-                </div>
+                {k.created && <span>Created: {k.created}</span>}
+                {k.lastUsed && <span>Last used: {k.lastUsed}</span>}
+                {k.scopes?.length > 0 && (
+                  <div className="flex gap-1">
+                    {k.scopes.map(s => (
+                      <span key={s} className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">{s}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))}

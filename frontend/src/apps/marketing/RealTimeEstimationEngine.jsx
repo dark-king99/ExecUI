@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   Activity,
   TrendingUp,
@@ -8,34 +7,23 @@ import {
   Timer,
   ShieldCheck,
 } from "lucide-react";
+import { useApi } from "../../hooks/useApi";
+import { marketing } from "../../services/api";
 
 export default function RealTimeEstimationEngine() {
-  const [audience, setAudience] = useState(182340);
-  const [delta, setDelta] = useState(0);
-  const [latency, setLatency] = useState(142);
-  const [confidence, setConfidence] = useState(98.4);
-  const [simulationLift, setSimulationLift] = useState(12.6);
+  const { data: cdpMetrics, loading } = useApi(
+    () => marketing.cdp.metrics(), [], { pollingInterval: 5000 }
+  );
 
-  // Simulate real-time recalculation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const change = Math.floor(Math.random() * 800 - 400);
-      setAudience(prev => prev + change);
-      setDelta(change);
-      setLatency(Math.floor(Math.random() * 200 + 80));
-      setConfidence(prev => {
-        const next = prev + (Math.random() - 0.5) * 0.2;
-        return Number(next.toFixed(2));
-      });
-      
-      setSimulationLift(prev => {
-        const next = prev + (Math.random() - 0.5) * 0.4;
-        return Number(next.toFixed(2));
-      });
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, []);
+  const audience       = cdpMetrics?.estimatedAudience ?? cdpMetrics?.unifiedProfiles ?? null;
+  const audienceDelta  = cdpMetrics?.audienceDelta ?? null;
+  const confidence     = cdpMetrics?.matchConfidence ?? null;
+  const latency        = cdpMetrics?.computeLatency ?? null;
+  const projectedLift  = cdpMetrics?.projectedLift ?? null;
+  const dataSources    = cdpMetrics?.activeDataSources ?? null;
+  const idResolutionImpact = cdpMetrics?.identityResolutionImpact ?? null;
+  const refreshMode    = cdpMetrics?.refreshMode ?? "Streaming";
+  const engineStatus   = cdpMetrics?.engineStatus ?? null;
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm space-y-6">
@@ -44,69 +32,62 @@ export default function RealTimeEstimationEngine() {
         <Activity size={18} /> Real-Time Estimation Engine
       </h2>
 
-      {/* LIVE AUDIENCE */}
       <div>
         <div className="text-sm text-slate-500 dark:text-slate-400">
           Estimated Audience Size
         </div>
         <div className="text-3xl font-bold mt-1 flex items-center gap-3">
-          {audience.toLocaleString()}
-          <span
-            className={`text-sm ${
-              delta >= 0 ? "text-green-500" : "text-red-500"
-            }`}
-          >
-            {delta >= 0 ? "+" : ""}
-            {delta}
-          </span>
+          {loading && audience === null ? "…" : audience != null ? Number(audience).toLocaleString() : "—"}
+          {audienceDelta != null && (
+            <span className={`text-sm ${audienceDelta >= 0 ? "text-green-500" : "text-red-500"}`}>
+              {audienceDelta >= 0 ? "+" : ""}{audienceDelta.toLocaleString()}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* METRICS GRID */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
 
         <Metric
           icon={ShieldCheck}
           label="Match Confidence"
-          value={`${confidence}%`}
+          value={loading ? "…" : confidence != null ? `${confidence}%` : "—"}
         />
 
         <Metric
           icon={Timer}
           label="Compute Latency"
-          value={`${latency}ms`}
+          value={loading ? "…" : latency != null ? `${latency}ms` : "—"}
         />
 
         <Metric
           icon={TrendingUp}
           label="Projected Lift"
-          value={`+${simulationLift}%`}
+          value={loading ? "…" : projectedLift != null ? `+${projectedLift}%` : "—"}
         />
 
         <Metric
           icon={Database}
           label="Data Sources Used"
-          value="6 Sources"
+          value={loading ? "…" : dataSources != null ? `${dataSources} Sources` : "—"}
         />
 
         <Metric
           icon={Brain}
           label="Identity Resolution Impact"
-          value="+8.2%"
+          value={loading ? "…" : idResolutionImpact != null ? `+${idResolutionImpact}%` : "—"}
         />
 
         <Metric
           icon={Zap}
           label="Refresh Mode"
-          value="Streaming"
+          value={loading ? "…" : refreshMode}
         />
 
       </div>
 
-      {/* COMPUTE STATUS */}
       <div className="text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-4">
-        Engine Status: Streaming recomputation active • 4 node cluster •
-        Incremental rule diff applied
+        {engineStatus ?? "Engine Status: Streaming recomputation active"}
       </div>
     </div>
   );

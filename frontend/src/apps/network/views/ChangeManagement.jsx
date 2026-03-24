@@ -1,16 +1,11 @@
+import { useMemo } from "react";
 import PageHeader from "../../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader, Stat } from "../../../components/ui/Card";
 import StatusBadge from "../../../components/ui/StatusBadge";
 import DataTable from "../../../components/ui/DataTable";
-import { GitBranch, Clock, CheckCircle, AlertTriangle, Plus } from "lucide-react";
-
-const changes = [
-  { id: "CHG-041", title: "Upgrade core router firmware", type: "standard",   status: "approved",  risk: "medium", window: "Sat 02:00–04:00", owner: "J. Torres" },
-  { id: "CHG-042", title: "Add VLAN 120 – Finance",        type: "normal",    status: "pending",   risk: "low",    window: "Sun 00:00–01:00", owner: "M. Patel" },
-  { id: "CHG-043", title: "Emergency patch – CVE-2024-111",type: "emergency", status: "in-progress",risk:"high",  window: "ASAP",            owner: "S. Lee" },
-  { id: "CHG-044", title: "Decommission legacy switch",     type: "standard", status: "scheduled", risk: "low",   window: "Next Wed 22:00",  owner: "A. Kim" },
-  { id: "CHG-045", title: "BGP policy update – ISP-B",      type: "normal",   status: "approved",  risk: "high",  window: "Fri 01:00–02:00", owner: "J. Torres" },
-];
+import { GitBranch, Clock, CheckCircle, AlertTriangle, Plus, AlertCircle } from "lucide-react";
+import { useApi } from "../../../hooks/useApi";
+import { network } from "../../../services/api";
 
 const riskVariant   = { low: "success", medium: "warning", high: "danger" };
 const statusVariant = { approved: "success", pending: "warning", "in-progress": "info", scheduled: "neutral" };
@@ -19,14 +14,37 @@ const typeVariant   = { standard: "neutral", normal: "info", emergency: "danger"
 const columns = [
   { key: "id",     label: "ID" },
   { key: "title",  label: "Title" },
-  { key: "type",   label: "Type",   render: v => <StatusBadge label={v} variant={typeVariant[v]} /> },
-  { key: "status", label: "Status", render: v => <StatusBadge label={v} variant={statusVariant[v]} dot /> },
-  { key: "risk",   label: "Risk",   render: v => <StatusBadge label={v} variant={riskVariant[v]} /> },
+  { key: "type",   label: "Type",   render: v => <StatusBadge label={v} variant={typeVariant[v] ?? "neutral"} /> },
+  { key: "status", label: "Status", render: v => <StatusBadge label={v} variant={statusVariant[v] ?? "neutral"} dot /> },
+  { key: "risk",   label: "Risk",   render: v => <StatusBadge label={v} variant={riskVariant[v] ?? "neutral"} /> },
   { key: "window", label: "Maintenance Window" },
   { key: "owner",  label: "Owner" },
 ];
 
 export default function ChangeManagement() {
+  const { data: changes, loading, error } = useApi(
+    () => network.changes.list(), [], { pollingInterval: 30000 }
+  );
+
+  const allChanges = changes ?? [];
+
+  const { pending, approved, emergency, thisWeek } = useMemo(() => ({
+    pending:   allChanges.filter(c => c.status === "pending").length,
+    approved:  allChanges.filter(c => c.status === "approved").length,
+    emergency: allChanges.filter(c => c.type === "emergency").length,
+    thisWeek:  allChanges.length,
+  }), [allChanges]);
+
+  const maintenanceWindows = useMemo(() =>
+    allChanges.filter(c => c.status === "approved" || c.status === "scheduled"),
+    [allChanges]
+  );
+
+  const rollbackItems = useMemo(() =>
+    allChanges.filter(c => c.hasRollback || c.rollback),
+    [allChanges]
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -39,17 +57,33 @@ export default function ChangeManagement() {
         }
       />
 
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Pending Approval" value="3" icon={Clock}         color="amber" />
-        <Stat label="Approved"         value="2" icon={CheckCircle}   color="emerald" />
-        <Stat label="Emergency"        value="1" icon={AlertTriangle} color="red" />
-        <Stat label="This Week"        value="5" icon={GitBranch}     color="indigo" />
+        <Stat label="Pending Approval" value={loading ? "…" : pending}   icon={Clock}         color="amber" />
+        <Stat label="Approved"         value={loading ? "…" : approved}  icon={CheckCircle}   color="emerald" />
+        <Stat label="Emergency"        value={loading ? "…" : emergency} icon={AlertTriangle} color="red" />
+        <Stat label="This Week"        value={loading ? "…" : thisWeek}  icon={GitBranch}     color="indigo" />
       </div>
 
       <Card>
         <CardHeader title="Change Requests" icon={GitBranch} />
         <CardBody>
-          <DataTable columns={columns} data={changes} searchable searchKeys={["id", "title", "owner"]} />
+          {loading && allChanges.length === 0 && (
+            <div className="space-y-2 animate-pulse">
+              {[1,2,3].map(i => <div key={i} className="h-10 bg-slate-100 dark:bg-slate-700 rounded" />)}
+            </div>
+          )}
+          {!loading && !error && allChanges.length === 0 && (
+            <p className="text-sm text-slate-500 text-center py-4">No change requests found.</p>
+          )}
+          {allChanges.length > 0 && (
+            <DataTable columns={columns} data={allChanges} searchable searchKeys={["id", "title", "owner"]} />
+          )}
         </CardBody>
       </Card>
 
@@ -57,13 +91,16 @@ export default function ChangeManagement() {
         <Card>
           <CardHeader title="Upcoming Maintenance Windows" icon={Clock} />
           <CardBody className="space-y-3">
-            {changes.filter(c => c.status === "approved" || c.status === "scheduled").map(c => (
+            {maintenanceWindows.length === 0 && !loading && (
+              <p className="text-sm text-slate-500">No upcoming maintenance windows.</p>
+            )}
+            {maintenanceWindows.map(c => (
               <div key={c.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
                 <div>
                   <p className="text-sm font-medium text-slate-900 dark:text-white">{c.title}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{c.window}</p>
                 </div>
-                <StatusBadge label={c.risk} variant={riskVariant[c.risk]} />
+                <StatusBadge label={c.risk} variant={riskVariant[c.risk] ?? "neutral"} />
               </div>
             ))}
           </CardBody>
@@ -72,10 +109,13 @@ export default function ChangeManagement() {
         <Card>
           <CardHeader title="Rollback Plans" icon={GitBranch} />
           <CardBody className="space-y-3">
-            {["CHG-041","CHG-043","CHG-045"].map(id => (
-              <div key={id} className="p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-                <p className="text-sm font-medium text-slate-900 dark:text-white">{id}</p>
-                <p className="text-xs text-slate-500 mt-1">Rollback procedure documented. Estimated time: 15 min.</p>
+            {rollbackItems.length === 0 && !loading && (
+              <p className="text-sm text-slate-500">No rollback plans found.</p>
+            )}
+            {rollbackItems.map(c => (
+              <div key={c.id} className="p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                <p className="text-sm font-medium text-slate-900 dark:text-white">{c.id}</p>
+                <p className="text-xs text-slate-500 mt-1">{c.rollbackNote ?? "Rollback procedure documented. Estimated time: 15 min."}</p>
                 <button className="mt-2 text-xs text-indigo-600 dark:text-indigo-400 hover:underline">View runbook →</button>
               </div>
             ))}

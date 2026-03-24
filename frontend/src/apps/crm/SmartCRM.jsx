@@ -1,138 +1,220 @@
-import React, { useState } from "react";
+import { useState, useCallback } from "react";
+import { useApi, useMutation } from "../../hooks/useApi";
+import { crm } from "../../services/api";
+import { useToast } from "../../components/ui/Toast";
+import { SkeletonCard } from "../../components/ui/Skeleton";
+import { Bot, Send, Loader2, RefreshCw, User, AlertTriangle, CheckCircle2, ChevronDown } from "lucide-react";
 
-export default function SmartCRM({ role, customer }) {
+function getEngagementLabel(score) {
+  return score >= 10 ? "High" : score >= 5 ? "Medium" : "Low";
+}
+function getRiskStatus(days) {
+  return days > 14 ? "At Risk" : "Healthy";
+}
+
+export default function SmartCRM({ role }) {
   const safeRole = role ?? "employee";
+  const toast    = useToast();
 
-  // ---- MOCK UNIFIED CUSTOMER DATA (SAFE, STATIC) ----
-  const customers = [
-    { id: 1, name: "Alice Johnson", interactions: 14, lastContactDays: 2, segment: "High Value" },
-    { id: 2, name: "Bob Smith", interactions: 3, lastContactDays: 21, segment: "Standard" },
-    { id: 3, name: "Charlie Davis", interactions: 7, lastContactDays: 9, segment: "Growth" },
-  ];
+  // ── Customer list ─────────────────────────────────────────────────
+  const {
+    data: customers,
+    loading: customersLoading,
+    error: customersError,
+    refetch: refetchCustomers,
+  } = useApi(() => crm.customers.list({ limit: 20 }));
 
-  // ---- AI HELPERS ----
-  const getEngagementLabel = (score) => (score >= 10 ? "High" : score >= 5 ? "Medium" : "Low");
-  const getRiskStatus = (days) => (days > 14 ? "At Risk" : "Healthy");
-  const getNextAction = (c) => {
-    if (c.lastContactDays > 14) return "Reach out with a follow-up message";
-    if (c.interactions > 10) return "Offer premium or upsell services";
-    return "Maintain regular engagement";
-  };
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
 
-  // ---- HARD GUARD ----
-  if (!customer) {
-    return <div className="text-sm text-slate-500">Select a customer to use AI Copilot</div>;
-  }
-
-  // ---- AI CHAT STATE ----
-  const [input, setInput] = useState("");
+  // ── AI chat ───────────────────────────────────────────────────────
+  const [input,    setInput]    = useState("");
   const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content: "Hi! I’m your CRM AI Copilot. Ask me about this customer’s status, risk, or next actions.",
-    },
+    { role: "assistant", content: "Hi! I'm your CRM AI Copilot. Ask me about this customer's status, risk, or next actions." },
   ]);
 
-  const generateAIResponse = (text) => {
-    const lower = text.toLowerCase();
-
-    if (lower.includes("risk")) {
-      return customer.lastContactDays > 14
-        ? "This customer is currently at risk due to limited recent engagement."
-        : "This customer shows low risk with recent engagement activity.";
+  const { mutate: sendChat, loading: chatLoading } = useMutation(
+    (body) => crm.ai.chat(body),
+    {
+      onError: (err) => toast({ message: err?.message ?? "AI unavailable.", type: "error" }),
     }
+  );
 
-    if (lower.includes("next") || lower.includes("do")) {
-      return "The recommended next action is to send a personalized follow-up.";
-    }
-
-    if (lower.includes("summary")) {
-      return `${customer.name} has had ${customer.interactions} interactions. Last contact was ${customer.lastContactDays} days ago.`;
-    }
-
-    return "I can help summarize activity, assess risk, or suggest next actions.";
-  };
-
-  const handleSend = () => {
-    if (!input.trim()) return;
-    setMessages((prev) => [...prev, { role: "user", content: input }, { role: "assistant", content: generateAIResponse(input) }]);
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text || !selectedCustomer) return;
+    const userMsg = { role: "user", content: text };
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
+    try {
+      const res = await sendChat({ customerId: selectedCustomer.id, message: text });
+      setMessages((prev) => [...prev, { role: "assistant", content: res?.reply ?? res?.message ?? "No response." }]);
+    } catch {
+      // error handled by onError
+    }
   };
 
-  // ---- ACTIONS ----
-  const [actions, setActions] = useState([]);
-  const canEscalate = customer.lastContactDays > 14;
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  };
+
+  // ── Actions ───────────────────────────────────────────────────────
+  const { mutate: triggerAction, loading: actionLoading } = useMutation(
+    (body) => crm.ai.action(body),
+    {
+      onSuccess: (res) => toast({ message: res?.message ?? "Action completed.", type: "success" }),
+      onError:   (err) => toast({ message: err?.message ?? "Action failed.", type: "error" }),
+    }
+  );
 
   const handleAction = (type) => {
-    let description = "";
-
-    if (type === "create_task") description = `Follow-up task created for ${customer.name}`;
-    if (type === "schedule_followup") description = `Follow-up scheduled for ${customer.name}`;
-    if (type === "escalate") description = canEscalate ? `${customer.name} escalated for review` : "Escalation not required";
-
-    const entry = { id: Date.now(), description, timestamp: new Date().toLocaleTimeString() };
-    setActions((prev) => [entry, ...prev]);
+    if (!selectedCustomer) return;
+    triggerAction({ customerId: selectedCustomer.id, action: type });
   };
+
+  const canEscalate = selectedCustomer ? (selectedCustomer.lastContactDays ?? 0) > 14 : false;
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="rounded border p-4 bg-blue-200">
-        <h2 className="font-semibold text-slate-800">Smart CRM — AI Copilot</h2>
-        <p className="text-sm">Enhancing customer service for role: <strong>{safeRole}</strong></p>
+      <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-4 flex items-center justify-between">
+        <div>
+          <h2 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+            <Bot size={18} /> Smart CRM — AI Copilot
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Role: <strong>{safeRole}</strong></p>
+        </div>
+        <button
+          onClick={refetchCustomers}
+          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+        >
+          <RefreshCw size={15} />
+        </button>
       </div>
 
-      {/* CUSTOMER CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {customers.map((c) => (
-          <div key={c.id} className="rounded-xl border bg-white p-4 space-y-2">
-            <p className="font-medium">{c.name}</p>
-            <p className="text-sm">Segment: {c.segment}</p>
-            <p className="text-sm">Engagement: {getEngagementLabel(c.interactions)}</p>
-            <p className="text-sm">Risk: {getRiskStatus(c.lastContactDays)}</p>
-            <p className="text-sm text-slate-600">{getNextAction(c)}</p>
-          </div>
-        ))}
-      </div>
+      {/* Customer cards */}
+      {customersError && (
+        <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
+          <AlertTriangle size={14} /> {customersError}
+        </div>
+      )}
 
-      {/* AI COPILOT */}
-      <div className="rounded-xl border bg-white p-4 flex flex-col space-y-3">
-        <h3 className="font-semibold">AI Copilot — Chat about {customer.name}</h3>
-
-        <div className="space-y-2 max-h-64 overflow-y-auto">
-          {messages.map((m, i) => (
-            <div key={i} className={`p-2 rounded ${m.role === "user" ? "bg-indigo-600 text-white ml-auto" : "bg-slate-100"}`}>
-              {m.content}
-            </div>
+      {customersLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : customers?.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {customers.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => {
+                setSelectedCustomer(c);
+                setMessages([{ role: "assistant", content: `Hi! I'm ready to help with ${c.name}. Ask me about their risk, status, or next actions.` }]);
+              }}
+              className={`rounded-xl border p-4 text-left space-y-2 transition hover:border-indigo-400 dark:hover:border-indigo-500 ${
+                selectedCustomer?.id === c.id
+                  ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
+                  : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
+                  <User size={14} className="text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <p className="font-medium text-slate-900 dark:text-white text-sm">{c.name}</p>
+              </div>
+              <p className="text-xs text-slate-500">Segment: {c.segment ?? "—"}</p>
+              <p className="text-xs text-slate-500">Engagement: {getEngagementLabel(c.interactions ?? 0)}</p>
+              <div className="flex items-center gap-1 text-xs">
+                {getRiskStatus(c.lastContactDays ?? 0) === "At Risk" ? (
+                  <><AlertTriangle size={12} className="text-amber-500" /><span className="text-amber-600 dark:text-amber-400">At Risk</span></>
+                ) : (
+                  <><CheckCircle2 size={12} className="text-emerald-500" /><span className="text-emerald-600 dark:text-emerald-400">Healthy</span></>
+                )}
+              </div>
+            </button>
           ))}
         </div>
-
-        <div className="flex gap-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="flex-1 border rounded px-3 py-2 text-sm"
-            placeholder="Ask about risk, summary, or next action…"
-          />
-          <button onClick={handleSend} className="bg-indigo-600 text-white px-4 rounded">Send</button>
+      ) : !customersLoading && !customersError ? (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-8 text-center text-sm text-slate-500">
+          No customers found.
         </div>
+      ) : null}
 
-        {/* ACTIONS */}
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={() => handleAction("create_task")} className="px-3 py-1 bg-slate-200 rounded">Create Task</button>
-          <button onClick={() => handleAction("schedule_followup")} className="px-3 py-1 bg-slate-200 rounded">Schedule Follow-up</button>
-          <button onClick={() => handleAction("escalate")} disabled={!canEscalate} className="px-3 py-1 bg-amber-500 text-white rounded disabled:opacity-50">Escalate</button>
-        </div>
+      {/* AI Copilot panel */}
+      {selectedCustomer ? (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 flex flex-col space-y-3">
+          <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <Bot size={16} /> AI Copilot — {selectedCustomer.name}
+          </h3>
 
-        {/* ACTION LOG */}
-        {actions.length > 0 && (
-          <ul className="text-xs text-slate-600">
-            {actions.map((a) => (
-              <li key={a.id}>• {a.description} ({a.timestamp})</li>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={`p-3 rounded-xl text-sm ${
+                  m.role === "user"
+                    ? "bg-indigo-600 text-white ml-auto max-w-[80%]"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white max-w-[80%]"
+                }`}
+              >
+                {m.content}
+              </div>
             ))}
-          </ul>
-        )}
-      </div>
+            {chatLoading && (
+              <div className="bg-slate-100 dark:bg-slate-800 rounded-xl p-3 max-w-[80%]">
+                <Loader2 size={14} className="animate-spin text-slate-400" />
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={chatLoading}
+              className="flex-1 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+              placeholder="Ask about risk, summary, or next action…"
+            />
+            <button
+              onClick={handleSend}
+              disabled={chatLoading || !input.trim()}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 rounded-lg disabled:opacity-50 transition"
+            >
+              {chatLoading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            </button>
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => handleAction("create_task")}
+              disabled={actionLoading}
+              className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs transition disabled:opacity-50"
+            >
+              Create Task
+            </button>
+            <button
+              onClick={() => handleAction("schedule_followup")}
+              disabled={actionLoading}
+              className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs transition disabled:opacity-50"
+            >
+              Schedule Follow-up
+            </button>
+            <button
+              onClick={() => handleAction("escalate")}
+              disabled={!canEscalate || actionLoading}
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs transition disabled:opacity-40"
+            >
+              Escalate
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-6 text-center text-sm text-slate-500">
+          Select a customer above to activate the AI Copilot.
+        </div>
+      )}
     </div>
   );
 }

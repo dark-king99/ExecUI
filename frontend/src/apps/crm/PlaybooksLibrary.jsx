@@ -1,26 +1,34 @@
 import { useState } from "react";
 import PageHeader from "../../components/ui/PageHeader";
-import { Card, CardBody, CardHeader } from "../../components/ui/Card";
+import { Card, CardBody } from "../../components/ui/Card";
 import StatusBadge from "../../components/ui/StatusBadge";
-import EmptyState from "../../components/ui/EmptyState";
-import { BookOpen, Play, Plus, Zap } from "lucide-react";
+import { useToast } from "../../components/ui/Toast";
+import { BookOpen, Play, Plus, Zap, AlertCircle, Loader2 } from "lucide-react";
+import { useApi, useMutation } from "../../hooks/useApi";
+import { crm } from "../../services/api";
 
-const playbooks = [
-  { name: "New Enterprise Onboarding",  type: "Onboarding",  steps: 8,  trigger: "Deal: Closed Won",      uses: 34,  status: "active" },
-  { name: "At-Risk Customer Recovery",  type: "Retention",   steps: 6,  trigger: "Health: Red",           uses: 12,  status: "active" },
-  { name: "Upsell Discovery Sequence",  type: "Expansion",   steps: 5,  trigger: "Health: Green + 90d",   uses: 19,  status: "active" },
-  { name: "Churn Prevention",           type: "Retention",   steps: 7,  trigger: "Manual",                uses: 8,   status: "active" },
-  { name: "New SMB Onboarding",         type: "Onboarding",  steps: 5,  trigger: "Deal: Closed Won",      uses: 58,  status: "active" },
-  { name: "Win-Back Campaign",          type: "Re-engage",   steps: 4,  trigger: "Churned: 30d+",         uses: 3,   status: "draft" },
-];
-
-const typeVariant = { Onboarding: "indigo", Retention: "warning", Expansion: "success", "Re-engage": "info" };
-const statusVariant = { active: "success", draft: "neutral" };
+const TYPE_VARIANT   = { Onboarding: "indigo", Retention: "warning", Expansion: "success", "Re-engage": "info" };
+const STATUS_VARIANT = { active: "success", draft: "neutral" };
 
 export default function PlaybooksLibrary() {
+  const toast = useToast();
   const [filter, setFilter] = useState("all");
-  const types = ["all", "Onboarding", "Retention", "Expansion", "Re-engage"];
-  const filtered = filter === "all" ? playbooks : playbooks.filter(p => p.type === filter);
+
+  const { data: playbooks, loading, error, refetch } = useApi(
+    () => crm.playbooks.list(), [], { pollingInterval: 120000 }
+  );
+
+  const { mutate: runPlaybook, loading: running } = useMutation(
+    (id) => crm.playbooks.run(id),
+    {
+      onSuccess: () => { toast({ message: "Playbook started successfully", type: "success" }); refetch(); },
+      onError: (err) => toast({ message: err?.message ?? "Failed to run playbook", type: "error" }),
+    }
+  );
+
+  const allPlaybooks = playbooks ?? [];
+  const types = ["all", ...new Set(allPlaybooks.map(p => p.type).filter(Boolean))];
+  const filtered = filter === "all" ? allPlaybooks : allPlaybooks.filter(p => p.type === filter);
 
   return (
     <div className="space-y-6">
@@ -34,7 +42,12 @@ export default function PlaybooksLibrary() {
         }
       />
 
-      {/* Filter bar */}
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {error}
+        </div>
+      )}
+
       <div className="flex gap-2 flex-wrap">
         {types.map(t => (
           <button
@@ -51,9 +64,19 @@ export default function PlaybooksLibrary() {
         ))}
       </div>
 
+      {loading && allPlaybooks.length === 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 animate-pulse">
+          {[1,2,3,4,5,6].map(i => <div key={i} className="h-36 bg-slate-100 dark:bg-slate-700 rounded-xl" />)}
+        </div>
+      )}
+
+      {!loading && !error && allPlaybooks.length === 0 && (
+        <p className="text-sm text-slate-500 text-center py-8">No playbooks found. Create your first playbook above.</p>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map(pb => (
-          <Card key={pb.name}>
+          <Card key={pb.id ?? pb.name}>
             <CardBody>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -62,26 +85,30 @@ export default function PlaybooksLibrary() {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-slate-900 dark:text-white leading-tight">{pb.name}</p>
-                    <StatusBadge label={pb.type} variant={typeVariant[pb.type]} />
+                    <StatusBadge label={pb.type} variant={TYPE_VARIANT[pb.type] ?? "neutral"} />
                   </div>
                 </div>
-                <StatusBadge label={pb.status} variant={statusVariant[pb.status]} dot />
+                <StatusBadge label={pb.status} variant={STATUS_VARIANT[pb.status] ?? "neutral"} dot />
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 mb-3">
                 <div className="flex items-center gap-1">
                   <Zap size={12} className="text-amber-500" />
-                  {pb.trigger}
+                  {pb.trigger ?? "Manual"}
                 </div>
-                <div>{pb.steps} steps · Used {pb.uses}×</div>
+                <div>{pb.steps} steps{pb.uses != null ? ` · Used ${pb.uses}×` : ""}</div>
               </div>
 
               <div className="flex gap-2 mt-3">
                 <button className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:border-indigo-400 transition">
                   <BookOpen size={13} /> View
                 </button>
-                <button className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700 transition">
-                  <Play size={13} /> Run
+                <button
+                  onClick={() => runPlaybook(pb.id)}
+                  disabled={running}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700 disabled:opacity-60 transition"
+                >
+                  {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />} Run
                 </button>
               </div>
             </CardBody>

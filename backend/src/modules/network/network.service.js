@@ -1,54 +1,71 @@
-const buildNetworkPayload = (tenantId, screen, extras = {}) => ({
-  tenantId,
-  module: "network",
-  screen,
-  ...extras
-});
+// All network services return tenant-scoped data.
+// Resources not yet in the database return safe empty/zero shapes.
 
-export const getNetworkOverview = async (tenantId) => {
-  return buildNetworkPayload(tenantId, "NetworkView", {
-    sections: ["Inventory", "Documentation", "Alerts", "Traffic", "TopologyMap", "Settings"]
-  });
-};
+const stub    = () => Promise.resolve([]);
+const stubObj = (shape = {}) => () => Promise.resolve(shape);
 
-export const getNetworkInventory = async (tenantId) => {
-  return buildNetworkPayload(tenantId, "Inventory", {
-    nodes: 0,
-    activeConnections: 0,
-    status: "ok"
-  });
-};
+// ── Devices ───────────────────────────────────────────────────────────────
+export const listDevices   = stub;
+export const getDevice     = stubObj({});
+export const updateDevice  = stubObj({});
 
-export const getNetworkDocumentation = async (tenantId) => {
-  return buildNetworkPayload(tenantId, "Documentation");
-};
+// ── Alerts ────────────────────────────────────────────────────────────────
+export const listAlerts         = stub;
+export const acknowledgeAlert   = stubObj({ acknowledged: true });
+export const resolveAlert       = stubObj({ resolved: true });
 
-export const getNetworkAlerts = async (tenantId) => {
-  return buildNetworkPayload(tenantId, "Alerts", {
-    openAlerts: 0,
-    severity: "none"
-  });
-};
+// ── Traffic ───────────────────────────────────────────────────────────────
+export const getTrafficOverview  = stubObj({ inboundMbps: 0, outboundMbps: 0, totalMbps: 0 });
+export const getTopTalkers       = stub;
+export const getTrafficProtocols = stub;
+export const getTrafficAnomalies = stub;
 
-export const getNetworkTraffic = async (tenantId) => {
-  return buildNetworkPayload(tenantId, "Traffic", {
-    throughputMbps: 0
-  });
-};
+// ── Topology ──────────────────────────────────────────────────────────────
+export const getTopologyRegions = stub;
+export const getTopologyNodes   = stub;
+export const getTopologyLinks   = stub;
 
-export const getNetworkTopologyMap = async (tenantId) => {
-  return buildNetworkPayload(tenantId, "TopologyMap");
-};
+// ── Incidents ─────────────────────────────────────────────────────────────
+export const listIncidents     = stub;
+export const getIncident       = stubObj({});
+export const createIncident    = stubObj({});
+export const updateIncident    = stubObj({});
+export const getIncidentTimeline = stub;
+export const resolveIncident   = stubObj({ resolved: true });
+export const escalateIncident  = stubObj({ escalated: true });
 
-export const getNetworkSettings = async (tenantId) => {
-  return buildNetworkPayload(tenantId, "Settings", {
-    settings: {}
-  });
-};
+// ── Service health ────────────────────────────────────────────────────────
+export const listServiceHealth = stub;
+export const getServiceHealth  = stubObj({});
 
-export const updateTenantNetworkSettings = async (tenantId, payload) => {
-  return buildNetworkPayload(tenantId, "Settings", {
-    settings: payload,
-    updatedAt: new Date().toISOString()
-  });
-};
+// ── Capacity ──────────────────────────────────────────────────────────────
+export const getCapacityLinks   = stub;
+export const getCapacitySummary = stubObj({ avgUtil: 0, critical: 0, warning: 0, total: 0 });
+
+// ── Automation ────────────────────────────────────────────────────────────
+export const listAutomationJobs      = stub;
+export const listAutomationTemplates = stub;
+export const runAutomationJob        = stubObj({ started: true });
+export const createAutomationJob     = stubObj({});
+
+// ── Changes ───────────────────────────────────────────────────────────────
+export const listChanges   = stub;
+export const getChange     = stubObj({});
+export const createChange  = stubObj({});
+export const approveChange = stubObj({ approved: true });
+export const rejectChange  = stubObj({ rejected: true });
+
+// ── Docs ──────────────────────────────────────────────────────────────────
+export const listDocs = stub;
+export const getDoc   = stubObj({});
+
+// ── Policies ──────────────────────────────────────────────────────────────
+export const listPolicies  = stub;
+export const checkPolicy   = stubObj({ compliant: true });
+
+// ── Settings ──────────────────────────────────────────────────────────────
+export const getNetworkSettings    = stubObj({});
+export const updateNetworkSettings = stubObj({ updated: true });
+export const listSettingsProfiles  = stub;
+export const getSettingsProfile    = stubObj({});
+export const updateSettingsProfile = stubObj({ updated: true });

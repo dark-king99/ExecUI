@@ -9,14 +9,17 @@ import {
   GitBranch,
   Brain,
 } from "lucide-react";
+import { useApi } from "../../hooks/useApi";
+import { marketing } from "../../services/api";
 
 export default function EMMA() {
-  const [activeTab, setActiveTab] = useState("canvas");
+  const { data: summary, loading } = useApi(
+    () => marketing.campaigns.summary(), [], { pollingInterval: 30000 }
+  );
 
   return (
     <div className="min-h-full w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
 
-      {/* PLATFORM HEADER */}
       <div className="border-b border-slate-200 dark:border-slate-800 px-8 py-6 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
@@ -37,20 +40,17 @@ export default function EMMA() {
         </div>
       </div>
 
-      {/* KPI STRIP */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-6 px-8 py-6">
-        <KPI label="Active Journeys" value="24" />
-        <KPI label="Live Contacts" value="128,490" />
-        <KPI label="Triggered Events" value="2.4M" />
-        <KPI label="Conversion Lift" value="+21%" />
-        <KPI label="Experiments Running" value="8" />
-        <KPI label="AI Optimization" value="Enabled" />
+        <KPI label="Active Journeys"    value={loading ? "…" : (summary?.activeJourneys ?? "—")} />
+        <KPI label="Live Contacts"      value={loading ? "…" : (summary?.liveContacts ?? "—")} />
+        <KPI label="Triggered Events"   value={loading ? "…" : (summary?.triggeredEvents ?? "—")} />
+        <KPI label="Conversion Lift"    value={loading ? "…" : (summary?.conversionLift ?? "—")} />
+        <KPI label="Experiments Running" value={loading ? "…" : (summary?.experimentsRunning ?? "—")} />
+        <KPI label="AI Optimization"    value={loading ? "…" : (summary?.aiOptimization ?? "—")} />
       </div>
 
-      {/* MAIN GRID */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 px-8 pb-10">
 
-        {/* JOURNEY CANVAS */}
         <div className="xl:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
           <h2 className="font-semibold text-lg flex items-center gap-2 mb-4">
             <GitBranch size={18} /> Visual Journey Canvas
@@ -61,57 +61,41 @@ export default function EMMA() {
           </div>
         </div>
 
-        {/* SIDE PANEL */}
         <div className="space-y-6">
-
-          {/* CUSTOMER PROFILE EXPLORER */}
           <Panel
             icon={Users}
             title="Unified Customer Profile"
             description="Behavior, attributes, lifecycle stage, predictive score."
           />
-
-          {/* REAL-TIME EVENT STREAM */}
           <Panel
             icon={Activity}
             title="Live Event Stream"
             description="Real-time triggers from web, CRM, email, mobile, network."
           />
-
-          {/* AI OPTIMIZER */}
           <Panel
             icon={Brain}
             title="AI Journey Optimizer"
             description="Predictive path routing & uplift recommendations."
           />
-
         </div>
       </div>
 
-      {/* LOWER GRID */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 px-8 pb-12">
-
-        {/* EXPERIMENTATION */}
         <Section title="Experimentation & A/B Testing" icon={Beaker}>
           Running multi-variant experiments with traffic allocation & statistical confidence.
         </Section>
 
-        {/* CONSENT MANAGEMENT */}
         <Section title="Frequency & Consent Control" icon={ShieldCheck}>
           Enforce communication limits, global suppression, regional compliance.
         </Section>
 
-        {/* APPROVAL WORKFLOW */}
         <Section title="Approval Workflow & Versioning" icon={Sparkles}>
           Role-based approvals, change logs, and journey version history.
         </Section>
-
       </div>
     </div>
   );
 }
-
-/* ================= COMPONENTS ================= */
 
 function KPI({ label, value }) {
   return (

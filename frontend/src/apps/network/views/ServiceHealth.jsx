@@ -1,16 +1,9 @@
 import PageHeader from "../../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader, Stat } from "../../../components/ui/Card";
 import StatusBadge from "../../../components/ui/StatusBadge";
-import { HeartPulse, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
-
-const services = [
-  { name: "Customer Portal",    slo: 99.9,  actual: 99.95, budget: 100, status: "healthy",  tier: "P1" },
-  { name: "API Gateway",        slo: 99.5,  actual: 99.2,  budget: 12,  status: "at-risk",  tier: "P1" },
-  { name: "VPN Service",        slo: 99.0,  actual: 98.7,  budget: 6,   status: "breached", tier: "P2" },
-  { name: "DNS Resolution",     slo: 99.9,  actual: 99.98, budget: 100, status: "healthy",  tier: "P1" },
-  { name: "Network Monitoring", slo: 99.0,  actual: 99.5,  budget: 100, status: "healthy",  tier: "P2" },
-  { name: "Remote Access",      slo: 98.0,  actual: 98.2,  budget: 85,  status: "healthy",  tier: "P3" },
-];
+import { HeartPulse, CheckCircle, AlertTriangle, XCircle, AlertCircle } from "lucide-react";
+import { useApi } from "../../../hooks/useApi";
+import { network } from "../../../services/api";
 
 const statusVariant = { healthy: "success", "at-risk": "warning", breached: "danger" };
 const statusIcon    = { healthy: CheckCircle, "at-risk": AlertTriangle, breached: XCircle };
@@ -28,9 +21,14 @@ function BudgetBar({ budget }) {
 }
 
 export default function ServiceHealth() {
-  const healthy  = services.filter(s => s.status === "healthy").length;
-  const atRisk   = services.filter(s => s.status === "at-risk").length;
-  const breached = services.filter(s => s.status === "breached").length;
+  const { data: services, loading, error } = useApi(
+    () => network.serviceHealth.list(), [], { pollingInterval: 30000 }
+  );
+
+  const allServices = services ?? [];
+  const healthy  = allServices.filter(s => s.status === "healthy").length;
+  const atRisk   = allServices.filter(s => s.status === "at-risk").length;
+  const breached = allServices.filter(s => s.status === "breached").length;
 
   return (
     <div className="space-y-6">
@@ -39,24 +37,40 @@ export default function ServiceHealth() {
         subtitle="Availability and error budget tracking for critical network services"
       />
 
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-4">
-        <Stat label="Healthy"  value={healthy}  icon={CheckCircle}  color="emerald" />
-        <Stat label="At Risk"  value={atRisk}   icon={AlertTriangle} color="amber" />
-        <Stat label="Breached" value={breached} icon={XCircle}      color="red" />
+        <Stat label="Healthy"  value={loading ? "…" : healthy}  icon={CheckCircle}  color="emerald" />
+        <Stat label="At Risk"  value={loading ? "…" : atRisk}   icon={AlertTriangle} color="amber" />
+        <Stat label="Breached" value={loading ? "…" : breached} icon={XCircle}      color="red" />
       </div>
 
+      {loading && allServices.length === 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 animate-pulse">
+          {[1,2,3,4,5,6].map(i => <div key={i} className="h-40 bg-slate-100 dark:bg-slate-700 rounded-xl" />)}
+        </div>
+      )}
+
+      {!loading && !error && allServices.length === 0 && (
+        <p className="text-sm text-slate-500 text-center py-8">No service health data available.</p>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {services.map(svc => {
-          const Icon = statusIcon[svc.status];
+        {allServices.map(svc => {
+          const Icon = statusIcon[svc.status] ?? HeartPulse;
           return (
-            <Card key={svc.name}>
+            <Card key={svc.id ?? svc.name}>
               <CardBody>
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-900 dark:text-white">{svc.name}</p>
                     <p className="text-xs text-slate-500 mt-0.5">Tier {svc.tier}</p>
                   </div>
-                  <StatusBadge label={svc.status.replace("-", " ")} variant={statusVariant[svc.status]} dot />
+                  <StatusBadge label={svc.status.replace("-", " ")} variant={statusVariant[svc.status] ?? "neutral"} dot />
                 </div>
 
                 <div className="space-y-2 text-xs">
@@ -72,7 +86,7 @@ export default function ServiceHealth() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500">Error Budget</span>
-                    <BudgetBar budget={svc.budget} />
+                    <BudgetBar budget={svc.budget ?? 0} />
                   </div>
                 </div>
               </CardBody>

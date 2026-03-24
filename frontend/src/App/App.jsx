@@ -176,7 +176,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/crm/pipeline"            element={<PipelineTracking />} />
                 <Route path="/crm/revenue-intelligence" element={<RevenueIntelligence />} />
                 <Route path="/crm/deals"               element={<DealCommandCenter />} />
-                <Route path="/crm/smart-crm"           element={<SmartCRM role={roleToUse} customer={{ name: "Alice Johnson", interactions: 14, lastContactDays: 2, segment: "High Value" }} />} />
+                <Route path="/crm/smart-crm"           element={<SmartCRM role={roleToUse} />} />
                 <Route path="/crm/reports"             element={<Reports />} />
                 <Route path="/crm/team"                element={<Team />} />
                 <Route path="/crm/team-manager"        element={<TeamManager />} />

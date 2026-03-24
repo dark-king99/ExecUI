@@ -1,217 +1,118 @@
 import { useMemo, useState } from "react";
 import {
-  TrendingUp,
-  TrendingDown,
-  Target,
-  AlertTriangle,
-  CheckCircle2,
-  BarChart3,
-  PieChart,
-  Users,
-  CalendarClock,
-  Filter,
+  TrendingUp, TrendingDown, Target, AlertTriangle, CheckCircle2,
+  BarChart3, PieChart, Users, CalendarClock, Filter, AlertCircle,
 } from "lucide-react";
+import { useApi } from "../../hooks/useApi";
+import { crm } from "../../services/api";
 
-// --- Mock enterprise dataset (structure mirrors real CRM) ---
-const STAGES = [
-  "lead",
-  "qualified",
-  "proposal",
-  "negotiation",
-  "commit",
-  "won",
-  "lost",
-];
-
-const DEALS = [
-  {
-    id: 1,
-    name: "Acme — Platform Rollout",
-    owner: "Alice Johnson",
-    value: 120000,
-    stage: "proposal",
-    probability: 0.6,
-    daysInStage: 8,
-    age: 34,
-    forecastCategory: "best",
-    closed: false,
-  },
-  {
-    id: 2,
-    name: "Globex — Security Suite",
-    owner: "Bob Smith",
-    value: 240000,
-    stage: "negotiation",
-    probability: 0.75,
-    daysInStage: 14,
-    age: 61,
-    forecastCategory: "commit",
-    closed: false,
-  },
-  {
-    id: 3,
-    name: "Initech — CRM Expansion",
-    owner: "Dana Patel",
-    value: 56000,
-    stage: "commit",
-    probability: 0.9,
-    daysInStage: 5,
-    age: 28,
-    forecastCategory: "commit",
-    closed: false,
-  },
-  {
-    id: 4,
-    name: "Umbrella — Network Upgrade",
-    owner: "Charlie Davis",
-    value: 310000,
-    stage: "qualified",
-    probability: 0.4,
-    daysInStage: 21,
-    age: 92,
-    forecastCategory: "pipeline",
-    closed: false,
-  },
-  {
-    id: 5,
-    name: "Soylent — Marketing Stack",
-    owner: "Alice Johnson",
-    value: 88000,
-    stage: "won",
-    probability: 1,
-    daysInStage: 0,
-    age: 44,
-    forecastCategory: "closed",
-    closed: true,
-  },
-  {
-    id: 6,
-    name: "Hooli — Data Platform",
-    owner: "Bob Smith",
-    value: 180000,
-    stage: "lost",
-    probability: 0,
-    daysInStage: 0,
-    age: 73,
-    forecastCategory: "closed",
-    closed: true,
-  },
-];
-
-function currency(n) {
-  return `$${n.toLocaleString()}`;
-}
+function currency(n) { return n != null ? `$${Number(n).toLocaleString()}` : "—"; }
 
 export default function RevenueIntelligence() {
   const [ownerFilter, setOwnerFilter] = useState("all");
 
-  const filtered = useMemo(() => {
-    return DEALS.filter((d) => (ownerFilter === "all" ? true : d.owner === ownerFilter));
-  }, [ownerFilter]);
+  const { data: deals, loading, error } = useApi(
+    () => crm.deals.list({ limit: 500 }), [], { pollingInterval: 60000 }
+  );
+
+  const allDeals = deals ?? [];
+
+  const owners = useMemo(() => ["all", ...new Set(allDeals.map(d => d.owner).filter(Boolean))], [allDeals]);
+
+  const filtered = useMemo(() =>
+    ownerFilter === "all" ? allDeals : allDeals.filter(d => d.owner === ownerFilter),
+    [allDeals, ownerFilter]
+  );
 
   const metrics = useMemo(() => {
-    const open = filtered.filter((d) => !d.closed);
-    const won = filtered.filter((d) => d.stage === "won");
-    const lost = filtered.filter((d) => d.stage === "lost");
-
-    const pipelineValue = open.reduce((s, d) => s + d.value, 0);
-    const weighted = open.reduce((s, d) => s + d.value * d.probability, 0);
-    const winRate =
-      won.length + lost.length > 0
-        ? Math.round((won.length / (won.length + lost.length)) * 100)
-        : 0;
-
-    const avgDealAge =
-      open.length > 0
-        ? Math.round(open.reduce((s, d) => s + d.age, 0) / open.length)
-        : 0;
-
+    const open   = filtered.filter(d => !d.closed && d.stage !== "won" && d.stage !== "lost");
+    const won    = filtered.filter(d => d.stage === "won"  || d.closed === true);
+    const lost   = filtered.filter(d => d.stage === "lost");
+    const pipelineValue = open.reduce((s, d) => s + (d.value ?? 0), 0);
+    const weighted      = open.reduce((s, d) => s + (d.value ?? 0) * (d.probability ?? 0), 0);
+    const winRate = won.length + lost.length > 0 ? Math.round((won.length / (won.length + lost.length)) * 100) : 0;
+    const avgDealAge = open.length > 0 ? Math.round(open.reduce((s, d) => s + (d.age ?? 0), 0) / open.length) : 0;
     return { pipelineValue, weighted, winRate, avgDealAge };
   }, [filtered]);
 
   const byStage = useMemo(() => {
     const map = {};
-    STAGES.forEach((s) => (map[s] = { count: 0, value: 0 }));
-    filtered.forEach((d) => {
-      if (!map[d.stage]) return;
+    filtered.forEach(d => {
+      if (!map[d.stage]) map[d.stage] = { count: 0, value: 0 };
       map[d.stage].count += 1;
-      map[d.stage].value += d.value;
+      map[d.stage].value += d.value ?? 0;
     });
     return map;
   }, [filtered]);
 
   const byOwner = useMemo(() => {
     const map = {};
-    filtered.forEach((d) => {
-      if (!map[d.owner]) {
-        map[d.owner] = { open: 0, won: 0, value: 0 };
-      }
+    filtered.forEach(d => {
+      if (!map[d.owner]) map[d.owner] = { open: 0, won: 0, value: 0 };
       if (d.stage === "won") map[d.owner].won += 1;
-      if (!d.closed) map[d.owner].open += 1;
-      map[d.owner].value += d.value;
+      if (!d.closed && d.stage !== "won") map[d.owner].open += 1;
+      map[d.owner].value += d.value ?? 0;
     });
     return map;
   }, [filtered]);
 
-  const riskDeals = useMemo(() => {
-    return filtered.filter((d) => !d.closed && (d.daysInStage > 14 || d.age > 60));
-  }, [filtered]);
+  const riskDeals = useMemo(() =>
+    filtered.filter(d => !d.closed && d.stage !== "won" && ((d.daysInStage ?? 0) > 14 || (d.age ?? 0) > 60)),
+    [filtered]
+  );
+
+  const forecastCategory = (cat) => filtered.filter(d => d.forecastCategory === cat).reduce((s, d) => s + (d.value ?? 0), 0);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold">Revenue Intelligence</h1>
-        <p className="text-slate-500">
-          Forecast accuracy, deal health, execution risk, and performance intelligence.
-        </p>
+        <p className="text-slate-500">Forecast accuracy, deal health, execution risk, and performance intelligence.</p>
       </div>
 
-      {/* Filters */}
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {error}
+        </div>
+      )}
+
       <div className="flex items-center gap-3">
         <Filter className="h-4 w-4 text-slate-500" />
         <select
           value={ownerFilter}
-          onChange={(e) => setOwnerFilter(e.target.value)}
-          className="px-3 py-2 rounded border bg-white dark:bg-slate-900"
+          onChange={e => setOwnerFilter(e.target.value)}
+          className="px-3 py-2 rounded border bg-white dark:bg-slate-900 dark:border-slate-700 text-sm"
         >
-          <option value="all">All Owners</option>
-          {[...new Set(DEALS.map((d) => d.owner))].map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
+          {owners.map(o => <option key={o} value={o}>{o === "all" ? "All Owners" : o}</option>)}
         </select>
       </div>
 
-      {/* KPI Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KPI icon={BarChart3} label="Open Pipeline" value={currency(metrics.pipelineValue)} />
-        <KPI icon={Target} label="Weighted Forecast" value={currency(Math.round(metrics.weighted))} />
-        <KPI icon={TrendingUp} label="Win Rate" value={`${metrics.winRate}%`} />
-        <KPI icon={CalendarClock} label="Avg Deal Age (days)" value={metrics.avgDealAge} />
+        <KPI icon={BarChart3}    label="Open Pipeline"        value={loading ? "…" : currency(metrics.pipelineValue)} />
+        <KPI icon={Target}       label="Weighted Forecast"    value={loading ? "…" : currency(Math.round(metrics.weighted))} />
+        <KPI icon={TrendingUp}   label="Win Rate"             value={loading ? "…" : `${metrics.winRate}%`} />
+        <KPI icon={CalendarClock} label="Avg Deal Age (days)" value={loading ? "…" : metrics.avgDealAge} />
       </div>
 
-      {/* Forecast Categories */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <ForecastBox title="Commit" value={currency(filtered.filter(d => d.forecastCategory === "commit").reduce((s,d)=>s+d.value,0))} />
-        <ForecastBox title="Best Case" value={currency(filtered.filter(d => d.forecastCategory === "best").reduce((s,d)=>s+d.value,0))} />
-        <ForecastBox title="Pipeline" value={currency(filtered.filter(d => d.forecastCategory === "pipeline").reduce((s,d)=>s+d.value,0))} />
-        <ForecastBox title="Closed" value={currency(filtered.filter(d => d.closed).reduce((s,d)=>s+d.value,0))} />
+        {["commit", "best", "pipeline"].map(cat => (
+          <ForecastBox key={cat} title={cat === "best" ? "Best Case" : cat.charAt(0).toUpperCase() + cat.slice(1)} value={currency(forecastCategory(cat))} />
+        ))}
+        <ForecastBox title="Closed" value={currency(filtered.filter(d => d.closed || d.stage === "won").reduce((s, d) => s + (d.value ?? 0), 0))} />
       </div>
 
-      {/* Stage Conversion & Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Panel title="Stage Distribution" icon={PieChart}>
           <div className="space-y-3">
-            {STAGES.map((s) => (
+            {Object.entries(byStage).map(([s, data]) => (
               <div key={s} className="flex items-center justify-between text-sm">
                 <span className="capitalize text-slate-600 dark:text-slate-400">{s}</span>
-                <span className="font-medium">
-                  {byStage[s].count} deals · {currency(byStage[s].value)}
-                </span>
+                <span className="font-medium">{data.count} deals · {currency(data.value)}</span>
               </div>
             ))}
+            {Object.keys(byStage).length === 0 && !loading && (
+              <p className="text-sm text-slate-400">No stage data available.</p>
+            )}
           </div>
         </Panel>
 
@@ -225,28 +126,25 @@ export default function RevenueIntelligence() {
                 </span>
               </div>
             ))}
+            {Object.keys(byOwner).length === 0 && !loading && (
+              <p className="text-sm text-slate-400">No rep data available.</p>
+            )}
           </div>
         </Panel>
       </div>
 
-      {/* Risk Radar */}
       <Panel title="Execution Risk Radar" icon={AlertTriangle}>
-        {riskDeals.length === 0 ? (
+        {riskDeals.length === 0 && !loading ? (
           <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm">
             <CheckCircle2 className="h-4 w-4" /> No high-risk deals detected
           </div>
         ) : (
           <div className="space-y-2">
-            {riskDeals.map((d) => (
-              <div
-                key={d.id}
-                className="flex items-center justify-between rounded border p-3 bg-amber-50 dark:bg-amber-900/20"
-              >
+            {riskDeals.map(d => (
+              <div key={d.id} className="flex items-center justify-between rounded border p-3 bg-amber-50 dark:bg-amber-900/20">
                 <div>
                   <div className="font-medium">{d.name}</div>
-                  <div className="text-xs text-slate-500">
-                    {d.owner} · Stage: {d.stage} · Age: {d.age} days
-                  </div>
+                  <div className="text-xs text-slate-500">{d.owner} · Stage: {d.stage} · Age: {d.age} days</div>
                 </div>
                 <div className="text-amber-600 dark:text-amber-400 flex items-center gap-1 text-sm">
                   <TrendingDown className="h-4 w-4" /> Risk
@@ -255,15 +153,6 @@ export default function RevenueIntelligence() {
             ))}
           </div>
         )}
-      </Panel>
-
-      {/* Forecast Accuracy (Historical-style) */}
-      <Panel title="Forecast Accuracy (Simulated)" icon={Target}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <AccuracyBox label="Last Quarter Commit Accuracy" value="92%" good />
-          <AccuracyBox label="Last Quarter Best Case Accuracy" value="81%" />
-          <AccuracyBox label="Pipeline Slippage Rate" value="14%" warn />
-        </div>
       </Panel>
     </div>
   );
@@ -300,25 +189,6 @@ function Panel({ title, icon: Icon, children }) {
         <div className="font-semibold">{title}</div>
       </div>
       {children}
-    </div>
-  );
-}
-
-function AccuracyBox({ label, value, good, warn }) {
-  return (
-    <div className="rounded-lg border p-4">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div
-        className={`text-2xl font-semibold mt-1 ${
-          good
-            ? "text-emerald-600"
-            : warn
-            ? "text-amber-600"
-            : "text-indigo-600"
-        }`}
-      >
-        {value}
-      </div>
     </div>
   );
 }

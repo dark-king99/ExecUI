@@ -1,5 +1,4 @@
-import React from "react";
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ArrowRight,
   Building2,
@@ -11,9 +10,10 @@ import {
   UserRound,
   Users,
   Wand2,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
-
-
+import { auth } from "../services/api";
 
 const trustSignals = [
   "SOC 2-ready infrastructure",
@@ -29,7 +29,7 @@ const clientRoles = [
     description: "Collaborate on pipelines, campaigns, and network tasks.",
   },
   {
-    id: "admin",
+    id: "enterprise_admin",
     title: "Enterprise admin",
     description: "Manage tenants, policies, and access controls at scale.",
   },
@@ -54,12 +54,20 @@ const tenantCards = [
   },
 ];
 
-
 export default function Login({ onLogin }) {
-  const [mode, setMode] = useState("login");
-const [tenant, setTenant] = useState("client");
-const [clientRole, setClientRole] = useState("employee");
-const [transition, setTransition] = useState("idle");
+  const [mode,        setMode]        = useState("login");
+  const [tenant,      setTenant]      = useState("client");
+  const [clientRole,  setClientRole]  = useState("employee");
+  const [transition,  setTransition]  = useState("idle");
+
+  // Form state
+  const [email,       setEmail]       = useState("");
+  const [password,    setPassword]    = useState("");
+  const [company,     setCompany]     = useState("");
+
+  // Request state
+  const [submitting,  setSubmitting]  = useState(false);
+  const [apiError,    setApiError]    = useState(null);
 
   const heroCopy = useMemo(() => {
     if (mode === "login") {
@@ -70,7 +78,6 @@ const [transition, setTransition] = useState("idle");
           "Authenticate in seconds with live motion, then route to the client or customer experience.",
       };
     }
-
     return {
       kicker: "Create your account",
       title: "Modern signup with built-in tenant routing",
@@ -79,17 +86,34 @@ const [transition, setTransition] = useState("idle");
     };
   }, [mode]);
 
-  const handleSubmit = () => {
-    onLogin({
-      name: "Dev User",
-      role: "enterprise_admin",
-    });
-    
+  const handleSubmit = async () => {
+    if (!email.trim() || !password.trim()) {
+      setApiError("Email and password are required.");
+      return;
+    }
+
+    setSubmitting(true);
+    setApiError(null);
+
+    try {
+      const payload =
+        mode === "login"
+          ? { email, password, tenant }
+          : { email, password, company, tenant, role: clientRole };
+
+      const response = await auth[mode === "login" ? "login" : "signup"](payload);
+      // Expected response: { user: { id, name, email, role, tenant }, token }
+      onLogin({ ...response.user, token: response.token });
+    } catch (err) {
+      setApiError(err?.message ?? "Authentication failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
-  
 
   const handleModeSwitch = (next) => {
     if (next === mode) return;
+    setApiError(null);
     setTransition("auth");
     setTimeout(() => {
       setMode(next);
@@ -106,8 +130,13 @@ const [transition, setTransition] = useState("idle");
     }, 250);
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") handleSubmit();
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
+      {/* Background orbs */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -left-32 top-20 h-72 w-72 rounded-full bg-cyan-500/20 blur-3xl animate-float-slow" />
         <div className="absolute right-0 top-0 h-80 w-80 rounded-full bg-fuchsia-500/20 blur-3xl animate-float" />
@@ -116,6 +145,7 @@ const [transition, setTransition] = useState("idle");
       </div>
 
       <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-16 pt-12 lg:flex-row lg:items-center">
+        {/* Hero copy */}
         <section className="flex flex-1 flex-col gap-6">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
             <Sparkles className="h-4 w-4" />
@@ -166,7 +196,9 @@ const [transition, setTransition] = useState("idle");
           </div>
         </section>
 
+        {/* Auth card */}
         <section className="flex w-full max-w-xl flex-col gap-6 rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-black/40 backdrop-blur">
+          {/* Mode toggle */}
           <div className="relative flex items-center justify-between rounded-full border border-white/10 bg-white/5 p-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">
             <span
               className={`absolute inset-y-1 left-1 w-[calc(50%-0.75rem)] rounded-full bg-white transition-all duration-300 ${
@@ -175,7 +207,7 @@ const [transition, setTransition] = useState("idle");
             />
             <button
               type="button"
-              onClick={handleSubmit}
+              onClick={() => handleModeSwitch("login")}
               className={`relative z-10 flex-1 rounded-full px-4 py-2 transition ${
                 mode === "login" ? "text-slate-900" : "text-white/70"
               }`}
@@ -193,11 +225,10 @@ const [transition, setTransition] = useState("idle");
             </button>
           </div>
 
+          {/* Credentials form */}
           <div
             className={`rounded-2xl border border-white/10 bg-white/5 p-6 transition-all duration-300 ${
-              transition === "auth"
-                ? "opacity-40 blur-sm"
-                : "opacity-100 blur-0"
+              transition === "auth" ? "opacity-40 blur-sm" : "opacity-100 blur-0"
             }`}
           >
             <div className="flex items-center justify-between">
@@ -223,7 +254,11 @@ const [transition, setTransition] = useState("idle");
                 </span>
                 <input
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={handleKeyDown}
                   placeholder="name@company.com"
+                  autoComplete="email"
                   className="rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
                 />
               </label>
@@ -233,7 +268,11 @@ const [transition, setTransition] = useState("idle");
                 </span>
                 <input
                   type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={handleKeyDown}
                   placeholder="••••••••"
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
                   className="rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
                 />
               </label>
@@ -244,6 +283,9 @@ const [transition, setTransition] = useState("idle");
                   </span>
                   <input
                     type="text"
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    onKeyDown={handleKeyDown}
                     placeholder="Artemis Operations"
                     className="rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
                   />
@@ -251,14 +293,28 @@ const [transition, setTransition] = useState("idle");
               )}
             </div>
 
-            <button
-  onClick={handleSubmit}
-  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
->
-  {mode === "login" ? "Continue" : "Create workspace"}
-  <ArrowRight className="h-4 w-4" />
-</button>
+            {/* Error message */}
+            {apiError && (
+              <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                {apiError}
+              </div>
+            )}
 
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  {mode === "login" ? "Continue" : "Create workspace"}
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
 
             <p className="mt-4 text-xs text-slate-400">
               {mode === "login"
@@ -267,11 +323,10 @@ const [transition, setTransition] = useState("idle");
             </p>
           </div>
 
+          {/* Tenant selector */}
           <div
             className={`grid gap-4 rounded-2xl border border-white/10 bg-white/5 p-6 transition-all duration-300 ${
-              transition === "tenant"
-                ? "opacity-40 blur-sm"
-                : "opacity-100 blur-0"
+              transition === "tenant" ? "opacity-40 blur-sm" : "opacity-100 blur-0"
             }`}
           >
             <div className="flex items-center justify-between">
@@ -308,13 +363,12 @@ const [transition, setTransition] = useState("idle");
                     <p className="mt-3 text-sm font-semibold text-white">
                       {card.title}
                     </p>
-                    <p className="mt-2 text-xs text-slate-200">
-                      {card.description}
-                    </p>
+                    <p className="mt-2 text-xs text-slate-200">{card.description}</p>
                   </button>
                 );
               })}
             </div>
+
             {tenant === "client" && mode === "signup" && (
               <div className="grid gap-3">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/60">
@@ -332,23 +386,28 @@ const [transition, setTransition] = useState("idle");
                           : "hover:border-white/30"
                       }`}
                     >
-                      <p className="text-sm font-semibold text-white">
-                        {role.title}
-                      </p>
+                      <p className="text-sm font-semibold text-white">{role.title}</p>
                       <p className="mt-1 text-slate-300">{role.description}</p>
                     </button>
                   ))}
                 </div>
               </div>
             )}
-            <button
-  onClick={handleSubmit}
-  className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:border-white/40"
->
-  {tenantCards.find((card) => card.id === tenant)?.cta}
-  <ChevronRight className="h-4 w-4" />
-</button>
 
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:border-white/40 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  {tenantCards.find((card) => card.id === tenant)?.cta}
+                  <ChevronRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
           </div>
         </section>
       </div>
