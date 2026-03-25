@@ -1,4 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from "react";
+import { clearToken } from "../services/api";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useSidebar } from "../components/SidebarContext";
 import Login from "../auth/Login";
@@ -236,8 +237,12 @@ export default function App() {
     : user?.role;
 
   useEffect(() => {
-    if (user) localStorage.setItem("user", JSON.stringify(user));
-    else localStorage.removeItem("user");
+    if (user) {
+      localStorage.setItem("user", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("user");
+      clearToken();   // wipe the in-memory token on logout
+    }
   }, [user]);
 
   if (!user) return <Login onLogin={setUser} />;

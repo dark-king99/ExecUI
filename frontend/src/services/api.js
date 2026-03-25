@@ -8,11 +8,27 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 export const WS_URL = import.meta.env.VITE_WS_URL ?? '';
 
 // ── Token management ───────────────────────────────────────────────────────
+// Module-level token — set synchronously at login so the very first API
+// call (which fires before App.jsx's useEffect writes to localStorage)
+// already has the token.  Falls back to localStorage for page-refresh.
+let _token = null;
+
+export function setToken(token) {
+  _token = token ?? null;
+}
+
+export function clearToken() {
+  _token = null;
+}
+
 function getToken() {
+  if (_token) return _token;
   try {
     const stored = localStorage.getItem('user');
     if (!stored) return null;
-    return JSON.parse(stored)?.token ?? null;
+    const t = JSON.parse(stored)?.token ?? null;
+    if (t) _token = t;   // warm the in-memory cache on page refresh
+    return t;
   } catch {
     return null;
   }
