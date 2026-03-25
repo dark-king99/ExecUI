@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from "react";
-import { clearToken } from "../services/api";
+import { setToken, clearToken } from "../services/api";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useSidebar } from "../components/SidebarContext";
 import Login from "../auth/Login";
@@ -227,8 +227,24 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem("user");
-    return stored ? JSON.parse(stored) : null;
+    try {
+      const stored = localStorage.getItem("user");
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      // Reject stale sessions that have no token (e.g. from pre-auth era).
+      // Force the user back to the Login page to obtain a fresh JWT.
+      if (!parsed?.token) {
+        localStorage.removeItem("user");
+        return null;
+      }
+      // Pre-warm the module-level token cache RIGHT NOW, synchronously,
+      // before any child component renders and fires its first useApi call.
+      setToken(parsed.token);
+      return parsed;
+    } catch {
+      localStorage.removeItem("user");
+      return null;
+    }
   });
 
   const [effectiveRole, setEffectiveRole] = useState(null);
