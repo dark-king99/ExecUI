@@ -24,7 +24,7 @@ export default function CRMView({ role }) {
   
 
   return (
-    <div className="space-y-6  bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
+    <div className="space-y-6  bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-6">
       <h1 className="text-2xl font-bold text-slate-900 dark:text-white">CRM</h1>
       <p className="text-sm text-slate-500">Role: {effectiveRole}</p>
 

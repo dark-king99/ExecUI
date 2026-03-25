@@ -47,8 +47,8 @@ export default function B2BMarketing() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">B2B Marketing Automation</h1>
-          <p className="text-slate-500">
+          <h1 className=" text-slate-900 dark:text-white text-2xl font-semibold">B2B Marketing Automation</h1>
+          <p className="text-slate-300">
             Account-based orchestration, journeys, revenue attribution, and growth automation
           </p>
         </div>
@@ -62,7 +62,7 @@ export default function B2BMarketing() {
         </div>
       </div>
 
-      <div className="flex gap-2 border-b">
+      <div className="flex text-slate-900 dark:text-white gap-2 border-b">
         {[
           { id: "dashboard",  label: "Dashboard",           icon: BarChart3 },
           { id: "accounts",   label: "Target Accounts",     icon: Building2 },
@@ -78,7 +78,7 @@ export default function B2BMarketing() {
             className={`flex items-center gap-2 px-3 py-2 text-sm border-b-2 ${
               tab === t.id
                 ? "border-indigo-600 text-indigo-600"
-                : "border-transparent text-slate-500 hover:text-slate-800"
+                : "border-transparent text-slate-300 hover:text-slate-800"
             }`}
           >
             <t.icon className="h-4 w-4" />
@@ -95,8 +95,8 @@ export default function B2BMarketing() {
           <KPI title="Revenue Attributed"  value={sumLoading ? "…" : (summary?.revenueAttributed ?? "—")} icon={BarChart3} />
 
           <div className="md:col-span-4 rounded-xl border p-4 bg-white dark:bg-slate-900">
-            <div className="font-medium mb-2">Performance Overview</div>
-            <div className="h-32 flex items-center justify-center text-slate-400 text-sm">
+            <div className=" text-slate-900 dark:text-white font-medium mb-2">Performance Overview</div>
+            <div className="h-32 flex items-center justify-center text-slate-300 text-sm">
               Connect analytics endpoints to render funnel and attribution charts
             </div>
           </div>
@@ -107,7 +107,7 @@ export default function B2BMarketing() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 rounded-xl border bg-white dark:bg-slate-900">
             <div className="p-3 border-b flex items-center gap-2">
-              <Search className="h-4 w-4 text-slate-400" />
+              <Search className="h-4 w-4 text-slate-300" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -129,7 +129,7 @@ export default function B2BMarketing() {
             )}
 
             {!acctLoading && filteredAccounts.length === 0 && !acctError && (
-              <p className="text-sm text-slate-500 text-center py-6">No accounts found.</p>
+              <p className="text-sm text-slate-300 text-center py-6">No accounts found.</p>
             )}
 
             <div className="divide-y">
@@ -142,13 +142,13 @@ export default function B2BMarketing() {
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="font-medium">{a.name}</div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-slate-300">
                         {a.tier} • Intent: {a.intent}
                       </div>
                     </div>
-                    <span className="text-xs text-slate-500">{a.status}</span>
+                    <span className="text-xs text-slate-300">{a.status}</span>
                   </div>
-                  <div className="text-xs text-slate-400 mt-1">
+                  <div className="text-xs text-slate-300 mt-1">
                     Pipeline influenced: {a.pipeline ?? a.pipelineFormatted ?? "—"}
                   </div>
                 </button>
@@ -156,9 +156,9 @@ export default function B2BMarketing() {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-white dark:bg-slate-900 p-4">
+          <div className="rounded-xl border bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-4">
             {!selectedAccount ? (
-              <div className="text-sm text-slate-500">Select an account</div>
+              <div className="text-sm text-slate-300">Select an account</div>
             ) : (
               <div className="space-y-3">
                 <div className="font-semibold text-lg">{selectedAccount.name}</div>
@@ -179,7 +179,7 @@ export default function B2BMarketing() {
 
       {tab === "journeys" && (
         <div className="rounded-xl border bg-white dark:bg-slate-900 p-4 space-y-3">
-          <div className="font-medium">Journeys & Automation</div>
+          <div className="text-slate-900 dark:text-white font-medium">Journeys & Automation</div>
 
           {jError && (
             <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
@@ -189,12 +189,12 @@ export default function B2BMarketing() {
 
           {jLoading && allJourneys.length === 0 && (
             <div className="flex justify-center py-4">
-              <Loader2 size={18} className="animate-spin text-slate-400" />
+              <Loader2 size={18} className="animate-spin text-slate-300" />
             </div>
           )}
 
           {!jLoading && allJourneys.length === 0 && !jError && (
-            <p className="text-sm text-slate-500">No journeys found.</p>
+            <p className="text-sm text-slate-300">No journeys found.</p>
           )}
 
           <div className="divide-y">
@@ -202,7 +202,7 @@ export default function B2BMarketing() {
               <div key={j.id} className="py-3 flex items-center justify-between">
                 <div>
                   <div className="font-medium">{j.name}</div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-slate-300">
                     Channels: {Array.isArray(j.channels) ? j.channels.join(", ") : j.channels}
                   </div>
                 </div>
@@ -231,8 +231,8 @@ export default function B2BMarketing() {
 
       {tab === "ai" && (
         <div className="rounded-xl border p-4 bg-white dark:bg-slate-900 space-y-2">
-          <div className="font-medium">AI Scoring & Recommendations</div>
-          <ul className="text-sm text-slate-600 list-disc ml-5 space-y-1">
+          <div className="text-slate-900 dark:text-white font-medium">AI Scoring & Recommendations</div>
+          <ul className="text-sm text-slate-300 list-disc ml-5 space-y-1">
             <li>Account intent scoring</li>
             <li>Buying committee engagement heatmaps</li>
             <li>Next-best-action recommendations</li>
@@ -245,7 +245,7 @@ export default function B2BMarketing() {
       {tab === "reports" && (
         <div className="rounded-xl border p-4 bg-white dark:bg-slate-900 space-y-2">
           <div className="font-medium">Reports & Revenue Attribution</div>
-          <ul className="text-sm text-slate-600 list-disc ml-5 space-y-1">
+          <ul className="text-sm text-slate-300 list-disc ml-5 space-y-1">
             <li>Multi-touch attribution</li>
             <li>Pipeline influence by channel</li>
             <li>Account engagement trends</li>
@@ -257,8 +257,8 @@ export default function B2BMarketing() {
 
       {tab === "compliance" && (
         <div className="rounded-xl border p-4 bg-white dark:bg-slate-900 space-y-2">
-          <div className="font-medium">Compliance & Governance</div>
-          <ul className="text-sm text-slate-600 list-disc ml-5 space-y-1">
+          <div className="text-slate-900 dark:text-white font-medium">Compliance & Governance</div>
+          <ul className="text-sm text-slate-300 list-disc ml-5 space-y-1">
             <li>Consent & preference management</li>
             <li>GDPR / CAN-SPAM compliance</li>
             <li>Audit trail of all sends</li>
@@ -278,7 +278,7 @@ function KPI({ title, value, icon: Icon }) {
         <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
       </div>
       <div>
-        <div className="text-xs text-slate-500">{title}</div>
+        <div className="text-xs text-slate-300">{title}</div>
         <div className="text-lg font-semibold">{value}</div>
       </div>
     </div>
@@ -289,7 +289,7 @@ function ChannelCard({ title }) {
   return (
     <div className="rounded-xl border bg-white dark:bg-slate-900 p-4">
       <div className="font-medium">{title}</div>
-      <div className="text-sm text-slate-500 mt-1">
+      <div className="text-sm text-slate-300 mt-1">
         Orchestrate campaigns and personalization
       </div>
       <button className="mt-3 px-3 py-1 rounded border text-sm">

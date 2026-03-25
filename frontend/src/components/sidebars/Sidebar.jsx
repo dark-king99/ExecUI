@@ -22,7 +22,7 @@ export default function Sidebar() {
   const { pathname } = useLocation();
 
   return (
-    <aside className="w-64 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 p-4 flex flex-col gap-2">
+    <aside className="w-64 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 p-4 flex flex-col gap-8">
       {/* Enterprise header */}
       <div className="flex items-center gap-2 px-2 py-3 mb-4 border-b border-slate-200 dark:border-slate-800">
         <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-indigo-600 text-white">
