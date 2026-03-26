@@ -74,6 +74,7 @@ router.get("/analytics/win-loss", auth, c.getCrmAnalyticsWinLoss);
 // ── Opportunities ─────────────────────────────────────────────────────────
 router.get("/opportunities/summary", auth, c.getOpportunitiesSummary);
 router.get("/opportunities",         auth, c.listOpportunities);
+router.post("/opportunities",        auth, c.createOpportunity);
 
 // ── Renewals ──────────────────────────────────────────────────────────────
 router.get("/renewals/summary", auth, c.getRenewalsSummary);

@@ -186,6 +186,7 @@ export const crm = {
   opportunities: {
     summary: ()        => get('/crm/opportunities/summary'),
     list:    (params)  => get('/crm/opportunities', params),
+    create:  (data)    => post('/crm/opportunities', data),
   },
   renewals: {
     list:    (params)  => get('/crm/renewals', params),

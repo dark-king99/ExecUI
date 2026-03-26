@@ -4,13 +4,16 @@ import { Card, CardBody, CardHeader, Stat } from "../../components/ui/Card";
 import StatusBadge from "../../components/ui/StatusBadge";
 import DataTable from "../../components/ui/DataTable";
 import { SkeletonCard, SkeletonTable } from "../../components/ui/Skeleton";
-import { useApi } from "../../hooks/useApi";
+import { useApi, useMutation } from "../../hooks/useApi";
+import { useToast } from "../../components/ui/Toast";
 import { crm } from "../../services/api";
-import { UserPlus, Mail, Phone, Calendar, Star, Plus, RefreshCw } from "lucide-react";
+import { UserPlus, Mail, Phone, Calendar, Star, Plus, RefreshCw, X } from "lucide-react";
 
 const STAGE_VARIANT = {
   "New": "neutral", "Contacted": "info", "Qualified": "success", "Demo Booked": "indigo",
 };
+
+const STAGES = ["New", "Contacted", "Qualified", "Demo Booked"];
 
 function ScoreBadge({ score }) {
   const color = score >= 80
@@ -39,7 +42,140 @@ const COLUMNS = [
   { key: "owner",       label: "Owner" },
 ];
 
+const EMPTY_FORM = { name: "", email: "", company: "", stage: "New" };
+
+function AddLeadModal({ onClose, onCreated }) {
+  const toast = useToast();
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [formError, setFormError] = useState(null);
+
+  const { mutate, loading } = useMutation((data) => crm.leads.create(data));
+
+  function set(field, value) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setFormError(null);
+
+    if (!form.name.trim()) {
+      setFormError("Name is required.");
+      return;
+    }
+
+    try {
+      await mutate(form);
+      toast({ message: "Lead added successfully.", type: "success" });
+      onCreated();
+      onClose();
+    } catch (err) {
+      setFormError(err?.message ?? "Failed to create lead. Please try again.");
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md mx-4">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">Add Lead</h2>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {formError && (
+            <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">
+              {formError}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => set("name", e.target.value)}
+              placeholder="Full name"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Email
+            </label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => set("email", e.target.value)}
+              placeholder="email@company.com"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Company
+            </label>
+            <input
+              type="text"
+              value={form.company}
+              onChange={(e) => set("company", e.target.value)}
+              placeholder="Company name"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Stage
+            </label>
+            <select
+              value={form.stage}
+              onChange={(e) => set("stage", e.target.value)}
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {STAGES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-sm px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white transition"
+            >
+              {loading ? "Saving…" : "Add Lead"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function LeadWorkspace() {
+  const [showAddModal, setShowAddModal] = useState(false);
+
   const {
     data: leadsData,
     loading: leadsLoading,
@@ -64,6 +200,13 @@ export default function LeadWorkspace() {
 
   return (
     <div className="space-y-6">
+      {showAddModal && (
+        <AddLeadModal
+          onClose={() => setShowAddModal(false)}
+          onCreated={refetchLeads}
+        />
+      )}
+
       <PageHeader
         title="Leads & Contacts"
         subtitle="Unified profiles, activity feed and communication history"
@@ -75,7 +218,10 @@ export default function LeadWorkspace() {
             >
               <RefreshCw size={13} /> Refresh
             </button>
-            <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition"
+            >
               <Plus size={15} /> Add Lead
             </button>
           </div>

@@ -79,6 +79,7 @@ export const getCrmAnalyticsWinLoss  = handle((req) => svc.getCrmAnalyticsWinLos
 // Opportunities
 export const getOpportunitiesSummary = handle((req) => svc.getOpportunitiesSummary(tid(req)));
 export const listOpportunities       = handle((req) => svc.listOpportunities(tid(req), req.query));
+export const createOpportunity       = handle((req) => svc.createOpportunity(tid(req), req.body));
 
 // Renewals
 export const listRenewals       = handle((req) => svc.listRenewals(tid(req), req.query));
