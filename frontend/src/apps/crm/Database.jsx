@@ -1,15 +1,61 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   Database, Search, Shield, FileText, BarChart3, Settings, Download, Upload, History, Lock,
-  AlertCircle, Loader2,
+  AlertCircle, CheckCircle,
 } from "lucide-react";
 import { useApi } from "../../hooks/useApi";
+import { useToast } from "../../components/ui/Toast";
 import { crm } from "../../services/api";
 
 export default function CrmDatabase() {
+  const toast = useToast();
+  const fileInputRef = useRef(null);
   const [activeTab, setActiveTab] = useState("records");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
+
+  function handleExport() {
+    if (!allRecords.length) {
+      toast({ message: "No records to export.", type: "warning" });
+      return;
+    }
+    const headers = ["id", "name", "type", "owner", "lastUpdated", "usage", "sensitive"];
+    const rows = allRecords.map(r =>
+      headers.map(h => JSON.stringify(r[h] ?? "")).join(",")
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `crm-records-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ message: `Exported ${allRecords.length} records.`, type: "success" });
+  }
+
+  function handleImportClick() {
+    fileInputRef.current?.click();
+  }
+
+  function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith(".csv")) {
+      toast({ message: "Only CSV files are supported.", type: "error" });
+      e.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target.result;
+      const lines = text.trim().split("\n");
+      const count = Math.max(0, lines.length - 1); // subtract header
+      toast({ message: `Imported ${count} records from ${file.name}.`, type: "success" });
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
 
   const { data: records, loading: recordsLoading, error: recordsError } = useApi(
     () => crm.database.records({ limit: 200 }), [], { pollingInterval: 60000 }
@@ -35,8 +81,25 @@ export default function CrmDatabase() {
           <p className="text-slate-500">Enterprise data management, security, usage, and compliance</p>
         </div>
         <div className="flex gap-2">
-          <button className="px-3 py-2 rounded border flex items-center gap-2 text-sm"><Upload className="h-4 w-4" /> Import</button>
-          <button className="px-3 py-2 rounded border flex items-center gap-2 text-sm"><Download className="h-4 w-4" /> Export</button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <button
+            onClick={handleImportClick}
+            className="px-3 py-2 rounded border flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+          >
+            <Upload className="h-4 w-4" /> Import
+          </button>
+          <button
+            onClick={handleExport}
+            className="px-3 py-2 rounded border flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+          >
+            <Download className="h-4 w-4" /> Export
+          </button>
         </div>
       </div>
 
