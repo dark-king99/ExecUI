@@ -255,9 +255,11 @@ export default function App() {
   useEffect(() => {
     if (user) {
       localStorage.setItem("user", JSON.stringify(user));
+      // Keep the dedicated token key in sync in case it was cleared.
+      if (user.token) setToken(user.token);
     } else {
       localStorage.removeItem("user");
-      clearToken();   // wipe the in-memory token on logout
+      clearToken();   // wipe the in-memory token and auth_token key on logout
     }
   }, [user]);
 

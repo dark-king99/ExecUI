@@ -8,27 +8,52 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 export const WS_URL = import.meta.env.VITE_WS_URL ?? '';
 
 // ── Token management ───────────────────────────────────────────────────────
-// Module-level token — set synchronously at login so the very first API
-// call (which fires before App.jsx's useEffect writes to localStorage)
-// already has the token.  Falls back to localStorage for page-refresh.
-let _token = null;
+// The token is persisted in its own localStorage key so it is NEVER lost:
+//   • Module-level IIFE populates _token before React renders anything.
+//   • setToken() writes to both memory AND storage — called at login time.
+//   • getToken() has three fallback layers so no timing issue can win.
 
+const TOKEN_KEY = 'auth_token';
+
+// Layer 1: initialize at module-load time (runs before any React code).
+let _token = (() => {
+  try {
+    const t = localStorage.getItem(TOKEN_KEY);
+    if (t) return t;
+    // Migrate from old 'user' blob if present.
+    const stored = localStorage.getItem('user');
+    if (!stored) return null;
+    const migrated = JSON.parse(stored)?.token ?? null;
+    if (migrated) localStorage.setItem(TOKEN_KEY, migrated);
+    return migrated;
+  } catch {
+    return null;
+  }
+})();
+
+// Layer 2: called explicitly at login and on page-load from App.jsx.
 export function setToken(token) {
   _token = token ?? null;
+  if (_token) localStorage.setItem(TOKEN_KEY, _token);
+  else localStorage.removeItem(TOKEN_KEY);
 }
 
 export function clearToken() {
   _token = null;
+  localStorage.removeItem(TOKEN_KEY);
 }
 
+// Layer 3: last-resort re-read (handles Vite HMR module reloads).
 function getToken() {
   if (_token) return _token;
   try {
+    const t = localStorage.getItem(TOKEN_KEY);
+    if (t) { _token = t; return t; }
     const stored = localStorage.getItem('user');
     if (!stored) return null;
-    const t = JSON.parse(stored)?.token ?? null;
-    if (t) _token = t;   // warm the in-memory cache on page refresh
-    return t;
+    const migrated = JSON.parse(stored)?.token ?? null;
+    if (migrated) { _token = migrated; localStorage.setItem(TOKEN_KEY, migrated); }
+    return migrated;
   } catch {
     return null;
   }
