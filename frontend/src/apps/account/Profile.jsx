@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { useToast } from "../../components/ui/Toast";
@@ -8,7 +8,21 @@ import { account } from "../../services/api";
 
 export default function Profile() {
   const toast = useToast();
+  const avatarInputRef = useRef(null);
   const [form, setForm] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+
+  function handleAvatarChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setAvatarPreview(ev.target.result);
+      toast({ message: "Avatar updated (preview only — save to apply).", type: "info" });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
 
   const { data: profile, loading, error } = useApi(() => account.profile.get(), []);
 
@@ -70,13 +84,25 @@ export default function Profile() {
         <CardHeader title="Personal Information" icon={User} />
         <CardBody className="space-y-4">
           <div className="flex items-center gap-4 mb-4">
-            <div className="h-16 w-16 rounded-full bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold">
-              {form.name?.[0] ?? "?"}
+            <div className="relative">
+              {avatarPreview ? (
+                <img src={avatarPreview} alt="avatar" className="h-16 w-16 rounded-full object-cover" />
+              ) : (
+                <div className="h-16 w-16 rounded-full bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold">
+                  {form.name?.[0] ?? "?"}
+                </div>
+              )}
             </div>
             <div>
               <p className="font-semibold text-slate-900 dark:text-white">{form.name}</p>
               <p className="text-sm text-slate-500">{form.role}</p>
-              <button className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 hover:underline">Change avatar</button>
+              <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 hover:underline"
+              >
+                Change avatar
+              </button>
             </div>
           </div>
 
