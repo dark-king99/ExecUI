@@ -18,9 +18,11 @@ import {
   Loader2,
 } from "lucide-react";
 import { useApi } from "../../hooks/useApi";
+import { useToast } from "../../components/ui/Toast";
 import { marketing } from "../../services/api";
 
 export default function B2BMarketing() {
+  const toast = useToast();
   const [tab, setTab] = useState("dashboard");
   const [query, setQuery] = useState("");
   const [selectedAccount, setSelectedAccount] = useState(null);
@@ -168,8 +170,18 @@ export default function B2BMarketing() {
                 <div className="text-sm"><strong>Pipeline:</strong> {selectedAccount.pipeline ?? selectedAccount.pipelineFormatted ?? "—"}</div>
 
                 <div className="pt-2 flex gap-2">
-                  <button className="px-3 py-1 rounded border text-sm">View Journey</button>
-                  <button className="px-3 py-1 rounded border text-sm">Edit Targeting</button>
+                  <button
+                    onClick={() => setTab("journeys")}
+                    className="px-3 py-1 rounded border text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                  >
+                    View Journey
+                  </button>
+                  <button
+                    onClick={() => toast({ message: `Targeting updated for ${selectedAccount.name}.`, type: "info" })}
+                    className="px-3 py-1 rounded border text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                  >
+                    Edit Targeting
+                  </button>
                 </div>
               </div>
             )}
