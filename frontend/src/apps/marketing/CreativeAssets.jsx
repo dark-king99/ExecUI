@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader, Stat } from "../../components/ui/Card";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { Image, Upload, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { useApi } from "../../hooks/useApi";
+import { useToast } from "../../components/ui/Toast";
 import { marketing } from "../../services/api";
 
 const statusVariant = { approved: "success", "in-review": "warning", draft: "neutral" };
@@ -14,7 +15,20 @@ const typeColor = {
 };
 
 export default function CreativeAssets() {
+  const toast = useToast();
   const [filter, setFilter] = useState("all");
+  const uploadRef = useRef(null);
+
+  function handleUploadClick() {
+    uploadRef.current?.click();
+  }
+
+  function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    toast({ message: `"${file.name}" uploaded successfully.`, type: "success" });
+  }
 
   const { data: assets, loading, error } = useApi(
     () => marketing.content.assets.list(), [], { pollingInterval: 60000 }
@@ -38,9 +52,12 @@ export default function CreativeAssets() {
         title="Creative Asset Library"
         subtitle="Asset versions, approvals, usage rights and performance mapping"
         actions={
-          <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition">
-            <Upload size={15} /> Upload Asset
-          </button>
+          <>
+            <input ref={uploadRef} type="file" accept="image/*,video/*,.pdf,.doc,.docx" className="hidden" onChange={handleFileChange} />
+            <button onClick={handleUploadClick} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition">
+              <Upload size={15} /> Upload Asset
+            </button>
+          </>
         }
       />
 
@@ -104,10 +121,16 @@ export default function CreativeAssets() {
                 )}
               </div>
               <div className="flex gap-2 mt-3">
-                <button className="flex-1 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:border-indigo-400 transition">
+                <button
+                  onClick={() => toast({ message: `Previewing "${asset.name}".`, type: "info" })}
+                  className="flex-1 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:border-indigo-400 transition"
+                >
                   Preview
                 </button>
-                <button className="flex-1 py-1.5 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700 transition">
+                <button
+                  onClick={() => toast({ message: `"${asset.name}" added to campaign.`, type: "success" })}
+                  className="flex-1 py-1.5 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700 transition"
+                >
                   Use in Campaign
                 </button>
               </div>
