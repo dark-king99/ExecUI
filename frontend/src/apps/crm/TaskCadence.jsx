@@ -1,3 +1,4 @@
+import { useState } from "react";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader, Stat } from "../../components/ui/Card";
 import StatusBadge from "../../components/ui/StatusBadge";
@@ -6,8 +7,120 @@ import { useApi, useMutation } from "../../hooks/useApi";
 import { crm } from "../../services/api";
 import { useToast } from "../../components/ui/Toast";
 import {
-  CalendarSync, CheckCircle, Clock, AlertTriangle, Plus, Loader2, RefreshCw,
+  CalendarSync, CheckCircle, Clock, AlertTriangle, Plus, Loader2, RefreshCw, X,
 } from "lucide-react";
+
+const TASK_TYPES     = ["Task", "Call", "Email", "Meeting"];
+const TASK_PRIORITIES = ["low", "medium", "high"];
+const EMPTY_TASK = { title: "", type: "Task", priority: "medium", dueDate: "" };
+
+function NewTaskModal({ onClose, onCreated }) {
+  const toast = useToast();
+  const [form, setForm] = useState(EMPTY_TASK);
+  const [formError, setFormError] = useState(null);
+
+  const { mutate, loading } = useMutation((data) => crm.tasks.create(data));
+
+  function set(field, value) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setFormError(null);
+    if (!form.title.trim()) {
+      setFormError("Task title is required.");
+      return;
+    }
+    try {
+      await mutate(form);
+      toast({ message: "Task created.", type: "success" });
+      onCreated();
+      onClose();
+    } catch (err) {
+      setFormError(err?.message ?? "Failed to create task. Please try again.");
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">New Task</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+            <X size={18} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {formError && (
+            <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">
+              {formError}
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Title <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.title}
+              onChange={(e) => set("title", e.target.value)}
+              placeholder="Task title"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Type</label>
+              <select
+                value={form.type}
+                onChange={(e) => set("type", e.target.value)}
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {TASK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Priority</label>
+              <select
+                value={form.priority}
+                onChange={(e) => set("priority", e.target.value)}
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {TASK_PRIORITIES.map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Due Date</label>
+            <input
+              type="date"
+              value={form.dueDate}
+              onChange={(e) => set("dueDate", e.target.value)}
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-sm px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white transition"
+            >
+              {loading ? "Saving…" : "Create Task"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 const PRIORITY_VARIANT = { high: "danger", medium: "warning", low: "neutral" };
 const STATUS_VARIANT   = { pending: "warning", scheduled: "info", done: "success" };
@@ -20,6 +133,7 @@ const TYPE_COLORS      = {
 
 export default function TaskCadence() {
   const toast = useToast();
+  const [showNewTask, setShowNewTask] = useState(false);
 
   const {
     data: tasks,
@@ -57,6 +171,13 @@ export default function TaskCadence() {
 
   return (
     <div className="space-y-6">
+      {showNewTask && (
+        <NewTaskModal
+          onClose={() => setShowNewTask(false)}
+          onCreated={refetchTasks}
+        />
+      )}
+
       <PageHeader
         title="Task & Cadence Center"
         subtitle="Personal and team task queue, SLA due dates, reminders and sequence automation"
@@ -68,7 +189,10 @@ export default function TaskCadence() {
             >
               <RefreshCw size={13} /> Refresh
             </button>
-            <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition">
+            <button
+              onClick={() => setShowNewTask(true)}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition"
+            >
               <Plus size={15} /> New Task
             </button>
           </div>
