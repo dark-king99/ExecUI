@@ -231,18 +231,21 @@ export default function App() {
       const stored = localStorage.getItem("user");
       if (!stored) return null;
       const parsed = JSON.parse(stored);
-      // Reject stale sessions that have no token (e.g. from pre-auth era).
-      // Force the user back to the Login page to obtain a fresh JWT.
+
+      // Reject stale sessions from the pre-auth era (no token stored).
+      // Also make sure the dedicated auth_token key is in sync.
       if (!parsed?.token) {
         localStorage.removeItem("user");
+        clearToken();
         return null;
       }
-      // Pre-warm the module-level token cache RIGHT NOW, synchronously,
-      // before any child component renders and fires its first useApi call.
+
+      // Keep auth_token in sync with the stored user token.
       setToken(parsed.token);
       return parsed;
     } catch {
       localStorage.removeItem("user");
+      clearToken();
       return null;
     }
   });

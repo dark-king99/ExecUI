@@ -8,52 +8,26 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 export const WS_URL = import.meta.env.VITE_WS_URL ?? '';
 
 // ── Token management ───────────────────────────────────────────────────────
-// The token is persisted in its own localStorage key so it is NEVER lost:
-//   • Module-level IIFE populates _token before React renders anything.
-//   • setToken() writes to both memory AND storage — called at login time.
-//   • getToken() has three fallback layers so no timing issue can win.
+// Simple: always write to / read from a dedicated localStorage key.
+// No module-level state = no timing bugs, no HMR issues, no race conditions.
 
 const TOKEN_KEY = 'auth_token';
 
-// Layer 1: initialize at module-load time (runs before any React code).
-let _token = (() => {
-  try {
-    const t = localStorage.getItem(TOKEN_KEY);
-    if (t) return t;
-    // Migrate from old 'user' blob if present.
-    const stored = localStorage.getItem('user');
-    if (!stored) return null;
-    const migrated = JSON.parse(stored)?.token ?? null;
-    if (migrated) localStorage.setItem(TOKEN_KEY, migrated);
-    return migrated;
-  } catch {
-    return null;
-  }
-})();
-
-// Layer 2: called explicitly at login and on page-load from App.jsx.
 export function setToken(token) {
-  _token = token ?? null;
-  if (_token) localStorage.setItem(TOKEN_KEY, _token);
-  else localStorage.removeItem(TOKEN_KEY);
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
 }
 
 export function clearToken() {
-  _token = null;
   localStorage.removeItem(TOKEN_KEY);
 }
 
-// Layer 3: last-resort re-read (handles Vite HMR module reloads).
 function getToken() {
-  if (_token) return _token;
   try {
-    const t = localStorage.getItem(TOKEN_KEY);
-    if (t) { _token = t; return t; }
-    const stored = localStorage.getItem('user');
-    if (!stored) return null;
-    const migrated = JSON.parse(stored)?.token ?? null;
-    if (migrated) { _token = migrated; localStorage.setItem(TOKEN_KEY, migrated); }
-    return migrated;
+    return localStorage.getItem(TOKEN_KEY) || null;
   } catch {
     return null;
   }
