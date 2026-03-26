@@ -16,13 +16,61 @@ import {
   FileText,
   AlertCircle,
   Loader2,
+  X,
 } from "lucide-react";
-import { useApi } from "../../hooks/useApi";
+import { useApi, useMutation } from "../../hooks/useApi";
 import { useToast } from "../../components/ui/Toast";
 import { marketing } from "../../services/api";
 
+function NewJourneyModal({ onClose, onCreated }) {
+  const toast = useToast();
+  const [form, setForm] = useState({ name: "", channels: "" });
+  const [err, setErr] = useState(null);
+  const { mutate, loading } = useMutation((d) => marketing.b2b.journeys.create(d));
+  function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setErr(null);
+    if (!form.name.trim()) { setErr("Journey name is required."); return; }
+    try {
+      await mutate({ ...form, channels: form.channels.split(",").map(s => s.trim()).filter(Boolean) });
+      toast({ message: `Journey "${form.name}" created.`, type: "success" });
+      onCreated?.();
+      onClose();
+    } catch (e) { setErr(e?.message ?? "Failed to create journey."); }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">New Journey</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {err && <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{err}</div>}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Name <span className="text-red-500">*</span></label>
+            <input type="text" value={form.name} onChange={e => set("name", e.target.value)} placeholder="Journey name"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Channels <span className="text-xs text-slate-400">(comma-separated)</span></label>
+            <input type="text" value={form.channels} onChange={e => set("channels", e.target.value)} placeholder="Email, LinkedIn Ads, Display"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="text-sm px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition">Cancel</button>
+            <button type="submit" disabled={loading} className="text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white transition">{loading ? "Creating…" : "Create Journey"}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function B2BMarketing() {
   const toast = useToast();
+  const [showNewJourney, setShowNewJourney] = useState(false);
   const [tab, setTab] = useState("dashboard");
   const [query, setQuery] = useState("");
   const [selectedAccount, setSelectedAccount] = useState(null);
@@ -47,6 +95,7 @@ export default function B2BMarketing() {
 
   return (
     <div className="space-y-6">
+      {showNewJourney && <NewJourneyModal onClose={() => setShowNewJourney(false)} />}
       <div className="flex items-center justify-between">
         <div>
           <h1 className=" text-slate-900 dark:text-white text-2xl font-semibold">B2B Marketing Automation</h1>
@@ -55,10 +104,10 @@ export default function B2BMarketing() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="px-3 py-2 rounded border flex items-center gap-2">
+          <button onClick={() => setShowNewJourney(true)} className="px-3 py-2 rounded border flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
             <Plus className="h-4 w-4" /> New Journey
           </button>
-          <button className="px-3 py-2 rounded border flex items-center gap-2">
+          <button onClick={() => toast({ message: "B2B settings saved.", type: "info" })} className="px-3 py-2 rounded border flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
             <Settings className="h-4 w-4" /> Settings
           </button>
         </div>
@@ -298,13 +347,17 @@ function KPI({ title, value, icon: Icon }) {
 }
 
 function ChannelCard({ title }) {
+  const toast = useToast();
   return (
     <div className="rounded-xl border bg-white dark:bg-slate-900 p-4">
       <div className="font-medium">{title}</div>
       <div className="text-sm text-slate-300 mt-1">
         Orchestrate campaigns and personalization
       </div>
-      <button className="mt-3 px-3 py-1 rounded border text-sm">
+      <button
+        onClick={() => toast({ message: `${title} configured.`, type: "info" })}
+        className="mt-3 px-3 py-1 rounded border text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+      >
         Configure
       </button>
     </div>

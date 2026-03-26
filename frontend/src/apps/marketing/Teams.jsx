@@ -1,17 +1,110 @@
-import { useApi } from "../../hooks/useApi";
+import { useState } from "react";
+import { useApi, useMutation } from "../../hooks/useApi";
+import { useToast } from "../../components/ui/Toast";
 import { marketing } from "../../services/api";
 import {
-  Users,
-  Briefcase,
-  CheckCircle,
-  Activity,
-  BarChart3,
-  Plus,
-  AlertCircle,
+  Users, Briefcase, CheckCircle, Activity, BarChart3, Plus, AlertCircle, X,
 } from "lucide-react";
 
+function InviteModal({ onClose, onCreated }) {
+  const toast = useToast();
+  const [email, setEmail] = useState("");
+  const [err, setErr] = useState(null);
+  const { mutate, loading } = useMutation((d) => marketing.teams.invite(d));
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setErr(null);
+    if (!email.trim()) { setErr("Email is required."); return; }
+    try {
+      await mutate({ email });
+      toast({ message: `Invite sent to ${email}.`, type: "success" });
+      onCreated?.();
+      onClose();
+    } catch (e) { setErr(e?.message ?? "Failed to send invite."); }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">Invite Member</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {err && <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{err}</div>}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Email <span className="text-red-500">*</span></label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="colleague@company.com"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="text-sm px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition">Cancel</button>
+            <button type="submit" disabled={loading} className="text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white transition">{loading ? "Sending…" : "Send Invite"}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function CreateTaskModal({ onClose, onCreated }) {
+  const toast = useToast();
+  const [form, setForm] = useState({ title: "", priority: "medium", assignee: "" });
+  const [err, setErr] = useState(null);
+  const { mutate, loading } = useMutation((d) => marketing.teams.createTask(d));
+  function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setErr(null);
+    if (!form.title.trim()) { setErr("Task title is required."); return; }
+    try {
+      await mutate(form);
+      toast({ message: "Task created.", type: "success" });
+      onCreated?.();
+      onClose();
+    } catch (e) { setErr(e?.message ?? "Failed to create task."); }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">Create Task</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {err && <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{err}</div>}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Title <span className="text-red-500">*</span></label>
+            <input type="text" value={form.title} onChange={e => set("title", e.target.value)} placeholder="Task title"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Priority</label>
+              <select value={form.priority} onChange={e => set("priority", e.target.value)}
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                {["low","medium","high"].map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Assignee</label>
+              <input type="text" value={form.assignee} onChange={e => set("assignee", e.target.value)} placeholder="Name"
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="text-sm px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition">Cancel</button>
+            <button type="submit" disabled={loading} className="text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white transition">{loading ? "Creating…" : "Create Task"}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function Teams() {
-  const { data: members, loading: membersLoading, error: membersError } = useApi(
+  const [showInvite, setShowInvite] = useState(false);
+  const [showCreateTask, setShowCreateTask] = useState(false);
+  const { data: members, loading: membersLoading, error: membersError, refetch: refetchMembers } = useApi(
     () => marketing.teams.list(), [], { pollingInterval: 60000 }
   );
   const { data: tasks, loading: tasksLoading, error: tasksError } = useApi(
@@ -30,6 +123,8 @@ export default function Teams() {
 
   return (
     <div className="min-h-full w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-8 space-y-8">
+      {showInvite && <InviteModal onClose={() => setShowInvite(false)} onCreated={refetchMembers} />}
+      {showCreateTask && <CreateTaskModal onClose={() => setShowCreateTask(false)} />}
 
       <div className="flex items-center justify-between">
         <div>
@@ -42,10 +137,16 @@ export default function Teams() {
         </div>
 
         <div className="flex gap-4">
-          <button className="px-4 py-2 text-sm bg-slate-200 dark:bg-slate-800 rounded-md">
+          <button
+            onClick={() => setShowInvite(true)}
+            className="px-4 py-2 text-sm bg-slate-200 dark:bg-slate-800 rounded-md hover:bg-slate-300 dark:hover:bg-slate-700 transition"
+          >
             Invite Member
           </button>
-          <button className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-2">
+          <button
+            onClick={() => setShowCreateTask(true)}
+            className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-2 transition"
+          >
             <Plus size={14} /> Create Task
           </button>
         </div>

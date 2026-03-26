@@ -258,13 +258,21 @@ export default function App() {
   useEffect(() => {
     if (user) {
       localStorage.setItem("user", JSON.stringify(user));
-      // Keep the dedicated token key in sync in case it was cleared.
       if (user.token) setToken(user.token);
     } else {
       localStorage.removeItem("user");
-      clearToken();   // wipe the in-memory token and auth_token key on logout
+      clearToken();
     }
   }, [user]);
+
+  // Auto-logout when any API call receives 401 (invalid/expired token)
+  useEffect(() => {
+    function handleAuthExpired() {
+      setUser(null);
+    }
+    window.addEventListener('auth:expired', handleAuthExpired);
+    return () => window.removeEventListener('auth:expired', handleAuthExpired);
+  }, []);
 
   if (!user) return <Login onLogin={setUser} />;
 

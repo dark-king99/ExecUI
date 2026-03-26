@@ -70,6 +70,12 @@ async function request(path, options = {}) {
     } catch (parseErr) {
       message = parseErr.message;
     }
+    // Auto-logout on invalid/expired token
+    if (response.status === 401) {
+      clearToken();
+      localStorage.removeItem('user');
+      window.dispatchEvent(new CustomEvent('auth:expired'));
+    }
     throw new Error(message);
   }
 
@@ -314,8 +320,10 @@ export const marketing = {
     create:  (data)   => post('/marketing/personalization', data),
   },
   cdp: {
-    metrics: () => get('/marketing/cdp/metrics'),
-    sources: () => get('/marketing/cdp/sources'),
+    metrics:  () => get('/marketing/cdp/metrics'),
+    sources:  () => get('/marketing/cdp/sources'),
+    addSource: (data) => post('/marketing/cdp/sources', data),
+    createSegment: (data) => post('/marketing/cdp/segments', data),
   },
   flows: {
     list:   ()       => get('/marketing/flows'),
