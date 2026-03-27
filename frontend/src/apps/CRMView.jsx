@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-import { format, parseISO, isToday, isTomorrow, formatDistanceToNow } from 'date-fns';
-import { 
-  Sun, Moon, Users, TrendingUp, BarChart3, Database,
+import { format, parseISO, formatDistanceToNow } from 'date-fns';
+import {
+  Users, TrendingUp, BarChart3, Database,
   Calendar as CalendarIcon, CheckCircle2, Clock, AlertTriangle,
   ChevronRight, Phone, Mail, MessageSquare, FileText,
-  Target, DollarSign, UserCheck, Ticket, RefreshCw,
-  AlertCircle, CheckSquare, Circle, LayoutGrid, Plus
+  Target, DollarSign, Ticket, RefreshCw,
+  AlertCircle, CheckSquare, LayoutGrid
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/cards';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
@@ -15,269 +14,309 @@ import { Checkbox } from '../components/ui/checkbox';
 import { Calendar } from '../components/ui/calendar';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { Button } from '../components/ui/button';
+import { useSidebar } from '../components/SidebarContext';
 
-export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }) {
-  const [employee, setEmployee] = useState(null);
+// ── API helper ────────────────────────────────────────────────────────────────
+const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+
+function apiFetch(path, options = {}) {
+  const token = localStorage.getItem('auth_token');
+  return fetch(`${BASE}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  }).then(async (res) => {
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.message ?? `HTTP ${res.status}`);
+    }
+    if (res.status === 204) return null;
+    return res.json();
+  });
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+export default function CRMDashboard() {
+  const { theme } = useSidebar();
+  const isDark = theme === 'dark';
+
+  const [employee, setEmployee]             = useState(null);
   const [recentServices, setRecentServices] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [tickets, setTickets] = useState([]);
-  const [followUps, setFollowUps] = useState([]);
-  const [opportunities, setOpportunities] = useState([]);
-  const [overview, setOverview] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [tasks, setTasks]                   = useState([]);
+  const [tickets, setTickets]               = useState([]);
+  const [followUps, setFollowUps]           = useState([]);
+  const [opportunities, setOpportunities]   = useState([]);
+  const [overview, setOverview]             = useState(null);
+  const [selectedDate, setSelectedDate]     = useState(new Date());
+  const [loading, setLoading]               = useState(true);
+  const [error, setError]                   = useState(null);
 
-  const headers = {
-    'X-Employee-ID': employeeId,
-    'Content-Type': 'application/json'
-  };
-
+  // ── Fetch all dashboard data ──────────────────────────────────────────────
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const [
-        empRes, 
-        servicesRes, 
-        tasksRes, 
-        ticketsRes, 
-        followUpsRes,
-        oppsRes,
-        overviewRes
-      ] = await Promise.all([
-        axios.get(`${apiUrl}/employee/profile`, { headers }).catch(() => null),
-        axios.get(`${apiUrl}/services/recent?limit=4`, { headers }),
-        axios.get(`${apiUrl}/tasks?status=pending`, { headers }),
-        axios.get(`${apiUrl}/tickets`, { headers }),
-        axios.get(`${apiUrl}/follow-ups?status=scheduled`, { headers }),
-        axios.get(`${apiUrl}/opportunities`, { headers }),
-        axios.get(`${apiUrl}/dashboard/overview`, { headers })
-      ]);
-      
-      if (empRes?.data) setEmployee(empRes.data);
-      setRecentServices(servicesRes?.data || []);
-      setTasks(tasksRes?.data || []);
-      setTickets(ticketsRes?.data || []);
-      setFollowUps(followUpsRes?.data || []);
-      setOpportunities(oppsRes?.data || []);
-      setOverview(overviewRes?.data || null);
+
+      const [emp, services, tasksData, ticketsData, followUpsData, opps, ov] =
+        await Promise.all([
+          apiFetch('/crm/dashboard/profile').catch(() => null),
+          apiFetch('/crm/dashboard/services/recent?limit=4').catch(() => []),
+          apiFetch('/crm/dashboard/tasks?status=pending').catch(() => []),
+          apiFetch('/crm/dashboard/tickets').catch(() => []),
+          apiFetch('/crm/dashboard/follow-ups?status=scheduled').catch(() => []),
+          apiFetch('/crm/dashboard/opportunities').catch(() => []),
+          apiFetch('/crm/dashboard/overview').catch(() => null),
+        ]);
+
+      if (emp) setEmployee(emp);
+      setRecentServices(services ?? []);
+      setTasks(tasksData ?? []);
+      setTickets(ticketsData ?? []);
+      setFollowUps(followUpsData ?? []);
+      setOpportunities(opps ?? []);
+      setOverview(ov);
     } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-      setError(err.response?.data?.detail || 'Failed to load dashboard data');
+      console.error('CRM dashboard fetch error:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [apiUrl, employeeId]);
+  }, []);
 
+  // Fetch on mount — no employeeId dependency, auth comes from JWT
   useEffect(() => {
-    if (employeeId) {
-      fetchDashboardData();
-    }
-  }, [employeeId, fetchDashboardData]);
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
-  const trackServiceUsage = async (serviceName, serviceTitle, serviceDescription, serviceIcon) => {
+  // ── Actions ───────────────────────────────────────────────────────────────
+  const trackServiceUsage = async (service) => {
     try {
-      await axios.post(`${apiUrl}/services/track`, {
-        service_name: serviceName,
-        service_title: serviceTitle,
-        service_description: serviceDescription,
-        service_icon: serviceIcon
-      }, { headers });
-      
-      // Refresh recent services
-      const res = await axios.get(`${apiUrl}/services/recent?limit=4`, { headers });
-      setRecentServices(res.data || []);
+      await apiFetch('/crm/dashboard/services/track', {
+        method: 'POST',
+        body: JSON.stringify({
+          service_name: service.service_name,
+          service_title: service.service_title,
+          service_description: service.service_description,
+          service_icon: service.service_icon,
+        }),
+      });
+      const updated = await apiFetch('/crm/dashboard/services/recent?limit=4');
+      setRecentServices(updated ?? []);
     } catch (err) {
-      console.error('Error tracking service usage:', err);
+      console.error('Service track failed:', err);
     }
   };
 
   const updateTaskStatus = async (taskId, newStatus) => {
     try {
-      await axios.patch(`${apiUrl}/tasks/${taskId}`, { status: newStatus }, { headers });
-      setTasks(tasks.map(task => 
-        task.id === taskId ? { ...task, status: newStatus } : task
-      ));
+      await apiFetch(`/crm/dashboard/tasks/${taskId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
+      });
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+      );
     } catch (err) {
-      console.error('Error updating task:', err);
+      console.error('Task update failed:', err);
     }
   };
 
   const updateTicketStatus = async (ticketId, newStatus) => {
     try {
-      await axios.patch(`${apiUrl}/tickets/${ticketId}`, { status: newStatus }, { headers });
-      setTickets(tickets.map(ticket => 
-        ticket.id === ticketId ? { ...ticket, status: newStatus } : ticket
-      ));
+      await apiFetch(`/crm/dashboard/tickets/${ticketId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
+      });
+      setTickets((prev) =>
+        prev.map((t) => (t.id === ticketId ? { ...t, status: newStatus } : t))
+      );
     } catch (err) {
-      console.error('Error updating ticket:', err);
+      console.error('Ticket update failed:', err);
     }
   };
 
+  // ── Utilities ─────────────────────────────────────────────────────────────
   const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
+    const h = new Date().getHours();
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
     return 'Good Evening';
   };
 
   const getServiceIcon = (iconName) => {
     const icons = {
-      'pipeline': <TrendingUp className="w-6 h-6" />,
-      'database': <Database className="w-6 h-6" />,
-      'opportunities': <Target className="w-6 h-6" />,
-      'reports': <BarChart3 className="w-6 h-6" />,
-      'contacts': <Users className="w-6 h-6" />,
-      'tickets': <Ticket className="w-6 h-6" />,
-      'analytics': <BarChart3 className="w-6 h-6" />,
-      'default': <LayoutGrid className="w-6 h-6" />
+      pipeline:      <TrendingUp className="w-6 h-6" />,
+      database:      <Database className="w-6 h-6" />,
+      opportunities: <Target className="w-6 h-6" />,
+      reports:       <BarChart3 className="w-6 h-6" />,
+      contacts:      <Users className="w-6 h-6" />,
+      tickets:       <Ticket className="w-6 h-6" />,
+      analytics:     <BarChart3 className="w-6 h-6" />,
     };
-    return icons[iconName] || icons['default'];
+    return icons[iconName] ?? <LayoutGrid className="w-6 h-6" />;
   };
 
-  const getServiceColor = (serviceName) => {
+  const getServiceColor = (name) => {
     const colors = {
-      'pipeline': 'text-emerald-400 bg-emerald-500/10',
-      'database': 'text-sky-400 bg-sky-500/10',
-      'opportunities': 'text-amber-400 bg-amber-500/10',
-      'reports': 'text-violet-400 bg-violet-500/10',
-      'contacts': 'text-rose-400 bg-rose-500/10',
-      'tickets': 'text-orange-400 bg-orange-500/10'
+      pipeline:      'text-emerald-400 bg-emerald-500/10',
+      database:      'text-sky-400 bg-sky-500/10',
+      opportunities: 'text-amber-400 bg-amber-500/10',
+      reports:       'text-violet-400 bg-violet-500/10',
+      contacts:      'text-rose-400 bg-rose-500/10',
+      tickets:       'text-orange-400 bg-orange-500/10',
     };
-    return colors[serviceName] || 'text-slate-400 bg-slate-500/10';
+    return colors[name] ?? 'text-slate-400 bg-slate-500/10';
   };
 
   const getPriorityColor = (priority) => {
     const colors = {
-      'urgent': 'bg-red-500/15 text-red-400 border-red-500/30',
-      'high': 'bg-orange-500/15 text-orange-400 border-orange-500/30',
-      'medium': 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-      'low': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+      urgent: 'bg-red-500/15 text-red-400 border-red-500/30',
+      high:   'bg-orange-500/15 text-orange-400 border-orange-500/30',
+      medium: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+      low:    'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
     };
-    return colors[priority] || colors['medium'];
+    return colors[priority] ?? colors.medium;
   };
 
   const getSLAColor = (slaStatus) => {
     const colors = {
-      'on_track': 'text-emerald-400',
-      'at_risk': 'text-amber-400',
-      'breached': 'text-red-400'
+      on_track: 'text-emerald-400',
+      at_risk:  'text-amber-400',
+      breached: 'text-red-400',
     };
-    return colors[slaStatus] || colors['on_track'];
+    return colors[slaStatus] ?? colors.on_track;
   };
 
   const getTaskTypeIcon = (type) => {
     const icons = {
-      'call': <Phone className="w-4 h-4" />,
-      'email': <Mail className="w-4 h-4" />,
-      'meeting': <Users className="w-4 h-4" />,
-      'follow_up': <RefreshCw className="w-4 h-4" />,
-      'review': <FileText className="w-4 h-4" />
+      call:      <Phone className="w-4 h-4" />,
+      email:     <Mail className="w-4 h-4" />,
+      meeting:   <Users className="w-4 h-4" />,
+      follow_up: <RefreshCw className="w-4 h-4" />,
+      review:    <FileText className="w-4 h-4" />,
     };
-    return icons[type] || <CheckSquare className="w-4 h-4" />;
+    return icons[type] ?? <CheckSquare className="w-4 h-4" />;
   };
 
-  const formatCurrency = (value, currency = 'USD') => {
-    return new Intl.NumberFormat('en-US', {
+  const formatCurrency = (value, currency = 'USD') =>
+    new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currency,
+      currency,
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(value);
-  };
+      maximumFractionDigits: 0,
+    }).format(value ?? 0);
 
+  // ── Loading / Error states ─────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className={`w-full max-w-[1600px] mx-auto p-4 md:p-8 flex items-center justify-center min-h-screen ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
-        <div className={`font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Loading dashboard...</div>
+      <div
+        className={`w-full max-w-[1600px] mx-auto p-4 md:p-8 flex items-center justify-center min-h-screen ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}
+      >
+        <div className={`font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Loading dashboard…</div>
       </div>
     );
   }
 
   if (error && !employee) {
     return (
-      <div className={`w-full max-w-[1600px] mx-auto p-4 md:p-8 flex flex-col items-center justify-center min-h-screen ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
+      <div
+        className={`w-full max-w-[1600px] mx-auto p-4 md:p-8 flex flex-col items-center justify-center min-h-screen ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}
+      >
         <AlertCircle className={`w-12 h-12 mb-4 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
         <p className={`font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{error}</p>
-        <Button 
-          onClick={fetchDashboardData} 
-          className="mt-4 bg-orange-500 hover:bg-orange-600 text-white"
-          data-testid="retry-btn"
-        >
+        <Button onClick={fetchDashboardData} className="mt-4 bg-orange-500 hover:bg-orange-600 text-white" data-testid="retry-btn">
           Retry
         </Button>
       </div>
     );
   }
 
+  // ── Main render ────────────────────────────────────────────────────────────
   return (
-    <div className={`w-full max-w-[1600px] mx-auto p-4 md:p-8 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`} data-testid="crm-dashboard">
-      {/* Header Section */}
-      <header className={`flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b mb-8 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+    <div
+      className={`w-full max-w-[1600px] mx-auto p-4 md:p-8 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}
+      data-testid="crm-dashboard"
+    >
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <header
+        className={`flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b mb-8 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}
+      >
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16 border-2 border-orange-500/30">
             <AvatarImage src={employee?.avatar_url} alt={employee?.name} />
-            <AvatarFallback className={`font-heading text-xl ${isDark ? 'bg-slate-800 text-orange-400' : 'bg-slate-200 text-orange-600'}`}>
-              {employee?.name?.split(' ').map(n => n[0]).join('') || '?'}
+            <AvatarFallback
+              className={`font-heading text-xl ${isDark ? 'bg-slate-800 text-orange-400' : 'bg-slate-200 text-orange-600'}`}
+            >
+              {employee?.name?.split(' ').map((n) => n[0]).join('') || '?'}
             </AvatarFallback>
           </Avatar>
           <div>
             <p className={`text-sm font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{getGreeting()}</p>
-            <h1 className={`text-2xl sm:text-3xl font-semibold tracking-tight font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`} data-testid="employee-name">
-              {employee?.name || 'Employee'}
+            <h1
+              className={`text-2xl sm:text-3xl font-semibold tracking-tight font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`}
+              data-testid="employee-name"
+            >
+              {employee?.name ?? '—'}
             </h1>
             <p className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>
-              {employee?.role || 'Customer Service'} - {employee?.department || 'CRM'}
+              {employee?.role ?? 'Customer Service'} — {employee?.department ?? 'CRM'}
             </p>
           </div>
         </div>
-        
+
+        {/* Quick Stats Pills */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* Quick Stats Pills */}
-          <div className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`} data-testid="stat-tasks">
+          <div
+            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            data-testid="stat-tasks"
+          >
             <CheckSquare className="w-4 h-4 text-orange-400" />
-            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>{overview?.tasks?.pending || 0}</span>
+            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+              {overview?.tasks?.pending ?? 0}
+            </span>
             <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Tasks</span>
           </div>
-          <div className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`} data-testid="stat-tickets">
+          <div
+            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            data-testid="stat-tickets"
+          >
             <Ticket className="w-4 h-4 text-sky-400" />
-            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>{overview?.tickets?.open || 0}</span>
+            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+              {overview?.tickets?.open ?? 0}
+            </span>
             <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Open Tickets</span>
           </div>
-          <div className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`} data-testid="stat-pipeline">
+          <div
+            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            data-testid="stat-pipeline"
+          >
             <DollarSign className="w-4 h-4 text-emerald-400" />
             <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
-              {formatCurrency(overview?.opportunities?.pipeline_value || 0)}
+              {formatCurrency(overview?.opportunities?.pipeline_value)}
             </span>
             <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Pipeline</span>
           </div>
-          
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={toggleTheme}
-            className={`ml-2 ${isDark ? 'bg-slate-900 border-slate-700 hover:bg-slate-800' : 'bg-white border-slate-200 hover:bg-slate-100'}`}
-            data-testid="theme-toggle"
-          >
-            {isDark ? <Sun className="h-4 w-4 text-orange-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
-          </Button>
         </div>
       </header>
 
-      {/* Main Content Grid */}
+      {/* ── Main Grid ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
-        {/* Left Column - Services & Workload */}
+        {/* Left Column */}
         <div className="lg:col-span-8 flex flex-col gap-6 lg:gap-8">
-          {/* Recent Services Section */}
+          {/* Recent Services */}
           <section>
-            <h2 className={`text-xl font-medium tracking-tight font-heading mb-4 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+            <h2
+              className={`text-xl font-medium tracking-tight font-heading mb-4 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}
+            >
               Recent Services
             </h2>
-            
             {recentServices.length === 0 ? (
-              <Card className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <Card
+                className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+              >
                 <CardContent className="p-8 text-center">
                   <LayoutGrid className={`w-12 h-12 mx-auto mb-4 ${isDark ? 'text-slate-600' : 'text-slate-400'}`} />
                   <p className={`font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -288,18 +327,20 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
                 {recentServices.map((service) => (
-                  <Card 
+                  <Card
                     key={service.id}
                     className={`service-card backdrop-blur-xl border rounded-2xl cursor-pointer transition-all hover:-translate-y-1 ${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'}`}
-                    onClick={() => trackServiceUsage(service.service_name, service.service_title, service.service_description, service.service_icon)}
+                    onClick={() => trackServiceUsage(service)}
                     data-testid={`service-card-${service.service_name}`}
                   >
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className={`p-3 rounded-xl ${getServiceColor(service.service_name)}`}>
-                          {getServiceIcon(service.service_icon)}
+                          {getServiceIcon(service.service_icon ?? service.service_name)}
                         </div>
-                        <Badge className={`font-body ${isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'} border-0`}>
+                        <Badge
+                          className={`font-body ${isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'} border-0`}
+                        >
                           {service.usage_count} uses
                         </Badge>
                       </div>
@@ -320,18 +361,19 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className={`text-xl font-medium tracking-tight font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
-                Tasks & Follow-ups
+                Tasks &amp; Follow-ups
               </h2>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className={`font-body ${isDark ? 'text-slate-400 hover:text-slate-50' : 'text-slate-500 hover:text-slate-900'}`}
                 data-testid="view-all-tasks"
               >
                 View All <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </div>
-            
-            <Card className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+            <Card
+              className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            >
               <CardContent className="p-6">
                 {tasks.length === 0 && followUps.length === 0 ? (
                   <div className="text-center py-8">
@@ -344,14 +386,16 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
                   <ScrollArea className="h-[320px]">
                     <div className="space-y-3 pr-4">
                       {tasks.slice(0, 5).map((task) => (
-                        <div 
+                        <div
                           key={task.id}
                           className={`flex items-start gap-3 p-3 rounded-lg transition-all ${isDark ? 'bg-slate-800/50 hover:bg-slate-800' : 'bg-slate-50 hover:bg-slate-100'}`}
                           data-testid={`task-item-${task.id}`}
                         >
                           <Checkbox
                             checked={task.status === 'completed'}
-                            onCheckedChange={() => updateTaskStatus(task.id, task.status === 'completed' ? 'pending' : 'completed')}
+                            onCheckedChange={() =>
+                              updateTaskStatus(task.id, task.status === 'completed' ? 'pending' : 'completed')
+                            }
                             className={`mt-0.5 ${isDark ? 'border-slate-600' : 'border-slate-300'} data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500`}
                             data-testid={`task-checkbox-${task.id}`}
                           />
@@ -362,13 +406,15 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
                                 {task.title}
                               </p>
                             </div>
-                            {task.related_customer_name && (
+                            {task.relatedCustomerName && (
                               <p className={`text-xs font-body mt-1 ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
-                                Customer: {task.related_customer_name}
+                                Customer: {task.relatedCustomerName}
                               </p>
                             )}
                             <div className="flex items-center gap-2 mt-2">
-                              <span className={`text-xs px-2 py-0.5 rounded-full border font-body ${getPriorityColor(task.priority)}`}>
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full border font-body ${getPriorityColor(task.priority)}`}
+                              >
                                 {task.priority}
                               </span>
                               {task.due_date && (
@@ -380,9 +426,9 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
                           </div>
                         </div>
                       ))}
-                      
+
                       {followUps.slice(0, 3).map((followUp) => (
-                        <div 
+                        <div
                           key={followUp.id}
                           className={`flex items-start gap-3 p-3 rounded-lg border-l-2 border-amber-500 ${isDark ? 'bg-slate-800/50' : 'bg-amber-50'}`}
                           data-testid={`followup-item-${followUp.id}`}
@@ -393,7 +439,8 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
                               Follow-up: {followUp.customer_name}
                             </p>
                             <p className={`text-xs font-body mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                              {followUp.follow_up_type} - {format(parseISO(followUp.scheduled_date), 'MMM d, h:mm a')}
+                              {followUp.follow_up_type} —{' '}
+                              {format(parseISO(followUp.scheduled_date), 'MMM d, h:mm a')}
                             </p>
                           </div>
                         </div>
@@ -414,12 +461,13 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
               {(overview?.tickets?.at_risk > 0 || overview?.tickets?.breached > 0) && (
                 <Badge className="bg-red-500/15 text-red-400 border-red-500/30 font-body">
                   <AlertTriangle className="w-3 h-3 mr-1" />
-                  {overview.tickets.at_risk + overview.tickets.breached} SLA Issues
+                  {(overview.tickets.at_risk ?? 0) + (overview.tickets.breached ?? 0)} SLA Issues
                 </Badge>
               )}
             </div>
-            
-            <Card className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+            <Card
+              className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            >
               <CardContent className="p-6">
                 {tickets.length === 0 ? (
                   <div className="text-center py-8">
@@ -432,7 +480,7 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
                   <ScrollArea className="h-[280px]">
                     <div className="space-y-3 pr-4">
                       {tickets.slice(0, 6).map((ticket) => (
-                        <div 
+                        <div
                           key={ticket.id}
                           className={`p-4 rounded-lg border ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}
                           data-testid={`ticket-item-${ticket.id}`}
@@ -443,7 +491,9 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
                                 <span className={`text-xs font-mono ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                                   {ticket.ticket_number}
                                 </span>
-                                <span className={`text-xs px-2 py-0.5 rounded-full border font-body ${getPriorityColor(ticket.priority)}`}>
+                                <span
+                                  className={`text-xs px-2 py-0.5 rounded-full border font-body ${getPriorityColor(ticket.priority)}`}
+                                >
                                   {ticket.priority}
                                 </span>
                               </div>
@@ -455,15 +505,23 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
                               </p>
                             </div>
                             <div className="flex flex-col items-end gap-1">
-                              <Badge 
-                                variant="outline" 
+                              <Badge
+                                variant="outline"
                                 className={`text-xs font-body capitalize ${isDark ? 'border-slate-700' : 'border-slate-300'}`}
                               >
                                 {ticket.status.replace('_', ' ')}
                               </Badge>
-                              <span className={`text-xs font-body ${getSLAColor(ticket.sla_status)}`}>
+                              <button
+                                onClick={() =>
+                                  updateTicketStatus(
+                                    ticket.id,
+                                    ticket.status === 'open' ? 'in_progress' : 'open'
+                                  )
+                                }
+                                className={`text-xs font-body ${getSLAColor(ticket.sla_status)} hover:underline`}
+                              >
                                 SLA: {ticket.sla_status.replace('_', ' ')}
-                              </span>
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -476,12 +534,17 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
           </section>
         </div>
 
-        {/* Right Column - Calendar & Opportunities */}
+        {/* Right Column */}
         <div className="lg:col-span-4 flex flex-col gap-6 lg:gap-8">
-          {/* Calendar Widget */}
-          <Card className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`} data-testid="calendar-widget">
+          {/* Calendar */}
+          <Card
+            className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            data-testid="calendar-widget"
+          >
             <CardHeader className="pb-2">
-              <CardTitle className={`text-lg font-medium font-heading flex items-center gap-2 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+              <CardTitle
+                className={`text-lg font-medium font-heading flex items-center gap-2 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}
+              >
                 <CalendarIcon className="w-5 h-5 text-orange-400" />
                 Calendar
               </CardTitle>
@@ -493,21 +556,21 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
                 onSelect={setSelectedDate}
                 className="rounded-md"
                 classNames={{
-                  months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                  month: "space-y-4 w-full",
+                  months: 'flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0',
+                  month: 'space-y-4 w-full',
                   caption: `flex justify-center pt-1 relative items-center font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`,
-                  caption_label: "text-sm font-medium",
-                  nav: "space-x-1 flex items-center",
+                  caption_label: 'text-sm font-medium',
+                  nav: 'space-x-1 flex items-center',
                   nav_button: `h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 ${isDark ? 'text-slate-400 hover:text-slate-50' : 'text-slate-500 hover:text-slate-900'}`,
-                  nav_button_previous: "absolute left-1",
-                  nav_button_next: "absolute right-1",
-                  table: "w-full border-collapse space-y-1",
-                  head_row: "flex w-full justify-between",
+                  nav_button_previous: 'absolute left-1',
+                  nav_button_next: 'absolute right-1',
+                  table: 'w-full border-collapse space-y-1',
+                  head_row: 'flex w-full justify-between',
                   head_cell: `rounded-md w-8 font-normal text-[0.8rem] font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`,
-                  row: "flex w-full mt-2 justify-between",
-                  cell: "text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+                  row: 'flex w-full mt-2 justify-between',
+                  cell: 'text-center text-sm p-0 relative focus-within:relative focus-within:z-20',
                   day: `h-8 w-8 p-0 font-normal rounded-md font-body ${isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-100'}`,
-                  day_selected: "bg-orange-500 text-white hover:bg-orange-600 font-medium",
+                  day_selected: 'bg-orange-500 text-white hover:bg-orange-600 font-medium',
                   day_today: `${isDark ? 'bg-slate-800 text-orange-400' : 'bg-orange-100 text-orange-600'}`,
                   day_outside: `opacity-50 ${isDark ? 'text-slate-600' : 'text-slate-400'}`,
                   day_disabled: `opacity-50 ${isDark ? 'text-slate-600' : 'text-slate-400'}`,
@@ -516,10 +579,15 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
             </CardContent>
           </Card>
 
-          {/* Today's Schedule */}
-          <Card className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`} data-testid="schedule-widget">
+          {/* Today's Workload */}
+          <Card
+            className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            data-testid="schedule-widget"
+          >
             <CardHeader className="pb-2">
-              <CardTitle className={`text-lg font-medium font-heading flex items-center gap-2 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+              <CardTitle
+                className={`text-lg font-medium font-heading flex items-center gap-2 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}
+              >
                 <Clock className="w-5 h-5 text-orange-400" />
                 Today's Workload
               </CardTitle>
@@ -529,58 +597,45 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-                  <div className="flex items-center gap-3">
-                    <CheckSquare className="w-5 h-5 text-orange-400" />
-                    <span className={`text-sm font-body ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Pending Tasks</span>
+                {[
+                  { icon: <CheckSquare className="w-5 h-5 text-orange-400" />, label: 'Pending Tasks',   value: overview?.tasks?.pending ?? 0, alert: false },
+                  { icon: <RefreshCw className="w-5 h-5 text-amber-400" />,   label: 'Follow-ups Today', value: overview?.follow_ups_today ?? 0, alert: false },
+                  { icon: <Ticket className="w-5 h-5 text-sky-400" />,        label: 'Open Tickets',    value: overview?.tickets?.open ?? 0,    alert: false },
+                  { icon: <AlertTriangle className={`w-5 h-5 ${(overview?.tickets?.breached ?? 0) > 0 ? 'text-red-400' : 'text-slate-400'}`} />,
+                    label: 'SLA Breached', value: overview?.tickets?.breached ?? 0, alert: (overview?.tickets?.breached ?? 0) > 0 },
+                ].map(({ icon, label, value, alert }) => (
+                  <div
+                    key={label}
+                    className={`flex items-center justify-between p-3 rounded-lg ${alert ? 'bg-red-500/10' : isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {icon}
+                      <span className={`text-sm font-body ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{label}</span>
+                    </div>
+                    <span className={`text-lg font-semibold font-heading ${alert ? 'text-red-400' : isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                      {value}
+                    </span>
                   </div>
-                  <span className={`text-lg font-semibold font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
-                    {overview?.tasks?.pending || 0}
-                  </span>
-                </div>
-                
-                <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-                  <div className="flex items-center gap-3">
-                    <RefreshCw className="w-5 h-5 text-amber-400" />
-                    <span className={`text-sm font-body ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Follow-ups Today</span>
-                  </div>
-                  <span className={`text-lg font-semibold font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
-                    {overview?.follow_ups_today || 0}
-                  </span>
-                </div>
-                
-                <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-                  <div className="flex items-center gap-3">
-                    <Ticket className="w-5 h-5 text-sky-400" />
-                    <span className={`text-sm font-body ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Open Tickets</span>
-                  </div>
-                  <span className={`text-lg font-semibold font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
-                    {overview?.tickets?.open || 0}
-                  </span>
-                </div>
-                
-                <div className={`flex items-center justify-between p-3 rounded-lg ${overview?.tickets?.breached > 0 ? 'bg-red-500/10' : isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-                  <div className="flex items-center gap-3">
-                    <AlertTriangle className={`w-5 h-5 ${overview?.tickets?.breached > 0 ? 'text-red-400' : 'text-slate-400'}`} />
-                    <span className={`text-sm font-body ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>SLA Breached</span>
-                  </div>
-                  <span className={`text-lg font-semibold font-heading ${overview?.tickets?.breached > 0 ? 'text-red-400' : isDark ? 'text-slate-50' : 'text-slate-900'}`}>
-                    {overview?.tickets?.breached || 0}
-                  </span>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
 
           {/* Opportunities Pipeline */}
-          <Card className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`} data-testid="opportunities-widget">
+          <Card
+            className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            data-testid="opportunities-widget"
+          >
             <CardHeader className="pb-2">
-              <CardTitle className={`text-lg font-medium font-heading flex items-center gap-2 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+              <CardTitle
+                className={`text-lg font-medium font-heading flex items-center gap-2 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}
+              >
                 <Target className="w-5 h-5 text-orange-400" />
                 Opportunities
               </CardTitle>
               <p className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
-                {overview?.opportunities?.total || 0} active • {formatCurrency(overview?.opportunities?.pipeline_value || 0)}
+                {overview?.opportunities?.total ?? 0} active •{' '}
+                {formatCurrency(overview?.opportunities?.pipeline_value)}
               </p>
             </CardHeader>
             <CardContent>
@@ -595,7 +650,7 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
                 <ScrollArea className="h-[200px]">
                   <div className="space-y-3 pr-4">
                     {opportunities.slice(0, 5).map((opp) => (
-                      <div 
+                      <div
                         key={opp.id}
                         className={`p-3 rounded-lg ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}
                         data-testid={`opportunity-item-${opp.id}`}
@@ -603,23 +658,26 @@ export default function CRMDashboard({ apiUrl, employeeId, isDark, toggleTheme }
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm font-medium font-body truncate ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
-                              {opp.title}
+                              {opp.name}
                             </p>
-                            <p className={`text-xs font-body mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                              {opp.customer_name}
+                            <p className={`text-xs font-body mt-0.5 capitalize ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                              {opp.stage.replace('_', ' ')}
                             </p>
                           </div>
-                          <span className={`text-sm font-semibold font-body text-emerald-400`}>
-                            {formatCurrency(opp.value, opp.currency)}
-                          </span>
+                          <div className="text-right ml-3">
+                            <p className={`text-sm font-semibold font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                              {formatCurrency(opp.value)}
+                            </p>
+                            <p className={`text-xs font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                              {opp.probability}% prob
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="outline" className={`text-xs font-body ${isDark ? 'border-slate-700 text-slate-400' : 'border-slate-300 text-slate-500'}`}>
-                            {opp.stage}
-                          </Badge>
-                          <span className={`text-xs font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
-                            {opp.probability}% probability
-                          </span>
+                        <div className="mt-2 h-1 rounded-full bg-slate-700/30 overflow-hidden">
+                          <div
+                            className="h-full bg-orange-500 rounded-full transition-all"
+                            style={{ width: `${opp.probability}%` }}
+                          />
                         </div>
                       </div>
                     ))}
