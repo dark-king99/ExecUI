@@ -5,6 +5,28 @@ import * as c from "./crm.controller.js";
 const router = express.Router();
 const auth = authenticate; // shorthand
 
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+router.get("/dashboard/profile",             auth, c.getDashboardProfile);
+router.get("/dashboard/overview",            auth, c.getDashboardOverview);
+
+router.get("/dashboard/tasks",               auth, c.listDashboardTasks);
+router.post("/dashboard/tasks",              auth, c.createDashboardTask);
+router.patch("/dashboard/tasks/:id",         auth, c.updateDashboardTask);
+
+router.get("/dashboard/tickets",             auth, c.listDashboardTickets);
+router.post("/dashboard/tickets",            auth, c.createDashboardTicket);
+router.patch("/dashboard/tickets/:id",       auth, c.updateDashboardTicket);
+
+router.get("/dashboard/follow-ups",          auth, c.listDashboardFollowUps);
+router.post("/dashboard/follow-ups",         auth, c.createDashboardFollowUp);
+
+router.get("/dashboard/opportunities",       auth, c.listDashboardOpportunities);
+router.post("/dashboard/opportunities",      auth, c.createDashboardOpportunity);
+router.patch("/dashboard/opportunities/:id", auth, c.updateDashboardOpportunity);
+
+router.get("/dashboard/services/recent",     auth, c.listRecentServices);
+router.post("/dashboard/services/track",     auth, c.trackService);
+
 // ── Customers ────────────────────────────────────────────────────────────
 router.get("/customers",          auth, c.listCustomers);
 router.get("/customers/:id",      auth, c.getCustomer);
