@@ -56,18 +56,19 @@ export default function MarketingDashboard() {
     try {
       setLoading(true);
       setError(null);
+      // Each call has its own fallback — one failing endpoint never blocks the whole dashboard
       const [emp, todosData, scheduleData, activitiesData, stats, ov] = await Promise.all([
-        apiFetch('/marketing/dashboard/profile'),
-        apiFetch('/marketing/dashboard/todos'),
-        apiFetch('/marketing/dashboard/schedule'),
-        apiFetch('/marketing/dashboard/activities'),
-        apiFetch('/marketing/dashboard/service-stats'),
-        apiFetch('/marketing/dashboard/overview'),
+        apiFetch('/marketing/dashboard/profile').catch(() => null),
+        apiFetch('/marketing/dashboard/todos').catch(() => []),
+        apiFetch('/marketing/dashboard/schedule').catch(() => []),
+        apiFetch('/marketing/dashboard/activities').catch(() => []),
+        apiFetch('/marketing/dashboard/service-stats').catch(() => null),
+        apiFetch('/marketing/dashboard/overview').catch(() => null),
       ]);
       setEmployee(emp);
-      setTodos(todosData ?? []);
-      setSchedule(scheduleData ?? []);
-      setActivities(activitiesData ?? []);
+      setTodos(Array.isArray(todosData) ? todosData : []);
+      setSchedule(Array.isArray(scheduleData) ? scheduleData : []);
+      setActivities(Array.isArray(activitiesData) ? activitiesData : []);
       setServiceStats(stats);
       setOverview(ov);
     } catch (err) {
@@ -133,15 +134,20 @@ export default function MarketingDashboard() {
     return classes[type] || '';
   };
 
-  const formatEventTime = (ds) => format(parseISO(ds), 'h:mm a');
-  const formatEventDate = (ds) => {
-    const d = parseISO(ds);
-    if (isToday(d)) return 'Today';
-    if (isTomorrow(d)) return 'Tomorrow';
-    return format(d, 'MMM d');
+  const formatEventTime = (ds) => {
+    try { return format(parseISO(ds), 'h:mm a'); } catch { return '—'; }
   };
-  const formatActivityTime = (ds) =>
-    formatDistanceToNow(parseISO(ds), { addSuffix: true });
+  const formatEventDate = (ds) => {
+    try {
+      const d = parseISO(ds);
+      if (isToday(d)) return 'Today';
+      if (isTomorrow(d)) return 'Tomorrow';
+      return format(d, 'MMM d');
+    } catch { return '—'; }
+  };
+  const formatActivityTime = (ds) => {
+    try { return formatDistanceToNow(parseISO(ds), { addSuffix: true }); } catch { return '—'; }
+  };
 
   // ── Loading / Error states ────────────────────────────────────────────────
   if (loading) {
