@@ -1,6 +1,8 @@
-import * as svc from "./marketing.service.js";
+import * as svc  from "./marketing.service.js";
+import * as dash from "./marketing.dashboard.service.js";
 
 const tid = (req) => req.user.tenantId;
+const uid = (req) => req.user.userId;
 
 const handle = (fn) => async (req, res) => {
   try {
@@ -9,6 +11,32 @@ const handle = (fn) => async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+export const getDashboardProfile  = handle((req) => dash.getDashboardProfile(uid(req), tid(req)));
+export const getDashboardOverview = handle((req) => dash.getDashboardOverview(tid(req)));
+export const getDashboardServiceStats = handle((req) => dash.getServiceStats(tid(req)));
+
+// Todos
+export const listDashboardTodos  = handle((req) => dash.listTodos(uid(req), tid(req)));
+export const createDashboardTodo = handle((req) => dash.createTodo(uid(req), tid(req), req.body));
+export const updateDashboardTodo = handle((req) => dash.updateTodo(req.params.id, tid(req), req.body));
+export const deleteDashboardTodo = handle(async (req, res) => {
+  await dash.deleteTodo(req.params.id, tid(req));
+  res.status(204).end();
+});
+
+// Schedule
+export const listDashboardSchedule      = handle((req) => dash.listScheduleEvents(uid(req), tid(req)));
+export const createDashboardScheduleEvent = handle((req) => dash.createScheduleEvent(uid(req), tid(req), req.body));
+export const deleteDashboardScheduleEvent = handle(async (req, res) => {
+  await dash.deleteScheduleEvent(req.params.id, uid(req), tid(req));
+  res.status(204).end();
+});
+
+// Activities
+export const listDashboardActivities = handle((req) => dash.listActivities(uid(req), tid(req)));
+export const logDashboardActivity    = handle((req) => dash.logActivity(uid(req), tid(req), req.body));
 
 // Campaigns
 export const listCampaigns     = handle((req) => svc.listCampaigns(tid(req), req.query));
