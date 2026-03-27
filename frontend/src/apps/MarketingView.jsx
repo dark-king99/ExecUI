@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+
 import { format, parseISO, isToday, isTomorrow, formatDistanceToNow } from 'date-fns';
 import { 
   Sun, Moon, Mail, Building, Cpu, ImageIcon, 
