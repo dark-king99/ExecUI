@@ -24,7 +24,7 @@ export default function Navbar({ user, onLogout, roleToUse, effectiveRole, setEf
     <header className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center px-6 gap-4 shrink-0">
       {/* SEARCH */}
       <div className="relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <Search size={14} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
         <input
           type="text"
           placeholder="Search…"
@@ -36,8 +36,8 @@ export default function Navbar({ user, onLogout, roleToUse, effectiveRole, setEf
       <nav className="flex items-center gap-1 ml-4">
         <NavItem icon={Home}      label="Home"      onClick={() => navigate("/home")} />
         <NavItem icon={Grid}      label="Services"  onClick={() => navigate("/crm")} />
-        <NavItem icon={LinkIcon}  label="Network"   onClick={() => navigate("/network")} />
-        <NavItem icon={CreditCard} label="Analytics" onClick={() => navigate("/analytics")} />
+        <NavItem icon={LinkIcon}  label="Connect"   onClick={() => navigate("/network")} />
+        <NavItem icon={CreditCard} label="Access" onClick={() => navigate("/analytics")} />
       </nav>
 
       {/* THEME */}
