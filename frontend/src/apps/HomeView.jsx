@@ -73,8 +73,7 @@ const sections = [
   {
     key: "marketing",
     title: "Marketing Automation",
-    subtitle:
-      "Manual + AI marketing automation, ads, social engagement, and campaign management",
+    subtitle: "Manual + AI marketing automation, ads, social engagement, and campaign management",
     icon: Megaphone,
     accent: "from-fuchsia-500/30 to-rose-500/5",
     features: marketingFeatures,

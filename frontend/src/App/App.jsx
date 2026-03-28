@@ -213,6 +213,8 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/marketing/attribution"      element={<AttributionROI />} />
                 <Route path="/marketing/creative"         element={<CreativeAssets />} />
 
+                <Route path="/botwidget" element={<Navigate to="/botwidget/botmessage" replace />} />
+
                 {/* 404 */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

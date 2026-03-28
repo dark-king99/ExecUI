@@ -19,23 +19,22 @@ import { useSidebar } from '../components/SidebarContext';
 // ── API helper ────────────────────────────────────────────────────────────────
 const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
-function apiFetch(path, options = {}) {
+async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('auth_token');
-  return fetch(`${BASE}${path}`, {
+  const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
-  }).then(async (res) => {
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.message ?? `HTTP ${res.status}`);
-    }
-    if (res.status === 204) return null;
-    return res.json();
   });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message ?? `HTTP ${res.status}`);
+  }
+  if (res.status === 204) return null;
+  return await res.json();
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
