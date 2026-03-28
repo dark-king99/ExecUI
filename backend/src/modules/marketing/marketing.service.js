@@ -91,7 +91,9 @@ export const getCdpMetrics = stubObj({
   audience: 0, audienceDelta: 0, confidence: 0, latency: 0,
   projectedLift: 0, sqlPreview: "", predictiveLayer: {},
 });
-export const getCdpSources = stub;
+export const getCdpSources    = stub;
+export const createCdpSource  = stubObj({});
+export const createCdpSegment = stubObj({});
 
 // ── Flows ─────────────────────────────────────────────────────────────────
 export const listFlows   = stub;

@@ -91,8 +91,10 @@ router.get("/personalization",          auth, c.listPersonalization);
 router.post("/personalization",         auth, c.createPersonalization);
 
 // ── CDP ───────────────────────────────────────────────────────────────────
-router.get("/cdp/metrics",  auth, c.getCdpMetrics);
-router.get("/cdp/sources",  auth, c.getCdpSources);
+router.get("/cdp/metrics",   auth, c.getCdpMetrics);
+router.get("/cdp/sources",   auth, c.getCdpSources);
+router.post("/cdp/sources",  auth, c.createCdpSource);
+router.post("/cdp/segments", auth, c.createCdpSegment);
 
 // ── Flows ─────────────────────────────────────────────────────────────────
 router.get("/flows",              auth, c.listFlows);

@@ -110,8 +110,10 @@ export const getPersonalizationMetrics = handle((req) => svc.getPersonalizationM
 export const createPersonalization     = handle((req) => svc.createPersonalization(tid(req), req.body));
 
 // CDP
-export const getCdpMetrics = handle((req) => svc.getCdpMetrics(tid(req)));
-export const getCdpSources = handle((req) => svc.getCdpSources(tid(req)));
+export const getCdpMetrics    = handle((req) => svc.getCdpMetrics(tid(req)));
+export const getCdpSources    = handle((req) => svc.getCdpSources(tid(req)));
+export const createCdpSource  = handle((req) => svc.createCdpSource(tid(req), req.body));
+export const createCdpSegment = handle((req) => svc.createCdpSegment(tid(req), req.body));
 
 // Flows
 export const listFlows    = handle((req) => svc.listFlows(tid(req)));
