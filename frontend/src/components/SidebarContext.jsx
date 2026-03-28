@@ -7,7 +7,7 @@ const SidebarContext = createContext();
 function sectionFromPath(pathname) {
   const seg = pathname.split("/")[1];
   if (!seg) return "main";
-  const map = { home: "main", network: "network", crm: "crm", marketing: "market", analytics: "analytics", account: "account" };
+  const map = { home: "main", network: "network", crm: "crm", marketing: "marketing", analytics: "analytics", account: "account" };
   return map[seg] ?? "main";
 }
 
