@@ -51,6 +51,7 @@ import MarketingAI from "../apps/marketing/MarketingAI";
 
 export default function ContentArea({ roleToUse }) {
   const { appSection, networkView, crmView, marketingView } = useSidebar();
+  console.log("appSection:", appSection);
 
   // 🟦 Network mini-app
  if  (appSection === "network") {
@@ -86,9 +87,10 @@ export default function ContentArea({ roleToUse }) {
 
   }
   if (appSection === "marketing") {
-    // ✅ DEFAULT VIEW (this is what you're missing)
-    if (!marketingView || marketingView === "stream") return <MarketingView />;
+    // ✅ DEFAULT (this fixes your issue)
+    if (!marketingView) return <MarketingView />;
   
+    if (marketingView === "stream") return <MarketingView />;
     if (marketingView === "marketingai") return <MarketingAI />;
     if (marketingView === "campaign") return <Campaign />;
     if (marketingView === "e.m.m.a") return <EMMA />;
@@ -99,9 +101,9 @@ export default function ContentArea({ roleToUse }) {
     if (marketingView === "cdp") return <CustomerDataPlatform />;
     if (marketingView === "commercecommand") return <CommerceCommand />;
   
-    // ✅ SAFETY FALLBACK
-    return <MarketingView />;
+    return <MarketingView />; // safety fallback
   }
+  
   // 🟨 Analytics (single page workspace)
   if (appSection === "analytics") {
     return <AnalyticsView />;
@@ -113,8 +115,6 @@ export default function ContentArea({ roleToUse }) {
 
   // 🏠 Main app
   return <HomeView />;
-  
-
-}
+};
 
 
