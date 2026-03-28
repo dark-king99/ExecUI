@@ -1,4 +1,5 @@
 import React from "react";
+  import { useNavigate } from "react-router-dom";
   import {
     Activity,
     Bot,
@@ -67,6 +68,7 @@ import React from "react";
       icon: Database,
       accent: "from-cyan-500/30 to-sky-500/5",
       features: crmFeatures,
+      path: "/crm",
     },
     {
       title: "Marketing Automation",
@@ -75,6 +77,7 @@ import React from "react";
       icon: Megaphone,
       accent: "from-fuchsia-500/30 to-rose-500/5",
       features: marketingFeatures,
+      path: "/marketing",
     },
     {
       title: "Network Management",
@@ -82,10 +85,12 @@ import React from "react";
       icon: Network,
       accent: "from-emerald-500/30 to-teal-500/5",
       features: networkFeatures,
+      path: "/network",
     },
   ];
   
   export default function HomeView() {
+    const navigate = useNavigate();
     return (
       <div className="min-h-full min-w-full content-fill px-0 py-0 bg-slate-50 
   dark:bg-slate-950
@@ -161,11 +166,12 @@ import React from "react";
                 return (
                   <div
                     key={section.title}
-                    className={`group flex flex-col gap-6 rounded-3xl border bg-white 
+                    onClick={() => navigate(section.path)}
+                    className={`group flex flex-col gap-6 rounded-3xl border bg-white
   dark:bg-slate-900
-   border-slate-200 
+   border-slate-200
   dark:border-slate-800
-  shadow-sm bg-linear-to-br ${section.accent} p-6 shadow-xl shadow-black/30`}
+  shadow-sm bg-linear-to-br ${section.accent} p-6 shadow-xl shadow-black/30 cursor-pointer hover:shadow-2xl hover:scale-[1.02] transition-all duration-200`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="rounded-2xl border  bg-white 
