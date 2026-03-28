@@ -51,6 +51,7 @@ import MarketingAI from "../apps/marketing/MarketingAI";
 
 export default function ContentArea({ roleToUse }) {
   const { appSection, networkView, crmView, marketingView } = useSidebar();
+  console.log("appSection:", appSection);
 
   // 🟦 Network mini-app
  if  (appSection === "network") {
@@ -85,20 +86,24 @@ export default function ContentArea({ roleToUse }) {
     if (crmView === "crm analytics") return <div>CRM Analytics (coming soon)</div>;
 
   }
-  // 🟩 Marketing mini-app
-  if (appSection === "market") {
+  if (appSection === "marketing") {
+    // ✅ DEFAULT (this fixes your issue)
+    if (!marketingView) return <MarketingView />;
+  
     if (marketingView === "stream") return <MarketingView />;
-    if (marketingView === "marketingai") return <div><MarketingAI /></div>;
-    if (marketingView === "campaign") return <div><Campaign /></div>;
-    if (marketingView === "e.m.m.a") return <div><EMMA /></div>;
-    if (marketingView === "b2b") return <div><B2B /></div>;
-    if (marketingView === "personalization") return <div><Personalization /></div>;
-    if (marketingView === "team") return <div><Teams /></div>;
+    if (marketingView === "marketingai") return <MarketingAI />;
+    if (marketingView === "campaign") return <Campaign />;
+    if (marketingView === "e.m.m.a") return <EMMA />;
+    if (marketingView === "b2b") return <B2B />;
+    if (marketingView === "personalization") return <Personalization />;
+    if (marketingView === "team") return <Teams />;
     if (marketingView === "marketingAnalytics") return <div>Marketing Analytics (coming soon)</div>;
-    if (marketingView === "cdp") return <div><CustomerDataPlatform /> (coming soon)</div>;
-    if (marketingView === "commercecommand") return <div><CommerceCommand /></div>;
-
+    if (marketingView === "cdp") return <CustomerDataPlatform />;
+    if (marketingView === "commercecommand") return <CommerceCommand />;
+  
+    return <MarketingView />; // safety fallback
   }
+  
   // 🟨 Analytics (single page workspace)
   if (appSection === "analytics") {
     return <AnalyticsView />;
@@ -110,8 +115,6 @@ export default function ContentArea({ roleToUse }) {
 
   // 🏠 Main app
   return <HomeView />;
-  
-
-}
+};
 
 
