@@ -9,6 +9,7 @@ import Navbar from "../components/Navbar";
 import { ToastProvider } from "../components/ui/Toast";
 import { SkeletonCard } from "../components/ui/Skeleton";
 import ErrorBoundary from "../components/ErrorBoundary";
+import BotWidget from "../components/BotWidget";
 
 // ── Lazy-loaded mini-app route groups ─────────────────────────────────────────
 const HomeView            = lazy(() => import("../apps/HomeView"));
@@ -220,6 +221,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
           </ErrorBoundary>
         </main>
       </div>
+      <BotWidget />
     </div>
   );
 }
