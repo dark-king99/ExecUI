@@ -80,7 +80,7 @@ export async function chat(userId, tenantId, message, history = []) {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const todayCount = await prisma.crmFollowUp.count({
-      where: { tenantId, scheduled_at: { gte: today, lt: tomorrow } },
+      where: { tenantId, scheduled_date: { gte: today, lt: tomorrow } },
     }).catch(() => null);
     if (todayCount !== null) {
       return {
@@ -92,7 +92,7 @@ export async function chat(userId, tenantId, message, history = []) {
   // ── Marketing: todos ─────────────────────────────────────────────────────
   if (lower.includes("todo") || lower.includes("to-do") || lower.includes("marketing task")) {
     const [pending, total] = await Promise.all([
-      prisma.marketingTodo.count({ where: { tenantId, done: false } }).catch(() => null),
+      prisma.marketingTodo.count({ where: { tenantId, completed: false } }).catch(() => null),
       prisma.marketingTodo.count({ where: { tenantId } }).catch(() => 0),
     ]);
     if (pending !== null) {
