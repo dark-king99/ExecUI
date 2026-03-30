@@ -1,4 +1,4 @@
-// Prisma schema – ExecUI
+// Prisma schema - ExecUI
 // learn more: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -10,7 +10,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ── Core multi-tenant models ──────────────────────────────────────────────────
+// -- Core multi-tenant models --------------------------------------------------
 
 model Tenant {
   id        String   @id @default(uuid())
@@ -105,7 +105,7 @@ model RolePermission {
   @@id([roleId, permissionId])
 }
 
-// ── CRM Dashboard Models ──────────────────────────────────────────────────────
+// -- CRM Dashboard Models ------------------------------------------------------
 
 model CrmTask {
   id                  String    @id @default(uuid())
@@ -191,7 +191,7 @@ model CrmServiceUsage {
   @@unique([service_name, userId, tenantId])
 }
 
-// ── Marketing Dashboard Models ────────────────────────────────────────────────
+// -- Marketing Dashboard Models ------------------------------------------------
 
 model MarketingTodo {
   id          String    @id @default(uuid())
