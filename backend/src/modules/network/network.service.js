@@ -114,32 +114,71 @@ export async function getStorageStats(tenantId) {
 
 // ── Devices CRUD ──────────────────────────────────────────────────────────────
 
+// Map Prisma fields → shape the Inventory view expects
+function deviceShape(d) {
+  return {
+    id:         d.id,
+    name:       d.hostname,
+    ip:         d.ip_address,
+    type:       d.device_type,
+    status:     d.status === "up" ? "Online" : d.status === "down" ? "Offline" : "Warning",
+    location:   d.region ?? d.cloud_provider ?? "—",
+    lastSeen:   d.updatedAt ? new Date(d.updatedAt).toLocaleString() : "—",
+    cpu_util:   d.cpu_util,
+    mem_util:   d.mem_util,
+    os:         d.os,
+  };
+}
+
 export async function listDevices(tenantId, query = {}) {
-  const { type, status, search, take = 50, skip = 0 } = query;
-  return prisma.networkDevice.findMany({
+  const { type, status, search, take = 500, skip = 0, limit } = query;
+  const rows = await prisma.networkDevice.findMany({
     where: {
       tenantId,
       ...(type   ? { device_type: type }   : {}),
       ...(status ? { status }               : {}),
-      ...(search ? { hostname: { contains: search, mode: "insensitive" } } : {}),
+      ...(search ? {
+        OR: [
+          { hostname:   { contains: search, mode: "insensitive" } },
+          { ip_address: { contains: search } },
+        ],
+      } : {}),
     },
     orderBy: { hostname: "asc" },
-    take: Number(take),
+    take: Number(limit ?? take),
     skip: Number(skip),
   });
+  return rows.map(deviceShape);
 }
 
 export async function getDevice(tenantId, id) {
-  return prisma.networkDevice.findFirstOrThrow({ where: { id, tenantId } });
+  const d = await prisma.networkDevice.findFirstOrThrow({ where: { id, tenantId } });
+  return deviceShape(d);
 }
 
 export async function createDevice(tenantId, data) {
-  return prisma.networkDevice.create({ data: { ...data, tenantId } });
+  // Accept both shaped names and raw Prisma names
+  const payload = {
+    hostname:      data.name      ?? data.hostname,
+    ip_address:    data.ip        ?? data.ip_address,
+    device_type:   data.type      ?? data.device_type ?? "server",
+    status:        data.status === "Online" ? "up" : data.status === "Offline" ? "down" : data.status ?? "up",
+    region:        data.location  ?? data.region,
+    os:            data.os,
+    cpu_util:      data.cpu_util  ?? 0,
+    mem_util:      data.mem_util  ?? 0,
+    bandwidth_mbps: data.bandwidth_mbps ?? 0,
+    cloud_provider: data.cloud_provider,
+    tenantId,
+  };
+  const d = await prisma.networkDevice.create({ data: payload });
+  return deviceShape(d);
 }
 
 export async function updateDevice(tenantId, id, data) {
   await prisma.networkDevice.findFirstOrThrow({ where: { id, tenantId } });
-  return prisma.networkDevice.update({ where: { id }, data });
+  const d = await prisma.networkDevice.update({ where: { id }, data });
+  return deviceShape(d);
 }
 
 export async function deleteDevice(tenantId, id) {
