@@ -29,6 +29,11 @@ model Tenant {
   marketingTodos   MarketingTodo[]
   scheduleEvents   MarketingScheduleEvent[]
   activities       MarketingActivity[]
+  networkDevices   NetworkDevice[]
+  networkAlerts    NetworkAlert[]
+  networkIncidents NetworkIncident[]
+  networkChanges   NetworkChange[]
+  networkBackups   NetworkBackup[]
 }
 
 model User {
@@ -229,5 +234,81 @@ model MarketingActivity {
   timestamp DateTime @default(now())
 
   user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// ── Network Dashboard Models ──────────────────────────────────────────────────
+
+model NetworkDevice {
+  id             String   @id @default(uuid())
+  hostname       String
+  ip_address     String
+  device_type    String   @default("server")    // server | endpoint | router | switch | firewall | cloud
+  status         String   @default("up")         // up | down | degraded | maintenance
+  os             String?
+  cpu_util       Float    @default(0)
+  mem_util       Float    @default(0)
+  bandwidth_mbps Float    @default(0)
+  region         String?
+  cloud_provider String?                          // aws | azure | gcp | on_prem
+  tenantId       String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id])
+  alerts NetworkAlert[]
+}
+
+model NetworkAlert {
+  id         String    @id @default(uuid())
+  title      String
+  message    String?
+  severity   String    @default("info")  // info | warning | critical
+  status     String    @default("open")  // open | acknowledged | resolved
+  deviceId   String?
+  tenantId   String
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  device NetworkDevice? @relation(fields: [deviceId], references: [id])
+  tenant Tenant         @relation(fields: [tenantId], references: [id])
+}
+
+model NetworkIncident {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  severity    String    @default("medium") // low | medium | high | critical
+  status      String    @default("open")   // open | investigating | resolved | closed
+  tenantId    String
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+model NetworkChange {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  status      String   @default("pending") // pending | approved | rejected | completed
+  priority    String   @default("medium")  // low | medium | high | urgent
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+model NetworkBackup {
+  id          String   @id @default(uuid())
+  device_name String
+  backup_type String   @default("full") // full | incremental | differential
+  status      String   @default("success") // success | failed | pending | running
+  size_gb     Float    @default(0)
+  tenantId    String
+  createdAt   DateTime @default(now())
+
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }
