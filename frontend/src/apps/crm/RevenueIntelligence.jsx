@@ -66,7 +66,7 @@ export default function RevenueIntelligence() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Revenue Intelligence</h1>
+        <h1 className="text-2xl text-slate-900 dark:text-white font-semibold">Revenue Intelligence</h1>
         <p className="text-slate-500">Forecast accuracy, deal health, execution risk, and performance intelligence.</p>
       </div>
 
@@ -81,27 +81,27 @@ export default function RevenueIntelligence() {
         <select
           value={ownerFilter}
           onChange={e => setOwnerFilter(e.target.value)}
-          className="px-3 py-2 rounded border bg-white dark:bg-slate-900 dark:border-slate-700 text-sm"
+          className="px-3 py-2 rounded border bg-white dark:bg-slate-900 dark:border-slate-700 text-sm text-slate-900 dark:text-white"
         >
           {owners.map(o => <option key={o} value={o}>{o === "all" ? "All Owners" : o}</option>)}
         </select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 text-slate-900 dark:text-white gap-4">
         <KPI icon={BarChart3}    label="Open Pipeline"        value={loading ? "…" : currency(metrics.pipelineValue)} />
         <KPI icon={Target}       label="Weighted Forecast"    value={loading ? "…" : currency(Math.round(metrics.weighted))} />
         <KPI icon={TrendingUp}   label="Win Rate"             value={loading ? "…" : `${metrics.winRate}%`} />
         <KPI icon={CalendarClock} label="Avg Deal Age (days)" value={loading ? "…" : metrics.avgDealAge} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 text-slate-900 dark:text-white gap-4">
         {["commit", "best", "pipeline"].map(cat => (
           <ForecastBox key={cat} title={cat === "best" ? "Best Case" : cat.charAt(0).toUpperCase() + cat.slice(1)} value={currency(forecastCategory(cat))} />
         ))}
         <ForecastBox title="Closed" value={currency(filtered.filter(d => d.closed || d.stage === "won").reduce((s, d) => s + (d.value ?? 0), 0))} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 text-slate-400 gap-6">
         <Panel title="Stage Distribution" icon={PieChart}>
           <div className="space-y-3">
             {Object.entries(byStage).map(([s, data]) => (
@@ -132,7 +132,7 @@ export default function RevenueIntelligence() {
           </div>
         </Panel>
       </div>
-
+      <div className="text-slate-400">
       <Panel title="Execution Risk Radar" icon={AlertTriangle}>
         {riskDeals.length === 0 && !loading ? (
           <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm">
@@ -154,6 +154,7 @@ export default function RevenueIntelligence() {
           </div>
         )}
       </Panel>
+      </div>
     </div>
   );
 }

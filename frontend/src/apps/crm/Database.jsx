@@ -77,7 +77,7 @@ export default function CrmDatabase() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">CRM Database</h1>
+          <h1 className="text-2xl text-slate-900 dark:text-white font-semibold">CRM Database</h1>
           <p className="text-slate-500">Enterprise data management, security, usage, and compliance</p>
         </div>
         <div className="flex gap-2">
@@ -200,7 +200,7 @@ export default function CrmDatabase() {
 
       {activeTab === "security" && (
         <div className="rounded-xl border p-4 bg-white dark:bg-slate-900 space-y-2">
-          <div className="font-medium">Data Security & Access Control</div>
+          <div className="text-slate-900 dark:text-white font-medium">Data Security & Access Control</div>
           <ul className="text-sm text-slate-600 dark:text-slate-400 list-disc ml-5 space-y-1">
             <li>Role-based access control (RBAC)</li>
             <li>Field-level encryption</li>
@@ -212,17 +212,17 @@ export default function CrmDatabase() {
       )}
 
       {activeTab === "usage" && (
-        <div className="rounded-xl border p-4 bg-white dark:bg-slate-900">
-          <div className="font-medium mb-2">Database Usage Analytics</div>
+        <div className="rounded-xl border border-slate-400 dark:border-slate-700 p-4 bg-white dark:bg-slate-900">
+          <div className="text-slate-900 dark:text-white font-medium mb-2">Database Usage Analytics</div>
           {usageLoading ? (
             <div className="grid grid-cols-3 gap-4 animate-pulse">
               {[1,2,3].map(i => <div key={i} className="h-14 bg-slate-100 dark:bg-slate-700 rounded" />)}
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-4 text-sm">
-              <div className="p-3 border rounded">Total Records: {usage?.totalRecords ?? allRecords.length}</div>
-              <div className="p-3 border rounded">Queries Today: {usage?.queriesToday ?? "—"}</div>
-              <div className="p-3 border rounded">Storage Used: {usage?.storageUsed ?? "—"}</div>
+              <div className="p-3 border border-slate-400 dark:border-slate-700 rounded text-slate-400">Total Records: {usage?.totalRecords ?? allRecords.length}</div>
+              <div className="p-3 border border-slate-400 dark:border-slate-700 rounded text-slate-400">Queries Today: {usage?.queriesToday ?? "—"}</div>
+              <div className="p-3 border border-slate-400 dark:border-slate-700 rounded text-slate-400">Storage Used: {usage?.storageUsed ?? "—"}</div>
             </div>
           )}
         </div>
@@ -230,7 +230,7 @@ export default function CrmDatabase() {
 
       {activeTab === "reports" && (
         <div className="rounded-xl border p-4 bg-white dark:bg-slate-900 space-y-2">
-          <div className="font-medium">Database Reports</div>
+          <div className="text-slate-900 dark:text-white font-medium">Database Reports</div>
           <ul className="text-sm text-slate-600 dark:text-slate-400 list-disc ml-5 space-y-1">
             <li>Data growth trends</li><li>Access frequency by team</li>
             <li>Sensitive data exposure report</li><li>Inactive / stale records</li>
@@ -241,7 +241,7 @@ export default function CrmDatabase() {
 
       {activeTab === "settings" && (
         <div className="rounded-xl border p-4 bg-white dark:bg-slate-900 space-y-2">
-          <div className="font-medium">Database Preferences</div>
+          <div className="text-slate-900 dark:text-white font-medium">Database Preferences</div>
           <ul className="text-sm text-slate-600 dark:text-slate-400 list-disc ml-5 space-y-1">
             <li>Retention policies</li><li>Auto-archival rules</li>
             <li>PII masking settings</li><li>Backup schedules</li>
@@ -252,7 +252,7 @@ export default function CrmDatabase() {
 
       {activeTab === "audit" && (
         <div className="rounded-xl border p-4 bg-white dark:bg-slate-900 space-y-2">
-          <div className="font-medium">Audit Trail</div>
+          <div className="text-slate-900 dark:text-white font-medium">Audit Trail</div>
           {auditLoading && (
             <div className="space-y-1 animate-pulse">
               {[1,2,3].map(i => <div key={i} className="h-5 bg-slate-100 dark:bg-slate-700 rounded" />)}

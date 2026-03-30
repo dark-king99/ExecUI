@@ -195,7 +195,7 @@ export default function OpportunityWorkspace() {
         <CardBody>
           {oppsLoading && stages.length === 0 ? (
             <div className="space-y-3 animate-pulse">
-              {[1,2,3,4,5].map(i => <div key={i} className="h-8 bg-slate-100 dark:bg-slate-700 rounded-full" />)}
+              {[1,2,3,4,5].map(i => <div key={i} className="h-8 bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white rounded-full" />)}
             </div>
           ) : stages.length > 0 ? (
             <div className="space-y-3">
