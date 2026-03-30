@@ -41,7 +41,7 @@ export default function Team() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Sales Team Performance</h1>
+        <h1 className="text-2xl text-slate-900 dark:text-white font-semibold">Sales Team Performance</h1>
         <p className="text-slate-500">Quota attainment, execution velocity, coaching signals, and territory health.</p>
       </div>
 
@@ -56,23 +56,24 @@ export default function Team() {
         <select
           value={territoryFilter}
           onChange={e => setTerritoryFilter(e.target.value)}
-          className="px-3 py-2 rounded border bg-white dark:bg-slate-900 dark:border-slate-700 text-sm"
+          className="px-3 py-2 rounded border bg-white dark:bg-slate-900 dark:border-slate-700 text-sm text-slate-900 dark:text-white"
         >
           {territories.map(t => <option key={t} value={t}>{t === "all" ? "All Territories" : t}</option>)}
         </select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 text-slate-900 dark:text-white gap-4">
         <KPI icon={Target}       label="Total Quota"      value={loading ? "…" : currency(metrics.totalQuota)} />
         <KPI icon={TrendingUp}   label="Closed Revenue"   value={loading ? "…" : currency(metrics.totalClosed)} />
         <KPI icon={Gauge}        label="Pipeline Coverage" value={loading ? "…" : currency(metrics.totalPipeline)} />
         <KPI icon={CalendarClock} label="Avg Velocity"    value={loading ? "…" : String(metrics.avgVelocity)} />
         <KPI icon={Users}        label="Attainment"       value={loading ? "…" : `${metrics.attainment}%`} />
       </div>
-
+   
+   <div className="border dark:border-slate-700 text-slate-900 dark:text-white">
       <Panel title="Territory Health" icon={Map}>
         {loading ? (
-          <div className="grid grid-cols-4 gap-4 animate-pulse">
+          <div className="grid grid-cols-4 dark:border-slate-700 gap-4 animate-pulse">
             {[1,2,3,4].map(i => <div key={i} className="h-24 bg-slate-100 dark:bg-slate-700 rounded-lg" />)}
           </div>
         ) : (
@@ -96,6 +97,7 @@ export default function Team() {
           </div>
         )}
       </Panel>
+      
 
       <Panel title="Rep Scorecards" icon={Users}>
         {loading && allReps.length === 0 ? (
@@ -145,6 +147,7 @@ export default function Team() {
           </div>
         )}
       </Panel>
+      </div>
     </div>
   );
 }
