@@ -18,6 +18,10 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5555',
         changeOrigin: true,
+        onError(err, req, res) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ message: 'Backend unavailable. Please ensure the server is running.' }));
+        },
       },
     },
   },
