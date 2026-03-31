@@ -237,7 +237,7 @@ model MarketingActivity {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }
 
-// ── Network Dashboard Models ──────────────────────────────────────────────────
+// -- Network Dashboard Models --------------------------------------------------
 
 model NetworkDevice {
   id             String   @id @default(uuid())
