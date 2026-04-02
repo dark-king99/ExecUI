@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  DollarSign, 
-  Settings2, 
-  Target, 
-  Megaphone, 
+import {
+  LayoutDashboard,
+  DollarSign,
+  Settings2,
+  Target,
+  Megaphone,
   Users,
   ArrowLeft,
   ChevronRight,
@@ -14,12 +14,12 @@ import {
 
 
 const menuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'financial', label: 'Financial Management', icon: DollarSign },
-  { id: 'operations', label: 'Operations & Systems', icon: Settings2 },
-  { id: 'strategic', label: 'Strategic Planning', icon: Target },
-  { id: 'marketing', label: 'Marketing & Sales', icon: Megaphone },
-  { id: 'team', label: 'Team & Projects', icon: Users },
+  { id: 'dashboard',  label: 'Dashboard',             icon: LayoutDashboard, path: '/services/dashboard'  },
+  { id: 'financial',  label: 'Financial Management',  icon: DollarSign,      path: '/services/financial'  },
+  { id: 'operations', label: 'Operations & Systems',  icon: Settings2,       path: '/services/operation'  },
+  { id: 'strategic',  label: 'Strategic Planning',    icon: Target,          path: '/services/strategic'  },
+  { id: 'marketing',  label: 'Marketing & Sales',     icon: Megaphone,       path: '/services/marketing'  },
+  { id: 'team',       label: 'Team & Projects',       icon: Users,           path: '/services/team'       },
 ];
 
 const accentColors = {
@@ -40,17 +40,14 @@ const bgAccentColors = {
   team: 'bg-amber-500/10',
 };
 
-export const ServiceSidebar = ({ onToggleTheme }) => {
+export const ServiceSidebar = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-
-
-  // ✅ collapse state
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("marketing-sidebar-collapsed");
+    const saved = localStorage.getItem("service-sidebar-collapsed");
     if (saved) setCollapsed(JSON.parse(saved));
   }, []);
 
@@ -117,16 +114,6 @@ export const ServiceSidebar = ({ onToggleTheme }) => {
         );
       })}
 
-      {/* Footer with Theme Toggle */}
-      <div className="p-3 border-t border-slate-800' : 'border-slate-200">
-        <button
-          data-testid="theme-toggle"
-          onClick={onToggleTheme}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all  text-slate-400 hover:text-slate-50 hover:bg-slate-800/50"
-        >
-          
-        </button>
-      </div>
     </aside>
   );
 };
