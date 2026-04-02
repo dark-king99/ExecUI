@@ -208,9 +208,9 @@ export default function CRMDashboard() {
   if (loading) {
     return (
       <div
-        className={`w-full max-w-[1600px] mx-auto p-4 md:p-8 flex items-center justify-center min-h-screen ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}
+        className={`w-full max-w-[1600px] mx-auto p-4 md:p-8 flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950`}
       >
-        <div className={`font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Loading dashboard…</div>
+        <div className={`font-body text-slate-500 dark:text-slate-400`}>Loading dashboard…</div>
       </div>
     );
   }
@@ -218,10 +218,10 @@ export default function CRMDashboard() {
   if (error && !employee) {
     return (
       <div
-        className={`w-full max-w-[1600px] mx-auto p-4 md:p-8 flex flex-col items-center justify-center min-h-screen ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}
+        className={`w-full max-w-[1600px] mx-auto p-4 md:p-8 flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950`}
       >
-        <AlertCircle className={`w-12 h-12 mb-4 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
-        <p className={`font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{error}</p>
+        <AlertCircle className={`w-12 h-12 mb-4 text-red-500 dark:text-red-400`} />
+        <p className={`font-body text-slate-500 dark:text-slate-400`}>{error}</p>
         <Button onClick={fetchDashboardData} className="mt-4 bg-orange-500 hover:bg-orange-600 text-white" data-testid="retry-btn">
           Retry
         </Button>
@@ -232,31 +232,31 @@ export default function CRMDashboard() {
   // ── Main render ────────────────────────────────────────────────────────────
   return (
     <div
-      className={`w-full max-w-[1600px] mx-auto p-4 md:p-8 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}
+      className={`w-full max-w-[1600px] mx-auto p-4 md:p-8 bg-slate-50 dark:bg-slate-950`}
       data-testid="crm-dashboard"
     >
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header
-        className={`flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b mb-8 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}
+        className={`flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b mb-8 border-slate-200 dark:border-slate-800`}
       >
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16 border-2 border-orange-500/30">
             <AvatarImage src={employee?.avatar_url} alt={employee?.name} />
             <AvatarFallback
-              className={`font-heading text-xl ${isDark ? 'bg-slate-800 text-orange-400' : 'bg-slate-200 text-orange-600'}`}
+              className={`font-heading text-xl bg-slate-200 text-orange-600 dark:bg-slate-800 dark:text-orange-400`}
             >
               {employee?.name?.split(' ').map((n) => n[0]).join('') || '?'}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className={`text-sm font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{getGreeting()}</p>
+            <p className={`text-sm font-body text-slate-500 dark:text-slate-400`}>{getGreeting()}</p>
             <h1
-              className={`text-2xl sm:text-3xl font-semibold tracking-tight font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`}
+              className={`text-2xl sm:text-3xl font-semibold tracking-tight font-heading text-slate-900 dark:text-slate-50`}
               data-testid="employee-name"
             >
               {employee?.name ?? '—'}
             </h1>
-            <p className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>
+            <p className={`text-sm font-body text-slate-600 dark:text-slate-500`}>
               {employee?.role ?? 'Customer Service'} — {employee?.department ?? 'CRM'}
             </p>
           </div>
@@ -265,34 +265,34 @@ export default function CRMDashboard() {
         {/* Quick Stats Pills */}
         <div className="flex flex-wrap items-center gap-3">
           <div
-            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border bg-white border-slate-200 shadow-sm dark:bg-slate-900 dark:border-slate-800`}
             data-testid="stat-tasks"
           >
             <CheckSquare className="w-4 h-4 text-orange-400" />
-            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+            <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
               {overview?.tasks?.pending ?? 0}
             </span>
-            <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Tasks</span>
+            <span className={`text-sm font-body text-slate-500`}>Tasks</span>
           </div>
           <div
-            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border bg-white border-slate-200 shadow-sm dark:bg-slate-900 dark:border-slate-800`}
             data-testid="stat-tickets"
           >
             <Ticket className="w-4 h-4 text-sky-400" />
-            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+            <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
               {overview?.tickets?.open ?? 0}
             </span>
-            <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Open Tickets</span>
+            <span className={`text-sm font-body text-slate-500`}>Open Tickets</span>
           </div>
           <div
-            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border bg-white border-slate-200 shadow-sm dark:bg-slate-900 dark:border-slate-800`}
             data-testid="stat-pipeline"
           >
             <DollarSign className="w-4 h-4 text-emerald-400" />
-            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+            <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
               {formatCurrency(overview?.opportunities?.pipeline_value)}
             </span>
-            <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Pipeline</span>
+            <span className={`text-sm font-body text-slate-500`}>Pipeline</span>
           </div>
         </div>
       </header>
@@ -304,17 +304,17 @@ export default function CRMDashboard() {
           {/* Recent Services */}
           <section>
             <h2
-              className={`text-xl font-medium tracking-tight font-heading mb-4 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}
+              className={`text-xl font-medium tracking-tight font-heading mb-4 text-slate-900 dark:text-slate-50`}
             >
               Recent Services
             </h2>
             {recentServices.length === 0 ? (
               <Card
-                className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+                className={`backdrop-blur-xl border rounded-2xl bg-white border-slate-200 shadow-sm dark:bg-slate-900/80 dark:border-slate-800`}
               >
                 <CardContent className="p-8 text-center">
-                  <LayoutGrid className={`w-12 h-12 mx-auto mb-4 ${isDark ? 'text-slate-600' : 'text-slate-400'}`} />
-                  <p className={`font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <LayoutGrid className={`w-12 h-12 mx-auto mb-4 text-slate-400 dark:text-slate-600`} />
+                  <p className={`font-body text-slate-500 dark:text-slate-400`}>
                     No recent services. Start using CRM features to see them here.
                   </p>
                 </CardContent>
@@ -324,7 +324,7 @@ export default function CRMDashboard() {
                 {recentServices.map((service) => (
                   <Card
                     key={service.id}
-                    className={`service-card backdrop-blur-xl border rounded-2xl cursor-pointer transition-all hover:-translate-y-1 ${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'}`}
+                    className={`service-card backdrop-blur-xl border rounded-2xl cursor-pointer transition-all hover:-translate-y-1 bg-white border-slate-200 hover:border-slate-300 shadow-sm dark:bg-slate-900/80 dark:border-slate-800 dark:hover:border-slate-700`}
                     onClick={() => trackServiceUsage(service)}
                     data-testid={`service-card-${service.service_name}`}
                   >
@@ -334,15 +334,15 @@ export default function CRMDashboard() {
                           {getServiceIcon(service.service_icon ?? service.service_name)}
                         </div>
                         <Badge
-                          className={`font-body ${isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'} border-0`}
+                          className={`font-body bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-0`}
                         >
                           {service.usage_count} uses
                         </Badge>
                       </div>
-                      <h3 className={`text-lg font-medium font-heading mb-1 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                      <h3 className={`text-lg font-medium font-heading mb-1 text-slate-900 dark:text-slate-50`}>
                         {service.service_title}
                       </h3>
-                      <p className={`text-sm font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      <p className={`text-sm font-body text-slate-500 dark:text-slate-400`}>
                         {service.service_description}
                       </p>
                     </CardContent>
@@ -355,25 +355,25 @@ export default function CRMDashboard() {
           {/* Tasks & Follow-ups */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className={`text-xl font-medium tracking-tight font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+              <h2 className={`text-xl font-medium tracking-tight font-heading text-slate-900 dark:text-slate-50`}>
                 Tasks &amp; Follow-ups
               </h2>
               <Button
                 variant="ghost"
-                className={`font-body ${isDark ? 'text-slate-400 hover:text-slate-50' : 'text-slate-500 hover:text-slate-900'}`}
+                className={`font-body text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-50`}
                 data-testid="view-all-tasks"
               >
                 View All <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </div>
             <Card
-              className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+              className={`backdrop-blur-xl border rounded-2xl bg-white border-slate-200 shadow-sm dark:bg-slate-900/80 dark:border-slate-800`}
             >
               <CardContent className="p-6">
                 {tasks.length === 0 && followUps.length === 0 ? (
                   <div className="text-center py-8">
-                    <CheckCircle2 className={`w-12 h-12 mx-auto mb-4 ${isDark ? 'text-slate-600' : 'text-slate-400'}`} />
-                    <p className={`font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <CheckCircle2 className={`w-12 h-12 mx-auto mb-4 text-slate-400 dark:text-slate-600`} />
+                    <p className={`font-body text-slate-500 dark:text-slate-400`}>
                       No pending tasks or follow-ups
                     </p>
                   </div>
@@ -383,7 +383,7 @@ export default function CRMDashboard() {
                       {tasks.slice(0, 5).map((task) => (
                         <div
                           key={task.id}
-                          className={`flex items-start gap-3 p-3 rounded-lg transition-all ${isDark ? 'bg-slate-800/50 hover:bg-slate-800' : 'bg-slate-50 hover:bg-slate-100'}`}
+                          className={`flex items-start gap-3 p-3 rounded-lg transition-all bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800`}
                           data-testid={`task-item-${task.id}`}
                         >
                           <Checkbox
@@ -391,18 +391,18 @@ export default function CRMDashboard() {
                             onCheckedChange={() =>
                               updateTaskStatus(task.id, task.status === 'completed' ? 'pending' : 'completed')
                             }
-                            className={`mt-0.5 ${isDark ? 'border-slate-600' : 'border-slate-300'} data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500`}
+                            className={`mt-0.5 border-slate-300 dark:border-slate-600 data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500`}
                             data-testid={`task-checkbox-${task.id}`}
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               {getTaskTypeIcon(task.task_type)}
-                              <p className={`text-sm font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                              <p className={`text-sm font-medium font-body text-slate-900 dark:text-slate-50`}>
                                 {task.title}
                               </p>
                             </div>
                             {task.relatedCustomerName && (
-                              <p className={`text-xs font-body mt-1 ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                              <p className={`text-xs font-body mt-1 text-slate-500`}>
                                 Customer: {task.relatedCustomerName}
                               </p>
                             )}
@@ -413,7 +413,7 @@ export default function CRMDashboard() {
                                 {task.priority}
                               </span>
                               {task.due_date && (
-                                <span className={`text-xs font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                                <span className={`text-xs font-body text-slate-500`}>
                                   Due: {format(parseISO(task.due_date), 'MMM d')}
                                 </span>
                               )}
@@ -425,15 +425,15 @@ export default function CRMDashboard() {
                       {followUps.slice(0, 3).map((followUp) => (
                         <div
                           key={followUp.id}
-                          className={`flex items-start gap-3 p-3 rounded-lg border-l-2 border-amber-500 ${isDark ? 'bg-slate-800/50' : 'bg-amber-50'}`}
+                          className={`flex items-start gap-3 p-3 rounded-lg border-l-2 border-amber-500 bg-amber-50 dark:bg-slate-800/50`}
                           data-testid={`followup-item-${followUp.id}`}
                         >
-                          <RefreshCw className={`w-4 h-4 mt-1 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+                          <RefreshCw className={`w-4 h-4 mt-1 text-amber-600 dark:text-amber-400`} />
                           <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                            <p className={`text-sm font-medium font-body text-slate-900 dark:text-slate-50`}>
                               Follow-up: {followUp.customer_name}
                             </p>
-                            <p className={`text-xs font-body mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            <p className={`text-xs font-body mt-1 text-slate-600 dark:text-slate-400`}>
                               {followUp.follow_up_type} —{' '}
                               {format(parseISO(followUp.scheduled_date), 'MMM d, h:mm a')}
                             </p>
@@ -450,7 +450,7 @@ export default function CRMDashboard() {
           {/* Ticket Queue */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className={`text-xl font-medium tracking-tight font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+              <h2 className={`text-xl font-medium tracking-tight font-heading text-slate-900 dark:text-slate-50`}>
                 Ticket Queue
               </h2>
               {(overview?.tickets?.at_risk > 0 || overview?.tickets?.breached > 0) && (
@@ -461,13 +461,13 @@ export default function CRMDashboard() {
               )}
             </div>
             <Card
-              className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+              className={`backdrop-blur-xl border rounded-2xl bg-white border-slate-200 shadow-sm dark:bg-slate-900/80 dark:border-slate-800`}
             >
               <CardContent className="p-6">
                 {tickets.length === 0 ? (
                   <div className="text-center py-8">
-                    <Ticket className={`w-12 h-12 mx-auto mb-4 ${isDark ? 'text-slate-600' : 'text-slate-400'}`} />
-                    <p className={`font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <Ticket className={`w-12 h-12 mx-auto mb-4 text-slate-400 dark:text-slate-600`} />
+                    <p className={`font-body text-slate-500 dark:text-slate-400`}>
                       No tickets in queue
                     </p>
                   </div>
@@ -477,13 +477,13 @@ export default function CRMDashboard() {
                       {tickets.slice(0, 6).map((ticket) => (
                         <div
                           key={ticket.id}
-                          className={`p-4 rounded-lg border ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}
+                          className={`p-4 rounded-lg border bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700`}
                           data-testid={`ticket-item-${ticket.id}`}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className={`text-xs font-mono ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                                <span className={`text-xs font-mono text-slate-400 dark:text-slate-500`}>
                                   {ticket.ticket_number}
                                 </span>
                                 <span
@@ -492,17 +492,17 @@ export default function CRMDashboard() {
                                   {ticket.priority}
                                 </span>
                               </div>
-                              <p className={`text-sm font-medium font-body mt-1 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                              <p className={`text-sm font-medium font-body mt-1 text-slate-900 dark:text-slate-50`}>
                                 {ticket.subject}
                               </p>
-                              <p className={`text-xs font-body mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                              <p className={`text-xs font-body mt-1 text-slate-500 dark:text-slate-400`}>
                                 {ticket.customer_name} • {ticket.category}
                               </p>
                             </div>
                             <div className="flex flex-col items-end gap-1">
                               <Badge
                                 variant="outline"
-                                className={`text-xs font-body capitalize ${isDark ? 'border-slate-700' : 'border-slate-300'}`}
+                                className={`text-xs font-body capitalize border-slate-300 dark:border-slate-700`}
                               >
                                 {ticket.status.replace('_', ' ')}
                               </Badge>
@@ -533,12 +533,12 @@ export default function CRMDashboard() {
         <div className="lg:col-span-4 flex flex-col gap-6 lg:gap-8">
           {/* Calendar */}
           <Card
-            className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            className={`backdrop-blur-xl border rounded-2xl bg-white border-slate-200 shadow-sm dark:bg-slate-900/80 dark:border-slate-800`}
             data-testid="calendar-widget"
           >
             <CardHeader className="pb-2">
               <CardTitle
-                className={`text-lg font-medium font-heading flex items-center gap-2 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}
+                className={`text-lg font-medium font-heading flex items-center gap-2 text-slate-900 dark:text-slate-50`}
               >
                 <CalendarIcon className="w-5 h-5 text-orange-400" />
                 Calendar
@@ -553,22 +553,22 @@ export default function CRMDashboard() {
                 classNames={{
                   months: 'flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0',
                   month: 'space-y-4 w-full',
-                  caption: `flex justify-center pt-1 relative items-center font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`,
+                  caption: `flex justify-center pt-1 relative items-center font-heading text-slate-900 dark:text-slate-50`,
                   caption_label: 'text-sm font-medium',
                   nav: 'space-x-1 flex items-center',
-                  nav_button: `h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 ${isDark ? 'text-slate-400 hover:text-slate-50' : 'text-slate-500 hover:text-slate-900'}`,
+                  nav_button: `h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-50`,
                   nav_button_previous: 'absolute left-1',
                   nav_button_next: 'absolute right-1',
                   table: 'w-full border-collapse space-y-1',
                   head_row: 'flex w-full justify-between',
-                  head_cell: `rounded-md w-8 font-normal text-[0.8rem] font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`,
+                  head_cell: `rounded-md w-8 font-normal text-[0.8rem] font-body text-slate-500`,
                   row: 'flex w-full mt-2 justify-between',
                   cell: 'text-center text-sm p-0 relative focus-within:relative focus-within:z-20',
-                  day: `h-8 w-8 p-0 font-normal rounded-md font-body ${isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-100'}`,
+                  day: `h-8 w-8 p-0 font-normal rounded-md font-body text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800`,
                   day_selected: 'bg-orange-500 text-white hover:bg-orange-600 font-medium',
-                  day_today: `${isDark ? 'bg-slate-800 text-orange-400' : 'bg-orange-100 text-orange-600'}`,
-                  day_outside: `opacity-50 ${isDark ? 'text-slate-600' : 'text-slate-400'}`,
-                  day_disabled: `opacity-50 ${isDark ? 'text-slate-600' : 'text-slate-400'}`,
+                  day_today: `bg-orange-100 text-orange-600 dark:bg-slate-800 dark:text-orange-400`,
+                  day_outside: `opacity-50 text-slate-400 dark:text-slate-600`,
+                  day_disabled: `opacity-50 text-slate-400 dark:text-slate-600`,
                 }}
               />
             </CardContent>
@@ -576,17 +576,17 @@ export default function CRMDashboard() {
 
           {/* Today's Workload */}
           <Card
-            className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            className={`backdrop-blur-xl border rounded-2xl bg-white border-slate-200 shadow-sm dark:bg-slate-900/80 dark:border-slate-800`}
             data-testid="schedule-widget"
           >
             <CardHeader className="pb-2">
               <CardTitle
-                className={`text-lg font-medium font-heading flex items-center gap-2 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}
+                className={`text-lg font-medium font-heading flex items-center gap-2 text-slate-900 dark:text-slate-50`}
               >
                 <Clock className="w-5 h-5 text-orange-400" />
                 Today's Workload
               </CardTitle>
-              <p className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+              <p className={`text-sm font-body text-slate-500`}>
                 {format(new Date(), 'EEEE, MMMM d')}
               </p>
             </CardHeader>
@@ -601,13 +601,13 @@ export default function CRMDashboard() {
                 ].map(({ icon, label, value, alert }) => (
                   <div
                     key={label}
-                    className={`flex items-center justify-between p-3 rounded-lg ${alert ? 'bg-red-500/10' : isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}
+                    className={`flex items-center justify-between p-3 rounded-lg ${alert ? 'bg-red-500/10' : 'bg-slate-50 dark:bg-slate-800/50'}`}
                   >
                     <div className="flex items-center gap-3">
                       {icon}
-                      <span className={`text-sm font-body ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{label}</span>
+                      <span className={`text-sm font-body text-slate-700 dark:text-slate-300`}>{label}</span>
                     </div>
-                    <span className={`text-lg font-semibold font-heading ${alert ? 'text-red-400' : isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                    <span className={`text-lg font-semibold font-heading ${alert ? 'text-red-400' : 'text-slate-900 dark:text-slate-50'}`}>
                       {value}
                     </span>
                   </div>
@@ -618,17 +618,17 @@ export default function CRMDashboard() {
 
           {/* Opportunities Pipeline */}
           <Card
-            className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            className={`backdrop-blur-xl border rounded-2xl bg-white border-slate-200 shadow-sm dark:bg-slate-900/80 dark:border-slate-800`}
             data-testid="opportunities-widget"
           >
             <CardHeader className="pb-2">
               <CardTitle
-                className={`text-lg font-medium font-heading flex items-center gap-2 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}
+                className={`text-lg font-medium font-heading flex items-center gap-2 text-slate-900 dark:text-slate-50`}
               >
                 <Target className="w-5 h-5 text-orange-400" />
                 Opportunities
               </CardTitle>
-              <p className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+              <p className={`text-sm font-body text-slate-500`}>
                 {overview?.opportunities?.total ?? 0} active •{' '}
                 {formatCurrency(overview?.opportunities?.pipeline_value)}
               </p>
@@ -636,8 +636,8 @@ export default function CRMDashboard() {
             <CardContent>
               {opportunities.length === 0 ? (
                 <div className="text-center py-6">
-                  <Target className={`w-10 h-10 mx-auto mb-3 ${isDark ? 'text-slate-600' : 'text-slate-400'}`} />
-                  <p className={`text-sm font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <Target className={`w-10 h-10 mx-auto mb-3 text-slate-400 dark:text-slate-600`} />
+                  <p className={`text-sm font-body text-slate-500 dark:text-slate-400`}>
                     No opportunities yet
                   </p>
                 </div>
@@ -647,23 +647,23 @@ export default function CRMDashboard() {
                     {opportunities.slice(0, 5).map((opp) => (
                       <div
                         key={opp.id}
-                        className={`p-3 rounded-lg ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}
+                        className={`p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50`}
                         data-testid={`opportunity-item-${opp.id}`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium font-body truncate ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                            <p className={`text-sm font-medium font-body truncate text-slate-900 dark:text-slate-50`}>
                               {opp.name}
                             </p>
-                            <p className={`text-xs font-body mt-0.5 capitalize ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                            <p className={`text-xs font-body mt-0.5 capitalize text-slate-500`}>
                               {opp.stage.replace('_', ' ')}
                             </p>
                           </div>
                           <div className="text-right ml-3">
-                            <p className={`text-sm font-semibold font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                            <p className={`text-sm font-semibold font-heading text-slate-900 dark:text-slate-50`}>
                               {formatCurrency(opp.value)}
                             </p>
-                            <p className={`text-xs font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                            <p className={`text-xs font-body text-slate-500`}>
                               {opp.probability}% prob
                             </p>
                           </div>

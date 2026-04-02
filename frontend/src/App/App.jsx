@@ -72,6 +72,17 @@ const AttributionROI      = lazy(() => import("../apps/marketing/AttributionROI"
 const CreativeAssets      = lazy(() => import("../apps/marketing/CreativeAssets"));
 const MarketingAnalytics  = lazy(() => import("../apps/marketing/MarketingAnalytics"));
 
+// Managerial Services
+const ManagerialServices    = lazy(() => import("../apps/ManagerialServices"));
+const ServiceCatalog        = lazy(() => import("../apps/service/ServiceCatalog"));
+const ServiceRequests       = lazy(() => import("../apps/service/ServiceRequests"));
+const Approvals             = lazy(() => import("../apps/service/Approvals"));
+const SLATracker            = lazy(() => import("../apps/service/SLATracker"));
+const KnowledgeBase         = lazy(() => import("../apps/service/KnowledgeBase"));
+const ServiceReports        = lazy(() => import("../apps/service/ServiceReports"));
+const ServiceSettings       = lazy(() => import("../apps/service/ServiceSettings"));
+const ServiceTeam           = lazy(() => import("../apps/service/ServiceTeam"));
+
 // Analytics
 const ExecutiveOverview   = lazy(() => import("../apps/analytics/ExecutiveOverview"));
 const OperationalMetrics  = lazy(() => import("../apps/analytics/OperationalMetrics"));
@@ -108,7 +119,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
 
   // Sections with their own sidebar that replace the top navbar
   const section = location.pathname.split("/")[1];
-  const hideNavbar = ["network", "crm", "marketing"].includes(section);
+  const hideNavbar = ["network", "crm", "marketing", "service"].includes(section);
 
   return (
     <div className="flex h-screen w-screen bg-slate-50 dark:bg-slate-950">
@@ -213,6 +224,18 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/marketing/audience"         element={<AudienceStudio />} />
                 <Route path="/marketing/attribution"      element={<AttributionROI />} />
                 <Route path="/marketing/creative"         element={<CreativeAssets />} />
+
+                {/* Managerial Services */}
+                <Route path="/service" element={<Navigate to="/service/dashboard" replace />} />
+                <Route path="/service/dashboard"  element={<ManagerialServices />} />
+                <Route path="/service/catalog"    element={<ServiceCatalog />} />
+                <Route path="/service/requests"   element={<ServiceRequests />} />
+                <Route path="/service/approvals"  element={<Approvals />} />
+                <Route path="/service/sla"        element={<SLATracker />} />
+                <Route path="/service/knowledge"  element={<KnowledgeBase />} />
+                <Route path="/service/reports"    element={<ServiceReports />} />
+                <Route path="/service/settings"   element={<ServiceSettings />} />
+                <Route path="/service/team"       element={<ServiceTeam />} />
 
                 <Route path="/botwidget" element={<Navigate to="/botwidget/botmessage" replace />} />
 

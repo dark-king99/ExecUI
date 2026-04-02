@@ -5,6 +5,7 @@ import MarketingSidebar from "./sidebars/MarketingSidebar";
 import CrmSidebar from "./sidebars/CrmSidebar";
 import AnalyticsSidebar from "./sidebars/AnalyticsSidebar";
 import AccountSidebar from "./sidebars/AccountSidebar";
+import ServiceSidebar from "./sidebars/ServiceSidebar";
 
 export default function SidebarInset() {
   const { pathname } = useLocation();
@@ -15,6 +16,7 @@ export default function SidebarInset() {
   if (section === "marketing") return <MarketingSidebar />;
   if (section === "analytics") return <AnalyticsSidebar />;
   if (section === "account")   return <AccountSidebar />;
+  if (section === "service")   return <ServiceSidebar />;
 
   return <Sidebar />;
 }

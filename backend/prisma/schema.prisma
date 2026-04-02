@@ -34,6 +34,10 @@ model Tenant {
   networkIncidents NetworkIncident[]
   networkChanges   NetworkChange[]
   networkBackups   NetworkBackup[]
+  serviceCatalogItems ServiceCatalogItem[]
+  serviceRequests     ServiceRequest[]
+  serviceApprovals    ServiceApproval[]
+  serviceKBArticles   ServiceKBArticle[]
 }
 
 model User {
@@ -61,6 +65,8 @@ model User {
   marketingTodos   MarketingTodo[]
   scheduleEvents   MarketingScheduleEvent[]
   activities       MarketingActivity[]
+  serviceRequests  ServiceRequest[]
+  serviceApprovals ServiceApproval[] @relation("approvals")
 }
 
 model Role {
@@ -309,6 +315,70 @@ model NetworkBackup {
   size_gb     Float    @default(0)
   tenantId    String
   createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// -- Managerial Services Models -----------------------------------------------
+
+model ServiceCatalogItem {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  category    String   @default("general")
+  icon        String?
+  status      String   @default("active") // active | inactive
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id])
+  requests ServiceRequest[]
+}
+
+model ServiceRequest {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?
+  category      String   @default("general")
+  priority      String   @default("medium") // low | medium | high | urgent
+  status        String   @default("pending") // pending | approved | in_progress | resolved | rejected
+  userId        String
+  tenantId      String
+  catalogItemId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user        User                @relation(fields: [userId], references: [id])
+  tenant      Tenant              @relation(fields: [tenantId], references: [id])
+  catalogItem ServiceCatalogItem? @relation(fields: [catalogItemId], references: [id])
+  approvals   ServiceApproval[]
+}
+
+model ServiceApproval {
+  id         String   @id @default(uuid())
+  requestId  String
+  approverId String
+  status     String   @default("pending") // pending | approved | rejected
+  notes      String?
+  tenantId   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  request  ServiceRequest @relation(fields: [requestId], references: [id])
+  approver User           @relation(fields: [approverId], references: [id], name: "approvals")
+  tenant   Tenant         @relation(fields: [tenantId], references: [id])
+}
+
+model ServiceKBArticle {
+  id        String   @id @default(uuid())
+  title     String
+  summary   String?
+  content   String?
+  category  String   @default("general")
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }

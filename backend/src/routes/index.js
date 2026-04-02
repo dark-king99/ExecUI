@@ -10,6 +10,7 @@ import networkRoutes    from "../modules/network/network.routes.js";
 import analyticsRoutes  from "../modules/analytics/analytics.routes.js";
 import accountRoutes    from "../modules/account/account.routes.js";
 import assistantRoutes  from "../modules/assistant/assistant.routes.js";
+import serviceRoutes    from "../modules/service/service.routes.js";
 
 const router = express.Router();
 
@@ -25,5 +26,6 @@ router.use("/network",    networkRoutes);
 router.use("/analytics",  analyticsRoutes);
 router.use("/account",    accountRoutes);
 router.use("/assistant",  assistantRoutes);
+router.use("/service",    serviceRoutes);
 
 export default router;

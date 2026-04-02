@@ -14,7 +14,6 @@ import { Checkbox } from '../components/ui/checkbox';
 import { Calendar } from '../components/ui/calendar';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { Button } from '../components/ui/button';
-import { useSidebar } from '../components/SidebarContext';
 
 // ── API helper ────────────────────────────────────────────────────────────────
 const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -39,9 +38,6 @@ async function apiFetch(path, options = {}) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function MarketingDashboard() {
-  const { theme } = useSidebar();
-  const isDark = theme === 'dark';
-
   const [employee, setEmployee]       = useState(null);
   const [todos, setTodos]             = useState([]);
   const [schedule, setSchedule]       = useState([]);
@@ -160,9 +156,9 @@ export default function MarketingDashboard() {
 
   if (error) {
     return (
-      <div className={`w-full max-w-[1600px] mx-auto p-4 md:p-8 flex flex-col items-center justify-center min-h-screen ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
-        <AlertCircle className={`w-12 h-12 mb-4 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
-        <p className={`font-body mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{error}</p>
+      <div className={`w-full max-w-[1600px] mx-auto p-4 md:p-8 flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950`}>
+        <AlertCircle className={`w-12 h-12 mb-4 text-red-500 dark:text-red-400`} />
+        <p className={`font-body mb-4 text-slate-500 dark:text-slate-400`}>{error}</p>
         <Button onClick={fetchDashboardData} className="bg-orange-500 hover:bg-orange-600 text-white">
           Retry
         </Button>
@@ -173,31 +169,31 @@ export default function MarketingDashboard() {
   // ── Main render ────────────────────────────────────────────────────────────
   return (
     <div
-      className={`w-screen max-w-[1600px] mx-auto p-4 md:p-8 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}
+      className={`w-screen max-w-[1600px] mx-auto p-4 md:p-8 bg-slate-50 dark:bg-slate-950`}
       data-testid="marketing-dashboard"
     >
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header
-        className={`flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b mb-8 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}
+        className={`flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b mb-8 border-slate-200 dark:border-slate-800`}
       >
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16 border-2 border-orange-500/30">
             <AvatarImage src={employee?.avatar_url} alt={employee?.name} />
             <AvatarFallback
-              className={`font-heading text-xl ${isDark ? 'bg-slate-800 text-orange-400' : 'bg-slate-200 text-orange-600'}`}
+              className={`font-heading text-xl bg-slate-200 text-orange-600 dark:bg-slate-800 dark:text-orange-400`}
             >
               {employee?.name?.split(' ').map((n) => n[0]).join('') || '?'}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className={`text-sm font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{getGreeting()}</p>
+            <p className={`text-sm font-body text-slate-500 dark:text-slate-400`}>{getGreeting()}</p>
             <h1
-              className={`text-2xl sm:text-3xl font-semibold tracking-tight font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`}
+              className={`text-2xl sm:text-3xl font-semibold tracking-tight font-heading text-slate-900 dark:text-slate-50`}
               data-testid="employee-name"
             >
               {employee?.name ?? '—'}
             </h1>
-            <p className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>
+            <p className={`text-sm font-body text-slate-600 dark:text-slate-500`}>
               {employee?.role} — {employee?.department}
             </p>
           </div>
@@ -206,34 +202,34 @@ export default function MarketingDashboard() {
         {/* Quick Stats Pills */}
         <div className="flex flex-wrap items-center gap-3">
           <div
-            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border bg-white border-slate-200 shadow-sm dark:bg-slate-900 dark:border-slate-800`}
             data-testid="stat-campaigns"
           >
             <Megaphone className="w-4 h-4 text-orange-400" />
-            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+            <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
               {overview?.campaigns_live ?? 0}
             </span>
-            <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Campaigns Live</span>
+            <span className={`text-sm font-body text-slate-500`}>Campaigns Live</span>
           </div>
           <div
-            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border bg-white border-slate-200 shadow-sm dark:bg-slate-900 dark:border-slate-800`}
             data-testid="stat-leads"
           >
             <Users className="w-4 h-4 text-emerald-400" />
-            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+            <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
               {overview?.active_leads ?? 0}
             </span>
-            <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Active Leads</span>
+            <span className={`text-sm font-body text-slate-500`}>Active Leads</span>
           </div>
           <div
-            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border bg-white border-slate-200 shadow-sm dark:bg-slate-900 dark:border-slate-800`}
             data-testid="stat-emails"
           >
             <Send className="w-4 h-4 text-sky-400" />
-            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+            <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
               {(overview?.emails_sent ?? 0).toLocaleString()}
             </span>
-            <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Emails Sent</span>
+            <span className={`text-sm font-body text-slate-500`}>Emails Sent</span>
           </div>
         </div>
       </header>
@@ -244,13 +240,13 @@ export default function MarketingDashboard() {
         <div className="lg:col-span-8 flex flex-col gap-6 lg:gap-8">
           {/* Marketing Services */}
           <section>
-            <h2 className={`text-xl font-medium tracking-tight font-heading mb-4 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+            <h2 className={`text-xl font-medium tracking-tight font-heading mb-4 text-slate-900 dark:text-slate-50`}>
               Marketing Services
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
               {/* Personalization */}
               <Card
-                className={`service-card backdrop-blur-xl border rounded-2xl cursor-pointer ${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'}`}
+                className={`service-card backdrop-blur-xl border rounded-2xl cursor-pointer bg-white border-slate-200 hover:border-slate-300 shadow-sm dark:bg-slate-900/80 dark:border-slate-800 dark:hover:border-slate-700`}
                 data-testid="service-card-personalization"
               >
                 <CardContent className="p-6">
@@ -262,27 +258,27 @@ export default function MarketingDashboard() {
                       {serviceStats?.personalization?.tests_running ?? 0} tests
                     </Badge>
                   </div>
-                  <h3 className={`text-lg font-medium font-heading mb-1 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                  <h3 className={`text-lg font-medium font-heading mb-1 text-slate-900 dark:text-slate-50`}>
                     Personalization
                   </h3>
-                  <p className={`text-sm font-body mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <p className={`text-sm font-body mb-4 text-slate-500 dark:text-slate-400`}>
                     Dynamic audience segmentation &amp; content
                   </p>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className={`font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Active Segments</span>
-                      <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                      <span className={`font-body text-slate-500`}>Active Segments</span>
+                      <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
                         {serviceStats?.personalization?.active_segments ?? 0}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className={`font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Visitors Personalized</span>
-                      <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                      <span className={`font-body text-slate-500`}>Visitors Personalized</span>
+                      <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
                         {(serviceStats?.personalization?.visitors_personalized ?? 0).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className={`font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Conversion Lift</span>
+                      <span className={`font-body text-slate-500`}>Conversion Lift</span>
                       <span className="text-emerald-400 font-medium font-body">
                         {serviceStats?.personalization?.conversion_lift ?? '0%'}
                       </span>
@@ -293,7 +289,7 @@ export default function MarketingDashboard() {
 
               {/* B2B */}
               <Card
-                className={`service-card backdrop-blur-xl border rounded-2xl cursor-pointer ${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'}`}
+                className={`service-card backdrop-blur-xl border rounded-2xl cursor-pointer bg-white border-slate-200 hover:border-slate-300 shadow-sm dark:bg-slate-900/80 dark:border-slate-800 dark:hover:border-slate-700`}
                 data-testid="service-card-b2b"
               >
                 <CardContent className="p-6">
@@ -305,28 +301,28 @@ export default function MarketingDashboard() {
                       {serviceStats?.b2b?.conversion_rate ?? '0%'} CVR
                     </Badge>
                   </div>
-                  <h3 className={`text-lg font-medium font-heading mb-1 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                  <h3 className={`text-lg font-medium font-heading mb-1 text-slate-900 dark:text-slate-50`}>
                     B2B Accounts
                   </h3>
-                  <p className={`text-sm font-body mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <p className={`text-sm font-body mb-4 text-slate-500 dark:text-slate-400`}>
                     Lead scoring &amp; pipeline management
                   </p>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className={`font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Qualified Leads</span>
-                      <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                      <span className={`font-body text-slate-500`}>Qualified Leads</span>
+                      <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
                         {serviceStats?.b2b?.qualified_leads ?? 0}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className={`font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Pipeline Value</span>
-                      <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                      <span className={`font-body text-slate-500`}>Pipeline Value</span>
+                      <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
                         {serviceStats?.b2b?.pipeline_value ?? '$0'}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className={`font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Avg Deal Size</span>
-                      <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                      <span className={`font-body text-slate-500`}>Avg Deal Size</span>
+                      <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
                         {serviceStats?.b2b?.avg_deal_size ?? '$0'}
                       </span>
                     </div>
@@ -336,7 +332,7 @@ export default function MarketingDashboard() {
 
               {/* EMMA */}
               <Card
-                className={`service-card backdrop-blur-xl border rounded-2xl cursor-pointer ${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'}`}
+                className={`service-card backdrop-blur-xl border rounded-2xl cursor-pointer bg-white border-slate-200 hover:border-slate-300 shadow-sm dark:bg-slate-900/80 dark:border-slate-800 dark:hover:border-slate-700`}
                 data-testid="service-card-emma"
               >
                 <CardContent className="p-6">
@@ -349,34 +345,34 @@ export default function MarketingDashboard() {
                       Mobile
                     </Badge>
                   </div>
-                  <h3 className={`text-lg font-medium font-heading mb-1 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                  <h3 className={`text-lg font-medium font-heading mb-1 text-slate-900 dark:text-slate-50`}>
                     EMMA
                   </h3>
-                  <p className={`text-sm font-body mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <p className={`text-sm font-body mb-4 text-slate-500 dark:text-slate-400`}>
                     Email, Mobile &amp; Automation
                   </p>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className={`font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Emails Today</span>
-                      <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                      <span className={`font-body text-slate-500`}>Emails Today</span>
+                      <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
                         {(serviceStats?.emma?.emails_sent_today ?? 0).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className={`font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Open Rate</span>
+                      <span className={`font-body text-slate-500`}>Open Rate</span>
                       <span className="text-emerald-400 font-medium font-body">
                         {serviceStats?.emma?.open_rate ?? '0%'}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className={`font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Automations Active</span>
-                      <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                      <span className={`font-body text-slate-500`}>Automations Active</span>
+                      <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
                         {serviceStats?.emma?.automations_active ?? 0}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className={`font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Total Subscribers</span>
-                      <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                      <span className={`font-body text-slate-500`}>Total Subscribers</span>
+                      <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
                         {(serviceStats?.emma?.subscribers ?? 0).toLocaleString()}
                       </span>
                     </div>
@@ -386,7 +382,7 @@ export default function MarketingDashboard() {
 
               {/* Creative Assets */}
               <Card
-                className={`service-card backdrop-blur-xl border rounded-2xl cursor-pointer relative overflow-hidden ${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'}`}
+                className={`service-card backdrop-blur-xl border rounded-2xl cursor-pointer relative overflow-hidden bg-white border-slate-200 hover:border-slate-300 shadow-sm dark:bg-slate-900/80 dark:border-slate-800 dark:hover:border-slate-700`}
                 data-testid="service-card-creative"
               >
                 <CardContent className="p-6 relative z-10">
@@ -398,27 +394,27 @@ export default function MarketingDashboard() {
                       {serviceStats?.creative?.approval_pending ?? 0} pending
                     </Badge>
                   </div>
-                  <h3 className={`text-lg font-medium font-heading mb-1 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                  <h3 className={`text-lg font-medium font-heading mb-1 text-slate-900 dark:text-slate-50`}>
                     Creative Assets
                   </h3>
-                  <p className={`text-sm font-body mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <p className={`text-sm font-body mb-4 text-slate-500 dark:text-slate-400`}>
                     Automated ad variations &amp; assets
                   </p>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className={`font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Assets Generated</span>
-                      <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                      <span className={`font-body text-slate-500`}>Assets Generated</span>
+                      <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
                         {serviceStats?.creative?.assets_generated ?? 0}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className={`font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Campaigns Active</span>
-                      <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                      <span className={`font-body text-slate-500`}>Campaigns Active</span>
+                      <span className={`font-medium font-body text-slate-900 dark:text-slate-50`}>
                         {serviceStats?.creative?.campaigns_active ?? 0}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className={`font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Brand Score</span>
+                      <span className={`font-body text-slate-500`}>Brand Score</span>
                       <span className="text-emerald-400 font-medium font-body">
                         {serviceStats?.creative?.brand_score ?? 'N/A'}
                       </span>
@@ -432,25 +428,25 @@ export default function MarketingDashboard() {
           {/* Activity Feed */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className={`text-xl font-medium tracking-tight font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+              <h2 className={`text-xl font-medium tracking-tight font-heading text-slate-900 dark:text-slate-50`}>
                 Recent Activity
               </h2>
               <Button
                 variant="ghost"
-                className={`font-body ${isDark ? 'text-slate-400 hover:text-slate-50' : 'text-slate-500 hover:text-slate-900'}`}
+                className={`font-body text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-50`}
                 data-testid="view-all-activity"
               >
                 View All <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </div>
             <Card
-              className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+              className={`backdrop-blur-xl border rounded-2xl bg-white border-slate-200 shadow-sm dark:bg-slate-900/80 dark:border-slate-800`}
             >
               <CardContent className="p-6">
                 {activities.length === 0 ? (
                   <div className="text-center py-8">
-                    <LayoutGrid className={`w-12 h-12 mx-auto mb-4 ${isDark ? 'text-slate-600' : 'text-slate-400'}`} />
-                    <p className={`font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <LayoutGrid className={`w-12 h-12 mx-auto mb-4 text-slate-400 dark:text-slate-600`} />
+                    <p className={`font-body text-slate-500 dark:text-slate-400`}>
                       No recent activity. Actions you take will appear here.
                     </p>
                   </div>
@@ -468,19 +464,19 @@ export default function MarketingDashboard() {
                             {getServiceIcon(activity.service)}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                            <p className={`text-sm font-body text-slate-900 dark:text-slate-50`}>
                               <span className="font-medium capitalize">{activity.action}</span>
                               {' '}
-                              <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{activity.target}</span>
+                              <span className="text-slate-500 dark:text-slate-400">{activity.target}</span>
                             </p>
                             <div className="flex items-center gap-2 mt-1">
                               <Badge
                                 variant="outline"
-                                className={`text-xs font-body capitalize ${isDark ? 'border-slate-700 text-slate-500' : 'border-slate-300 text-slate-500'}`}
+                                className={`text-xs font-body capitalize border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-500`}
                               >
                                 {activity.service}
                               </Badge>
-                              <span className={`text-xs font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                              <span className={`text-xs font-body text-slate-500`}>
                                 {formatActivityTime(activity.timestamp)}
                               </span>
                             </div>
@@ -499,12 +495,12 @@ export default function MarketingDashboard() {
         <div className="lg:col-span-4 flex flex-col gap-6 lg:gap-8">
           {/* Calendar */}
           <Card
-            className={`backdrop-blur-xl border rounded-2xl calendar-widget ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            className={`backdrop-blur-xl border rounded-2xl calendar-widget bg-white border-slate-200 shadow-sm dark:bg-slate-900/80 dark:border-slate-800`}
             data-testid="calendar-widget"
           >
             <CardHeader className="pb-2">
               <CardTitle
-                className={`text-lg font-medium font-heading flex items-center gap-2 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}
+                className={`text-lg font-medium font-heading flex items-center gap-2 text-slate-900 dark:text-slate-50`}
               >
                 <CalendarIcon className="w-5 h-5 text-orange-400" />
                 Calendar
@@ -519,22 +515,22 @@ export default function MarketingDashboard() {
                 classNames={{
                   months: 'flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0',
                   month: 'space-y-4 w-full',
-                  caption: `flex justify-center pt-1 relative items-center font-heading ${isDark ? 'text-slate-50' : 'text-slate-900'}`,
+                  caption: `flex justify-center pt-1 relative items-center font-heading text-slate-900 dark:text-slate-50`,
                   caption_label: 'text-sm font-medium',
                   nav: 'space-x-1 flex items-center',
-                  nav_button: `h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 ${isDark ? 'text-slate-400 hover:text-slate-50' : 'text-slate-500 hover:text-slate-900'}`,
+                  nav_button: `h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-50`,
                   nav_button_previous: 'absolute left-1',
                   nav_button_next: 'absolute right-1',
                   table: 'w-full border-collapse space-y-1',
                   head_row: 'flex w-full justify-between',
-                  head_cell: `rounded-md w-8 font-normal text-[0.8rem] font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`,
+                  head_cell: `rounded-md w-8 font-normal text-[0.8rem] font-body text-slate-500`,
                   row: 'flex w-full mt-2 justify-between',
                   cell: 'text-center text-sm p-0 relative focus-within:relative focus-within:z-20',
-                  day: `h-8 w-8 p-0 font-normal rounded-md font-body ${isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-100'}`,
+                  day: `h-8 w-8 p-0 font-normal rounded-md font-body text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800`,
                   day_selected: 'bg-orange-500 text-white hover:bg-orange-600 font-medium',
-                  day_today: `${isDark ? 'bg-slate-800 text-orange-400' : 'bg-orange-100 text-orange-600'}`,
-                  day_outside: `opacity-50 ${isDark ? 'text-slate-600' : 'text-slate-400'}`,
-                  day_disabled: `opacity-50 ${isDark ? 'text-slate-600' : 'text-slate-400'}`,
+                  day_today: `bg-orange-100 text-orange-600 dark:bg-slate-800 dark:text-orange-400`,
+                  day_outside: `opacity-50 text-slate-400 dark:text-slate-600`,
+                  day_disabled: `opacity-50 text-slate-400 dark:text-slate-600`,
                 }}
               />
             </CardContent>
@@ -542,17 +538,17 @@ export default function MarketingDashboard() {
 
           {/* Schedule */}
           <Card
-            className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            className={`backdrop-blur-xl border rounded-2xl bg-white border-slate-200 shadow-sm dark:bg-slate-900/80 dark:border-slate-800`}
             data-testid="schedule-widget"
           >
             <CardHeader className="pb-2">
               <CardTitle
-                className={`text-lg font-medium font-heading flex items-center gap-2 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}
+                className={`text-lg font-medium font-heading flex items-center gap-2 text-slate-900 dark:text-slate-50`}
               >
                 <Clock className="w-5 h-5 text-orange-400" />
                 My Schedule
               </CardTitle>
-              <p className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+              <p className={`text-sm font-body text-slate-500`}>
                 {format(selectedDate, 'EEEE, MMMM d, yyyy')}
               </p>
             </CardHeader>
@@ -560,7 +556,7 @@ export default function MarketingDashboard() {
               <ScrollArea className="h-[240px] custom-scrollbar">
                 <div className="space-y-3 pr-4">
                   {schedule.length === 0 ? (
-                    <p className={`text-sm font-body text-center py-6 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                    <p className={`text-sm font-body text-center py-6 text-slate-400 dark:text-slate-500`}>
                       No upcoming events. Add them via the API.
                     </p>
                   ) : (
@@ -577,29 +573,29 @@ export default function MarketingDashboard() {
                       .map((event, index) => (
                         <div
                           key={event.id}
-                          className={`p-3 rounded-lg ${getEventTypeClass(event.event_type)} opacity-0 animate-fade-in ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}
+                          className={`p-3 rounded-lg ${getEventTypeClass(event.event_type)} opacity-0 animate-fade-in bg-slate-50 dark:bg-slate-800/50`}
                           style={{ animationDelay: `${index * 0.08}s` }}
                           data-testid={`schedule-event-${event.id}`}
                         >
                           <div className="flex items-start justify-between">
                             <div>
-                              <p className={`text-sm font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+                              <p className={`text-sm font-medium font-body text-slate-900 dark:text-slate-50`}>
                                 {event.title}
                               </p>
-                              <p className={`text-xs font-body mt-1 ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                              <p className={`text-xs font-body mt-1 text-slate-500`}>
                                 {formatEventDate(event.start_time)} at {formatEventTime(event.start_time)}
                                 {event.end_time && ` – ${formatEventTime(event.end_time)}`}
                               </p>
                             </div>
                             <Badge
                               variant="outline"
-                              className={`text-xs capitalize font-body ${isDark ? 'border-slate-700 text-slate-400' : 'border-slate-300 text-slate-500'}`}
+                              className={`text-xs capitalize font-body border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400`}
                             >
                               {event.event_type}
                             </Badge>
                           </div>
                           {event.location && (
-                            <p className={`text-xs font-body mt-2 ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                            <p className={`text-xs font-body mt-2 text-slate-500`}>
                               {event.location}
                             </p>
                           )}
@@ -613,17 +609,17 @@ export default function MarketingDashboard() {
 
           {/* Todos */}
           <Card
-            className={`backdrop-blur-xl border rounded-2xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            className={`backdrop-blur-xl border rounded-2xl bg-white border-slate-200 shadow-sm dark:bg-slate-900/80 dark:border-slate-800`}
             data-testid="todo-widget"
           >
             <CardHeader className="pb-2">
               <CardTitle
-                className={`text-lg font-medium font-heading flex items-center gap-2 ${isDark ? 'text-slate-50' : 'text-slate-900'}`}
+                className={`text-lg font-medium font-heading flex items-center gap-2 text-slate-900 dark:text-slate-50`}
               >
                 <CheckCircle2 className="w-5 h-5 text-orange-400" />
                 My Tasks
               </CardTitle>
-              <p className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+              <p className={`text-sm font-body text-slate-500`}>
                 {todos.filter((t) => !t.completed).length} remaining
               </p>
             </CardHeader>
@@ -631,7 +627,7 @@ export default function MarketingDashboard() {
               <ScrollArea className="h-[280px] custom-scrollbar">
                 <div className="space-y-3 pr-4">
                   {todos.length === 0 ? (
-                    <p className={`text-sm font-body text-center py-6 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                    <p className={`text-sm font-body text-center py-6 text-slate-400 dark:text-slate-500`}>
                       No tasks yet. Create them via the API.
                     </p>
                   ) : (
@@ -640,8 +636,8 @@ export default function MarketingDashboard() {
                         key={todo.id}
                         className={`todo-item flex items-start gap-3 p-3 rounded-lg transition-all opacity-0 animate-fade-in ${
                           todo.completed
-                            ? `completed ${isDark ? 'bg-slate-800/30' : 'bg-slate-50'}`
-                            : `${isDark ? 'bg-slate-800/50 hover:bg-slate-800' : 'bg-slate-50 hover:bg-slate-100'}`
+                            ? 'completed bg-slate-50 dark:bg-slate-800/30'
+                            : `bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800`
                         }`}
                         style={{ animationDelay: `${index * 0.08}s` }}
                         data-testid={`todo-item-${todo.id}`}
@@ -649,21 +645,21 @@ export default function MarketingDashboard() {
                         <Checkbox
                           checked={todo.completed}
                           onCheckedChange={() => handleTodoToggle(todo.id, todo.completed)}
-                          className={`todo-checkbox mt-0.5 data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500 ${isDark ? 'border-slate-600' : 'border-slate-300'}`}
+                          className="todo-checkbox mt-0.5 data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500 border-slate-300 dark:border-slate-600"
                           data-testid={`todo-checkbox-${todo.id}`}
                         />
                         <div className="flex-1 min-w-0">
                           <p
                             className={`text-sm font-body todo-title ${
                               todo.completed
-                                ? isDark ? 'text-slate-500 line-through' : 'text-slate-400 line-through'
-                                : isDark ? 'text-slate-50' : 'text-slate-900'
+                                ? 'text-slate-400 line-through dark:text-slate-500'
+                                : 'text-slate-900 dark:text-slate-50'
                             }`}
                           >
                             {todo.title}
                           </p>
                           {todo.description && (
-                            <p className={`text-xs font-body mt-1 truncate ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                            <p className={`text-xs font-body mt-1 truncate text-slate-500`}>
                               {todo.description}
                             </p>
                           )}
@@ -672,7 +668,7 @@ export default function MarketingDashboard() {
                               {todo.priority}
                             </span>
                             {todo.due_date && (
-                              <span className={`text-xs font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                              <span className={`text-xs font-body text-slate-500`}>
                                 Due: {format(parseISO(todo.due_date), 'MMM d')}
                               </span>
                             )}

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Server, Home, Users, TrendingUp, BarChart3, UserLock, Building2,
-  ChevronLeft, ChevronRight, User, Settings
+  ChevronLeft, ChevronRight, User, Settings, ConciergeBell,
 } from "lucide-react";
 import BotWidget from '../AIBOT/BotWidget'
 
@@ -84,6 +84,7 @@ export default function Sidebar() {
         <NavBtn icon={TrendingUp} label="Marketing" path="/marketing" current={pathname} collapsed={collapsed} />
         <NavBtn icon={Server} label="Networks" path="/network" current={pathname} collapsed={collapsed} />
         <NavBtn icon={BarChart3} label="Analytics" path="/analytics" current={pathname} collapsed={collapsed} />
+        <NavBtn icon={ConciergeBell} label="Services" path="/service" current={pathname} collapsed={collapsed} />
       </div>
 
       {/* BOTTOM NAV */}
