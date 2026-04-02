@@ -10,6 +10,7 @@ import { ToastProvider } from "../components/ui/Toast";
 import { SkeletonCard } from "../components/ui/Skeleton";
 import ErrorBoundary from "../components/ErrorBoundary";
 import BotWidget from "../components/BotWidget";
+import Dashboard from "../apps/services/Dashboard";
 
 // ── Lazy-loaded mini-app route groups ─────────────────────────────────────────
 const HomeView            = lazy(() => import("../apps/HomeView"));
@@ -88,6 +89,14 @@ const Notifications       = lazy(() => import("../apps/account/Notifications"));
 const TeamPermissions     = lazy(() => import("../apps/account/TeamPermissions"));
 const Billing             = lazy(() => import("../apps/account/Billing"));
 const AuditLogs           = lazy(() => import("../apps/account/AuditLogs"));
+
+// Services
+const FinancialManagement             = lazy(() => import("../apps/services/FinancialManagement"));
+const MarketingSales           = lazy(() => import("../apps/services/MarketingSales"));
+const OperationsSystem             = lazy(() => import("../apps/services/OperationsSystem"));
+const StrategicPlanning       = lazy(() => import("../apps/services/StrategicPlanning"));
+const TeamProjectCoordination     = lazy(() => import("../apps/services/TeamProjectCoordination"));
+
 
 // ── Fallback spinner ──────────────────────────────────────────────────────────
 function PageSuspense({ children }) {
@@ -213,6 +222,16 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/marketing/audience"         element={<AudienceStudio />} />
                 <Route path="/marketing/attribution"      element={<AttributionROI />} />
                 <Route path="/marketing/creative"         element={<CreativeAssets />} />
+
+
+                {/* Services */}
+                <Route path="/services" element={<Navigate to="/services/dashboard" replace />} />
+                <Route path="/services/dashboard"      element={<Dashboard />} />
+                <Route path="/services/financial"      element={<FinancialManagement />} />
+                <Route path="/services/operation"     element={<OperationsSystem />} />
+                <Route path="/services/strategic"     element={<StrategicPlanning />} />
+                <Route path="/services/marketing" element={<MarketingSales />} />
+                <Route path="/services/team"         element={<TeamProjectCoordination />} />
 
                 <Route path="/botwidget" element={<Navigate to="/botwidget/botmessage" replace />} />
 
