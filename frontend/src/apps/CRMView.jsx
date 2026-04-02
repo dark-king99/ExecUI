@@ -14,8 +14,6 @@ import { Checkbox } from '../components/ui/checkbox';
 import { Calendar } from '../components/ui/calendar';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { Button } from '../components/ui/button';
-import { useSidebar } from '../components/SidebarContext';
-
 // ── API helper ────────────────────────────────────────────────────────────────
 const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
@@ -40,9 +38,6 @@ function apiFetch(path, options = {}) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function CRMDashboard() {
-  const { theme } = useSidebar();
-  const isDark = theme === 'dark';
-
   const [employee, setEmployee]             = useState(null);
   const [recentServices, setRecentServices] = useState([]);
   const [tasks, setTasks]                   = useState([]);
