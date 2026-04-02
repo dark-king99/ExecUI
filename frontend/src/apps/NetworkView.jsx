@@ -4,28 +4,28 @@ import {
   ShieldCheck, Boxes, TrendingUp, RefreshCw,
   AlertTriangle, CheckCircle2, XCircle, Loader2,
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { useSidebar } from '../components/SidebarContext';
  
 // ── API helper ────────────────────────────────────────────────────────────────
 const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
  
-function apiFetch(path, options = {}) {
+async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('auth_token');
-  return fetch(`${BASE}${path}`, {
+  const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
-  }).then(async (res) => {
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.message ?? `HTTP ${res.status}`);
-    }
-    if (res.status === 204) return null;
-    return res.json();
   });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message ?? `HTTP ${res.status}`);
+  }
+  if (res.status === 204) return null;
+  return await res.json();
 }
  
 // ── Status helpers ────────────────────────────────────────────────────────────
@@ -123,6 +123,7 @@ export default function NetworkDashboard() {
   const { theme } = useSidebar();
   const isDark = theme === 'dark';
  
+  const [employee, setEmployee]       = useState(null);
   const [overview,  setOverview]  = useState(null);
   const [devices,   setDevices]   = useState([]);
   const [storage,   setStorage]   = useState(null);
@@ -170,6 +171,13 @@ export default function NetworkDashboard() {
     { title: 'Server Load',      value: health.server_load },
     { title: 'Security Posture', value: health.security_posture },
   ];
+
+  const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
  
   // ── Error state ────────────────────────────────────────────────────────────
   if (error && !overview) {
@@ -188,14 +196,31 @@ export default function NetworkDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
-        <div>
-          <h1 className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            Network Dashboard
-          </h1>
-          <p className={`mt-1 text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Real-time overview of devices, servers, endpoints, and cloud infrastructure.
-          </p>
-        </div>
+      <div className="flex items-center gap-4">
+  <Avatar className="h-16 w-16 border-2 border-orange-500/30">
+    <AvatarImage src={employee?.avatar_url} alt={employee?.name} />
+    <AvatarFallback className="font-heading text-xl bg-slate-200 text-orange-600">
+      {employee?.name?.split(" ").map((n) => n[0]).join("") || "?"}
+    </AvatarFallback>
+  </Avatar>
+
+  <div>
+    <p className="text-sm font-body text-slate-500">
+      {getGreeting()}
+    </p>
+
+    <h1
+      className="text-2xl sm:text-3xl font-semibold tracking-tight font-heading text-slate-900"
+      data-testid="employee-name"
+    >
+      {employee?.name ?? "—"}
+    </h1>
+
+    <p className="text-sm font-body text-slate-600">
+      {employee?.role} — {employee?.department}
+    </p>
+  </div>
+</div>
         <button
           onClick={fetchAll}
           disabled={loading}

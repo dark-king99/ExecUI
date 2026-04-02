@@ -48,6 +48,15 @@ import CustomerDataPlatform from "../apps/marketing/CustomerDataPlatform";
 import CommerceCommand from "../apps/marketing/CommerceCommand";
 import MarketingAI from "../apps/marketing/MarketingAI";
 
+//Managerial services 
+import { Dashboard } from './apps/services/Dashboard';
+import { FinancialManagement } from './apps/services/FinancialManagement';
+import { OperationsSystems } from './apps/services/OperationsSystems';
+import { StrategicPlanning } from './apps/services/StrategicPlanning';
+import { MarketingSales } from './apps/services/MarketingSales';
+import { TeamProjectCoordination } from './apps/services/TeamProjectCoordination';
+
+
 
 export default function ContentArea({ roleToUse }) {
   const { appSection, networkView, crmView, marketingView } = useSidebar();
@@ -103,6 +112,15 @@ export default function ContentArea({ roleToUse }) {
   
     return <MarketingView />; // safety fallback
   }
+
+  if (appSection === "services") {
+    if (serviceView === "dashboard") return <Dashboard />;
+    if (serviceView === "financial") return <div><FinancialManagement /></div>;
+    if (serviceView === "operation") return <div><MarketingSales /></div>;
+    if (serviceView === "strategic") return <div><OperationsSystem /></div>;
+    if (serviceView === "marketing") return <div><StrategicPlanning /></div>;
+    if (serviceView === "team") return <div> <TeamProjectCoordination /></div>;
+  }       
   
   // 🟨 Analytics (single page workspace)
   if (appSection === "analytics") {

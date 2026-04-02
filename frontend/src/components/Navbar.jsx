@@ -34,7 +34,7 @@ export default function Navbar({ user, onLogout, roleToUse, effectiveRole, setEf
 
       {/* LINKS */}
       <nav className="flex items-center gap-1 ml-4">
-        <NavItem icon={Grid}      label="Services"  onClick={() => navigate("/crm")} />
+        <NavItem icon={Grid}      label="Services"  onClick={() => navigate("/services")} />
         <NavItem icon={LinkIcon}  label="Connect"   onClick={() => navigate("/network")} />
         <NavItem icon={CreditCard} label="Access" onClick={() => navigate("/analytics")} />
         <NavItem icon={CreditCard} label="Tutorial" onClick={() => navigate("/account")} />
