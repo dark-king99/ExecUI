@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useSidebar } from '../../components/SidebarContext';
+
+const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
 
 import { 
   Settings2, 
@@ -370,7 +374,9 @@ const AISOPGenerator = ({ onGenerate, isDarkMode, onClose }) => {
   );
 };
 
-export const OperationsSystems = ({ isDarkMode }) => {
+export const OperationsSystems = () => {
+  const { theme } = useSidebar();
+  const isDarkMode = theme === 'dark';
   const [sops, setSOPs] = useState([]);
   const [workflows, setWorkflows] = useState([]);
   const [loading, setLoading] = useState(true);

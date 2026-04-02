@@ -465,3 +465,91 @@ export const account = {
     list: (params) => get('/account/audit-logs', params),
   },
 };
+
+// ── Services ──────────────────────────────────────────────────────────────────
+export const services = {
+  dashboard: {
+    stats: () => get('/services/dashboard/stats'),
+  },
+  financial: {
+    transactions: {
+      list:   ()     => get('/services/financial/transactions'),
+      create: (data) => post('/services/financial/transactions', data),
+      delete: (id)   => del(`/services/financial/transactions/${id}`),
+    },
+    taxPlans: {
+      list:   ()     => get('/services/financial/tax-plans'),
+      create: (data) => post('/services/financial/tax-plans', data),
+      delete: (id)   => del(`/services/financial/tax-plans/${id}`),
+    },
+    investments: {
+      list:   ()     => get('/services/financial/investments'),
+      create: (data) => post('/services/financial/investments', data),
+      delete: (id)   => del(`/services/financial/investments/${id}`),
+    },
+  },
+  operations: {
+    sops: {
+      list:   ()         => get('/services/operations/sops'),
+      create: (data)     => post('/services/operations/sops', data),
+      update: (id, data) => put(`/services/operations/sops/${id}`, data),
+      delete: (id)       => del(`/services/operations/sops/${id}`),
+    },
+    workflows: {
+      list:   ()     => get('/services/operations/workflows'),
+      create: (data) => post('/services/operations/workflows', data),
+      delete: (id)   => del(`/services/operations/workflows/${id}`),
+    },
+  },
+  strategic: {
+    goals: {
+      list:   ()         => get('/services/strategic/goals'),
+      create: (data)     => post('/services/strategic/goals', data),
+      update: (id, data) => put(`/services/strategic/goals/${id}`, data),
+      delete: (id)       => del(`/services/strategic/goals/${id}`),
+    },
+    marketAnalysis: {
+      list:   ()     => get('/services/strategic/market-analysis'),
+      create: (data) => post('/services/strategic/market-analysis', data),
+      delete: (id)   => del(`/services/strategic/market-analysis/${id}`),
+    },
+  },
+  marketing: {
+    campaigns: {
+      list:   ()         => get('/services/marketing/campaigns'),
+      create: (data)     => post('/services/marketing/campaigns', data),
+      update: (id, data) => put(`/services/marketing/campaigns/${id}`, data),
+      delete: (id)       => del(`/services/marketing/campaigns/${id}`),
+    },
+    clients: {
+      list:   ()         => get('/services/marketing/clients'),
+      create: (data)     => post('/services/marketing/clients', data),
+      update: (id, data) => put(`/services/marketing/clients/${id}`, data),
+      delete: (id)       => del(`/services/marketing/clients/${id}`),
+    },
+  },
+  team: {
+    members: {
+      list:   ()         => get('/services/team/members'),
+      create: (data)     => post('/services/team/members', data),
+      update: (id, data) => put(`/services/team/members/${id}`, data),
+      delete: (id)       => del(`/services/team/members/${id}`),
+    },
+    projects: {
+      list:   ()         => get('/services/team/projects'),
+      create: (data)     => post('/services/team/projects', data),
+      update: (id, data) => put(`/services/team/projects/${id}`, data),
+      delete: (id)       => del(`/services/team/projects/${id}`),
+    },
+    tasks: {
+      list:   ()         => get('/services/team/tasks'),
+      create: (data)     => post('/services/team/tasks', data),
+      update: (id, data) => put(`/services/team/tasks/${id}`, data),
+      delete: (id)       => del(`/services/team/tasks/${id}`),
+    },
+  },
+  ai: {
+    insights:    (body) => post('/services/ai/insights', body),
+    generateSOP: (body) => post('/services/ai/generate-sop', body),
+  },
+};
