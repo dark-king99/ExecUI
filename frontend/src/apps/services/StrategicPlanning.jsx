@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useSidebar } from '../../components/SidebarContext';
+
+const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
 
 import { 
   Target, 
@@ -410,7 +414,9 @@ const AIStrategyAdvisor = ({ goals, isDarkMode, onClose }) => {
   );
 };
 
-export const StrategicPlanning = ({ isDarkMode }) => {
+export const StrategicPlanning = () => {
+  const { theme } = useSidebar();
+  const isDarkMode = theme === 'dark';
   const [goals, setGoals] = useState([]);
   const [analyses, setAnalyses] = useState([]);
   const [loading, setLoading] = useState(true);
