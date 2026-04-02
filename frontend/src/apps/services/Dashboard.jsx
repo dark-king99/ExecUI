@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useSidebar } from '../../components/SidebarContext';
+
+const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
 
 import { 
   TrendingUp, 
@@ -263,7 +267,9 @@ const QuickStats = ({ stats, isDarkMode }) => (
   </Card>
 );
 
-export const Dashboard = ({ isDarkMode }) => {
+export const Dashboard = () => {
+  const { theme } = useSidebar();
+  const isDarkMode = theme === 'dark';
   const [stats, setStats] = useState({
     financial: { total_income: 0, total_expenses: 0, net_profit: 0, transaction_count: 0 },
     projects: { active: 0, completed: 0, total: 0 },

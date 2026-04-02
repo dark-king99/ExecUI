@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useSidebar } from '../../components/SidebarContext';
 
-import { 
-  Users, 
+import {
+  Users,
   FolderKanban,
   Plus,
   Trash2,
@@ -18,21 +20,20 @@ import {
   Mail,
   Building2
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/cards';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Badge } from '../components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Textarea } from '../components/ui/textarea';
-import { Progress } from '../components/ui/progress';
-import { Avatar, AvatarFallback } from '../components/ui/avatar';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/cards';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Badge } from '../../components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
+import { Textarea } from '../../components/ui/textarea';
+import { Progress } from '../../components/ui/progress';
+import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import { toast } from 'sonner';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
 
 const departments = ['Operations', 'Finance', 'HR', 'IT', 'Sales', 'Marketing', 'Customer Service', 'Legal', 'Engineering', 'Executive'];
 const projectStatuses = ['planning', 'in_progress', 'review', 'completed'];
@@ -521,7 +522,9 @@ const AITeamAdvisor = ({ projects, teamMembers, isDarkMode, onClose }) => {
   );
 };
 
-export const TeamProjectCoordination = ({ isDarkMode }) => {
+export const TeamProjectCoordination = () => {
+  const { theme } = useSidebar();
+  const isDarkMode = theme === 'dark';
   const [teamMembers, setTeamMembers] = useState([]);
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);

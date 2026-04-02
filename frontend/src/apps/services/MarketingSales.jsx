@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useSidebar } from '../../components/SidebarContext';
+
+const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
 
 import { 
   Megaphone, 
@@ -377,7 +381,9 @@ const AIMarketingAdvisor = ({ campaigns, clients, isDarkMode, onClose }) => {
   );
 };
 
-export const MarketingSales = ({ isDarkMode }) => {
+export const MarketingSales = () => {
+  const { theme } = useSidebar();
+  const isDarkMode = theme === 'dark';
   const [campaigns, setCampaigns] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
