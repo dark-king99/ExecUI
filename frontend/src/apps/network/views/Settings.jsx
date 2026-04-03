@@ -30,7 +30,7 @@ export default function Settings() {
 
   return (
     <div className="h-full w-full flex gap-6">
-      <div className="w-72 border-r border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 p-4">
+      <div className="w-72 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
         <div className="flex items-center gap-2 mb-4">
           <SettingsIcon className="h-5 w-5 text-indigo-500" />
           <h2 className="text-lg font-semibold">Connection Profiles</h2>
@@ -60,7 +60,7 @@ export default function Settings() {
               className={`w-full text-left px-3 py-2 rounded text-sm transition ${
                 selectedProfile?.id === p.id
                   ? "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300"
-                  : "hover:bg-slate-100 dark:hover:bg-white/5"
+                  : "hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
               <div className="font-medium">{p.name}</div>
@@ -71,7 +71,7 @@ export default function Settings() {
       </div>
 
       <div className="flex-1 flex flex-col">
-        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-white/10 px-4 py-2 bg-white dark:bg-slate-900">
+        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 px-4 py-2 bg-white dark:bg-slate-900">
           {settingTabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -81,7 +81,7 @@ export default function Settings() {
                 className={`flex items-center gap-2 px-3 py-2 rounded text-sm ${
                   activeTab === tab.id
                     ? "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300"
-                    : "hover:bg-slate-100 dark:hover:bg-white/5"
+                    : "hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
                 <Icon size={16} />
@@ -119,13 +119,13 @@ export default function Settings() {
                       type="text"
                       value={String(value ?? "")}
                       readOnly
-                      className="col-span-2 px-3 py-2 rounded border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-sm"
+                      className="col-span-2 px-3 py-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm"
                     />
                   )}
                 </div>
               ))}
 
-              <div className="mt-8 rounded-lg border border-slate-200 dark:border-white/10 p-4 text-sm bg-white dark:bg-slate-900">
+              <div className="mt-8 rounded-lg border border-slate-200 dark:border-slate-800 p-4 text-sm bg-white dark:bg-slate-900">
                 <h4 className="font-semibold mb-2 flex items-center gap-2">
                   <Shield size={16} /> Representation
                 </h4>

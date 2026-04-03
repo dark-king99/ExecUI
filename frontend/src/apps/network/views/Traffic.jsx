@@ -86,13 +86,13 @@ export default function Traffic() {
             return (
               <div
                 key={kpi.label}
-                className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 p-4 flex items-center justify-between"
+                className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex items-center justify-between"
               >
                 <div>
                   <p className="text-sm text-slate-500 dark:text-slate-400">{kpi.label}</p>
                   <p className="text-xl font-semibold text-slate-900 dark:text-white">{kpi.value}</p>
                 </div>
-                <div className="p-2 rounded-lg bg-slate-100 dark:bg-white/10">
+                <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
                   <Icon className="h-5 w-5 text-indigo-500" />
                 </div>
               </div>
@@ -108,18 +108,18 @@ export default function Traffic() {
       {/* Charts + Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Traffic Over Time — live chart placeholder */}
-        <div className="lg:col-span-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 p-5">
+        <div className="lg:col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Traffic Over Time</h2>
             <Wifi className="h-5 w-5 text-indigo-500" />
           </div>
-          <div className="h-48 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-400 text-sm">
+          <div className="h-48 rounded-lg bg-slate-100 dark:bg-slate-800/50 flex items-center justify-center text-slate-400 text-sm">
             {overviewLoading ? "Loading…" : "Connect a charting library to visualise live traffic data"}
           </div>
         </div>
 
         {/* Protocol Breakdown */}
-        <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 p-5">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Top Protocols</h2>
           {protError && <p className="text-xs text-red-500 mb-2">{protError}</p>}
           {protLoading ? (
@@ -142,7 +142,7 @@ export default function Traffic() {
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Talkers */}
-        <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 p-5">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Server className="h-5 w-5 text-indigo-500" />
             <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Top Talkers</h2>
@@ -151,7 +151,7 @@ export default function Traffic() {
           {talkersLoading ? (
             <SkeletonTable rows={4} />
           ) : topTalkers?.length > 0 ? (
-            <div className="divide-y divide-slate-200 dark:divide-white/10">
+            <div className="divide-y divide-slate-200 dark:divide-slate-800">
               {topTalkers.map((t) => (
                 <div key={t.ip ?? t.name} className="py-3 flex items-center justify-between text-sm">
                   <div>
@@ -168,7 +168,7 @@ export default function Traffic() {
         </div>
 
         {/* Anomalies */}
-        <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 p-5">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="h-5 w-5 text-amber-500" />
             <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Spikes & Anomalies</h2>
@@ -179,7 +179,7 @@ export default function Traffic() {
           ) : anomalies?.length > 0 ? (
             <div className="space-y-3">
               {anomalies.map((s, i) => (
-                <div key={i} className="rounded-lg border border-slate-200 dark:border-white/10 p-3 text-sm">
+                <div key={i} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500 dark:text-slate-400">{s.time ?? s.timestamp ?? "—"}</span>
                     <span className={`text-xs font-semibold ${

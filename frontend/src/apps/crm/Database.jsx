@@ -212,7 +212,7 @@ export default function CrmDatabase() {
       )}
 
       {activeTab === "usage" && (
-        <div className="rounded-xl border border-slate-400 dark:border-slate-700 p-4 bg-white dark:bg-slate-900">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900">
           <div className="text-slate-900 dark:text-white font-medium mb-2">Database Usage Analytics</div>
           {usageLoading ? (
             <div className="grid grid-cols-3 gap-4 animate-pulse">
@@ -220,9 +220,9 @@ export default function CrmDatabase() {
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-4 text-sm">
-              <div className="p-3 border border-slate-400 dark:border-slate-700 rounded text-slate-400">Total Records: {usage?.totalRecords ?? allRecords.length}</div>
-              <div className="p-3 border border-slate-400 dark:border-slate-700 rounded text-slate-400">Queries Today: {usage?.queriesToday ?? "—"}</div>
-              <div className="p-3 border border-slate-400 dark:border-slate-700 rounded text-slate-400">Storage Used: {usage?.storageUsed ?? "—"}</div>
+              <div className="p-3 border border-slate-200 dark:border-slate-800 rounded text-slate-600 dark:text-slate-400">Total Records: {usage?.totalRecords ?? allRecords.length}</div>
+              <div className="p-3 border border-slate-200 dark:border-slate-800 rounded text-slate-600 dark:text-slate-400">Queries Today: {usage?.queriesToday ?? "—"}</div>
+              <div className="p-3 border border-slate-200 dark:border-slate-800 rounded text-slate-600 dark:text-slate-400">Storage Used: {usage?.storageUsed ?? "—"}</div>
             </div>
           )}
         </div>
