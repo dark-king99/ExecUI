@@ -31,7 +31,7 @@ export default function BotWidget() {
   const [input, setInput]       = useState('');
   const [loading, setLoading]   = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'assistant', text: 'Hi! I\'m your AI assistant. Ask me anything about your CRM, marketing campaigns, or network status.' },
+    { role: 'assistant', text: 'Hi! I\'m your Exec AI. Ask me anything about your CRM, marketing campaigns, or network status.' },
   ]);
 
   const bottomRef = useRef(null);
@@ -99,10 +99,10 @@ export default function BotWidget() {
               ${isDark ? 'bg-slate-800 border-b border-slate-700' : 'bg-slate-50 border-b border-slate-200'}`}
           >
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-cyan-500 to-fuchsia-500 flex items-center justify-center">
+              <div className="h-7 w-7 rounded-full bg-linear-to-br from-cyan-500 to-fuchsia-500 flex items-center justify-center">
                 <Bot className="h-4 w-4 text-white" />
               </div>
-              <span className="text-sm font-semibold">AI Assistant</span>
+              <span className="text-sm font-semibold"> Exec AI </span>
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
             </div>
             <div className="flex items-center gap-1">
@@ -137,7 +137,7 @@ export default function BotWidget() {
                     <div
                       className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed
                         ${msg.role === 'user'
-                          ? 'bg-gradient-to-br from-cyan-500 to-blue-600 text-white rounded-br-sm'
+                          ? 'bg-linear-to-br from-cyan-500 to-blue-600 text-white rounded-br-sm'
                           : isDark
                             ? 'bg-slate-800 text-slate-100 rounded-bl-sm'
                             : 'bg-slate-100 text-slate-800 rounded-bl-sm'
@@ -175,7 +175,7 @@ export default function BotWidget() {
                   <button
                     onClick={sendMessage}
                     disabled={!input.trim() || loading}
-                    className="shrink-0 h-7 w-7 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center
+                    className="shrink-0 h-7 w-7 rounded-lg bg-linear-to-br from-cyan-500 to-blue-600 flex items-center justify-center
                       disabled:opacity-40 transition-opacity hover:opacity-90"
                     aria-label="Send"
                   >
@@ -195,7 +195,7 @@ export default function BotWidget() {
       <button
         onClick={() => { setOpen((v) => !v); setMinimized(false); }}
         className="h-14 w-14 rounded-full shadow-xl flex items-center justify-center
-          bg-gradient-to-br from-cyan-500 to-fuchsia-600 hover:scale-105 active:scale-95
+          bg-linear-to-br from-cyan-500 to-fuchsia-600 hover:scale-105 active:scale-95
           transition-transform duration-150"
         aria-label="Open AI Assistant"
       >

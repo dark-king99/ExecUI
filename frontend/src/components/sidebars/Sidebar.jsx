@@ -4,7 +4,7 @@ import {
   Server, Home, Users, TrendingUp, BarChart3, UserLock, Building2,
   ChevronLeft, ChevronRight, User, Settings
 } from "lucide-react";
-import BotWidget from '../AIBOT/BotWidget'
+
 
 function NavBtn({ icon: Icon, label, path, current, collapsed }) {
   const navigate = useNavigate();
@@ -49,7 +49,7 @@ export default function Sidebar() {
   };
 
   return (
-    <><aside
+  <aside
       className={`${collapsed ? "w-20" : "w-64"} bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800
       text-slate-900 dark:text-slate-100 p-4 flex flex-col justify-between transition-all duration-300`}
     >
@@ -99,9 +99,5 @@ export default function Sidebar() {
         ))}
       </div>
     </aside> 
-    
-    <BotWidget /></>
-
-
   );
 }
