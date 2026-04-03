@@ -88,11 +88,11 @@ export default function PipelineTracking() {
 
       {/* KPI Row */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-4 border border-slate-400 dark:border-slate-700 rounded gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 border border-slate-200 dark:border-slate-800 rounded gap-4">
           {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-4 border-slate-400 dark:border-slate-700 rounded  text-slate-900 dark:text-white gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 rounded text-slate-900 dark:text-white gap-4">
           <KPI icon={DollarSign} label="Total Pipeline"    value={currency(metrics.pipelineValue)} />
           <KPI icon={TrendingUp} label="Weighted Forecast" value={currency(Math.round(metrics.weightedForecast))} />
           <KPI icon={Target}     label="Win Rate"          value={`${metrics.winRate}%`} />
