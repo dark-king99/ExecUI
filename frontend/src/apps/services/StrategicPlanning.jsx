@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useSidebar } from '../../components/SidebarContext';
-
-const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
-
-import { 
-  Target, 
-  TrendingUp, 
+import {
+  Target,
+  TrendingUp,
   LineChart,
   Plus,
   Trash2,
@@ -32,6 +28,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '../../components/ui/textarea';
 import { Progress } from '../../components/ui/progress';
 import { toast } from 'sonner';
+
+const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
+const authHeaders = () => ({
+  'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+  'Content-Type': 'application/json',
+});
 
 
 
@@ -335,12 +337,10 @@ const AIStrategyAdvisor = ({ goals, isDarkMode, onClose }) => {
     if (!query.trim()) return;
     setLoading(true);
     try {
-      const response = await axios.post(`${API}/ai/insights`, {
-        context: getContext(),
-        module: 'strategic',
-        query
-      });
-      setInsight(response.data);
+      const res = await fetch(`${API}/ai/insights`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ context: getContext(), module: 'strategic', query }) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setInsight(data);
       toast.success('Strategic insight generated');
     } catch (error) {
       console.error('Error getting AI insight:', error);
@@ -432,12 +432,12 @@ export const StrategicPlanning = () => {
 
   const fetchData = async () => {
     try {
-      const [goalsRes, analysesRes] = await Promise.all([
-        axios.get(`${API}/strategic/goals`),
-        axios.get(`${API}/strategic/market-analysis`)
+      const [goalsData, analysesData] = await Promise.all([
+        fetch(`${API}/strategic/goals`, { headers: authHeaders() }).then(r => r.json()),
+        fetch(`${API}/strategic/market-analysis`, { headers: authHeaders() }).then(r => r.json()),
       ]);
-      setGoals(goalsRes.data);
-      setAnalyses(analysesRes.data);
+      setGoals(goalsData);
+      setAnalyses(analysesData);
     } catch (error) {
       console.error('Error fetching strategic data:', error);
     } finally {
@@ -448,10 +448,10 @@ export const StrategicPlanning = () => {
   const handleCreateGoal = async (data) => {
     try {
       if (editingGoal) {
-        await axios.put(`${API}/strategic/goals/${editingGoal.id}`, data);
+        await fetch(`${API}/strategic/goals/${editingGoal.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) });
         toast.success('Goal updated');
       } else {
-        await axios.post(`${API}/strategic/goals`, data);
+        await fetch(`${API}/strategic/goals`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) });
         toast.success('Goal created');
       }
       setShowGoalModal(false);
@@ -464,7 +464,7 @@ export const StrategicPlanning = () => {
 
   const handleDeleteGoal = async (id) => {
     try {
-      await axios.delete(`${API}/strategic/goals/${id}`);
+      await fetch(`${API}/strategic/goals/${id}`, { method: 'DELETE', headers: authHeaders() });
       toast.success('Goal deleted');
       fetchData();
     } catch (error) {
@@ -474,7 +474,7 @@ export const StrategicPlanning = () => {
 
   const handleCreateAnalysis = async (data) => {
     try {
-      await axios.post(`${API}/strategic/market-analysis`, data);
+      await fetch(`${API}/strategic/market-analysis`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) });
       toast.success('Market analysis created');
       setShowAnalysisModal(false);
       fetchData();
@@ -485,7 +485,7 @@ export const StrategicPlanning = () => {
 
   const handleDeleteAnalysis = async (id) => {
     try {
-      await axios.delete(`${API}/strategic/market-analysis/${id}`);
+      await fetch(`${API}/strategic/market-analysis/${id}`, { method: 'DELETE', headers: authHeaders() });
       toast.success('Market analysis deleted');
       fetchData();
     } catch (error) {

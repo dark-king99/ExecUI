@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useSidebar } from '../../components/SidebarContext';
-
-const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
-
-import { 
-  Settings2, 
-  FileText, 
+import {
+  Settings2,
+  FileText,
   Workflow as WorkflowIcon,
   Plus,
   Trash2,
@@ -31,6 +27,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '../../components/ui/textarea';
 import { Switch } from '../../components/ui/switch';
 import { toast } from 'sonner';
+
+const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
+const authHeaders = () => ({
+  'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+  'Content-Type': 'application/json',
+});
 
 
 
@@ -302,8 +304,10 @@ const AISOPGenerator = ({ onGenerate, isDarkMode, onClose }) => {
     }
     setLoading(true);
     try {
-      const response = await axios.post(`${API}/ai/generate-sop`, formData);
-      onGenerate(response.data);
+      const res = await fetch(`${API}/ai/generate-sop`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(formData) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      onGenerate(data);
       toast.success('SOP generated successfully');
     } catch (error) {
       console.error('Error generating SOP:', error);
@@ -392,12 +396,12 @@ export const OperationsSystems = () => {
 
   const fetchData = async () => {
     try {
-      const [sopsRes, workflowsRes] = await Promise.all([
-        axios.get(`${API}/operations/sops`),
-        axios.get(`${API}/operations/workflows`)
+      const [sopsData, workflowsData] = await Promise.all([
+        fetch(`${API}/operations/sops`, { headers: authHeaders() }).then(r => r.json()),
+        fetch(`${API}/operations/workflows`, { headers: authHeaders() }).then(r => r.json()),
       ]);
-      setSOPs(sopsRes.data);
-      setWorkflows(workflowsRes.data);
+      setSOPs(sopsData);
+      setWorkflows(workflowsData);
     } catch (error) {
       console.error('Error fetching operations data:', error);
     } finally {
@@ -408,10 +412,10 @@ export const OperationsSystems = () => {
   const handleCreateSOP = async (data) => {
     try {
       if (editingSOP) {
-        await axios.put(`${API}/operations/sops/${editingSOP.id}`, data);
+        await fetch(`${API}/operations/sops/${editingSOP.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) });
         toast.success('SOP updated');
       } else {
-        await axios.post(`${API}/operations/sops`, data);
+        await fetch(`${API}/operations/sops`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) });
         toast.success('SOP created');
       }
       setShowSOPModal(false);
@@ -424,7 +428,7 @@ export const OperationsSystems = () => {
 
   const handleDeleteSOP = async (id) => {
     try {
-      await axios.delete(`${API}/operations/sops/${id}`);
+      await fetch(`${API}/operations/sops/${id}`, { method: 'DELETE', headers: authHeaders() });
       toast.success('SOP deleted');
       fetchData();
     } catch (error) {
@@ -434,7 +438,7 @@ export const OperationsSystems = () => {
 
   const handleCreateWorkflow = async (data) => {
     try {
-      await axios.post(`${API}/operations/workflows`, data);
+      await fetch(`${API}/operations/workflows`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) });
       toast.success('Workflow created');
       setShowWorkflowModal(false);
       fetchData();
@@ -445,7 +449,7 @@ export const OperationsSystems = () => {
 
   const handleDeleteWorkflow = async (id) => {
     try {
-      await axios.delete(`${API}/operations/workflows/${id}`);
+      await fetch(`${API}/operations/workflows/${id}`, { method: 'DELETE', headers: authHeaders() });
       toast.success('Workflow deleted');
       fetchData();
     } catch (error) {
