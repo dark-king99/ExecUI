@@ -92,7 +92,7 @@ export default function PipelineTracking() {
           {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-4 rounded text-slate-900 dark:text-white gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 rounded gap-4">
           <KPI icon={DollarSign} label="Total Pipeline"    value={currency(metrics.pipelineValue)} />
           <KPI icon={TrendingUp} label="Weighted Forecast" value={currency(Math.round(metrics.weightedForecast))} />
           <KPI icon={Target}     label="Win Rate"          value={`${metrics.winRate}%`} />
@@ -212,13 +212,13 @@ export default function PipelineTracking() {
 
 function KPI({ icon: Icon, label, value }) {
   return (
-    <div className="rounded-xl border bg-white dark:bg-slate-900 p-4 flex items-center gap-3">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex items-center gap-3">
       <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
         <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
       </div>
       <div>
         <div className="text-xs text-slate-500">{label}</div>
-        <div className="text-lg font-semibold">{value}</div>
+        <div className="text-lg text-slate-900 dark:text-white font-semibold">{value}</div>
       </div>
     </div>
   );
@@ -226,9 +226,9 @@ function KPI({ icon: Icon, label, value }) {
 
 function ForecastCard({ title, value }) {
   return (
-    <div className="rounded-xl border bg-white dark:bg-slate-900 p-4">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
       <div className="text-sm text-slate-500">{title}</div>
-      <div className="text-2xl font-semibold mt-1">{value}</div>
+      <div className="text-2xl text-slate-900 dark:text-white font-semibold mt-1">{value}</div>
     </div>
   );
 }

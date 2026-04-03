@@ -38,10 +38,16 @@ export default function RevenueIntelligence() {
     loading: kpisLoading,
   } = useApi(() => analytics.kpis(), [], { pollingInterval: 120000 });
 
-  const arrKpi      = kpis?.find((k) => k.label === "ARR");
-  const nrrKpi      = kpis?.find((k) => k.label === "NRR");
-  const expansionArr = expansion?.reduce((s, e) => s + (e.upsideRaw ?? 0), 0);
+  const kpiList = Array.isArray(kpis) ? kpis : [];
 
+const arrKpi = kpiList.find((k) => k.label === "ARR");
+const nrrKpi = kpiList.find((k) => k.label === "NRR");
+const expansionList = Array.isArray(expansion) ? expansion : [];
+
+const expansionArr = expansionList.reduce(
+  (s, e) => s + (e.upsideRaw ?? 0),
+  0
+);
   return (
     <div className="space-y-6">
       <PageHeader
