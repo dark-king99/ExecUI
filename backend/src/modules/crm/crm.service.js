@@ -71,10 +71,10 @@ export const addAccountNote     = stubObj({});
 export const listResolutions    = stub;
 export const voteResolution     = stubObj({});
 
-export const getCrmAnalyticsSummary = stubObj({ deals: 0, revenue: 0, winRate: 0, avgCycle: 0 });
-export const getCrmAnalyticsFunnel  = stub;
-export const getCrmAnalyticsVelocity= stubObj({});
-export const getCrmAnalyticsWinLoss = stubObj({});
+export const getCrmAnalyticsSummary  = stubObj({ pipelineVelocity: "—", conversionRate: "—", avgSalesCycle: "—", winRate: "—" });
+export const getCrmAnalyticsFunnel   = stub;
+export const getCrmAnalyticsVelocity = stub;
+export const getCrmAnalyticsWinLoss  = stub;
 
 export const getOpportunitiesSummary = stubObj({ total: 0, value: 0 });
 export const listOpportunities       = stub;
