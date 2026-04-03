@@ -77,26 +77,37 @@ export default function VisualSegmentationStudio() {
 
         <div className="space-y-6">
 
-          <Panel
-            icon={Database}
-            title="SQL Preview"
-            content={cdpMetrics?.sqlPreview ?? "No active conditions yet."}
-          />
+        <Panel
+  icon={Database}
+  title="SQL Preview"
+  content={
+    typeof cdpMetrics?.sqlPreview === "object"
+      ? JSON.stringify(cdpMetrics?.sqlPreview)
+      : (cdpMetrics?.sqlPreview ?? "No active conditions yet.")
+  }
+/>
 
-          <Panel
-            icon={Brain}
-            title="Predictive Layer"
-            content={cdpMetrics?.predictiveLayer ?? "Lookalike Modeling — configure conditions to enable."}
-            toggle={predictionsEnabled}
-            onToggle={() => setPredictionsEnabled(!predictionsEnabled)}
-          />
+<Panel
+  icon={Brain}
+  title="Predictive Layer"
+  content={
+    typeof cdpMetrics?.predictiveLayer === "object"
+      ? JSON.stringify(cdpMetrics?.predictiveLayer)
+      : (cdpMetrics?.predictiveLayer ?? "Lookalike Modeling — configure conditions to enable.")
+  }
+  toggle={predictionsEnabled}
+  onToggle={() => setPredictionsEnabled(!predictionsEnabled)}
+/>
 
-          <Panel
-            icon={ShieldCheck}
-            title="Governance"
-            content={cdpMetrics?.governanceNote ?? "Requires Compliance Approval before activation."}
-          />
-
+<Panel
+  icon={ShieldCheck}
+  title="Governance"
+  content={
+    typeof cdpMetrics?.governanceNote === "object"
+      ? JSON.stringify(cdpMetrics?.governanceNote)
+      : (cdpMetrics?.governanceNote ?? "Requires Compliance Approval before activation.")
+  }
+/>
         </div>
       </div>
 

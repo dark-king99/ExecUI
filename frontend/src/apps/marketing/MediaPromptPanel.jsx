@@ -102,6 +102,28 @@ export default function MediaPromptPanel() {
             {STYLES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
+
+      {/* INPUTS */}
+      <div className="grid gap-3 mb-3">
+        <input
+          value={industry}
+          onChange={e => setIndustry(e.target.value)}
+          placeholder="Industry (e.g. SaaS, Real Estate, Fashion)"
+          className="border border-slate-200 dark:border-slate-800 rounded p-2 text-sm"
+        />
+        <input
+          value={goal}
+          onChange={e => setGoal(e.target.value)}
+          placeholder="Campaign goal (e.g. Lead generation, Brand awareness)"
+          className="border border-slate-200 dark:border-slate-800 rounded p-2 text-sm"
+        />
+        <input
+          value={style}
+          onChange={e => setStyle(e.target.value)}
+          placeholder="Style (optional – cinematic, minimal, luxury)"
+          className="border border-slate-200 dark:border-slate-800 rounded p-2 text-sm"
+        />
+
       </div>
 
       <button

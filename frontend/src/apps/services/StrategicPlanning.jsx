@@ -27,7 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { Textarea } from '../../components/ui/textarea';
 import { Progress } from '../../components/ui/progress';
-import { toast } from 'sonner';
+import { toast } from '../../components/ui/sonner';
 
 const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
 const authHeaders = () => ({

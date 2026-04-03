@@ -56,7 +56,7 @@ export default function Reports() {
         </div>
         <button
           onClick={() => setShowCustomerView(v => !v)}
-          className="px-3 py-2 rounded border flex items-center gap-2 text-sm"
+          className="px-3 py-2 rounded border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-sm"
         >
           <Eye className="h-4 w-4" /> {showCustomerView ? "Hide" : "Show"} Customer View
         </button>
@@ -68,7 +68,7 @@ export default function Reports() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-5 dark:border-slate-700 text-slate-900 dark:text-white gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 dark:border-slate-700  gap-4">
         <KPI icon={Inbox}       label="Total"       value={metrics.total} />
         <KPI icon={AlertTriangle} label="Open"      value={metrics.open} />
         <KPI icon={Clock}       label="In Progress"  value={metrics.inProgress} />
@@ -77,8 +77,8 @@ export default function Reports() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 rounded-xl border bg-white dark:bg-slate-900">
-          <div className="border-b p-3 text-slate-400 font-semibold">Cases</div>
+        <div className="lg:col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <div className="border-b border-slate-200 dark:border-slate-800 p-3 text-slate-400 font-semibold">Cases</div>
 
           {loading && allCases.length === 0 && (
             <div className="p-4 space-y-2 animate-pulse">
@@ -116,7 +116,7 @@ export default function Reports() {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-white dark:bg-slate-900 p-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
           {!selectedId ? (
             <div className="text-sm text-slate-500">Select a case to view details.</div>
           ) : !selectedCase ? (
@@ -148,7 +148,7 @@ export default function Reports() {
               <button
                 onClick={() => toggleLock({ id: selectedCase.id, locked: selectedCase.locked })}
                 disabled={toggling}
-                className="flex items-center gap-1 px-3 py-1 rounded border text-sm disabled:opacity-60"
+                className="flex items-center gap-1 px-3 py-1 rounded border border-slate-200 dark:border-slate-800 text-sm disabled:opacity-60"
               >
                 {selectedCase.locked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
                 {selectedCase.locked ? "Unlock" : "Lock"}
@@ -162,7 +162,7 @@ export default function Reports() {
                     onChange={e => setNoteInput(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && noteInput.trim() && addNote({ id: selectedCase.id, text: noteInput })}
                     disabled={selectedCase.locked}
-                    className="flex-1 border rounded px-2 py-1 text-sm bg-white dark:bg-slate-900 dark:border-slate-700 focus:outline-none"
+                    className="flex-1 border rounded px-2 py-1 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 focus:outline-none"
                   />
                   <button
                     onClick={() => noteInput.trim() && addNote({ id: selectedCase.id, text: noteInput })}
@@ -197,13 +197,13 @@ export default function Reports() {
 
 function KPI({ icon: Icon, label, value }) {
   return (
-    <div className="rounded-xl border bg-white dark:bg-slate-900 p-4 flex items-center gap-3">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex items-center gap-3">
       <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
         <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
       </div>
       <div>
         <div className="text-xs text-slate-500">{label}</div>
-        <div className="text-lg font-semibold">{value}</div>
+        <div className="text-lg text-slate-900 dark:text-white font-semibold">{value}</div>
       </div>
     </div>
   );
