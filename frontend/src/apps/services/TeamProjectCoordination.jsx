@@ -31,7 +31,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '../../components/ui/textarea';
 import { Progress } from '../../components/ui/progress';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
-import { toast } from 'sonner';
+import { toast } from '../../components/ui/sonner';
 
 const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
 
