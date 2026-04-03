@@ -55,7 +55,7 @@ export default function Inventory() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Network Inventory</h1>
+          <h1 className="text-2xl text-slate-900 dark:text-white font-semibold">Network Inventory</h1>
           <p className="text-slate-500">Manage and track all devices, servers, endpoints, and cloud nodes.</p>
         </div>
         <button
@@ -68,7 +68,7 @@ export default function Inventory() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-4 items-center">
-        <div className="flex items-center gap-2 border rounded px-3 py-2 bg-white dark:bg-slate-900">
+        <div className="flex items-center gap-2 border border-slate-200 dark:border-slate-800 rounded px-3 py-2 bg-white dark:bg-slate-900">
           <Search size={16} className="text-slate-400" />
           <input
             value={search}
@@ -81,7 +81,7 @@ export default function Inventory() {
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="border rounded px-3 py-2 text-sm bg-white dark:bg-slate-900"
+          className="border border-slate-200 dark:border-slate-800 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900"
         >
           <option value="All">All Types</option>
           {typeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -90,7 +90,7 @@ export default function Inventory() {
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="border rounded px-3 py-2 text-sm bg-white dark:bg-slate-900"
+          className="border border-slate-200 dark:border-slate-800 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900"
         >
           <option value="All">All Status</option>
           <option value="Online">Online</option>
@@ -110,9 +110,9 @@ export default function Inventory() {
       {loading ? (
         <SkeletonTable rows={8} />
       ) : (
-        <div className="overflow-x-auto border rounded-xl bg-white dark:bg-slate-900">
+        <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900">
           <table className="w-full text-sm">
-            <thead className="border-b bg-slate-50 dark:bg-slate-800">
+            <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800">
               <tr className="text-left">
                 {["Name","Type","Status","IP","Location","Last Seen"].map((h) => (
                   <th key={h} className="p-3 text-xs font-semibold uppercase tracking-wider text-slate-400">{h}</th>
@@ -122,7 +122,7 @@ export default function Inventory() {
             <tbody>
               {filteredDevices.length > 0 ? (
                 filteredDevices.map((d) => (
-                  <tr key={d.id} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition">
+                  <tr key={d.id} className="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition">
                     <td className="p-3 font-medium">{d.name}</td>
                     <td className="p-3">{d.type}</td>
                     <td className="p-3"><StatusBadge status={d.status} /></td>

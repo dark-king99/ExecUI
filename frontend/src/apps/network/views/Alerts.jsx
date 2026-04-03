@@ -42,7 +42,7 @@ export default function Alerts() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Network Alerts</h1>
+          <h1 className="text-2xl text-slate-900 dark:text-white font-semibold">Network Alerts</h1>
           <p className="text-slate-500">Monitor and triage issues across your network.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export default function Alerts() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
-        <div className="flex items-center gap-2 border rounded px-3 py-2 bg-white dark:bg-slate-900">
+        <div className="flex items-center gap-2 border border-slate-200 dark:border-slate-800 rounded px-3 py-2 bg-white dark:bg-slate-900">
           <Search size={16} className="text-slate-400" />
           <input
             value={search}
@@ -75,7 +75,7 @@ export default function Alerts() {
         <select
           value={filterSeverity}
           onChange={(e) => setFilterSeverity(e.target.value)}
-          className="border rounded px-3 py-2 text-sm bg-white dark:bg-slate-900"
+          className="border border-slate-200 dark:border-slate-800 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900"
         >
           <option value="All">All Severities</option>
           <option value="Critical">Critical</option>
@@ -86,7 +86,7 @@ export default function Alerts() {
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="border rounded px-3 py-2 text-sm bg-white dark:bg-slate-900"
+          className="border border-slate-200 dark:border-slate-800 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900"
         >
           <option value="All">All Statuses</option>
           <option value="Open">Open</option>

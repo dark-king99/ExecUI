@@ -37,9 +37,9 @@ export default function AlertTable({
   if (loading) return <SkeletonTable rows={6} />;
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
       <table className="w-full text-sm">
-        <thead className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/60">
+        <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60">
           <tr className="text-left">
             <th className="p-3 text-xs font-semibold uppercase text-slate-400">Time</th>
             <th className="p-3 text-xs font-semibold uppercase text-slate-400">Device</th>
@@ -57,7 +57,7 @@ export default function AlertTable({
               <tr
                 key={a.id}
                 onClick={() => onRowClick?.(a)}
-                className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer"
+                className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
               >
                 <td className="p-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                   {a.time ?? a.timestamp ?? "—"}

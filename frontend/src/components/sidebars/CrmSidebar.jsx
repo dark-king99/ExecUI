@@ -63,8 +63,8 @@ export default function CrmSidebar() {
       {/* HEADER */}
       <div className="flex items-center justify-between mb-2">
         {!collapsed && (
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 px-2">
-            CRM
+          <span className="text-xl font-semibold uppercase tracking-wider text-slate-400 px-2">
+            CRM HUB
           </span>
         )}
 
