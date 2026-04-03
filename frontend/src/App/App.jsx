@@ -1,4 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from "react";
+import { setToken, clearToken } from "../services/api";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useSidebar } from "../components/SidebarContext";
 import Login from "../auth/Login";
@@ -8,6 +9,8 @@ import Navbar from "../components/Navbar";
 import { ToastProvider } from "../components/ui/Toast";
 import { SkeletonCard } from "../components/ui/Skeleton";
 import ErrorBoundary from "../components/ErrorBoundary";
+import BotWidget from "../components/BotWidget";
+import Dashboard from "../apps/services/Dashboard";
 
 // ── Lazy-loaded mini-app route groups ─────────────────────────────────────────
 const HomeView            = lazy(() => import("../apps/HomeView"));
@@ -86,6 +89,14 @@ const Notifications       = lazy(() => import("../apps/account/Notifications"));
 const TeamPermissions     = lazy(() => import("../apps/account/TeamPermissions"));
 const Billing             = lazy(() => import("../apps/account/Billing"));
 const AuditLogs           = lazy(() => import("../apps/account/AuditLogs"));
+
+// Services
+const FinancialManagement             = lazy(() => import("../apps/services/FinancialManagement"));
+const MarketingSales           = lazy(() => import("../apps/services/MarketingSales"));
+const OperationsSystem             = lazy(() => import("../apps/services/OperationsSystem"));
+const StrategicPlanning       = lazy(() => import("../apps/services/StrategicPlanning"));
+const TeamProjectCoordination     = lazy(() => import("../apps/services/TeamProjectCoordination"));
+
 
 // ── Fallback spinner ──────────────────────────────────────────────────────────
 function PageSuspense({ children }) {
@@ -212,6 +223,18 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/marketing/attribution"      element={<AttributionROI />} />
                 <Route path="/marketing/creative"         element={<CreativeAssets />} />
 
+
+                {/* Services */}
+                <Route path="/services" element={<Navigate to="/services/dashboard" replace />} />
+                <Route path="/services/dashboard"      element={<Dashboard />} />
+                <Route path="/services/financial"      element={<FinancialManagement />} />
+                <Route path="/services/operation"     element={<OperationsSystem />} />
+                <Route path="/services/strategic"     element={<StrategicPlanning />} />
+                <Route path="/services/marketing" element={<MarketingSales />} />
+                <Route path="/services/team"         element={<TeamProjectCoordination />} />
+
+                <Route path="/botwidget" element={<Navigate to="/botwidget/botmessage" replace />} />
+
                 {/* 404 */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
@@ -219,6 +242,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
           </ErrorBoundary>
         </main>
       </div>
+      <BotWidget />
     </div>
   );
 }
@@ -226,8 +250,27 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem("user");
-    return stored ? JSON.parse(stored) : null;
+    try {
+      const stored = localStorage.getItem("user");
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+
+      // Reject stale sessions from the pre-auth era (no token stored).
+      // Also make sure the dedicated auth_token key is in sync.
+      if (!parsed?.token) {
+        localStorage.removeItem("user");
+        clearToken();
+        return null;
+      }
+
+      // Keep auth_token in sync with the stored user token.
+      setToken(parsed.token);
+      return parsed;
+    } catch {
+      localStorage.removeItem("user");
+      clearToken();
+      return null;
+    }
   });
 
   const [effectiveRole, setEffectiveRole] = useState(null);
@@ -236,9 +279,23 @@ export default function App() {
     : user?.role;
 
   useEffect(() => {
-    if (user) localStorage.setItem("user", JSON.stringify(user));
-    else localStorage.removeItem("user");
+    if (user) {
+      localStorage.setItem("user", JSON.stringify(user));
+      if (user.token) setToken(user.token);
+    } else {
+      localStorage.removeItem("user");
+      clearToken();
+    }
   }, [user]);
+
+  // Auto-logout when any API call receives 401 (invalid/expired token)
+  useEffect(() => {
+    function handleAuthExpired() {
+      setUser(null);
+    }
+    window.addEventListener('auth:expired', handleAuthExpired);
+    return () => window.removeEventListener('auth:expired', handleAuthExpired);
+  }, []);
 
   if (!user) return <Login onLogin={setUser} />;
 

@@ -7,7 +7,7 @@ const SidebarContext = createContext();
 function sectionFromPath(pathname) {
   const seg = pathname.split("/")[1];
   if (!seg) return "main";
-  const map = { home: "main", network: "network", crm: "crm", marketing: "market", analytics: "analytics", account: "account" };
+  const map = { home: "main", network: "network", crm: "crm", marketing: "marketing", analytics: "analytics", account: "account", services: "services" };
   return map[seg] ?? "main";
 }
 
@@ -33,7 +33,7 @@ export function SidebarProvider({ children }) {
 
   // Navigation helpers used by sidebars
   const setAppSection = (section) => {
-    const paths = { main: "/home", network: "/network", crm: "/crm", market: "/marketing", analytics: "/analytics", account: "/account" };
+    const paths = { main: "/home", network: "/network", crm: "/crm", market: "/marketing", analytics: "/analytics", account: "/account", services: "/services" };
     navigate(paths[section] ?? "/home");
   };
 
@@ -42,15 +42,19 @@ export function SidebarProvider({ children }) {
   const setMarketingView = (view) => navigate(`/marketing/${view}`);
   const setAnalyticsView = (view) => navigate(`/analytics/${view}`);
   const setAccountView   = (view) => navigate(`/account/${view}`);
+  const setServiceView = (view) => navigate(`/services/${view}`);
 
   // Derive sub-view from URL for active-state highlighting in sidebars
   const pathParts = pathname.split("/").filter(Boolean);
-  const networkView  = pathParts[0] === "network"   ? (pathParts[1] ?? "dashboard") : "dashboard";
+  const networkView  = pathParts[0] === "network"   ? (pathParts.slice(1).join("/") ||"dashboard") : "dashboard";
+  const serviceView  = pathParts[0] === "services"  ? (pathParts.slice(1).join("/") || "dashboard") : "dashboard";
+  const accountView   = pathParts[0] === "account"   ? (pathParts[1] ?? "profile")   : "profile";
+  const analyticsView = pathParts[0] === "analytics" ? (pathParts[1] ?? "executive") : "executive";
   const crmView      = pathParts[0] === "crm"       ? (pathParts.slice(1).join("/") || "stream")    : "stream";
   const marketingView = pathParts[0] === "marketing" ? (pathParts.slice(1).join("/") || "stream")   : "stream";
-  const analyticsView = pathParts[0] === "analytics" ? (pathParts[1] ?? "executive") : "executive";
-  const accountView   = pathParts[0] === "account"   ? (pathParts[1] ?? "profile")   : "profile";
-
+ 
+  
+ 
   return (
     <SidebarContext.Provider
       value={{
@@ -61,6 +65,7 @@ export function SidebarProvider({ children }) {
         marketingView, setMarketingView,
         analyticsView, setAnalyticsView,
         accountView,   setAccountView,
+        serviceView, setServiceView,
       }}
     >
       {children}

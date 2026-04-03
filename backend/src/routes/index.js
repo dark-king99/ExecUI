@@ -9,6 +9,8 @@ import marketingRoutes  from "../modules/marketing/marketing.routes.js";
 import networkRoutes    from "../modules/network/network.routes.js";
 import analyticsRoutes  from "../modules/analytics/analytics.routes.js";
 import accountRoutes    from "../modules/account/account.routes.js";
+import assistantRoutes  from "../modules/assistant/assistant.routes.js";
+import servicesRoutes   from "../modules/services/services.routes.js";
 
 const router = express.Router();
 
@@ -23,5 +25,7 @@ router.use("/marketing",  marketingRoutes);
 router.use("/network",    networkRoutes);
 router.use("/analytics",  analyticsRoutes);
 router.use("/account",    accountRoutes);
+router.use("/assistant",  assistantRoutes);
+router.use("/services",   servicesRoutes);
 
 export default router;

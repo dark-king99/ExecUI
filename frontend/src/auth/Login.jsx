@@ -13,7 +13,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
-import { auth } from "../services/api";
+import { auth, setToken } from "../services/api";
 
 const trustSignals = [
   "SOC 2-ready infrastructure",
@@ -102,6 +102,9 @@ export default function Login({ onLogin }) {
           : { email, password, company, tenant, role: clientRole };
 
       const response = await auth[mode === "login" ? "login" : "signup"](payload);
+      // Set the module-level token NOW, before App.jsx's useEffect writes
+      // it to localStorage — child component effects fire first and need it.
+      setToken(response.token);
       // Expected response: { user: { id, name, email, role, tenant }, token }
       onLogin({ ...response.user, token: response.token });
     } catch (err) {

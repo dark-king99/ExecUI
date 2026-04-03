@@ -3,17 +3,92 @@ import PageHeader from "../../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader, Stat } from "../../../components/ui/Card";
 import StatusBadge from "../../../components/ui/StatusBadge";
 import DataTable from "../../../components/ui/DataTable";
-import { AlertTriangle, Clock, Users, Activity, Plus, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
-import { useApi } from "../../../hooks/useApi";
+import { AlertTriangle, Clock, Users, Activity, Plus, CheckCircle, AlertCircle, Loader2, X } from "lucide-react";
+import { useApi, useMutation } from "../../../hooks/useApi";
+import { useToast } from "../../../components/ui/Toast";
 import { network } from "../../../services/api";
+
+const EMPTY_INC = { title: "", severity: "medium", owner: "", blast: "" };
+
+function NewIncidentModal({ onClose, onCreated }) {
+  const toast = useToast();
+  const [form, setForm] = useState(EMPTY_INC);
+  const [formError, setFormError] = useState(null);
+  const { mutate, loading } = useMutation((data) => network.incidents.create(data));
+
+  function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setFormError(null);
+    if (!form.title.trim()) { setFormError("Title is required."); return; }
+    try {
+      await mutate({ ...form, status: "open" });
+      toast({ message: "Incident created.", type: "success" });
+      onCreated();
+      onClose();
+    } catch (err) {
+      setFormError(err?.message ?? "Failed to create incident.");
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">New Incident</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {formError && <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{formError}</div>}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Title <span className="text-red-500">*</span></label>
+            <input type="text" value={form.title} onChange={e => set("title", e.target.value)} placeholder="Incident title"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Severity</label>
+              <select value={form.severity} onChange={e => set("severity", e.target.value)}
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                {["critical","high","medium","low"].map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Owner</label>
+              <input type="text" value={form.owner} onChange={e => set("owner", e.target.value)} placeholder="Assigned to"
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Blast Radius</label>
+            <input type="text" value={form.blast} onChange={e => set("blast", e.target.value)} placeholder="Affected systems / users"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose}
+              className="text-sm px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+              Cancel
+            </button>
+            <button type="submit" disabled={loading}
+              className="text-sm px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white transition">
+              {loading ? "Creating…" : "Create Incident"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 const severityVariant = { critical: "danger", high: "warning", medium: "info", low: "neutral" };
 const statusVariant   = { open: "danger", "in-progress": "warning", resolved: "success" };
 
 export default function IncidentCenter() {
   const [selected, setSelected] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
-  const { data: incidents, loading, error } = useApi(
+  const { data: incidents, loading, error, refetch } = useApi(
     () => network.incidents.list(), [], { pollingInterval: 15000 }
   );
   const { data: timeline, loading: tlLoading } = useApi(
@@ -41,11 +116,16 @@ export default function IncidentCenter() {
 
   return (
     <div className="space-y-6">
+      {showModal && <NewIncidentModal onClose={() => setShowModal(false)} onCreated={refetch} />}
+
       <PageHeader
         title="Incident Center"
         subtitle="Live incident tracking, blast radius, ownership and SLA management"
         actions={
-          <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition">
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-lg transition"
+          >
             <Plus size={15} /> New Incident
           </button>
         }

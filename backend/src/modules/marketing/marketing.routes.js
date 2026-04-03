@@ -5,6 +5,23 @@ import * as c from "./marketing.controller.js";
 const router = express.Router();
 const auth = authenticate;
 
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+router.get("/dashboard/profile",           auth, c.getDashboardProfile);
+router.get("/dashboard/overview",          auth, c.getDashboardOverview);
+router.get("/dashboard/service-stats",     auth, c.getDashboardServiceStats);
+
+router.get("/dashboard/todos",             auth, c.listDashboardTodos);
+router.post("/dashboard/todos",            auth, c.createDashboardTodo);
+router.patch("/dashboard/todos/:id",       auth, c.updateDashboardTodo);
+router.delete("/dashboard/todos/:id",      auth, c.deleteDashboardTodo);
+
+router.get("/dashboard/schedule",          auth, c.listDashboardSchedule);
+router.post("/dashboard/schedule",         auth, c.createDashboardScheduleEvent);
+router.delete("/dashboard/schedule/:id",   auth, c.deleteDashboardScheduleEvent);
+
+router.get("/dashboard/activities",        auth, c.listDashboardActivities);
+router.post("/dashboard/activities",       auth, c.logDashboardActivity);
+
 // ── Campaigns ────────────────────────────────────────────────────────────
 router.get("/campaigns/summary",        auth, c.getCampaignSummary);
 router.get("/campaigns",                auth, c.listCampaigns);
@@ -74,8 +91,10 @@ router.get("/personalization",          auth, c.listPersonalization);
 router.post("/personalization",         auth, c.createPersonalization);
 
 // ── CDP ───────────────────────────────────────────────────────────────────
-router.get("/cdp/metrics",  auth, c.getCdpMetrics);
-router.get("/cdp/sources",  auth, c.getCdpSources);
+router.get("/cdp/metrics",   auth, c.getCdpMetrics);
+router.get("/cdp/sources",   auth, c.getCdpSources);
+router.post("/cdp/sources",  auth, c.createCdpSource);
+router.post("/cdp/segments", auth, c.createCdpSegment);
 
 // ── Flows ─────────────────────────────────────────────────────────────────
 router.get("/flows",              auth, c.listFlows);

@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Prisma schema - ExecUI
+// learn more: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
@@ -13,23 +10,40 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// -- Core multi-tenant models --------------------------------------------------
+
 model Tenant {
   id        String   @id @default(uuid())
   name      String
   slug      String   @unique
   createdAt DateTime @default(now())
 
-  users    User[]
-  roles    Role[]
-  contacts Contact[]
+  users            User[]
+  roles            Role[]
+  contacts         Contact[]
+  crmTasks         CrmTask[]
+  crmTickets       CrmTicket[]
+  crmFollowUps     CrmFollowUp[]
+  crmOpportunities CrmOpportunity[]
+  crmServiceUsages CrmServiceUsage[]
+  marketingTodos   MarketingTodo[]
+  scheduleEvents   MarketingScheduleEvent[]
+  activities       MarketingActivity[]
+  networkDevices   NetworkDevice[]
+  networkAlerts    NetworkAlert[]
+  networkIncidents NetworkIncident[]
+  networkChanges   NetworkChange[]
+  networkBackups   NetworkBackup[]
 }
 
 model User {
-  id           String @id @default(uuid())
-  email        String @unique
+  id           String  @id @default(uuid())
+  email        String  @unique
   passwordHash String
   firstName    String
   lastName     String
+  avatarUrl    String?
+  department   String?
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id])
@@ -38,6 +52,15 @@ model User {
   role   Role   @relation(fields: [roleId], references: [id])
 
   createdAt DateTime @default(now())
+
+  // Dashboard back-relations
+  crmTasks         CrmTask[]
+  crmFollowUps     CrmFollowUp[]
+  crmOpportunities CrmOpportunity[]
+  crmServiceUsages CrmServiceUsage[]
+  marketingTodos   MarketingTodo[]
+  scheduleEvents   MarketingScheduleEvent[]
+  activities       MarketingActivity[]
 }
 
 model Role {
@@ -48,8 +71,7 @@ model Role {
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   rolePermissions RolePermission[]
-
-  users User[]
+  users           User[]
 }
 
 model Permission {
@@ -67,8 +89,8 @@ model Contact {
   key   String @unique
   email String
 
-  tenantId        String
-  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   createdAt DateTime @default(now())
 }
@@ -81,4 +103,212 @@ model RolePermission {
   permission Permission @relation(fields: [permissionId], references: [id])
 
   @@id([roleId, permissionId])
+}
+
+// -- CRM Dashboard Models ------------------------------------------------------
+
+model CrmTask {
+  id                  String    @id @default(uuid())
+  title               String
+  task_type           String    @default("call")   // call | email | meeting | follow_up | review
+  status              String    @default("pending") // pending | in_progress | completed | cancelled
+  priority            String    @default("medium")  // low | medium | high | urgent
+  due_date            DateTime?
+  relatedCustomerName String?
+  userId              String
+  tenantId            String
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+model CrmTicket {
+  id            String   @id @default(uuid())
+  ticket_number String
+  subject       String
+  customer_name String
+  category      String   @default("general")
+  priority      String   @default("medium") // low | medium | high | urgent
+  status        String   @default("open")   // open | in_progress | pending | resolved | closed
+  sla_status    String   @default("on_track") // on_track | at_risk | breached
+  tenantId      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([ticket_number, tenantId])
+}
+
+model CrmFollowUp {
+  id             String   @id @default(uuid())
+  customer_name  String
+  follow_up_type String   // call | email | meeting
+  status         String   @default("scheduled") // scheduled | completed | cancelled
+  scheduled_date DateTime
+  notes          String?
+  userId         String
+  tenantId       String
+  createdAt      DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+model CrmOpportunity {
+  id          String   @id @default(uuid())
+  name        String
+  value       Float    @default(0)
+  stage       String   @default("prospecting") // prospecting | qualification | proposal | negotiation | closed_won | closed_lost
+  probability Int      @default(0)
+  status      String   @default("active") // active | won | lost
+  ownerId     String
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner  User   @relation(fields: [ownerId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+model CrmServiceUsage {
+  id                  String   @id @default(uuid())
+  service_name        String
+  service_title       String
+  service_description String?
+  service_icon        String?
+  usage_count         Int      @default(1)
+  userId              String
+  tenantId            String
+  lastUsedAt          DateTime @default(now())
+  createdAt           DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([service_name, userId, tenantId])
+}
+
+// -- Marketing Dashboard Models ------------------------------------------------
+
+model MarketingTodo {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  completed   Boolean   @default(false)
+  priority    String    @default("medium") // low | medium | high | urgent
+  due_date    DateTime?
+  userId      String
+  tenantId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+model MarketingScheduleEvent {
+  id         String    @id @default(uuid())
+  title      String
+  event_type String    @default("meeting") // meeting | campaign | deadline | review
+  start_time DateTime
+  end_time   DateTime?
+  location   String?
+  userId     String
+  tenantId   String
+  createdAt  DateTime  @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+model MarketingActivity {
+  id        String   @id @default(uuid())
+  action    String
+  target    String
+  service   String   // personalization | b2b | emma | creative
+  userId    String
+  tenantId  String
+  timestamp DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// -- Network Dashboard Models --------------------------------------------------
+
+model NetworkDevice {
+  id             String   @id @default(uuid())
+  hostname       String
+  ip_address     String
+  device_type    String   @default("server")    // server | endpoint | router | switch | firewall | cloud
+  status         String   @default("up")         // up | down | degraded | maintenance
+  os             String?
+  cpu_util       Float    @default(0)
+  mem_util       Float    @default(0)
+  bandwidth_mbps Float    @default(0)
+  region         String?
+  cloud_provider String?                          // aws | azure | gcp | on_prem
+  tenantId       String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id])
+  alerts NetworkAlert[]
+}
+
+model NetworkAlert {
+  id         String    @id @default(uuid())
+  title      String
+  message    String?
+  severity   String    @default("info")  // info | warning | critical
+  status     String    @default("open")  // open | acknowledged | resolved
+  deviceId   String?
+  tenantId   String
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  device NetworkDevice? @relation(fields: [deviceId], references: [id])
+  tenant Tenant         @relation(fields: [tenantId], references: [id])
+}
+
+model NetworkIncident {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  severity    String    @default("medium") // low | medium | high | critical
+  status      String    @default("open")   // open | investigating | resolved | closed
+  tenantId    String
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+model NetworkChange {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  status      String   @default("pending") // pending | approved | rejected | completed
+  priority    String   @default("medium")  // low | medium | high | urgent
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+model NetworkBackup {
+  id          String   @id @default(uuid())
+  device_name String
+  backup_type String   @default("full") // full | incremental | differential
+  status      String   @default("success") // success | failed | pending | running
+  size_gb     Float    @default(0)
+  tenantId    String
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 }

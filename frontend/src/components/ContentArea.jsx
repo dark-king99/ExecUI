@@ -48,9 +48,19 @@ import CustomerDataPlatform from "../apps/marketing/CustomerDataPlatform";
 import CommerceCommand from "../apps/marketing/CommerceCommand";
 import MarketingAI from "../apps/marketing/MarketingAI";
 
+//Managerial services 
+import { Dashboard } from './apps/services/Dashboard';
+import { FinancialManagement } from './apps/services/FinancialManagement';
+import { OperationsSystems } from './apps/services/OperationsSystems';
+import { StrategicPlanning } from './apps/services/StrategicPlanning';
+import { MarketingSales } from './apps/services/MarketingSales';
+import { TeamProjectCoordination } from './apps/services/TeamProjectCoordination';
+
+
 
 export default function ContentArea({ roleToUse }) {
   const { appSection, networkView, crmView, marketingView } = useSidebar();
+  console.log("appSection:", appSection);
 
   // 🟦 Network mini-app
  if  (appSection === "network") {
@@ -85,20 +95,33 @@ export default function ContentArea({ roleToUse }) {
     if (crmView === "crm analytics") return <div>CRM Analytics (coming soon)</div>;
 
   }
-  // 🟩 Marketing mini-app
-  if (appSection === "market") {
+  if (appSection === "marketing") {
+    // ✅ DEFAULT (this fixes your issue)
+    if (!marketingView) return <MarketingView />;
+  
     if (marketingView === "stream") return <MarketingView />;
-    if (marketingView === "marketingai") return <div><MarketingAI /></div>;
-    if (marketingView === "campaign") return <div><Campaign /></div>;
-    if (marketingView === "e.m.m.a") return <div><EMMA /></div>;
-    if (marketingView === "b2b") return <div><B2B /></div>;
-    if (marketingView === "personalization") return <div><Personalization /></div>;
-    if (marketingView === "team") return <div><Teams /></div>;
+    if (marketingView === "marketingai") return <MarketingAI />;
+    if (marketingView === "campaign") return <Campaign />;
+    if (marketingView === "e.m.m.a") return <EMMA />;
+    if (marketingView === "b2b") return <B2B />;
+    if (marketingView === "personalization") return <Personalization />;
+    if (marketingView === "team") return <Teams />;
     if (marketingView === "marketingAnalytics") return <div>Marketing Analytics (coming soon)</div>;
-    if (marketingView === "cdp") return <div><CustomerDataPlatform /> (coming soon)</div>;
-    if (marketingView === "commercecommand") return <div><CommerceCommand /></div>;
-
+    if (marketingView === "cdp") return <CustomerDataPlatform />;
+    if (marketingView === "commercecommand") return <CommerceCommand />;
+  
+    return <MarketingView />; // safety fallback
   }
+
+  if (appSection === "services") {
+    if (serviceView === "dashboard") return <Dashboard />;
+    if (serviceView === "financial") return <div><FinancialManagement /></div>;
+    if (serviceView === "operation") return <div><MarketingSales /></div>;
+    if (serviceView === "strategic") return <div><OperationsSystem /></div>;
+    if (serviceView === "marketing") return <div><StrategicPlanning /></div>;
+    if (serviceView === "team") return <div> <TeamProjectCoordination /></div>;
+  }       
+  
   // 🟨 Analytics (single page workspace)
   if (appSection === "analytics") {
     return <AnalyticsView />;
@@ -110,8 +133,6 @@ export default function ContentArea({ roleToUse }) {
 
   // 🏠 Main app
   return <HomeView />;
-  
-
-}
+};
 
 

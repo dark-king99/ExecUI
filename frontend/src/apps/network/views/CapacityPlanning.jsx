@@ -4,6 +4,7 @@ import { Card, CardBody, CardHeader, Stat } from "../../../components/ui/Card";
 import StatusBadge from "../../../components/ui/StatusBadge";
 import { TrendingUp, AlertTriangle, Server, Wifi, AlertCircle } from "lucide-react";
 import { useApi } from "../../../hooks/useApi";
+import { useToast } from "../../../components/ui/Toast";
 import { network } from "../../../services/api";
 
 const statusVariant = { ok: "success", warn: "warning", critical: "danger" };
@@ -32,6 +33,7 @@ function UsageBar({ pct, forecast }) {
 }
 
 export default function CapacityPlanning() {
+  const toast = useToast();
   const { data: links, loading, error } = useApi(
     () => network.capacity.links(), [], { pollingInterval: 60000 }
   );
@@ -117,7 +119,10 @@ export default function CapacityPlanning() {
                           : "Schedule bandwidth upgrade within 60 days."}
                       </p>
                     </div>
-                    <button className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline whitespace-nowrap ml-4">
+                    <button
+                      onClick={() => toast({ message: `Capacity ticket opened for ${l.link ?? "link"}.`, type: "info" })}
+                      className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline whitespace-nowrap ml-4"
+                    >
                       Open ticket →
                     </button>
                   </div>

@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import PageHeader from "../../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader, Stat } from "../../../components/ui/Card";
 import StatusBadge from "../../../components/ui/StatusBadge";
 import DataTable from "../../../components/ui/DataTable";
-import { GitBranch, Clock, CheckCircle, AlertTriangle, Plus, AlertCircle } from "lucide-react";
-import { useApi } from "../../../hooks/useApi";
+import { GitBranch, Clock, CheckCircle, AlertTriangle, Plus, AlertCircle, X } from "lucide-react";
+import { useApi, useMutation } from "../../../hooks/useApi";
+import { useToast } from "../../../components/ui/Toast";
 import { network } from "../../../services/api";
 
 const riskVariant   = { low: "success", medium: "warning", high: "danger" };
@@ -21,8 +22,97 @@ const columns = [
   { key: "owner",  label: "Owner" },
 ];
 
+const EMPTY = { title: "", type: "standard", risk: "low", owner: "", window: "", description: "" };
+
+function SubmitChangeModal({ onClose, onCreated }) {
+  const toast = useToast();
+  const [form, setForm] = useState(EMPTY);
+  const [formError, setFormError] = useState(null);
+
+  const { mutate, loading } = useMutation((data) => network.changes.create(data));
+
+  function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setFormError(null);
+    if (!form.title.trim()) { setFormError("Title is required."); return; }
+    try {
+      await mutate(form);
+      toast({ message: "Change request submitted.", type: "success" });
+      onCreated();
+      onClose();
+    } catch (err) {
+      setFormError(err?.message ?? "Failed to submit change request.");
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">Submit Change Request</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {formError && <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{formError}</div>}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Title <span className="text-red-500">*</span></label>
+            <input type="text" value={form.title} onChange={e => set("title", e.target.value)} placeholder="Change title"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Type</label>
+              <select value={form.type} onChange={e => set("type", e.target.value)}
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                {["standard", "normal", "emergency"].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Risk</label>
+              <select value={form.risk} onChange={e => set("risk", e.target.value)}
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                {["low", "medium", "high"].map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Owner</label>
+              <input type="text" value={form.owner} onChange={e => set("owner", e.target.value)} placeholder="Owner name"
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Maintenance Window</label>
+              <input type="text" value={form.window} onChange={e => set("window", e.target.value)} placeholder="e.g. Sat 02:00–04:00"
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
+            <textarea value={form.description} onChange={e => set("description", e.target.value)} rows={3} placeholder="What is changing and why?"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose}
+              className="text-sm px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+              Cancel
+            </button>
+            <button type="submit" disabled={loading}
+              className="text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white transition">
+              {loading ? "Submitting…" : "Submit Change"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function ChangeManagement() {
-  const { data: changes, loading, error } = useApi(
+  const [showModal, setShowModal] = useState(false);
+  const { data: changes, loading, error, refetch } = useApi(
     () => network.changes.list(), [], { pollingInterval: 30000 }
   );
 
@@ -47,11 +137,16 @@ export default function ChangeManagement() {
 
   return (
     <div className="space-y-6">
+      {showModal && <SubmitChangeModal onClose={() => setShowModal(false)} onCreated={refetch} />}
+
       <PageHeader
         title="Change Management"
         subtitle="Planned changes, approvals, rollback plans and maintenance windows"
         actions={
-          <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition">
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition"
+          >
             <Plus size={15} /> Submit Change
           </button>
         }

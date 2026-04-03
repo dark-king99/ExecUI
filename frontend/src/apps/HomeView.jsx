@@ -1,4 +1,5 @@
 import React from "react";
+  import { useNavigate } from "react-router-dom";
   import {
     Activity,
     Bot,
@@ -67,6 +68,7 @@ import React from "react";
       icon: Database,
       accent: "from-cyan-500/30 to-sky-500/5",
       features: crmFeatures,
+      path: "/crm",
     },
     {
       title: "Marketing Automation",
@@ -75,6 +77,7 @@ import React from "react";
       icon: Megaphone,
       accent: "from-fuchsia-500/30 to-rose-500/5",
       features: marketingFeatures,
+      path: "/marketing",
     },
     {
       title: "Network Management",
@@ -82,10 +85,12 @@ import React from "react";
       icon: Network,
       accent: "from-emerald-500/30 to-teal-500/5",
       features: networkFeatures,
+      path: "/network",
     },
   ];
   
   export default function HomeView() {
+    const navigate = useNavigate();
     return (
       <div className="min-h-full min-w-full content-fill px-0 py-0 bg-slate-50 
   dark:bg-slate-950
@@ -161,11 +166,12 @@ import React from "react";
                 return (
                   <div
                     key={section.title}
-                    className={`group flex flex-col gap-6 rounded-3xl border bg-white 
+                    onClick={() => navigate(section.path)}
+                    className={`group flex flex-col gap-6 rounded-3xl border bg-white
   dark:bg-slate-900
-   border-slate-200 
+   border-slate-200
   dark:border-slate-800
-  shadow-sm bg-linear-to-br ${section.accent} p-6 shadow-xl shadow-black/30`}
+  shadow-sm bg-linear-to-br ${section.accent} p-6 shadow-xl shadow-black/30 cursor-pointer hover:shadow-2xl hover:scale-[1.02] transition-all duration-200`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="rounded-2xl border  bg-white 
@@ -183,97 +189,22 @@ import React from "react";
                         {section.title}
                       </h2>
                       <p className="mt-2 text-sm text-slate-900">{section.subtitle}</p>
-                    </div>
-                    <ul className="flex flex-col gap-3 text-sm  text-slate-900 dark:text-white">
-                      {section.features.map((feature) => (
-                        <li key={feature} className="flex items-start gap-2">
-                          <Target className="mt-0.5 h-4 w-4  text-slate-900 dark:text-white" />
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
                   </div>
-                );
-              })}
-            </section>
-  
-            <section className="grid gap-6 rounded-3xl border bg-white 
-  dark:bg-slate-900
-   border-slate-200 
-  dark:border-slate-800
-  shadow-sm p-8 md:grid-cols-[1.2fr_1fr]">
-              <div className="flex flex-col gap-5">
-                <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-white 
-  dark:bg-slate-900
-   border-slate-200 
-  dark:border-slate-800
-  shadow-sm px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]  text-slate-900 dark:text-white">
-                  <CalendarClock className="h-4 w-4" />
-                  AI automation stack
+                  <ul className="flex flex-col gap-3 text-sm">
+                    {section.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2">
+                        <Target className="mt-0.5 h-4 w-4" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <h2 className="text-3xl font-semibold  text-slate-900 dark:text-white">
-                  Activate campaigns and network defenses in minutes.
-                </h2>
-                <p className="text-sm  text-slate-900 dark:text-white">
-                  From onboarding to deployment, Artemis Haven delivers pre-built playbooks
-                  that keep teams aligned, networks secure, and customers engaged.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <span className="flex items-center gap-2 rounded-full border bg-white 
-  dark:bg-slate-900
-   border-slate-200 
-  dark:border-slate-800
-  shadow-sm px-4 py-2 text-xs  text-slate-900 dark:text-white">
-                    <Cloud className="h-4 w-4  text-slate-900 dark:text-white" /> Cloud-native
-                  </span>
-                  <span className="flex items-center gap-2 rounded-full border bg-white 
-  dark:bg-slate-900
-   border-slate-200 
-  dark:border-slate-800
-  shadow-sm px-4 py-2 text-xs  text-slate-900 dark:text-white">
-                    <Activity className="h-4 w-4  text-slate-900 dark:text-white" /> Real-time telemetry
-                  </span>
-                </div>
-              </div>
-              <div className="grid gap-4">
-                {stats.map((stat) => (
-                  <div
-                    key={stat.label}
-                    className="rounded-2xl border bg-white 
-  dark:bg-slate-900
-   border-slate-200 
-  dark:border-slate-800
-  shadow-sm p-4"
-                  >
-                    <p className="text-3xl font-semibold  text-slate-900 dark:text-white">{stat.value}</p>
-                    <p className="text-xs uppercase tracking-[0.2em]  text-slate-900 dark:text-white">
-                      {stat.label}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </section>
-  
-            <footer className="flex flex-col items-start justify-between gap-4 border-t bg-white 
-  dark:bg-slate-900
-   border-slate-200 
-  dark:border-slate-800
-  shadow-sm pt-6 text-xs text-slate-900 md:flex-row md:items-center">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full  bg-white 
-  dark:bg-slate-900">
-                  <ShieldCheck className="h-4 w-4  text-slate-900 dark:text-white" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold  text-slate-900 dark:text-white">Artemis Haven</p>
-                  <p>Secure growth for modern operations.</p>
-                </div>
-              </div>
-              <p>© 2026 Artemis Haven. All rights reserved.</p>
-            </footer>
-          </div>
+              );
+            })}
+          </section>
+
         </div>
       </div>
-    );
-  }
-  
+    </div>
+  );
+}

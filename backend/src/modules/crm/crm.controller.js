@@ -1,6 +1,8 @@
 import * as svc from "./crm.service.js";
+import * as dash from "./crm.dashboard.service.js";
 
-const tid = (req) => req.user.tenantId;
+const tid  = (req) => req.user.tenantId;
+const uid  = (req) => req.user.userId;
 
 const handle = (fn) => async (req, res) => {
   try {
@@ -9,6 +11,33 @@ const handle = (fn) => async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+export const getDashboardProfile  = handle((req) => dash.getDashboardProfile(uid(req), tid(req)));
+export const getDashboardOverview = handle((req) => dash.getDashboardOverview(uid(req), tid(req)));
+
+// Dashboard Tasks (separate from generic CRM tasks)
+export const listDashboardTasks   = handle((req) => dash.listDashboardTasks(uid(req), tid(req), req.query));
+export const createDashboardTask  = handle((req) => dash.createDashboardTask(uid(req), tid(req), req.body));
+export const updateDashboardTask  = handle((req) => dash.updateDashboardTask(tid(req), req.params.id, req.body));
+
+// Dashboard Tickets
+export const listDashboardTickets  = handle((req) => dash.listDashboardTickets(tid(req), req.query));
+export const createDashboardTicket = handle((req) => dash.createDashboardTicket(tid(req), req.body));
+export const updateDashboardTicket = handle((req) => dash.updateDashboardTicket(tid(req), req.params.id, req.body));
+
+// Dashboard Follow-ups
+export const listDashboardFollowUps  = handle((req) => dash.listDashboardFollowUps(uid(req), tid(req), req.query));
+export const createDashboardFollowUp = handle((req) => dash.createDashboardFollowUp(uid(req), tid(req), req.body));
+
+// Dashboard Opportunities
+export const listDashboardOpportunities  = handle((req) => dash.listDashboardOpportunities(tid(req), req.query));
+export const createDashboardOpportunity  = handle((req) => dash.createDashboardOpportunity(uid(req), tid(req), req.body));
+export const updateDashboardOpportunity  = handle((req) => dash.updateDashboardOpportunity(tid(req), req.params.id, req.body));
+
+// Service Usage
+export const listRecentServices = handle((req) => dash.listRecentServices(uid(req), tid(req), Number(req.query.limit) || 4));
+export const trackService       = handle((req) => dash.trackService(uid(req), tid(req), req.body));
 
 // Customers
 export const listCustomers   = handle((req) => svc.listCustomers(tid(req), req.query));
@@ -79,6 +108,7 @@ export const getCrmAnalyticsWinLoss  = handle((req) => svc.getCrmAnalyticsWinLos
 // Opportunities
 export const getOpportunitiesSummary = handle((req) => svc.getOpportunitiesSummary(tid(req)));
 export const listOpportunities       = handle((req) => svc.listOpportunities(tid(req), req.query));
+export const createOpportunity       = handle((req) => svc.createOpportunity(tid(req), req.body));
 
 // Renewals
 export const listRenewals       = handle((req) => svc.listRenewals(tid(req), req.query));
