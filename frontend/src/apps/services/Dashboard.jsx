@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useSidebar } from '../../components/SidebarContext';
-
-const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
-
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Users, 
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Users,
   FolderKanban,
   FileText,
   Target,
@@ -25,6 +22,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Badge } from '../../components/ui/badge';
 import { Progress } from '../../components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
+
+const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
 
 
 const StatCard = ({ title, value, subtitle, icon: Icon, trend, trendValue, accentColor, isDarkMode }) => (
@@ -291,8 +290,15 @@ export const Dashboard = () => {
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await axios.get(`${API}/dashboard/stats`);
-      setStats(response.data);
+      const response = await fetch(`${API}/dashboard/stats`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      setStats(data);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
     } finally {
