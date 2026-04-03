@@ -1,11 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useSidebar } from '../../components/SidebarContext';
-
-const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
-
-import { 
-  Megaphone, 
+import {
+  Megaphone,
   Users,
   Plus,
   Trash2,
@@ -33,6 +29,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '../../components/ui/textarea';
 import { Progress } from '../../components/ui/progress';
 import { toast } from '../../components/ui/sonner';
+
+const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
+const authHeaders = () => ({
+  'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+  'Content-Type': 'application/json',
+});
 
 
 const campaignTypes = ['email', 'social', 'content', 'paid_ads', 'event', 'referral'];
@@ -302,12 +304,10 @@ const AIMarketingAdvisor = ({ campaigns, clients, isDarkMode, onClose }) => {
     if (!query.trim()) return;
     setLoading(true);
     try {
-      const response = await axios.post(`${API}/ai/insights`, {
-        context: getContext(),
-        module: 'marketing',
-        query
-      });
-      setInsight(response.data);
+      const res = await fetch(`${API}/ai/insights`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ context: getContext(), module: 'marketing', query }) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setInsight(data);
       toast.success('Marketing insight generated');
     } catch (error) {
       console.error('Error getting AI insight:', error);
@@ -400,12 +400,12 @@ export const MarketingSales = () => {
 
   const fetchData = async () => {
     try {
-      const [campaignsRes, clientsRes] = await Promise.all([
-        axios.get(`${API}/marketing/campaigns`),
-        axios.get(`${API}/marketing/clients`)
+      const [campaignsData, clientsData] = await Promise.all([
+        fetch(`${API}/marketing/campaigns`, { headers: authHeaders() }).then(r => r.json()),
+        fetch(`${API}/marketing/clients`, { headers: authHeaders() }).then(r => r.json()),
       ]);
-      setCampaigns(campaignsRes.data);
-      setClients(clientsRes.data);
+      setCampaigns(campaignsData);
+      setClients(clientsData);
     } catch (error) {
       console.error('Error fetching marketing data:', error);
     } finally {
@@ -416,10 +416,10 @@ export const MarketingSales = () => {
   const handleCreateCampaign = async (data) => {
     try {
       if (editingCampaign) {
-        await axios.put(`${API}/marketing/campaigns/${editingCampaign.id}`, data);
+        await fetch(`${API}/marketing/campaigns/${editingCampaign.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) });
         toast.success('Campaign updated');
       } else {
-        await axios.post(`${API}/marketing/campaigns`, data);
+        await fetch(`${API}/marketing/campaigns`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) });
         toast.success('Campaign created');
       }
       setShowCampaignModal(false);
@@ -432,7 +432,7 @@ export const MarketingSales = () => {
 
   const handleDeleteCampaign = async (id) => {
     try {
-      await axios.delete(`${API}/marketing/campaigns/${id}`);
+      await fetch(`${API}/marketing/campaigns/${id}`, { method: 'DELETE', headers: authHeaders() });
       toast.success('Campaign deleted');
       fetchData();
     } catch (error) {
@@ -443,10 +443,10 @@ export const MarketingSales = () => {
   const handleCreateClient = async (data) => {
     try {
       if (editingClient) {
-        await axios.put(`${API}/marketing/clients/${editingClient.id}`, data);
+        await fetch(`${API}/marketing/clients/${editingClient.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) });
         toast.success('Client updated');
       } else {
-        await axios.post(`${API}/marketing/clients`, data);
+        await fetch(`${API}/marketing/clients`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) });
         toast.success('Client created');
       }
       setShowClientModal(false);
@@ -459,7 +459,7 @@ export const MarketingSales = () => {
 
   const handleDeleteClient = async (id) => {
     try {
-      await axios.delete(`${API}/marketing/clients/${id}`);
+      await fetch(`${API}/marketing/clients/${id}`, { method: 'DELETE', headers: authHeaders() });
       toast.success('Client deleted');
       fetchData();
     } catch (error) {

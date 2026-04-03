@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useSidebar } from '../../components/SidebarContext';
-
-const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
-
-import { 
-  DollarSign, 
-  TrendingUp, 
+import {
+  DollarSign,
+  TrendingUp,
   TrendingDown,
   PiggyBank,
   Calculator,
@@ -30,6 +26,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { Textarea } from '../../components/ui/textarea';
 import { toast } from '../../components/ui/sonner';
+
+const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
+const authHeaders = () => ({
+  'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+  'Content-Type': 'application/json',
+});
 
 
 const transactionCategories = [
@@ -310,12 +312,10 @@ const AIInsightPanel = ({ context, module, isDarkMode, onClose }) => {
     if (!query.trim()) return;
     setLoading(true);
     try {
-      const response = await axios.post(`${API}/ai/insights`, {
-        context,
-        module,
-        query
-      });
-      setInsight(response.data);
+      const res = await fetch(`${API}/ai/insights`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ context, module, query }) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setInsight(data);
       toast.success('AI insight generated');
     } catch (error) {
       console.error('Error getting AI insight:', error);
@@ -408,14 +408,14 @@ export const FinancialManagement = () => {
 
   const fetchData = async () => {
     try {
-      const [txRes, taxRes, invRes] = await Promise.all([
-        axios.get(`${API}/financial/transactions`),
-        axios.get(`${API}/financial/tax-plans`),
-        axios.get(`${API}/financial/investments`)
+      const [txData, taxData, invData] = await Promise.all([
+        fetch(`${API}/financial/transactions`, { headers: authHeaders() }).then(r => r.json()),
+        fetch(`${API}/financial/tax-plans`, { headers: authHeaders() }).then(r => r.json()),
+        fetch(`${API}/financial/investments`, { headers: authHeaders() }).then(r => r.json()),
       ]);
-      setTransactions(txRes.data);
-      setTaxPlans(taxRes.data);
-      setInvestments(invRes.data);
+      setTransactions(txData);
+      setTaxPlans(taxData);
+      setInvestments(invData);
     } catch (error) {
       console.error('Error fetching financial data:', error);
     } finally {
@@ -425,7 +425,7 @@ export const FinancialManagement = () => {
 
   const handleCreateTransaction = async (data) => {
     try {
-      await axios.post(`${API}/financial/transactions`, data);
+      await fetch(`${API}/financial/transactions`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) });
       toast.success('Transaction created');
       setShowTransactionModal(false);
       fetchData();
@@ -436,7 +436,7 @@ export const FinancialManagement = () => {
 
   const handleDeleteTransaction = async (id) => {
     try {
-      await axios.delete(`${API}/financial/transactions/${id}`);
+      await fetch(`${API}/financial/transactions/${id}`, { method: 'DELETE', headers: authHeaders() });
       toast.success('Transaction deleted');
       fetchData();
     } catch (error) {
@@ -446,7 +446,7 @@ export const FinancialManagement = () => {
 
   const handleCreateTaxPlan = async (data) => {
     try {
-      await axios.post(`${API}/financial/tax-plans`, data);
+      await fetch(`${API}/financial/tax-plans`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) });
       toast.success('Tax plan created');
       setShowTaxModal(false);
       fetchData();
@@ -457,7 +457,7 @@ export const FinancialManagement = () => {
 
   const handleDeleteTaxPlan = async (id) => {
     try {
-      await axios.delete(`${API}/financial/tax-plans/${id}`);
+      await fetch(`${API}/financial/tax-plans/${id}`, { method: 'DELETE', headers: authHeaders() });
       toast.success('Tax plan deleted');
       fetchData();
     } catch (error) {
@@ -467,7 +467,7 @@ export const FinancialManagement = () => {
 
   const handleCreateInvestment = async (data) => {
     try {
-      await axios.post(`${API}/financial/investments`, data);
+      await fetch(`${API}/financial/investments`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) });
       toast.success('Investment created');
       setShowInvestmentModal(false);
       fetchData();
@@ -478,7 +478,7 @@ export const FinancialManagement = () => {
 
   const handleDeleteInvestment = async (id) => {
     try {
-      await axios.delete(`${API}/financial/investments/${id}`);
+      await fetch(`${API}/financial/investments/${id}`, { method: 'DELETE', headers: authHeaders() });
       toast.success('Investment deleted');
       fetchData();
     } catch (error) {

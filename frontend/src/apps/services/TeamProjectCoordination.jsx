@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useSidebar } from '../../components/SidebarContext';
 
 import {
@@ -34,6 +33,10 @@ import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import { toast } from '../../components/ui/sonner';
 
 const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
+const authHeaders = () => ({
+  'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+  'Content-Type': 'application/json',
+});
 
 const departments = ['Operations', 'Finance', 'HR', 'IT', 'Sales', 'Marketing', 'Customer Service', 'Legal', 'Engineering', 'Executive'];
 const projectStatuses = ['planning', 'in_progress', 'review', 'completed'];
@@ -443,12 +446,10 @@ const AITeamAdvisor = ({ projects, teamMembers, isDarkMode, onClose }) => {
     if (!query.trim()) return;
     setLoading(true);
     try {
-      const response = await axios.post(`${API}/ai/insights`, {
-        context: getContext(),
-        module: 'team',
-        query
-      });
-      setInsight(response.data);
+      const res = await fetch(`${API}/ai/insights`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ context: getContext(), module: 'team', query }) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setInsight(data);
       toast.success('Team insight generated');
     } catch (error) {
       console.error('Error getting AI insight:', error);
@@ -544,14 +545,14 @@ export const TeamProjectCoordination = () => {
 
   const fetchData = async () => {
     try {
-      const [membersRes, projectsRes, tasksRes] = await Promise.all([
-        axios.get(`${API}/team/members`),
-        axios.get(`${API}/team/projects`),
-        axios.get(`${API}/team/tasks`)
+      const [membersData, projectsData, tasksData] = await Promise.all([
+        fetch(`${API}/team/members`, { headers: authHeaders() }).then(r => r.json()),
+        fetch(`${API}/team/projects`, { headers: authHeaders() }).then(r => r.json()),
+        fetch(`${API}/team/tasks`, { headers: authHeaders() }).then(r => r.json()),
       ]);
-      setTeamMembers(membersRes.data);
-      setProjects(projectsRes.data);
-      setTasks(tasksRes.data);
+      setTeamMembers(membersData);
+      setProjects(projectsData);
+      setTasks(tasksData);
     } catch (error) {
       console.error('Error fetching team data:', error);
     } finally {
@@ -562,10 +563,10 @@ export const TeamProjectCoordination = () => {
   const handleCreateMember = async (data) => {
     try {
       if (editingMember) {
-        await axios.put(`${API}/team/members/${editingMember.id}`, data);
+        await fetch(`${API}/team/members/${editingMember.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) });
         toast.success('Team member updated');
       } else {
-        await axios.post(`${API}/team/members`, data);
+        await fetch(`${API}/team/members`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) });
         toast.success('Team member added');
       }
       setShowMemberModal(false);
@@ -578,7 +579,7 @@ export const TeamProjectCoordination = () => {
 
   const handleDeleteMember = async (id) => {
     try {
-      await axios.delete(`${API}/team/members/${id}`);
+      await fetch(`${API}/team/members/${id}`, { method: 'DELETE', headers: authHeaders() });
       toast.success('Team member removed');
       fetchData();
     } catch (error) {
@@ -589,10 +590,10 @@ export const TeamProjectCoordination = () => {
   const handleCreateProject = async (data) => {
     try {
       if (editingProject) {
-        await axios.put(`${API}/team/projects/${editingProject.id}`, data);
+        await fetch(`${API}/team/projects/${editingProject.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) });
         toast.success('Project updated');
       } else {
-        await axios.post(`${API}/team/projects`, data);
+        await fetch(`${API}/team/projects`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) });
         toast.success('Project created');
       }
       setShowProjectModal(false);
@@ -605,7 +606,7 @@ export const TeamProjectCoordination = () => {
 
   const handleDeleteProject = async (id) => {
     try {
-      await axios.delete(`${API}/team/projects/${id}`);
+      await fetch(`${API}/team/projects/${id}`, { method: 'DELETE', headers: authHeaders() });
       toast.success('Project deleted');
       fetchData();
     } catch (error) {
@@ -615,7 +616,7 @@ export const TeamProjectCoordination = () => {
 
   const handleCreateTask = async (data) => {
     try {
-      await axios.post(`${API}/team/tasks`, data);
+      await fetch(`${API}/team/tasks`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) });
       toast.success('Task created');
       setShowTaskModal(false);
       setSelectedProject(null);
@@ -629,7 +630,7 @@ export const TeamProjectCoordination = () => {
     try {
       const task = tasks.find(t => t.id === taskId);
       if (task) {
-        await axios.put(`${API}/team/tasks/${taskId}`, { ...task, status: newStatus });
+        await fetch(`${API}/team/tasks/${taskId}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ ...task, status: newStatus }) });
         toast.success('Task updated');
         fetchData();
       }
@@ -640,7 +641,7 @@ export const TeamProjectCoordination = () => {
 
   const handleDeleteTask = async (id) => {
     try {
-      await axios.delete(`${API}/team/tasks/${id}`);
+      await fetch(`${API}/team/tasks/${id}`, { method: 'DELETE', headers: authHeaders() });
       toast.success('Task deleted');
       fetchData();
     } catch (error) {
