@@ -34,7 +34,7 @@ export default function Partners() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
+          <h1 className="text-2xl text-slate-900 dark:text-white font-semibold flex items-center gap-2">
             <Building2 className="h-6 w-6" /> Partners & Board Command Center
           </h1>
           <p className="text-slate-500">Executive governance, ownership, partners, and board operations</p>
@@ -56,7 +56,7 @@ export default function Partners() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 rounded-xl border bg-white dark:bg-slate-900">
-          <div className="border-b p-3 font-semibold flex items-center gap-2">
+          <div className="border-b p-3 text-slate-900 dark:text-white font-semibold flex items-center gap-2">
             <Briefcase className="h-4 w-4" /> Partners & Shareholders
           </div>
 
@@ -126,7 +126,7 @@ export default function Partners() {
       </div>
 
       <div className="rounded-xl border bg-white dark:bg-slate-900 p-4">
-        <div className="flex items-center gap-2 mb-3 font-semibold">
+        <div className="flex items-center gap-2 mb-3 text-slate-900 dark:text-white font-semibold">
           <Calendar className="h-4 w-4" /> Board & Executive Meetings
         </div>
         {meetingsLoading && allMeetings.length === 0 ? (
@@ -158,8 +158,8 @@ function KPI({ icon: Icon, label, value }) {
         <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
       </div>
       <div>
-        <div className="text-xs text-slate-500">{label}</div>
-        <div className="text-lg font-semibold">{value}</div>
+        <div className="text-xs text-slate-400">{label}</div>
+        <div className="text-lg text-slate-900 dark:text-white font-semibold">{value}</div>
       </div>
     </div>
   );

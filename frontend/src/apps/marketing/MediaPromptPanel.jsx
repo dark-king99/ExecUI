@@ -82,19 +82,19 @@ Cinematic transitions, subtitles, brand colors.
           value={industry}
           onChange={e => setIndustry(e.target.value)}
           placeholder="Industry (e.g. SaaS, Real Estate, Fashion)"
-          className="border rounded p-2 text-sm"
+          className="border border-slate-200 dark:border-slate-800 rounded p-2 text-sm"
         />
         <input
           value={goal}
           onChange={e => setGoal(e.target.value)}
           placeholder="Campaign goal (e.g. Lead generation, Brand awareness)"
-          className="border rounded p-2 text-sm"
+          className="border border-slate-200 dark:border-slate-800 rounded p-2 text-sm"
         />
         <input
           value={style}
           onChange={e => setStyle(e.target.value)}
           placeholder="Style (optional – cinematic, minimal, luxury)"
-          className="border rounded p-2 text-sm"
+          className="border border-slate-200 dark:border-slate-800 rounded p-2 text-sm"
         />
       </div>
 

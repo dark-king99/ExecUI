@@ -56,13 +56,13 @@ export default function Team() {
         <select
           value={territoryFilter}
           onChange={e => setTerritoryFilter(e.target.value)}
-          className="px-3 py-2 rounded border bg-white dark:bg-slate-900 dark:border-slate-700 text-sm text-slate-900 dark:text-white"
+          className="px-3 py-2 rounded border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white"
         >
           {territories.map(t => <option key={t} value={t}>{t === "all" ? "All Territories" : t}</option>)}
         </select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 text-slate-900 dark:text-white gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5  gap-4">
         <KPI icon={Target}       label="Total Quota"      value={loading ? "…" : currency(metrics.totalQuota)} />
         <KPI icon={TrendingUp}   label="Closed Revenue"   value={loading ? "…" : currency(metrics.totalClosed)} />
         <KPI icon={Gauge}        label="Pipeline Coverage" value={loading ? "…" : currency(metrics.totalPipeline)} />
@@ -70,10 +70,10 @@ export default function Team() {
         <KPI icon={Users}        label="Attainment"       value={loading ? "…" : `${metrics.attainment}%`} />
       </div>
    
-   <div className="border dark:border-slate-700 text-slate-900 dark:text-white">
+   
       <Panel title="Territory Health" icon={Map}>
         {loading ? (
-          <div className="grid grid-cols-4 dark:border-slate-700 gap-4 animate-pulse">
+          <div className="grid grid-cols-4 border-slate-200 dark:border-slate-700 gap-4 space-y-2 animate-pulse">
             {[1,2,3,4].map(i => <div key={i} className="h-24 bg-slate-100 dark:bg-slate-700 rounded-lg" />)}
           </div>
         ) : (
@@ -84,7 +84,7 @@ export default function Team() {
               const closed  = repsInTerritory.reduce((s, r) => s + (r.closed ?? 0), 0);
               const attainment = quota > 0 ? Math.round((closed / quota) * 100) : 0;
               return (
-                <div key={t} className="rounded-lg border p-4 bg-white dark:bg-slate-900">
+                <div key={t} className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900">
                   <div className="font-medium">{t}</div>
                   <div className="text-xs text-slate-500 mt-1">Quota: {currency(quota)}</div>
                   <div className="text-xs text-slate-500">Closed: {currency(closed)}</div>
@@ -148,19 +148,18 @@ export default function Team() {
         )}
       </Panel>
       </div>
-    </div>
   );
 }
 
 function KPI({ icon: Icon, label, value }) {
   return (
-    <div className="rounded-xl border bg-white dark:bg-slate-900 p-4 flex items-center gap-3">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex items-center gap-3">
       <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
         <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
       </div>
       <div>
-        <div className="text-xs text-slate-500">{label}</div>
-        <div className="text-lg font-semibold">{value}</div>
+        <div className="text-xs text-slate-400">{label}</div>
+        <div className="text-lg text-slate-900 dark:text-white font-semibold">{value}</div>
       </div>
     </div>
   );
@@ -168,8 +167,8 @@ function KPI({ icon: Icon, label, value }) {
 
 function Panel({ title, icon: Icon, children }) {
   return (
-    <div className="rounded-xl border bg-white dark:bg-slate-900 p-4">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 gap-4 p-4">
+      <div className="flex items-center gap-2 p-4 mb-3">
         {Icon && <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />}
         <div className="font-semibold">{title}</div>
       </div>

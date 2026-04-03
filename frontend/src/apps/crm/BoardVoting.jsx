@@ -36,8 +36,8 @@ export default function BoardVoting() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 rounded-xl border bg-white dark:bg-slate-900">
-          <div className="border-b p-3 font-semibold flex items-center gap-2">
+        <div className="lg:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <div className="border-b p-3 text-slate-900 dark:text-white font-semibold flex items-center gap-2">
             <FileText className="h-4 w-4" /> Resolutions
           </div>
 
@@ -48,7 +48,7 @@ export default function BoardVoting() {
           )}
 
           {!loading && allResolutions.length === 0 && !error && (
-            <p className="p-6 text-sm text-slate-500 text-center">No resolutions found.</p>
+            <p className="p-6 text-sm text-slate-400 text-center">No resolutions found.</p>
           )}
 
           <div className="divide-y">
@@ -74,7 +74,7 @@ export default function BoardVoting() {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-white dark:bg-slate-900 p-4 space-y-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 space-y-4">
           {!selected ? (
             <div className="text-sm text-slate-500">Select a resolution to view details.</div>
           ) : (
