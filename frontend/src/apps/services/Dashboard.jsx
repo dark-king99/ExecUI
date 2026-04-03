@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useSidebar } from '../../components/SidebarContext';
 
 const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
@@ -14,6 +13,9 @@ import {
   Target,
   ArrowUpRight,
   ArrowDownRight,
+  Megaphone,
+  
+  Send,
   Activity,
   BarChart3,
   Calendar,
@@ -22,6 +24,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/cards";
 import { Badge } from '../../components/ui/badge';
 import { Progress } from '../../components/ui/progress';
+import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 
 
 const StatCard = ({ title, value, subtitle, icon: Icon, trend, trendValue, accentColor, isDarkMode }) => (
@@ -308,16 +311,66 @@ export const Dashboard = () => {
   return (
     <div data-testid="dashboard-view" className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight ${
-          isDarkMode ? 'text-slate-50' : 'text-slate-900'
-        }`}>
-          Dashboard
-        </h1>
-        <p className={`text-sm mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-          Overview of your business operations
-        </p>
-      </div>
+      <header
+        className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b mb-8 border-slate-200"
+      >
+        <div className="flex items-center gap-4">
+          <Avatar className="h-16 w-16 border-2 border-orange-500/30">
+            <AvatarImage src={employee?.avatar_url} alt={employee?.name} />
+            <AvatarFallback
+              className="font-heading text-xl text-orange-400 bg-slate-200"
+            >
+              {employee?.name?.split(' ').map((n) => n[0]).join('') || '?'}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className={`text-sm font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{getGreeting()}</p>
+            <h1
+              className="text-2xl sm:text-3xl font-semibold tracking-tight font-heading dark:text-white text-slate-900
+              data-testid=employee-name"
+            >
+              {employee?.name ?? '—'}
+            </h1>
+            <p className="text-sm font-body text-slate-500">
+              {employee?.role} — {employee?.department}
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Stats Pills */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div
+            className="stat-pill flex items-center gap-2 px-4 py-2 rounded-full border border-slate-500 bg-white shadow-sm
+            data-testid=stat-campaigns"
+          >
+            <Megaphone className="w-4 h-4 text-orange-400" />
+            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+              {overview?.Management_live ?? 0}
+            </span>
+            <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Management Live</span>
+          </div>
+          <div
+            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            data-testid="stat-leads"
+          >
+            <Users className="w-4 h-4 text-emerald-400" />
+            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+              {overview?.active_reports ?? 0}
+            </span>
+            <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Active Reports </span>
+          </div>
+          <div
+            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            data-testid="stat-emails"
+          >
+            <Send className="w-4 h-4 text-sky-400" />
+            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+              {(overview?.emails_sent ?? 0).toLocaleString()}
+            </span>
+            <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Emails Inbox</span>
+          </div>
+        </div>
+      </header>
 
       {/* Main Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
