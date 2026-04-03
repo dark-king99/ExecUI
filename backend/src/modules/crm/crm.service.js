@@ -78,6 +78,7 @@ export const getCrmAnalyticsWinLoss = stubObj({});
 
 export const getOpportunitiesSummary = stubObj({ total: 0, value: 0 });
 export const listOpportunities       = stub;
+export const createOpportunity       = stubObj({});
 
 export const listRenewals       = stub;
 export const getRenewalsSummary = stubObj({ total: 0, value: 0, atRisk: 0 });

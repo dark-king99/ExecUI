@@ -10,13 +10,21 @@ const handle = (fn) => async (req, res) => {
   }
 };
 
+// Dashboard
+export const getDashboardOverview = handle((req) => svc.getDashboardOverview(tid(req)));
+export const getDeviceUsage       = handle((req) => svc.getDeviceUsage(tid(req)));
+export const getStorageStats      = handle((req) => svc.getStorageStats(tid(req)));
+
 // Devices
-export const listDevices  = handle((req) => svc.listDevices(tid(req), req.query));
-export const getDevice    = handle((req) => svc.getDevice(tid(req), req.params.id));
-export const updateDevice = handle((req) => svc.updateDevice(tid(req), req.params.id, req.body));
+export const listDevices   = handle((req) => svc.listDevices(tid(req), req.query));
+export const getDevice     = handle((req) => svc.getDevice(tid(req), req.params.id));
+export const createDevice  = handle((req) => svc.createDevice(tid(req), req.body));
+export const updateDevice  = handle((req) => svc.updateDevice(tid(req), req.params.id, req.body));
+export const deleteDevice  = handle((req) => svc.deleteDevice(tid(req), req.params.id));
 
 // Alerts
 export const listAlerts       = handle((req) => svc.listAlerts(tid(req), req.query));
+export const createAlert      = handle((req) => svc.createAlert(tid(req), req.body));
 export const acknowledgeAlert = handle((req) => svc.acknowledgeAlert(tid(req), req.params.id));
 export const resolveAlert     = handle((req) => svc.resolveAlert(tid(req), req.params.id));
 
@@ -32,13 +40,13 @@ export const getTopologyNodes   = handle((req) => svc.getTopologyNodes(tid(req))
 export const getTopologyLinks   = handle((req) => svc.getTopologyLinks(tid(req)));
 
 // Incidents
-export const listIncidents      = handle((req) => svc.listIncidents(tid(req), req.query));
-export const getIncident        = handle((req) => svc.getIncident(tid(req), req.params.id));
-export const createIncident     = handle((req) => svc.createIncident(tid(req), req.body));
-export const updateIncident     = handle((req) => svc.updateIncident(tid(req), req.params.id, req.body));
-export const getIncidentTimeline= handle((req) => svc.getIncidentTimeline(tid(req), req.params.id));
-export const resolveIncident    = handle((req) => svc.resolveIncident(tid(req), req.params.id));
-export const escalateIncident   = handle((req) => svc.escalateIncident(tid(req), req.params.id));
+export const listIncidents       = handle((req) => svc.listIncidents(tid(req), req.query));
+export const getIncident         = handle((req) => svc.getIncident(tid(req), req.params.id));
+export const createIncident      = handle((req) => svc.createIncident(tid(req), req.body));
+export const updateIncident      = handle((req) => svc.updateIncident(tid(req), req.params.id, req.body));
+export const getIncidentTimeline = handle((req) => svc.getIncidentTimeline(tid(req), req.params.id));
+export const resolveIncident     = handle((req) => svc.resolveIncident(tid(req), req.params.id));
+export const escalateIncident    = handle((req) => svc.escalateIncident(tid(req), req.params.id));
 
 // Service health
 export const listServiceHealth = handle((req) => svc.listServiceHealth(tid(req)));
@@ -60,6 +68,10 @@ export const getChange     = handle((req) => svc.getChange(tid(req), req.params.
 export const createChange  = handle((req) => svc.createChange(tid(req), req.body));
 export const approveChange = handle((req) => svc.approveChange(tid(req), req.params.id));
 export const rejectChange  = handle((req) => svc.rejectChange(tid(req), req.params.id));
+
+// Backups
+export const listBackups  = handle((req) => svc.listBackups(tid(req), req.query));
+export const createBackup = handle((req) => svc.createBackup(tid(req), req.body));
 
 // Docs
 export const listDocs = handle((req) => svc.listDocs(tid(req)));

@@ -51,7 +51,7 @@ export default function Reports() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Customer Reports & Complaints</h1>
+          <h1 className="text-2xl text-slate-900 dark:text-white font-semibold">Customer Reports & Complaints</h1>
           <p className="text-slate-500">SLA-driven, audited, compliant case management.</p>
         </div>
         <button
@@ -68,7 +68,7 @@ export default function Reports() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 dark:border-slate-700 text-slate-900 dark:text-white gap-4">
         <KPI icon={Inbox}       label="Total"       value={metrics.total} />
         <KPI icon={AlertTriangle} label="Open"      value={metrics.open} />
         <KPI icon={Clock}       label="In Progress"  value={metrics.inProgress} />
@@ -78,7 +78,7 @@ export default function Reports() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 rounded-xl border bg-white dark:bg-slate-900">
-          <div className="border-b p-3 font-semibold">Cases</div>
+          <div className="border-b p-3 text-slate-400 font-semibold">Cases</div>
 
           {loading && allCases.length === 0 && (
             <div className="p-4 space-y-2 animate-pulse">

@@ -6,7 +6,7 @@ import { SkeletonCard, SkeletonTable } from "../../components/ui/Skeleton";
 import {
   Megaphone, Plus, Search, Calendar, Users, Target, BarChart3,
   DollarSign, Mail, PlayCircle, PauseCircle, CheckCircle2,
-  Settings, ShieldCheck, FileText, ArrowUpRight, RefreshCw, Loader2,
+  Settings, ShieldCheck, FileText, ArrowUpRight, RefreshCw, Loader2, X,
 } from "lucide-react";
 
 const TABS = [
@@ -31,8 +31,77 @@ function ErrorBanner({ message, onRetry }) {
   );
 }
 
+const EMPTY_C = { name: "", objective: "", owner: "", start: "", end: "" };
+
+function NewCampaignModal({ onClose, onCreated }) {
+  const toast = useToast();
+  const [form, setForm] = useState(EMPTY_C);
+  const [formError, setFormError] = useState(null);
+  const { mutate, loading } = useMutation((d) => marketing.campaigns.create(d));
+  function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setFormError(null);
+    if (!form.name.trim()) { setFormError("Campaign name is required."); return; }
+    try {
+      await mutate(form);
+      toast({ message: "Campaign created.", type: "success" });
+      onCreated(); onClose();
+    } catch (err) { setFormError(err?.message ?? "Failed to create campaign."); }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">New Campaign</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {formError && <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{formError}</div>}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Name <span className="text-red-500">*</span></label>
+            <input type="text" value={form.name} onChange={e => set("name", e.target.value)} placeholder="Campaign name"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Objective</label>
+            <input type="text" value={form.objective} onChange={e => set("objective", e.target.value)} placeholder="e.g. Lead Generation"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Start</label>
+              <input type="date" value={form.start} onChange={e => set("start", e.target.value)}
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">End</label>
+              <input type="date" value={form.end} onChange={e => set("end", e.target.value)}
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Owner</label>
+            <input type="text" value={form.owner} onChange={e => set("owner", e.target.value)} placeholder="Owner name"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose}
+              className="text-sm px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition">Cancel</button>
+            <button type="submit" disabled={loading}
+              className="text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white transition">
+              {loading ? "Creating…" : "Create"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function Campaign() {
   const toast = useToast();
+  const [showNewCampaign, setShowNewCampaign] = useState(false);
 
   const {
     data: campaigns,
@@ -76,6 +145,8 @@ export default function Campaign() {
 
   return (
     <div className="space-y-6">
+      {showNewCampaign && <NewCampaignModal onClose={() => setShowNewCampaign(false)} onCreated={refetch} />}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -91,10 +162,16 @@ export default function Campaign() {
           >
             <RefreshCw size={13} /> Refresh
           </button>
-          <button className="px-3 py-2 rounded border flex items-center gap-2 text-sm">
+          <button
+            onClick={() => setShowNewCampaign(true)}
+            className="px-3 py-2 rounded border flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+          >
             <Plus className="h-4 w-4" /> New Campaign
           </button>
-          <button className="px-3 py-2 rounded border flex items-center gap-2 text-sm">
+          <button
+            onClick={() => toast({ message: "Campaign settings coming soon.", type: "info" })}
+            className="px-3 py-2 rounded border flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+          >
             <Settings className="h-4 w-4" /> Settings
           </button>
         </div>

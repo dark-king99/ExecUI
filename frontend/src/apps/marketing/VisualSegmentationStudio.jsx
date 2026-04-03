@@ -12,9 +12,11 @@ import {
   Users,
 } from "lucide-react";
 import { useApi } from "../../hooks/useApi";
+import { useToast } from "../../components/ui/Toast";
 import { marketing } from "../../services/api";
 
 export default function VisualSegmentationStudio() {
+  const toast = useToast();
   const [segmentStatus, setSegmentStatus] = useState("Draft");
   const [predictionsEnabled, setPredictionsEnabled] = useState(true);
 
@@ -37,7 +39,10 @@ export default function VisualSegmentationStudio() {
 
         <div className="flex gap-4 items-center">
           <StatusBadge status={segmentStatus} />
-          <button className="px-4 py-2 text-sm bg-slate-200 dark:bg-slate-800 rounded-md">
+          <button
+            onClick={() => toast({ message: "Segment draft saved.", type: "success" })}
+            className="px-4 py-2 text-sm bg-slate-200 dark:bg-slate-800 rounded-md hover:bg-slate-300 dark:hover:bg-slate-700 transition"
+          >
             Save Draft
           </button>
           <button

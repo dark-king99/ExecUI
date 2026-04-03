@@ -5,6 +5,7 @@ import StatusBadge from "../../../components/ui/StatusBadge";
 import DataTable from "../../../components/ui/DataTable";
 import { ShieldCheck, AlertTriangle, XCircle, CheckCircle, AlertCircle } from "lucide-react";
 import { useApi } from "../../../hooks/useApi";
+import { useToast } from "../../../components/ui/Toast";
 import { network } from "../../../services/api";
 
 const statusVariant = { pass: "success", warn: "warning", fail: "danger" };
@@ -32,6 +33,7 @@ const columns = [
 ];
 
 export default function PolicyCompliance() {
+  const toast = useToast();
   const { data: policies, loading, error } = useApi(
     () => network.policies.list(), [], { pollingInterval: 30000 }
   );
@@ -99,7 +101,12 @@ export default function PolicyCompliance() {
                   <StatusBadge label={`${p.exceptions} exc.`} variant="warning" />
                 </div>
                 <p className="text-xs text-slate-500 mb-3">Standard: {p.standard} · Score: {p.score}%</p>
-                <button className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">Review exceptions →</button>
+                <button
+                  onClick={() => toast({ message: `Reviewing ${p.exceptions} exception(s) for ${p.name}.`, type: "info" })}
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                  Review exceptions →
+                </button>
               </CardBody>
             </Card>
           ))}
