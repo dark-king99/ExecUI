@@ -90,13 +90,13 @@ export default function CrmDatabase() {
           />
           <button
             onClick={handleImportClick}
-            className="px-3 py-2 rounded border flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            className="px-3 py-2 rounded border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
           >
             <Upload className="h-4 w-4" /> Import
           </button>
           <button
             onClick={handleExport}
-            className="px-3 py-2 rounded border flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            className="px-3 py-2 rounded border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
           >
             <Download className="h-4 w-4" /> Export
           </button>
@@ -126,8 +126,8 @@ export default function CrmDatabase() {
 
       {activeTab === "records" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 rounded-xl border bg-white dark:bg-slate-900">
-            <div className="p-3 border-b flex items-center gap-2">
+          <div className="lg:col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
               <Search className="h-4 w-4 text-slate-400" />
               <input
                 value={query}
@@ -179,7 +179,7 @@ export default function CrmDatabase() {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-white dark:bg-slate-900 p-4">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
             {!selected ? (
               <div className="text-sm text-slate-500">Select a record to view details.</div>
             ) : (
@@ -199,7 +199,7 @@ export default function CrmDatabase() {
       )}
 
       {activeTab === "security" && (
-        <div className="rounded-xl border p-4 bg-white dark:bg-slate-900 space-y-2">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900 space-y-2">
           <div className="text-slate-900 dark:text-white font-medium">Data Security & Access Control</div>
           <ul className="text-sm text-slate-600 dark:text-slate-400 list-disc ml-5 space-y-1">
             <li>Role-based access control (RBAC)</li>
@@ -212,7 +212,7 @@ export default function CrmDatabase() {
       )}
 
       {activeTab === "usage" && (
-        <div className="rounded-xl border border-slate-400 dark:border-slate-700 p-4 bg-white dark:bg-slate-900">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900">
           <div className="text-slate-900 dark:text-white font-medium mb-2">Database Usage Analytics</div>
           {usageLoading ? (
             <div className="grid grid-cols-3 gap-4 animate-pulse">
@@ -220,16 +220,16 @@ export default function CrmDatabase() {
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-4 text-sm">
-              <div className="p-3 border border-slate-400 dark:border-slate-700 rounded text-slate-400">Total Records: {usage?.totalRecords ?? allRecords.length}</div>
-              <div className="p-3 border border-slate-400 dark:border-slate-700 rounded text-slate-400">Queries Today: {usage?.queriesToday ?? "—"}</div>
-              <div className="p-3 border border-slate-400 dark:border-slate-700 rounded text-slate-400">Storage Used: {usage?.storageUsed ?? "—"}</div>
+              <div className="p-3 border border-slate-200 dark:border-slate-800 rounded text-slate-600 dark:text-slate-400">Total Records: {usage?.totalRecords ?? allRecords.length}</div>
+              <div className="p-3 border border-slate-200 dark:border-slate-800 rounded text-slate-600 dark:text-slate-400">Queries Today: {usage?.queriesToday ?? "—"}</div>
+              <div className="p-3 border border-slate-200 dark:border-slate-800 rounded text-slate-600 dark:text-slate-400">Storage Used: {usage?.storageUsed ?? "—"}</div>
             </div>
           )}
         </div>
       )}
 
       {activeTab === "reports" && (
-        <div className="rounded-xl border p-4 bg-white dark:bg-slate-900 space-y-2">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900 space-y-2">
           <div className="text-slate-900 dark:text-white font-medium">Database Reports</div>
           <ul className="text-sm text-slate-600 dark:text-slate-400 list-disc ml-5 space-y-1">
             <li>Data growth trends</li><li>Access frequency by team</li>
@@ -240,7 +240,7 @@ export default function CrmDatabase() {
       )}
 
       {activeTab === "settings" && (
-        <div className="rounded-xl border p-4 bg-white dark:bg-slate-900 space-y-2">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900 space-y-2">
           <div className="text-slate-900 dark:text-white font-medium">Database Preferences</div>
           <ul className="text-sm text-slate-600 dark:text-slate-400 list-disc ml-5 space-y-1">
             <li>Retention policies</li><li>Auto-archival rules</li>
@@ -251,7 +251,7 @@ export default function CrmDatabase() {
       )}
 
       {activeTab === "audit" && (
-        <div className="rounded-xl border p-4 bg-white dark:bg-slate-900 space-y-2">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900 space-y-2">
           <div className="text-slate-900 dark:text-white font-medium">Audit Trail</div>
           {auditLoading && (
             <div className="space-y-1 animate-pulse">

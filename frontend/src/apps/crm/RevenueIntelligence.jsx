@@ -81,13 +81,13 @@ export default function RevenueIntelligence() {
         <select
           value={ownerFilter}
           onChange={e => setOwnerFilter(e.target.value)}
-          className="px-3 py-2 rounded border bg-white dark:bg-slate-900 dark:border-slate-700 text-sm text-slate-900 dark:text-white"
+          className="px-3 py-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white"
         >
           {owners.map(o => <option key={o} value={o}>{o === "all" ? "All Owners" : o}</option>)}
         </select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 text-slate-900 dark:text-white gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <KPI icon={BarChart3}    label="Open Pipeline"        value={loading ? "…" : currency(metrics.pipelineValue)} />
         <KPI icon={Target}       label="Weighted Forecast"    value={loading ? "…" : currency(Math.round(metrics.weighted))} />
         <KPI icon={TrendingUp}   label="Win Rate"             value={loading ? "…" : `${metrics.winRate}%`} />
@@ -161,13 +161,13 @@ export default function RevenueIntelligence() {
 
 function KPI({ icon: Icon, label, value }) {
   return (
-    <div className="rounded-xl border bg-white dark:bg-slate-900 p-4 flex items-center gap-3">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex items-center gap-3">
       <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
         <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
       </div>
       <div>
         <div className="text-xs text-slate-500">{label}</div>
-        <div className="text-lg font-semibold">{value}</div>
+        <div className="text-lg text-slate-900 dark:text-white font-semibold">{value}</div>
       </div>
     </div>
   );
@@ -175,19 +175,19 @@ function KPI({ icon: Icon, label, value }) {
 
 function ForecastBox({ title, value }) {
   return (
-    <div className="rounded-xl border bg-white dark:bg-slate-900 p-4">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
       <div className="text-sm text-slate-500">{title}</div>
-      <div className="text-2xl font-semibold mt-1">{value}</div>
+      <div className="text-2xl text-slate-900 dark:text-white font-semibold mt-1">{value}</div>
     </div>
   );
 }
 
 function Panel({ title, icon: Icon, children }) {
   return (
-    <div className="rounded-xl border bg-white dark:bg-slate-900 p-4">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
       <div className="flex items-center gap-2 mb-3">
         <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-        <div className="font-semibold">{title}</div>
+        <div className=" text-slate-900 dark:text-white font-semibold">{title}</div>
       </div>
       {children}
     </div>
