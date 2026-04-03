@@ -330,10 +330,10 @@ export const Dashboard = () => {
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className={`text-sm font-body ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{getGreeting()}</p>
+            <p className={`text-sm font-body text-slate-400' : 'text-slate-500`}>{getGreeting()}</p>
             <h1
-              className="text-2xl sm:text-3xl font-semibold tracking-tight font-heading dark:text-white text-slate-900
-              data-testid=employee-name"
+              className={`text-2xl sm:text-3xl font-semibold tracking-tight font-heading dark:text-white text-slate-900`}
+              data-testid="employee-name"
             >
               {employee?.name ?? '—'}
             </h1>
@@ -346,17 +346,17 @@ export const Dashboard = () => {
         {/* Quick Stats Pills */}
         <div className="flex flex-wrap items-center gap-3">
           <div
-            className="stat-pill flex items-center gap-2 px-4 py-2 rounded-full border border-slate-500 bg-white shadow-sm
-            data-testid=stat-campaigns"
+            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border border-slate-500 bg-white shadow-sm'}`}
+            data-testid="stat-campaigns"
           >
             <Megaphone className="w-4 h-4 text-orange-400" />
-            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+            <span className={`font-medium font-body dark:text-white text-slate-900`}>
               {overview?.Management_live ?? 0}
             </span>
-            <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Management Live</span>
+            <span className={`text-sm font-body text-slate-500' : 'text-slate-500`}>Management Live</span>
           </div>
           <div
-            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border border-slate-600 bg-white shadow-sm`}
             data-testid="stat-leads"
           >
             <Users className="w-4 h-4 text-emerald-400" />
@@ -366,14 +366,14 @@ export const Dashboard = () => {
             <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Active Reports </span>
           </div>
           <div
-            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}
+            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border bg-white border-slate-200 shadow-sm'}`}
             data-testid="stat-emails"
           >
             <Send className="w-4 h-4 text-sky-400" />
-            <span className={`font-medium font-body ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>
+            <span className={`font-medium font-body dark:text-white text-slate-900`}>
               {(overview?.emails_sent ?? 0).toLocaleString()}
             </span>
-            <span className={`text-sm font-body ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Emails Inbox</span>
+            <span className={`text-sm font-body text-slate-500`}>Emails Inbox</span>
           </div>
         </div>
       </header>
