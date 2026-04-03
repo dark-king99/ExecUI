@@ -163,5 +163,6 @@ export default function MediaPromptPanel() {
         </div>
       )}
     </div>
+    </div>
   );
 }
