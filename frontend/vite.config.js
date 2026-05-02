@@ -18,9 +18,13 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5555',
         changeOrigin: true,
-        onError(err, req, res) {
-          res.writeHead(503, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ message: 'Backend unavailable. Please ensure the server is running.' }));
+        configure: (proxy) => {
+          proxy.on('error', (err, _req, res) => {
+            if (res.writeHead && !res.headersSent) {
+              res.writeHead(503, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ message: 'Backend unavailable. Please ensure the server is running.' }));
+            }
+          });
         },
       },
     },
