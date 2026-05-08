@@ -43,18 +43,27 @@ export async function bootstrapEnterprise({
     ];
     
     for (const permission of permissions) {
-    
-      // 1. Create permission
-      const createdPermission = await tx.permission.create({
-        data: {
+
+      // Upsert: create if not exists, skip update — key is globally unique across tenants
+      const createdPermission = await tx.permission.upsert({
+        where: { key: permission.key },
+        update: {},
+        create: {
           key: permission.key,
           description: permission.description
         }
       });
-    
-      // 2. Link permission to admin role
-      await tx.rolePermission.create({
-        data: {
+
+      // Link permission to admin role (skip if already linked)
+      await tx.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: adminRole.id,
+            permissionId: createdPermission.id
+          }
+        },
+        update: {},
+        create: {
           roleId: adminRole.id,
           permissionId: createdPermission.id
         }
