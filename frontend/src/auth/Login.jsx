@@ -5,93 +5,120 @@ import {
   CheckCircle2,
   ChevronRight,
   Lock,
-  Orbit,
-  Sparkles,
-  UserRound,
+  BarChart3,
+  Network,
   Users,
-  Wand2,
+  Megaphone,
   AlertCircle,
   Loader2,
+  Eye,
+  EyeOff,
+  Shield,
 } from "lucide-react";
 import { auth, setToken } from "../services/api";
 
-const trustSignals = [
-  "SOC 2-ready infrastructure",
-  "Multi-tenant isolation",
-  "SSO + MFA included",
-  "AI-guided onboarding",
+// ─── Brand panel data ────────────────────────────────────────────────────────
+
+const features = [
+  { icon: Users,     label: "CRM & Pipeline",         desc: "Unify customer data and drive revenue growth." },
+  { icon: Megaphone, label: "Marketing Automation",    desc: "Orchestrate campaigns across every channel." },
+  { icon: Network,   label: "Network Operations",      desc: "Monitor and protect critical infrastructure." },
+  { icon: BarChart3, label: "Analytics & Intelligence", desc: "AI-powered insights for faster decisions." },
 ];
 
-const clientRoles = [
-  {
-    id: "employee",
-    title: "Employee",
-    description: "Collaborate on pipelines, campaigns, and network tasks.",
-  },
-  {
-    id: "enterprise_admin",
-    title: "Enterprise admin",
-    description: "Manage tenants, policies, and access controls at scale.",
-  },
+const badges = [
+  "SOC 2 Ready",
+  "Multi-tenant",
+  "SSO + MFA",
+  "Zero-trust",
 ];
 
-const tenantCards = [
+// ─── Tenant options ───────────────────────────────────────────────────────────
+
+const tenantOptions = [
   {
     id: "client",
-    title: "Client workspace",
-    description: "Operate your CRM, marketing automation, and network stack.",
+    label: "Client workspace",
+    desc: "CRM, marketing, and network operations.",
     icon: Building2,
-    gradient: "from-cyan-500/30 via-sky-500/10 to-transparent",
-    cta: "Launch client UI",
+    accent: "border-indigo-500/60 bg-indigo-500/5",
+    activeRing: "ring-2 ring-indigo-500/40",
   },
   {
     id: "customer",
-    title: "Customer portal",
-    description: "Track tickets, approvals, and shared campaign performance.",
+    label: "Customer portal",
+    desc: "Tickets, approvals, and campaign tracking.",
     icon: Users,
-    gradient: "from-fuchsia-500/30 via-rose-500/10 to-transparent",
-    cta: "Launch customer UI",
+    accent: "border-violet-500/60 bg-violet-500/5",
+    activeRing: "ring-2 ring-violet-500/40",
   },
 ];
 
+const clientRoles = [
+  { id: "employee",         label: "Employee",         desc: "Collaborate on pipelines and campaigns." },
+  { id: "enterprise_admin", label: "Enterprise Admin",  desc: "Manage tenants, policies, and access." },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function InputField({ label, type = "text", value, onChange, onKeyDown, placeholder, autoComplete, rightAction }) {
+  const [show, setShow] = useState(false);
+  const isPassword = type === "password";
+  const resolvedType = isPassword ? (show ? "text" : "password") : type;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          type={resolvedType}
+          value={value}
+          onChange={onChange}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40 transition-all duration-150"
+        />
+        {isPassword && (
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => setShow((s) => !s)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
+          >
+            {show ? <EyeOff size={15} /> : <Eye size={15} />}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export default function Login({ onLogin }) {
-  const [mode,        setMode]        = useState("login");
-  const [tenant,      setTenant]      = useState("client");
-  const [clientRole,  setClientRole]  = useState("employee");
-  const [transition,  setTransition]  = useState("idle");
+  const [mode,       setMode]       = useState("login");
+  const [tenant,     setTenant]     = useState("client");
+  const [clientRole, setClientRole] = useState("employee");
+  const [transitioning, setTransitioning] = useState(false);
 
-  // Form state
-  const [email,       setEmail]       = useState("");
-  const [password,    setPassword]    = useState("");
-  const [company,     setCompany]     = useState("");
+  // form
+  const [email,    setEmail]    = useState("");
+  const [password, setPassword] = useState("");
+  const [company,  setCompany]  = useState("");
 
-  // Request state
-  const [submitting,  setSubmitting]  = useState(false);
-  const [apiError,    setApiError]    = useState(null);
+  // request
+  const [submitting, setSubmitting] = useState(false);
+  const [apiError,   setApiError]   = useState(null);
 
-  const heroCopy = useMemo(() => {
-    if (mode === "login") {
-      return {
-        kicker: "Welcome back",
-        title: "Secure login for multi-tenant operations",
-        description:
-          "Authenticate in seconds with live motion, then route to the client or customer experience.",
-      };
-    }
-    return {
-      kicker: "Create your account",
-      title: "Modern signup with built-in tenant routing",
-      description:
-        "Spin up client workspaces or customer portals with guided onboarding and AI-ready security.",
-    };
-  }, [mode]);
-
+  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
       setApiError("Email and password are required.");
       return;
     }
-
     setSubmitting(true);
     setApiError(null);
 
@@ -102,10 +129,7 @@ export default function Login({ onLogin }) {
           : { email, password, company, tenant, role: clientRole };
 
       const response = await auth[mode === "login" ? "login" : "signup"](payload);
-      // Set the module-level token NOW, before App.jsx's useEffect writes
-      // it to localStorage — child component effects fire first and need it.
       setToken(response.token);
-      // Expected response: { user: { id, name, email, role, tenant }, token }
       onLogin({ ...response.user, token: response.token });
     } catch (err) {
       setApiError(err?.message ?? "Authentication failed. Please try again.");
@@ -115,304 +139,315 @@ export default function Login({ onLogin }) {
   };
 
   const handleModeSwitch = (next) => {
-    if (next === mode) return;
+    if (next === mode || transitioning) return;
     setApiError(null);
-    setTransition("auth");
-    setTimeout(() => {
-      setMode(next);
-      setTransition("idle");
-    }, 250);
+    setTransitioning(true);
+    setTimeout(() => { setMode(next); setTransitioning(false); }, 220);
   };
 
-  const handleTenantSwitch = (next) => {
-    if (next === tenant) return;
-    setTransition("tenant");
-    setTimeout(() => {
-      setTenant(next);
-      setTransition("idle");
-    }, 250);
-  };
+  const handleKeyDown = (e) => { if (e.key === "Enter") handleSubmit(); };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") handleSubmit();
-  };
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
-      {/* Background orbs */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-32 top-20 h-72 w-72 rounded-full bg-cyan-500/20 blur-3xl animate-float-slow" />
-        <div className="absolute right-0 top-0 h-80 w-80 rounded-full bg-fuchsia-500/20 blur-3xl animate-float" />
-        <div className="absolute bottom-0 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[120px] animate-float-slower" />
-        <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/5 animate-spin-slowest" />
-      </div>
+    <div className="min-h-screen w-full flex bg-slate-950">
 
-      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-16 pt-12 lg:flex-row lg:items-center">
-        {/* Hero copy */}
-        <section className="flex flex-1 flex-col gap-6">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
-            <Sparkles className="h-4 w-4" />
-            Artemis Haven Access
+      {/* ── LEFT: Brand panel ───────────────────────────────────────────────── */}
+      <div className="hidden lg:flex lg:w-[480px] xl:w-[520px] shrink-0 flex-col relative overflow-hidden bg-gradient-to-br from-indigo-950 via-slate-950 to-slate-950 border-r border-slate-800/60">
+
+        {/* Subtle radial glows */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-20 -left-20 h-72 w-72 rounded-full bg-indigo-600/15 blur-3xl" />
+          <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-violet-600/10 blur-3xl" />
+        </div>
+
+        {/* Dot grid */}
+        <div className="absolute inset-0 bg-dot-pattern opacity-50" />
+
+        <div className="relative z-10 flex flex-col h-full px-10 py-12">
+
+          {/* Logo */}
+          <div className="flex items-center gap-3 mb-14">
+            <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30">
+              <Building2 size={18} className="text-white" />
+            </div>
+            <div>
+              <p className="text-base font-semibold text-white leading-none">ExecUI</p>
+              <p className="text-[11px] text-indigo-300/70 mt-0.5">Enterprise Platform</p>
+            </div>
           </div>
-          <div className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
-              {heroCopy.kicker}
-            </p>
-            <h1 className="text-4xl font-semibold leading-tight text-white sm:text-5xl">
-              {heroCopy.title}
+
+          {/* Hero text */}
+          <div className="mb-10">
+            <h1 className="text-3xl xl:text-4xl font-semibold text-white leading-tight mb-4">
+              Your enterprise<br />command center.
             </h1>
-            <p className="max-w-xl text-base text-slate-300">
-              {heroCopy.description}
+            <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
+              One platform for CRM, marketing automation, network operations, and AI-powered analytics.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {trustSignals.map((signal) => (
-              <div
-                key={signal}
-                className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-200"
-              >
-                <CheckCircle2 className="h-4 w-4 text-cyan-200" />
-                {signal}
+
+          {/* Feature list */}
+          <div className="flex flex-col gap-5 mb-auto">
+            {features.map(({ icon: Icon, label, desc }) => (
+              <div key={label} className="flex items-start gap-4">
+                <div className="h-9 w-9 rounded-lg bg-slate-800/80 border border-slate-700/50 flex items-center justify-center shrink-0 mt-0.5">
+                  <Icon size={16} className="text-indigo-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-200 leading-none mb-1">{label}</p>
+                  <p className="text-xs text-slate-500">{desc}</p>
+                </div>
               </div>
             ))}
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-sm text-slate-200">
-            <div className="flex items-center justify-between">
-              <p className="font-semibold text-white">Live environment status</p>
-              <span className="flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-cyan-200">
-                <Orbit className="h-3.5 w-3.5" />
-                Active
-              </span>
+
+          {/* Trust badges */}
+          <div className="mt-10 pt-8 border-t border-slate-800/60">
+            <div className="flex flex-wrap gap-2">
+              {badges.map((b) => (
+                <span
+                  key={b}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/60 border border-slate-700/40 text-[11px] font-medium text-slate-400"
+                >
+                  <Shield size={10} className="text-indigo-400" />
+                  {b}
+                </span>
+              ))}
             </div>
-            <p className="mt-2 text-slate-300">
-              CRM data sync, marketing automations, and network telemetry are ready to
-              activate once you authenticate.
+          </div>
+        </div>
+      </div>
+
+      {/* ── RIGHT: Auth form ─────────────────────────────────────────────────── */}
+      <div className="flex-1 flex items-center justify-center px-6 py-12 overflow-y-auto">
+        <div className="w-full max-w-md">
+
+          {/* Mobile logo */}
+          <div className="flex items-center gap-2.5 mb-8 lg:hidden">
+            <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+              <Building2 size={16} className="text-white" />
+            </div>
+            <span className="text-base font-semibold text-white">ExecUI</span>
+          </div>
+
+          {/* Page heading */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-semibold text-white mb-1">
+              {mode === "login" ? "Welcome back" : "Create your account"}
+            </h2>
+            <p className="text-sm text-slate-500">
+              {mode === "login"
+                ? "Sign in to access your workspace."
+                : "Set up your enterprise workspace in minutes."}
             </p>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <span className="flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs text-cyan-200">
-                <Lock className="h-3.5 w-3.5" /> Zero-trust secure
-              </span>
-              <span className="flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs text-slate-200">
-                <Wand2 className="h-3.5 w-3.5 text-fuchsia-200" /> AI-guided
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* Auth card */}
-        <section className="flex w-full max-w-xl flex-col gap-6 rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-black/40 backdrop-blur">
-          {/* Mode toggle */}
-          <div className="relative flex items-center justify-between rounded-full border border-white/10 bg-white/5 p-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">
-            <span
-              className={`absolute inset-y-1 left-1 w-[calc(50%-0.75rem)] rounded-full bg-white transition-all duration-300 ${
-                mode === "signup" ? "translate-x-full" : "translate-x-0"
-              }`}
-            />
-            <button
-              type="button"
-              onClick={() => handleModeSwitch("login")}
-              className={`relative z-10 flex-1 rounded-full px-4 py-2 transition ${
-                mode === "login" ? "text-slate-900" : "text-white/70"
-              }`}
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => handleModeSwitch("signup")}
-              className={`relative z-10 flex-1 rounded-full px-4 py-2 transition ${
-                mode === "signup" ? "text-slate-900" : "text-white/70"
-              }`}
-            >
-              Sign Up
-            </button>
           </div>
 
-          {/* Credentials form */}
+          {/* Mode tabs */}
+          <div className="flex items-center bg-slate-800/50 rounded-xl p-1 mb-8 border border-slate-700/40">
+            {["login", "signup"].map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => handleModeSwitch(m)}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  mode === m
+                    ? "bg-indigo-600 text-white shadow-sm shadow-indigo-900/50"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {m === "login" ? "Sign In" : "Sign Up"}
+              </button>
+            ))}
+          </div>
+
+          {/* Form fields */}
           <div
-            className={`rounded-2xl border border-white/10 bg-white/5 p-6 transition-all duration-300 ${
-              transition === "auth" ? "opacity-40 blur-sm" : "opacity-100 blur-0"
+            className={`flex flex-col gap-4 transition-all duration-200 ${
+              transitioning ? "opacity-40 blur-sm" : "opacity-100 blur-0"
             }`}
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.2em] text-white/60">
-                  {mode === "login" ? "Welcome back" : "Create account"}
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">
-                  {mode === "login"
-                    ? "Log in to Artemis Haven"
-                    : "Start your Artemis Haven journey"}
-                </h2>
-              </div>
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10">
-                <UserRound className="h-5 w-5 text-cyan-200" />
-              </span>
-            </div>
+            <InputField
+              label="Work email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="name@company.com"
+              autoComplete="email"
+            />
 
-            <div className="mt-6 grid gap-4 text-sm text-slate-200">
-              <label className="grid gap-2">
-                <span className="text-xs uppercase tracking-[0.2em] text-white/60">
-                  Work email
-                </span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="name@company.com"
-                  autoComplete="email"
-                  className="rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
-                />
-              </label>
-              <label className="grid gap-2">
-                <span className="text-xs uppercase tracking-[0.2em] text-white/60">
-                  Password
-                </span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="••••••••"
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  className="rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
-                />
-              </label>
-              {mode === "signup" && (
-                <label className="grid gap-2">
-                  <span className="text-xs uppercase tracking-[0.2em] text-white/60">
-                    Company name
-                  </span>
-                  <input
-                    type="text"
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Artemis Operations"
-                    className="rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
-                  />
-                </label>
-              )}
-            </div>
+            <InputField
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="••••••••"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+            />
 
-            {/* Error message */}
+            {mode === "signup" && (
+              <InputField
+                label="Company name"
+                type="text"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Acme Corporation"
+                autoComplete="organization"
+              />
+            )}
+
+            {/* Error */}
             {apiError && (
-              <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">
-                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                {apiError}
+              <div className="flex items-start gap-2.5 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-400">
+                <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                <span>{apiError}</span>
               </div>
             )}
 
+            {/* Submit */}
             <button
+              type="button"
               onClick={handleSubmit}
               disabled={submitting}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-900/30 hover:shadow-indigo-900/50 hover:-translate-y-0.5"
             >
               {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 size={16} className="animate-spin" />
               ) : (
                 <>
-                  {mode === "login" ? "Continue" : "Create workspace"}
-                  <ArrowRight className="h-4 w-4" />
+                  {mode === "login" ? "Sign in" : "Create workspace"}
+                  <ArrowRight size={15} />
                 </>
               )}
             </button>
 
-            <p className="mt-4 text-xs text-slate-400">
-              {mode === "login"
-                ? "Use your SSO credentials or email + password to sign in."
-                : "By signing up you agree to the Artemis Haven terms."}
+            {/* Mode switcher link */}
+            <p className="text-center text-xs text-slate-500">
+              {mode === "login" ? (
+                <>
+                  Don't have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => handleModeSwitch("signup")}
+                    className="text-indigo-400 hover:text-indigo-300 font-medium transition"
+                  >
+                    Sign up
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => handleModeSwitch("login")}
+                    className="text-indigo-400 hover:text-indigo-300 font-medium transition"
+                  >
+                    Sign in
+                  </button>
+                </>
+              )}
             </p>
           </div>
 
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-7">
+            <div className="flex-1 h-px bg-slate-800" />
+            <span className="text-xs text-slate-600 uppercase tracking-widest">Workspace</span>
+            <div className="flex-1 h-px bg-slate-800" />
+          </div>
+
           {/* Tenant selector */}
-          <div
-            className={`grid gap-4 rounded-2xl border border-white/10 bg-white/5 p-6 transition-all duration-300 ${
-              transition === "tenant" ? "opacity-40 blur-sm" : "opacity-100 blur-0"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-white/60">
-                  Route to tenant UI
-                </p>
-                <h3 className="mt-2 text-lg font-semibold text-white">
-                  Choose your destination
-                </h3>
-              </div>
-              <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/60">
-                {tenant === "client" ? "Client" : "Customer"}
-              </span>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {tenantCards.map((card) => {
-                const Icon = card.icon;
-                const isActive = tenant === card.id;
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+              Select your destination
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {tenantOptions.map(({ id, label, desc, icon: Icon, accent, activeRing }) => {
+                const active = tenant === id;
                 return (
                   <button
-                    key={card.id}
+                    key={id}
                     type="button"
-                    onClick={() => handleTenantSwitch(card.id)}
-                    className={`rounded-2xl border border-white/10 bg-linear-to-br ${
-                      card.gradient
-                    } p-4 text-left transition ${
-                      isActive
-                        ? "border-cyan-300/60 shadow-lg shadow-cyan-500/20"
-                        : "hover:border-white/30"
+                    onClick={() => setTenant(id)}
+                    className={`flex flex-col items-start gap-2 p-4 rounded-xl border text-left transition-all duration-150 ${
+                      active
+                        ? `${accent} ${activeRing}`
+                        : "border-slate-800/80 bg-slate-900/50 hover:border-slate-700"
                     }`}
                   >
-                    <Icon className="h-5 w-5 text-white" />
-                    <p className="mt-3 text-sm font-semibold text-white">
-                      {card.title}
-                    </p>
-                    <p className="mt-2 text-xs text-slate-200">{card.description}</p>
+                    <Icon size={16} className={active ? "text-indigo-400" : "text-slate-500"} />
+                    <div>
+                      <p className={`text-sm font-medium leading-none mb-1 ${active ? "text-slate-100" : "text-slate-400"}`}>
+                        {label}
+                      </p>
+                      <p className="text-[11px] text-slate-600 leading-snug">{desc}</p>
+                    </div>
+                    {active && (
+                      <CheckCircle2 size={13} className="text-indigo-400 mt-auto self-end" />
+                    )}
                   </button>
                 );
               })}
             </div>
 
+            {/* Client role picker – only on signup for client workspace */}
             {tenant === "client" && mode === "signup" && (
-              <div className="grid gap-3">
-                <p className="text-xs uppercase tracking-[0.2em] text-white/60">
+              <div className="mt-1 flex flex-col gap-2">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Client role
                 </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {clientRoles.map((role) => (
-                    <button
-                      key={role.id}
-                      type="button"
-                      onClick={() => setClientRole(role.id)}
-                      className={`rounded-xl border border-white/10 px-4 py-3 text-left text-xs transition ${
-                        clientRole === role.id
-                          ? "border-emerald-300/60 bg-emerald-400/10"
-                          : "hover:border-white/30"
-                      }`}
-                    >
-                      <p className="text-sm font-semibold text-white">{role.title}</p>
-                      <p className="mt-1 text-slate-300">{role.description}</p>
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 gap-2">
+                  {clientRoles.map(({ id, label, desc }) => {
+                    const active = clientRole === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setClientRole(id)}
+                        className={`flex flex-col items-start gap-1 px-3 py-3 rounded-lg border text-left transition-all duration-150 ${
+                          active
+                            ? "border-emerald-500/50 bg-emerald-500/5 ring-1 ring-emerald-500/30"
+                            : "border-slate-800 bg-slate-900/40 hover:border-slate-700"
+                        }`}
+                      >
+                        <p className={`text-xs font-semibold ${active ? "text-emerald-400" : "text-slate-400"}`}>
+                          {label}
+                        </p>
+                        <p className="text-[10px] text-slate-600 leading-snug">{desc}</p>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
+            {/* Workspace CTA */}
             <button
+              type="button"
               onClick={handleSubmit}
               disabled={submitting}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:border-white/40 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-slate-700/60 bg-slate-800/50 hover:bg-slate-700/50 hover:border-slate-600 text-slate-300 text-sm font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 size={15} className="animate-spin" />
               ) : (
                 <>
-                  {tenantCards.find((card) => card.id === tenant)?.cta}
-                  <ChevronRight className="h-4 w-4" />
+                  {tenant === "client" ? "Launch client workspace" : "Launch customer portal"}
+                  <ChevronRight size={14} className="text-slate-500" />
                 </>
               )}
             </button>
           </div>
-        </section>
+
+          {/* Footer */}
+          <p className="mt-8 text-center text-[11px] text-slate-700">
+            {mode === "login"
+              ? "Use your SSO credentials or email + password."
+              : "By signing up you agree to the Artemis Haven terms of service."}
+          </p>
+        </div>
       </div>
     </div>
   );
