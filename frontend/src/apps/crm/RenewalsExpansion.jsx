@@ -27,7 +27,7 @@ export default function RenewalsExpansion() {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Renewing ARR"       value={summaryLoading ? "…" : (summary?.renewingArr    ?? "—")} icon={DollarSign}    color="indigo" />
+        <Stat label="Renewing ARR"       value={summaryLoading ? "…" : (summary?.renewingArr    ?? "—")} icon={DollarSign}    color="orange" />
         <Stat label="Expansion Pipeline" value={summaryLoading ? "…" : (summary?.expansionTotal ?? "—")} icon={TrendingUp}    color="emerald" />
         <Stat label="At Risk"            value={summaryLoading ? "…" : (summary?.atRisk         ?? atRisk)} icon={AlertTriangle} color="amber" />
         <Stat label="Avg Days to Renew"  value={summaryLoading ? "…" : (summary?.avgDays        ?? "—")} icon={RefreshCw}     color="sky" />

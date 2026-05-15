@@ -1,11 +1,13 @@
 import { useState, useMemo, useRef } from "react";
 import {
   Database, Search, Shield, FileText, BarChart3, Settings, Download, Upload, History, Lock,
-  AlertCircle, CheckCircle,
+  AlertCircle, CheckCircle, Key, Eye, Server, Clock, RefreshCw, Users,
 } from "lucide-react";
 import { useApi } from "../../hooks/useApi";
 import { useToast } from "../../components/ui/Toast";
 import { crm } from "../../services/api";
+import PageHeader from "../../components/ui/PageHeader";
+import { Stat } from "../../components/ui/Card";
 
 export default function CrmDatabase() {
   const toast = useToast();
@@ -75,33 +77,27 @@ export default function CrmDatabase() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl text-slate-900 dark:text-white font-semibold">CRM Database</h1>
-          <p className="text-slate-500">Enterprise data management, security, usage, and compliance</p>
-        </div>
-        <div className="flex gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <button
-            onClick={handleImportClick}
-            className="px-3 py-2 rounded border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-          >
-            <Upload className="h-4 w-4" /> Import
-          </button>
-          <button
-            onClick={handleExport}
-            className="px-3 py-2 rounded border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-          >
-            <Download className="h-4 w-4" /> Export
-          </button>
-        </div>
-      </div>
+      <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
+      <PageHeader
+        title="CRM Database"
+        subtitle="Enterprise data management, security, usage, and compliance"
+        actions={
+          <div className="flex gap-2">
+            <button
+              onClick={handleImportClick}
+              className="px-3 py-2 rounded border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            >
+              <Upload className="h-4 w-4" /> Import
+            </button>
+            <button
+              onClick={handleExport}
+              className="px-3 py-2 rounded border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            >
+              <Download className="h-4 w-4" /> Export
+            </button>
+          </div>
+        }
+      />
 
       <div className="flex gap-2 border-b">
         {[
@@ -116,7 +112,7 @@ export default function CrmDatabase() {
             key={t.id}
             onClick={() => setActiveTab(t.id)}
             className={`flex items-center gap-2 px-3 py-2 text-sm border-b-2 ${
-              activeTab === t.id ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"
+              activeTab === t.id ? "border-orange-600 text-orange-600" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
             <t.icon className="h-4 w-4" />{t.label}
@@ -199,15 +195,32 @@ export default function CrmDatabase() {
       )}
 
       {activeTab === "security" && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900 space-y-2">
-          <div className="text-slate-900 dark:text-white font-medium">Data Security & Access Control</div>
-          <ul className="text-sm text-slate-600 dark:text-slate-400 list-disc ml-5 space-y-1">
-            <li>Role-based access control (RBAC)</li>
-            <li>Field-level encryption</li>
-            <li>Sensitive record locking</li>
-            <li>Audit logging of all access</li>
-            <li>Compliance export (GDPR / SOC / ISO)</li>
-          </ul>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Stat label="Access Level" value="RBAC" icon={Key} color="orange" />
+            <Stat label="Encryption" value="AES-256" icon={Shield} color="emerald" />
+            <Stat label="Compliance" value="SOC 2 / GDPR" icon={CheckCircle} color="sky" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { icon: Key,       title: "Role-Based Access Control", desc: "Users access only what their role permits. Admins, managers, and reps have distinct permission tiers." },
+              { icon: Lock,      title: "Field-Level Encryption",    desc: "Sensitive fields (email, phone, revenue) are encrypted at rest and in transit using AES-256." },
+              { icon: Shield,    title: "Sensitive Record Locking",  desc: "Records flagged as sensitive require elevated permissions to view or modify." },
+              { icon: Eye,       title: "Audit Logging",             desc: "Every read, write, and delete is logged with user identity, timestamp, and IP address." },
+              { icon: Server,    title: "Data Residency",            desc: "Tenant data is isolated per region. Cross-tenant access is structurally blocked at the API layer." },
+              { icon: FileText,  title: "Compliance Export",         desc: "Export GDPR data subject reports, SOC 2 audit packages, and ISO 27001 evidence bundles on demand." },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex gap-3">
+                <div className="h-9 w-9 rounded-lg bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center shrink-0">
+                  <Icon size={16} className="text-orange-600 dark:text-orange-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm text-slate-900 dark:text-white">{title}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -229,24 +242,66 @@ export default function CrmDatabase() {
       )}
 
       {activeTab === "reports" && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900 space-y-2">
-          <div className="text-slate-900 dark:text-white font-medium">Database Reports</div>
-          <ul className="text-sm text-slate-600 dark:text-slate-400 list-disc ml-5 space-y-1">
-            <li>Data growth trends</li><li>Access frequency by team</li>
-            <li>Sensitive data exposure report</li><li>Inactive / stale records</li>
-            <li>Compliance readiness summary</li>
-          </ul>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Stat label="Total Records" value={recordsLoading ? "…" : allRecords.length} icon={Database} color="orange" />
+            <Stat label="Sensitive Records" value={recordsLoading ? "…" : allRecords.filter(r => r.sensitive).length} icon={Lock} color="amber" />
+            <Stat label="Queries Today" value={usageLoading ? "…" : (usage?.queriesToday ?? "—")} icon={BarChart3} color="sky" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { icon: BarChart3,  title: "Data Growth Trends",          desc: "Month-over-month record growth, broken down by object type (Leads, Accounts, Deals, Contacts)." },
+              { icon: Users,      title: "Access Frequency by Team",     desc: "Track which teams query the database most frequently and identify usage bottlenecks." },
+              { icon: Lock,       title: "Sensitive Data Exposure",      desc: "View which users accessed sensitive records and whether access was justified by role." },
+              { icon: Clock,      title: "Inactive / Stale Records",     desc: "Identify records not updated in 90+ days for archival or cleanup workflows." },
+              { icon: Shield,     title: "Compliance Readiness",         desc: "Overall compliance score across GDPR, SOC 2, and ISO 27001 controls with gap analysis." },
+              { icon: RefreshCw,  title: "Sync Health Report",           desc: "Status of data integrations — last sync time, record count delta, and error rates." },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex gap-3 items-start">
+                <div className="h-9 w-9 rounded-lg bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center shrink-0">
+                  <Icon size={16} className="text-orange-600 dark:text-orange-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-sm text-slate-900 dark:text-white">{title}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{desc}</p>
+                </div>
+                <button
+                  onClick={() => toast({ message: `${title} report opened.`, type: "info" })}
+                  className="text-xs text-orange-600 dark:text-orange-400 hover:underline shrink-0"
+                >
+                  View
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {activeTab === "settings" && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900 space-y-2">
-          <div className="text-slate-900 dark:text-white font-medium">Database Preferences</div>
-          <ul className="text-sm text-slate-600 dark:text-slate-400 list-disc ml-5 space-y-1">
-            <li>Retention policies</li><li>Auto-archival rules</li>
-            <li>PII masking settings</li><li>Backup schedules</li>
-            <li>Data sync integrations</li>
-          </ul>
+        <div className="space-y-4">
+          {[
+            { icon: Clock,    title: "Retention Policies",    desc: "Define how long records of each type are retained before auto-archival or deletion.",   action: "Configure" },
+            { icon: History,  title: "Auto-Archival Rules",   desc: "Set inactivity thresholds to automatically archive stale records and free up active storage.", action: "Configure" },
+            { icon: Eye,      title: "PII Masking",           desc: "Mask or tokenize personally identifiable information in exports, logs, and non-production environments.", action: "Configure" },
+            { icon: Server,   title: "Backup Schedules",      desc: "Configure full and incremental backup cadences, retention duration, and restore point objectives.", action: "Configure" },
+            { icon: RefreshCw,title: "Data Sync Integrations",desc: "Manage bidirectional sync with HubSpot, Salesforce, and other CRM data sources.",       action: "Manage" },
+          ].map(({ icon: Icon, title, desc, action }) => (
+            <div key={title} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex items-start gap-3">
+              <div className="h-9 w-9 rounded-lg bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center shrink-0">
+                <Icon size={16} className="text-orange-600 dark:text-orange-400" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-sm text-slate-900 dark:text-white">{title}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{desc}</p>
+              </div>
+              <button
+                onClick={() => toast({ message: `${title} settings opened.`, type: "info" })}
+                className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-orange-400 transition shrink-0"
+              >
+                {action}
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
