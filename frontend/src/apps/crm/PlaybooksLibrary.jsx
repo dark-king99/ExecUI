@@ -66,7 +66,7 @@ function NewPlaybookModal({ onClose, onCreated }) {
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               placeholder="Playbook name"
-              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -75,7 +75,7 @@ function NewPlaybookModal({ onClose, onCreated }) {
               <select
                 value={form.type}
                 onChange={(e) => set("type", e.target.value)}
-                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
               >
                 {PLAYBOOK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -85,7 +85,7 @@ function NewPlaybookModal({ onClose, onCreated }) {
               <select
                 value={form.trigger}
                 onChange={(e) => set("trigger", e.target.value)}
-                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
               >
                 {TRIGGERS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -96,7 +96,7 @@ function NewPlaybookModal({ onClose, onCreated }) {
             <select
               value={form.status}
               onChange={(e) => set("status", e.target.value)}
-              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               <option value="draft">Draft</option>
               <option value="active">Active</option>
@@ -113,7 +113,7 @@ function NewPlaybookModal({ onClose, onCreated }) {
             <button
               type="submit"
               disabled={loading}
-              className="text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white transition"
+              className="text-sm px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white transition"
             >
               {loading ? "Saving…" : "Create Playbook"}
             </button>
@@ -222,7 +222,7 @@ export default function PlaybooksLibrary() {
         actions={
           <button
             onClick={() => setShowNew(true)}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition"
+            className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white text-sm px-4 py-2 rounded-lg transition"
           >
             <Plus size={15} /> New Playbook
           </button>
@@ -242,8 +242,8 @@ export default function PlaybooksLibrary() {
             onClick={() => setFilter(t)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
               filter === t
-                ? "bg-indigo-600 text-white"
-                : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-400"
+                ? "bg-orange-600 text-white"
+                : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-orange-400"
             }`}
           >
             {t === "all" ? "All" : t}
@@ -267,8 +267,8 @@ export default function PlaybooksLibrary() {
             <CardBody>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="h-9 w-9 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center">
-                    <BookOpen size={16} className="text-indigo-600 dark:text-indigo-400" />
+                  <div className="h-9 w-9 rounded-lg bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center">
+                    <BookOpen size={16} className="text-orange-600 dark:text-orange-400" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-slate-900 dark:text-white leading-tight">{pb.name}</p>
@@ -296,7 +296,7 @@ export default function PlaybooksLibrary() {
                 <button
                   onClick={() => runPlaybook(pb.id)}
                   disabled={running}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700 disabled:opacity-60 transition"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-orange-600 text-white text-xs hover:bg-orange-700 disabled:opacity-60 transition"
                 >
                   {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />} Run
                 </button>

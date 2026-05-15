@@ -66,7 +66,7 @@ function NewTaskModal({ onClose, onCreated }) {
               value={form.title}
               onChange={(e) => set("title", e.target.value)}
               placeholder="Task title"
-              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -75,7 +75,7 @@ function NewTaskModal({ onClose, onCreated }) {
               <select
                 value={form.type}
                 onChange={(e) => set("type", e.target.value)}
-                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
               >
                 {TASK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -85,7 +85,7 @@ function NewTaskModal({ onClose, onCreated }) {
               <select
                 value={form.priority}
                 onChange={(e) => set("priority", e.target.value)}
-                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
               >
                 {TASK_PRIORITIES.map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
               </select>
@@ -97,7 +97,7 @@ function NewTaskModal({ onClose, onCreated }) {
               type="date"
               value={form.dueDate}
               onChange={(e) => set("dueDate", e.target.value)}
-              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
@@ -111,7 +111,7 @@ function NewTaskModal({ onClose, onCreated }) {
             <button
               type="submit"
               disabled={loading}
-              className="text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white transition"
+              className="text-sm px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white transition"
             >
               {loading ? "Saving…" : "Create Task"}
             </button>
@@ -191,7 +191,7 @@ export default function TaskCadence() {
             </button>
             <button
               onClick={() => setShowNewTask(true)}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition"
+              className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white text-sm px-4 py-2 rounded-lg transition"
             >
               <Plus size={15} /> New Task
             </button>
@@ -226,13 +226,13 @@ export default function TaskCadence() {
               tasks.map((t, i) => (
                 <div
                   key={t.id ?? i}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition"
+                  className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-600 transition"
                 >
                   <input
                     type="checkbox"
                     checked={t.status === "done"}
                     onChange={() => completeTask(t.id)}
-                    className="rounded border-slate-300 dark:border-slate-600 text-indigo-600"
+                    className="rounded border-slate-300 dark:border-slate-600 text-orange-600"
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{t.title}</p>
@@ -272,7 +272,7 @@ export default function TaskCadence() {
                   <p className="text-xs text-slate-400 mb-3">{s.step ?? s.description ?? "—"}</p>
                   <div className="flex gap-4 text-xs">
                     <span className="text-slate-500">Enrolled: <strong className="text-slate-800 dark:text-slate-200">{s.enrolled ?? 0}</strong></span>
-                    <span className="text-slate-500">Active: <strong className="text-indigo-600 dark:text-indigo-400">{s.active ?? 0}</strong></span>
+                    <span className="text-slate-500">Active: <strong className="text-orange-600 dark:text-orange-400">{s.active ?? 0}</strong></span>
                   </div>
                 </div>
               ))
@@ -282,7 +282,7 @@ export default function TaskCadence() {
             <button
               onClick={() => createSequence({ name: "New Sequence", status: "active" })}
               disabled={creatingSeq}
-              className="w-full py-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 text-sm text-slate-500 hover:border-indigo-400 hover:text-indigo-600 transition disabled:opacity-50 flex items-center justify-center gap-1"
+              className="w-full py-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 text-sm text-slate-500 hover:border-orange-400 hover:text-orange-600 transition disabled:opacity-50 flex items-center justify-center gap-1"
             >
               {creatingSeq ? <Loader2 size={13} className="animate-spin" /> : "+ Create New Sequence"}
             </button>

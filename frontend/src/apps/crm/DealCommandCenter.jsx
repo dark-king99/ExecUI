@@ -1,316 +1,338 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useApi, useMutation } from "../../hooks/useApi";
-import { crm } from "../../services/api";
 import { useToast } from "../../components/ui/Toast";
-import { SkeletonCard, SkeletonTable } from "../../components/ui/Skeleton";
+import { crm } from "../../services/api";
+import PageHeader from "../../components/ui/PageHeader";
+import { Card, CardBody, CardHeader, Stat } from "../../components/ui/Card";
+import StatusBadge from "../../components/ui/StatusBadge";
 import {
-  DollarSign, Target, CalendarClock, Users, Mail, Phone,
-  MessageSquare, Share2, Calendar, AlertTriangle, CheckCircle2,
-  TrendingUp, FileText, History, Plus, Loader2, RefreshCw,
+  Search, DollarSign, TrendingUp, Users, Clock,
+  CheckCircle, Plus, X, ChevronRight, AlertCircle
 } from "lucide-react";
 
-const TYPE_META = {
-  email:    { icon: Mail,         cls: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300" },
-  call:     { icon: Phone,        cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
-  chat:     { icon: MessageSquare,cls: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300" },
-  social:   { icon: Share2,       cls: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300" },
-  meeting:  { icon: Calendar,     cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
-  campaign: { icon: FileText,     cls: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300" },
+const stageVariant = {
+  won: "success", negotiation: "warning", proposal: "info",
+  qualified: "neutral", lead: "neutral", lost: "danger",
 };
 
-function currency(n) { return `$${Number(n).toLocaleString()}`; }
+function NewTaskModal({ dealId, onClose, onCreated }) {
+  const toast = useToast();
+  const [form, setForm] = useState({ title: "", dueDate: "", priority: "medium" });
+  const [err, setErr] = useState(null);
+  const { mutate, loading } = useMutation((d) => crm.deals.createTask(dealId, d));
 
-function ErrorBanner({ message, onRetry }) {
+  async function submit(e) {
+    e.preventDefault();
+    setErr(null);
+    if (!form.title.trim()) { setErr("Task title is required."); return; }
+    try {
+      await mutate(form);
+      toast({ message: "Task added.", type: "success" });
+      onCreated();
+      onClose();
+    } catch (ex) { setErr(ex?.message ?? "Failed to create task."); }
+  }
+
   return (
-    <div className="flex items-center justify-between rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3">
-      <p className="text-sm text-red-700 dark:text-red-300">{message}</p>
-      {onRetry && (
-        <button onClick={onRetry} className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400 hover:underline">
-          <RefreshCw size={12} /> Retry
-        </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Add Task</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={16} /></button>
+        </div>
+        <form onSubmit={submit} className="px-5 py-4 space-y-3">
+          {err && <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded px-3 py-2">{err}</p>}
+          <input
+            type="text" placeholder="Task title" value={form.title}
+            onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
+            className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="date" value={form.dueDate}
+              onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))}
+              className="text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+            <select
+              value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}
+              className="text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              {["low","medium","high"].map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
+            </select>
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="text-sm px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition">Cancel</button>
+            <button type="submit" disabled={loading} className="text-sm px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white transition">{loading ? "Adding…" : "Add Task"}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function DealDetail({ deal, onClose }) {
+  const [showAddTask, setShowAddTask] = useState(false);
+  const { data: timeline, loading: tlLoading } = useApi(() => crm.deals.timeline(deal.id), [deal.id], {});
+  const { data: tasks, loading: tasksLoading, refetch: refetchTasks } = useApi(() => crm.deals.tasks(deal.id), [deal.id], {});
+  const { data: audit } = useApi(() => crm.deals.auditTrail(deal.id), [deal.id], {});
+  const { mutate: updateTask } = useMutation(({ dealId, taskId }) => crm.deals.updateTask(dealId, taskId, { status: "done" }));
+  const toast = useToast();
+
+  async function handleCompleteTask(taskId) {
+    try {
+      await updateTask({ dealId: deal.id, taskId });
+      toast({ message: "Task marked done.", type: "success" });
+      refetchTasks();
+    } catch { toast({ message: "Failed to update task.", type: "error" }); }
+  }
+
+  const allTasks = tasks ?? [];
+  const allTimeline = timeline ?? [];
+  const allAudit = audit ?? [];
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white truncate">{deal.name ?? deal.title}</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{deal.company ?? deal.account ?? "—"}</p>
+        </div>
+        <button onClick={onClose} className="ml-3 shrink-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"><X size={18} /></button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: "Value", value: deal.value ?? deal.amount ?? "—" },
+            { label: "Stage", value: <StatusBadge label={deal.stage ?? "—"} variant={stageVariant[deal.stage] ?? "neutral"} dot /> },
+            { label: "Close Date", value: deal.closeDate ?? deal.expectedClose ?? "—" },
+            { label: "Owner", value: deal.owner ?? deal.rep ?? "—" },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">{label}</p>
+              <div className="text-sm font-medium text-slate-900 dark:text-white">{value}</div>
+            </div>
+          ))}
+        </div>
+
+        {(deal.stakeholders ?? []).length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Stakeholders</p>
+            <div className="space-y-2">
+              {deal.stakeholders.map((s, i) => (
+                <div key={i} className="flex items-center justify-between text-sm">
+                  <span className="text-slate-900 dark:text-white font-medium">{s.name}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{s.role}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tasks</p>
+            <button onClick={() => setShowAddTask(true)} className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400 hover:underline">
+              <Plus size={11} /> Add
+            </button>
+          </div>
+          {tasksLoading ? (
+            <div className="space-y-1.5 animate-pulse">{[1,2].map(i => <div key={i} className="h-8 bg-slate-100 dark:bg-slate-700 rounded" />)}</div>
+          ) : allTasks.length === 0 ? (
+            <p className="text-xs text-slate-400 dark:text-slate-500">No tasks yet.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {allTasks.map(t => (
+                <div key={t.id} className="flex items-center gap-2.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                  <button
+                    onClick={() => handleCompleteTask(t.id)}
+                    className={`shrink-0 h-4 w-4 rounded border-2 flex items-center justify-center transition ${
+                      t.status === "done" ? "border-orange-500 bg-orange-500" : "border-slate-300 dark:border-slate-600 hover:border-orange-400"
+                    }`}
+                  >
+                    {t.status === "done" && <CheckCircle size={10} className="text-white" />}
+                  </button>
+                  <span className={`text-xs flex-1 ${t.status === "done" ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-300"}`}>{t.title}</span>
+                  {t.dueDate && <span className="text-[10px] text-slate-400">{t.dueDate}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Activity Timeline</p>
+          {tlLoading ? (
+            <div className="space-y-2 animate-pulse">{[1,2,3].map(i => <div key={i} className="h-10 bg-slate-100 dark:bg-slate-700 rounded" />)}</div>
+          ) : allTimeline.length === 0 ? (
+            <p className="text-xs text-slate-400 dark:text-slate-500">No timeline events.</p>
+          ) : (
+            <div className="space-y-2">
+              {allTimeline.slice(0, 8).map((e, i) => (
+                <div key={i} className="flex gap-3 text-sm">
+                  <div className="shrink-0 mt-1.5 h-2 w-2 rounded-full bg-orange-400" />
+                  <div>
+                    <p className="text-slate-800 dark:text-slate-200 text-xs">{e.description ?? e.event}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{e.time ?? e.date ?? e.createdAt}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {allAudit.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Audit Trail</p>
+            <div className="space-y-1">
+              {allAudit.slice(0, 5).map((a, i) => (
+                <div key={i} className="text-xs text-slate-500 dark:text-slate-400 flex justify-between">
+                  <span>{a.action ?? a.event}</span>
+                  <span className="text-slate-400 dark:text-slate-500">{a.by ?? a.user}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showAddTask && (
+        <NewTaskModal dealId={deal.id} onClose={() => setShowAddTask(false)} onCreated={refetchTasks} />
       )}
     </div>
   );
 }
 
 export default function DealCommandCenter() {
-  const toast = useToast();
+  const [search, setSearch] = useState("");
+  const [stageFilter, setStageFilter] = useState("all");
+  const [selectedDeal, setSelectedDeal] = useState(null);
 
-  // The deal command center shows the most recent/selected deal.
-  // In a real app this would come from routing params (:dealId).
-  // Here we load the first deal from the list.
-  const {
-    data: deals,
-    loading: dealLoading,
-    error: dealError,
-    refetch: refetchDeal,
-  } = useApi(() => crm.deals.list({ limit: 1 }));
-
-  const deal = deals?.[0] ?? null;
-
-  const {
-    data: timeline,
-    loading: tlLoading,
-    error: tlError,
-  } = useApi(
-    () => deal ? crm.deals.timeline(deal.id) : Promise.resolve(null),
-    [deal?.id]
+  const { data: deals, loading, error } = useApi(
+    () => crm.deals.list(), [], { pollingInterval: 30000 }
   );
 
-  const {
-    data: tasksData,
-    loading: tasksLoading,
-    error: tasksError,
-    refetch: refetchTasks,
-  } = useApi(
-    () => deal ? crm.deals.tasks(deal.id) : Promise.resolve(null),
-    [deal?.id]
-  );
+  const allDeals = deals ?? [];
 
-  const {
-    data: audit,
-    loading: auditLoading,
-    error: auditError,
-  } = useApi(
-    () => deal ? crm.deals.auditTrail(deal.id) : Promise.resolve(null),
-    [deal?.id]
-  );
+  const wonCount    = allDeals.filter(d => d.stage === "won").length;
+  const activeCount = allDeals.filter(d => !["won","lost"].includes(d.stage)).length;
+  const totalValue  = allDeals
+    .filter(d => d.stage !== "lost")
+    .reduce((sum, d) => sum + (parseFloat(String(d.value ?? d.amount ?? "0").replace(/[^0-9.]/g,"")) || 0), 0);
 
-  const [newTask, setNewTask] = useState("");
+  const stages = ["all", ...Array.from(new Set(allDeals.map(d => d.stage).filter(Boolean)))];
 
-  const { mutate: createTask, loading: creatingTask } = useMutation(
-    (data) => crm.deals.createTask(deal.id, data),
-    {
-      onSuccess: () => { setNewTask(""); refetchTasks(); toast({ message: "Task added.", type: "success" }); },
-      onError:   (err) => toast({ message: err?.message ?? "Failed to add task.", type: "error" }),
-    }
-  );
-
-  const { mutate: toggleTask } = useMutation(
-    ({ dealId, taskId, done }) => crm.deals.updateTask(dealId, taskId, { done }),
-    {
-      onSuccess: () => refetchTasks(),
-      onError:   (err) => toast({ message: err?.message ?? "Update failed.", type: "error" }),
-    }
-  );
-
-  const weighted = deal ? Math.round((deal.value ?? 0) * (deal.probability ?? 0)) : 0;
-
-  if (dealLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
-        </div>
-        <SkeletonTable rows={6} />
-      </div>
-    );
-  }
-
-  if (dealError) return <ErrorBanner message={dealError} onRetry={refetchDeal} />;
-
-  if (!deal) {
-    return (
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-10 text-center text-sm text-slate-500">
-        No deals found. Create your first deal to get started.
-      </div>
-    );
-  }
+  const filtered = allDeals.filter(d => {
+    const q = search.toLowerCase();
+    const matchSearch = !search || [d.name, d.title, d.company, d.account, d.owner, d.rep]
+      .some(v => v?.toLowerCase().includes(q));
+    const matchStage = stageFilter === "all" || d.stage === stageFilter;
+    return matchSearch && matchStage;
+  });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">{deal.name}</h1>
-          <p className="text-slate-500">Deal ID {deal.id} · Account: {deal.account ?? "—"}</p>
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="px-6 pt-6 shrink-0">
+        <PageHeader
+          title="Deal Command Center"
+          subtitle="Browse, search, and manage all deals across your pipeline."
+        />
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <Stat label="Active Deals"   value={loading ? "…" : activeCount} icon={TrendingUp}  color="indigo" />
+          <Stat label="Deals Won"      value={loading ? "…" : wonCount}    icon={CheckCircle} color="emerald" />
+          <Stat label="Pipeline Value" value={loading ? "…" : `$${(totalValue/1000).toFixed(0)}k`} icon={DollarSign} color="amber" />
         </div>
-        <button
-          onClick={refetchDeal}
-          className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg transition"
-        >
-          <RefreshCw size={13} /> Refresh
-        </button>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <KPI icon={DollarSign}   label="Deal Value"        value={currency(deal.value ?? 0)} />
-        <KPI icon={Target}       label="Probability"       value={`${Math.round((deal.probability ?? 0) * 100)}%`} />
-        <KPI icon={TrendingUp}   label="Weighted Forecast" value={currency(weighted)} />
-        <KPI icon={CalendarClock}label="Age (days)"        value={deal.ageDays ?? "—"} />
-        <KPI icon={CalendarClock}label="Close Date"        value={deal.closeDate ?? "—"} />
-      </div>
+      {error && (
+        <div className="mx-6 mb-4 flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {error}
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left */}
-        <div className="space-y-6">
-          <Panel title="Deal Overview">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <Field label="Owner"           value={deal.owner ?? "—"} />
-              <Field label="Stage"           value={deal.stage ?? "—"} />
-              <Field label="Forecast Cat."   value={deal.forecastCategory ?? "—"} />
-              <Field label="Days in Stage"   value={deal.daysInStage ?? "—"} />
-              <Field label="Risk">
-                {deal.riskLevel === "attention" ? (
-                  <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                    <AlertTriangle className="h-4 w-4" /> Attention
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="h-4 w-4" /> Healthy
-                  </span>
-                )}
-              </Field>
+      <div className="flex flex-1 overflow-hidden gap-4 px-6 pb-6">
+        <div className={`flex flex-col ${selectedDeal ? "w-80 shrink-0" : "flex-1"} transition-all duration-200`}>
+          <Card className="flex flex-col h-full overflow-hidden">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 shrink-0 space-y-3">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text" placeholder="Search deals…" value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full text-sm pl-8 pr-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+              <div className="flex gap-1.5 flex-wrap">
+                {stages.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setStageFilter(s)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${
+                      stageFilter === s
+                        ? "bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                    }`}
+                  >
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
-          </Panel>
 
-          <Panel title="Stakeholders & Contacts" icon={Users}>
-            <div className="space-y-2">
-              {deal.contacts?.length > 0 ? (
-                deal.contacts.map((c) => (
-                  <div key={c.email} className="flex items-center justify-between rounded border p-3">
-                    <div>
-                      <div className="font-medium text-sm">{c.name}</div>
-                      <div className="text-xs text-slate-500">{c.role}</div>
-                    </div>
-                    <div className="text-xs text-slate-500">{c.email}</div>
-                  </div>
-                ))
+            <div className="flex-1 overflow-y-auto">
+              {loading && allDeals.length === 0 ? (
+                <div className="space-y-2 p-4 animate-pulse">
+                  {[1,2,3,4,5].map(i => <div key={i} className="h-16 bg-slate-100 dark:bg-slate-700 rounded-lg" />)}
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 text-slate-400 dark:text-slate-500 text-sm">
+                  <DollarSign size={28} className="mb-2 opacity-30" />
+                  {allDeals.length === 0 ? "No deals found." : "No deals match your filters."}
+                </div>
               ) : (
-                <p className="text-sm text-slate-500">No stakeholders recorded.</p>
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {filtered.map(deal => (
+                    <button
+                      key={deal.id}
+                      onClick={() => setSelectedDeal(selectedDeal?.id === deal.id ? null : deal)}
+                      className={`w-full text-left px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition group ${
+                        selectedDeal?.id === deal.id ? "bg-orange-50 dark:bg-orange-500/5 border-l-2 border-orange-500" : "border-l-2 border-transparent"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{deal.name ?? deal.title}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
+                            <Users size={10} /> {deal.company ?? deal.account ?? "—"}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right space-y-1">
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white">{deal.value ?? deal.amount ?? "—"}</p>
+                          <StatusBadge label={deal.stage ?? "—"} variant={stageVariant[deal.stage] ?? "neutral"} dot />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                          <Clock size={9} /> {deal.closeDate ?? deal.expectedClose ?? "—"}
+                        </span>
+                        <ChevronRight size={13} className="text-slate-300 dark:text-slate-600 group-hover:text-orange-500 transition" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
-          </Panel>
+          </Card>
         </div>
 
-        {/* Center: Timeline */}
-        <Panel title="Deal Activity Timeline" className="lg:col-span-1">
-          {tlLoading ? <SkeletonTable rows={3} /> : tlError ? (
-            <p className="text-sm text-red-500">{tlError}</p>
-          ) : timeline?.length > 0 ? (
-            <div className="space-y-3">
-              {timeline.map((e) => {
-                const meta = TYPE_META[e.type] ?? TYPE_META.email;
-                const Icon = meta.icon;
-                return (
-                  <div key={e.id} className="rounded border p-3 bg-white dark:bg-slate-900">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${meta.cls}`}>
-                        <Icon className="h-3.5 w-3.5" /> {e.type}
-                      </span>
-                      <span className="text-xs text-slate-500">{e.ts ?? e.timestamp}</span>
-                    </div>
-                    <div className="font-medium text-sm">{e.title}</div>
-                    <div className="text-sm text-slate-600 dark:text-slate-400">{e.summary}</div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-500">No activity recorded.</p>
-          )}
-        </Panel>
-
-        {/* Right */}
-        <div className="space-y-6">
-          <Panel title="Next Actions">
-            <div className="flex gap-2 mb-3">
-              <input
-                value={newTask}
-                onChange={(e) => setNewTask(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && newTask.trim() && createTask({ title: newTask })}
-                placeholder="Add next action…"
-                className="flex-1 px-3 py-2 rounded border bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <button
-                onClick={() => newTask.trim() && createTask({ title: newTask })}
-                disabled={creatingTask || !newTask.trim()}
-                className="px-3 py-2 rounded bg-indigo-600 text-white text-sm flex items-center gap-1 disabled:opacity-50"
-              >
-                {creatingTask ? <Loader2 size={14} className="animate-spin" /> : <Plus className="h-4 w-4" />}
-                Add
-              </button>
-            </div>
-            {tasksLoading ? <SkeletonTable rows={3} /> : tasksError ? (
-              <p className="text-sm text-red-500">{tasksError}</p>
-            ) : (
-              <div className="space-y-2">
-                {(tasksData ?? []).map((t) => (
-                  <div key={t.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={t.done ?? false}
-                      onChange={() => toggleTask({ dealId: deal.id, taskId: t.id, done: !t.done })}
-                    />
-                    <span className={t.done ? "line-through text-slate-400" : ""}>{t.title}</span>
-                  </div>
-                ))}
-                {(tasksData ?? []).length === 0 && <p className="text-sm text-slate-500">No tasks yet.</p>}
-              </div>
-            )}
-          </Panel>
-
-          <Panel title="Forecast Impact">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span>Deal Value</span><span className="font-medium">{currency(deal.value ?? 0)}</span></div>
-              <div className="flex justify-between"><span>Probability</span><span className="font-medium">{Math.round((deal.probability ?? 0) * 100)}%</span></div>
-              <div className="flex justify-between"><span>Weighted Impact</span><span className="font-medium">{currency(weighted)}</span></div>
-              <div className="flex justify-between"><span>Forecast Category</span><span className="font-medium">{deal.forecastCategory ?? "—"}</span></div>
-            </div>
-          </Panel>
-
-          <Panel title="Audit Trail" icon={History}>
-            {auditLoading ? <SkeletonTable rows={3} /> : auditError ? (
-              <p className="text-sm text-red-500">{auditError}</p>
-            ) : (
-              <div className="space-y-2 text-sm">
-                {(audit ?? []).map((a) => (
-                  <div key={a.id} className="text-slate-600 dark:text-slate-400">
-                    <div className="text-xs text-slate-500">{a.ts ?? a.timestamp}</div>
-                    <div>{a.text ?? a.description}</div>
-                  </div>
-                ))}
-                {(audit ?? []).length === 0 && <p className="text-sm text-slate-500">No audit records.</p>}
-              </div>
-            )}
-          </Panel>
-        </div>
+        {selectedDeal && (
+          <div className="flex-1 overflow-hidden">
+            <Card className="h-full overflow-hidden flex flex-col">
+              <DealDetail deal={selectedDeal} onClose={() => setSelectedDeal(null)} />
+            </Card>
+          </div>
+        )}
       </div>
-    </div>
-  );
-}
-
-function KPI({ icon: Icon, label, value }) {
-  return (
-    <div className="rounded-xl border bg-white dark:bg-slate-900 p-4 flex items-center gap-3">
-      <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
-        <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-      </div>
-      <div>
-        <div className="text-xs text-slate-500">{label}</div>
-        <div className="text-lg font-semibold">{value}</div>
-      </div>
-    </div>
-  );
-}
-
-function Panel({ title, icon: Icon, children, className = "" }) {
-  return (
-    <div className={`rounded-xl border bg-white dark:bg-slate-900 p-4 ${className}`}>
-      <div className="flex items-center gap-2 mb-3">
-        {Icon && <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />}
-        <div className="font-semibold">{title}</div>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Field({ label, value, children }) {
-  return (
-    <div>
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="font-medium">{children ?? value ?? "—"}</div>
     </div>
   );
 }
