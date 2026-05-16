@@ -1,380 +1,204 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
+import { Bot, Send, Sparkles, RefreshCw, AlertCircle, Lightbulb, Zap } from "lucide-react";
+import PageHeader from "../../components/ui/PageHeader";
+import { Card, CardHeader, CardBody } from "../../components/ui/Card";
+import { SkeletonTable } from "../../components/ui/Skeleton";
+import { useToast } from "../../components/ui/Toast";
 import { useApi, useMutation } from "../../hooks/useApi";
 import { crm } from "../../services/api";
-import { useToast } from "../../components/ui/Toast";
-import {
-  Bot, Send, Loader2, RefreshCw, User, Sparkles,
-  TrendingUp, Users, AlertTriangle, CheckCircle2,
-  ChevronDown, X, Lightbulb, Target, BarChart3,
-  ClipboardList, Zap, BookOpen,
-} from "lucide-react";
 
-// ── Topic chips ──────────────────────────────────────────────────────────────
-const TOPICS = [
-  { label: "Pipeline Health",      prompt: "Give me an overview of pipeline health and what to watch.",         icon: TrendingUp },
-  { label: "Lead Qualification",   prompt: "How should I qualify leads effectively? What framework works best?", icon: Target },
-  { label: "At-Risk Customers",    prompt: "How do I identify and handle at-risk customers?",                    icon: AlertTriangle },
-  { label: "Sales Forecasting",    prompt: "Explain sales forecasting best practices and categories.",           icon: BarChart3 },
-  { label: "Follow-Up Cadence",    prompt: "What's the optimal follow-up cadence for B2B deals?",               icon: ClipboardList },
-  { label: "Win / Loss Analysis",  prompt: "What are the top reasons deals are lost and how to address them?",  icon: BarChart3 },
-  { label: "CRM Best Practices",   prompt: "Give me the top CRM best practices for a high-performing team.",    icon: BookOpen },
-  { label: "What is a CRM?",       prompt: "What is a CRM and why is it important for sales teams?",            icon: Lightbulb },
+const QUICK_PROMPTS = [
+  "Summarize my top 5 deals at risk",
+  "Which leads need follow-up today?",
+  "What's my forecast vs quota this quarter?",
+  "Show me the accounts with the highest churn risk",
+  "Generate a call plan for my next big deal",
+  "Which reps are below 70% attainment?",
 ];
 
-// ── Message renderer — converts **bold**, bullet "•", and "\n" to JSX ────────
-function MessageContent({ text }) {
-  const lines = text.split("\n");
+const QUICK_ACTIONS = [
+  { label: "Refresh Summaries", icon: RefreshCw, action: "summaries" },
+  { label: "Prioritize Leads", icon: Zap, action: "prioritize_leads" },
+  { label: "Deal Insights", icon: Lightbulb, action: "deal_insights" },
+];
+
+function ChatMessage({ msg }) {
+  const isUser = msg.role === "user";
   return (
-    <div className="space-y-1 text-sm leading-relaxed">
-      {lines.map((line, i) => {
-        if (!line.trim()) return <div key={i} className="h-1" />;
-
-        // Render inline **bold**
-        const parts = line.split(/(\*\*[^*]+\*\*)/g);
-        const rendered = parts.map((p, j) =>
-          p.startsWith("**") && p.endsWith("**")
-            ? <strong key={j} className="font-semibold">{p.slice(2, -2)}</strong>
-            : p
-        );
-
-        // Bullet points
-        if (line.startsWith("•") || line.match(/^\d+\./)) {
-          return <div key={i} className="flex gap-2"><span className="shrink-0 mt-0.5">›</span><span>{rendered}</span></div>;
-        }
-        return <p key={i}>{rendered}</p>;
-      })}
+    <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
+      <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${isUser ? "bg-orange-600" : "bg-slate-200 dark:bg-slate-700"}`}>
+        {isUser ? <span className="text-white text-xs font-bold">U</span> : <Bot size={14} className="text-slate-600 dark:text-slate-300" />}
+      </div>
+      <div className={`max-w-[80%] rounded-xl px-4 py-3 text-sm ${isUser ? "bg-orange-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white"}`}>
+        {msg.content}
+      </div>
     </div>
   );
 }
 
-// ── Customer context pill ────────────────────────────────────────────────────
-function CustomerPill({ customer, onClear }) {
-  if (!customer) return null;
-  return (
-    <div className="flex items-center gap-2 bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 rounded-full px-3 py-1 text-xs text-orange-700 dark:text-orange-300">
-      <User size={11} />
-      <span className="font-medium">{customer.name}</span>
-      <button onClick={onClear} className="hover:text-orange-900 dark:hover:text-white ml-0.5">
-        <X size={11} />
-      </button>
-    </div>
-  );
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
-export default function SmartCRM() {
+export default function SmartCRM({ role }) {
   const toast = useToast();
-  const bottomRef   = useRef(null);
-  const inputRef    = useRef(null);
-
-  const [input,            setInput]            = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [customerOpen,     setCustomerOpen]      = useState(false);
-  const [messages,         setMessages]          = useState([
-    {
-      role: "assistant",
-      content: "Hi! I'm **SmartCRM AI** — your intelligent CRM copilot.\n\nI can help you with:\n• Pipeline health and deal strategy\n• Customer risk and churn prevention\n• Lead qualification frameworks\n• Sales forecasting and quota tracking\n• Follow-up cadences and task automation\n• CRM best practices and playbooks\n\nAsk me anything, or pick a topic from the sidebar to get started.",
-    },
+  const [messages, setMessages] = useState([
+    { role: "assistant", content: "Hello! I'm your Smart CRM AI. Ask me anything about your pipeline, deals, leads, or accounts. I can help you prioritize, analyze, and take action." }
   ]);
+  const [input, setInput] = useState("");
+  const [tab, setTab] = useState("chat");
+  const bottomRef = useRef(null);
+  const { data: summaries, loading: sumLoading, refetch: refetchSummaries } = useApi(() => crm.ai.summaries({ type: "overview" }), [], { pollingInterval: 300000 });
 
-  // ── Data ────────────────────────────────────────────────────────────────────
-  const { data: customers, loading: customersLoading } = useApi(() => crm.customers.list({ limit: 50 }));
-  const { data: pipelineSummary } = useApi(() => crm.pipeline.summary());
-  const { data: forecastSummary } = useApi(() => crm.forecast.summary());
+  const { mutate: sendMessage, loading: chatLoading } = useMutation((body) => crm.ai.chat(body), {
+    onSuccess: (result) => {
+      setMessages(prev => [...prev, { role: "assistant", content: result?.message ?? result?.response ?? "Here's what I found..." }]);
+    },
+    onError: (e) => {
+      setMessages(prev => [...prev, { role: "assistant", content: `Sorry, I encountered an error: ${e?.message ?? "Unknown error"}` }]);
+    },
+  });
 
-  // ── AI chat mutation ────────────────────────────────────────────────────────
-  const { mutate: sendChat, loading: chatLoading } = useMutation(
-    (body) => crm.ai.chat(body),
-    { onError: (err) => toast({ message: err?.message ?? "AI unavailable.", type: "error" }) }
-  );
+  const { mutate: runAction } = useMutation((body) => crm.ai.action(body), {
+    onSuccess: (result) => {
+      setMessages(prev => [...prev, { role: "assistant", content: result?.message ?? result?.summary ?? "Action completed." }]);
+      setTab("chat");
+    },
+    onError: (e) => toast({ message: e?.message ?? "Action failed", type: "error" }),
+  });
 
-  // ── Auto-scroll ─────────────────────────────────────────────────────────────
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, chatLoading]);
 
-  // ── Send message ─────────────────────────────────────────────────────────────
-  const handleSend = useCallback(async (text) => {
-    const msg = (text ?? input).trim();
-    if (!msg || chatLoading) return;
+  function submit() {
+    if (!input.trim() || chatLoading) return;
+    const userMsg = input.trim();
     setInput("");
+    setMessages(prev => [...prev, { role: "user", content: userMsg }]);
+    sendMessage({ message: userMsg, context: { role } });
+  }
 
-    const userMsg = { role: "user", content: msg };
-    setMessages(prev => [...prev, userMsg]);
-
-    try {
-      const body = { message: msg };
-      if (selectedCustomer) body.customerId = selectedCustomer.id;
-      const res = await sendChat(body);
-      const reply = res?.reply ?? res?.message ?? "I'm here to help — could you rephrase that?";
-      setMessages(prev => [...prev, { role: "assistant", content: reply }]);
-    } catch {
-      // handled by onError
-    }
-  }, [input, chatLoading, selectedCustomer, sendChat]);
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
-  };
-
-  const handleTopic = (prompt) => {
-    handleSend(prompt);
-    inputRef.current?.focus();
-  };
-
-  const handleSelectCustomer = (c) => {
-    setSelectedCustomer(c);
-    setCustomerOpen(false);
-    setMessages(prev => [
-      ...prev,
-      {
-        role: "assistant",
-        content: `Customer context set to **${c.name}**.\n\nI can now answer questions specific to this account. For example:\n• What is ${c.name}'s engagement level?\n• Are there any risk signals for this account?\n• What's the recommended next action for ${c.name}?`,
-      },
-    ]);
-  };
-
-  const handleClearCustomer = () => {
-    setSelectedCustomer(null);
-    setMessages(prev => [
-      ...prev,
-      { role: "assistant", content: "Customer context cleared. I'm back to general CRM mode — ask me anything." },
-    ]);
-  };
-
-  const atRiskCount  = (customers ?? []).filter(c => (c.lastContactDays ?? 0) > 14).length;
-  const healthyCount = (customers ?? []).filter(c => (c.lastContactDays ?? 0) <= 14).length;
+  const allSummaries = summaries ?? {};
 
   return (
-    <div className="h-full flex gap-4 min-h-0">
-
-      {/* ── Left: Chat panel ─────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-h-0 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/40 dark:to-slate-900">
-          <div className="flex items-center gap-3">
-            <div className="p-1.5 rounded-lg bg-orange-600">
-              <Bot size={16} className="text-white" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-slate-900 dark:text-white text-sm">SmartCRM AI</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">CRM Intelligence Copilot</p>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <PageHeader title="Smart CRM" subtitle="AI-powered sales intelligence and automated insights"
+        actions={
           <div className="flex items-center gap-2">
-            {selectedCustomer && <CustomerPill customer={selectedCustomer} onClear={handleClearCustomer} />}
-            <span className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Online
-            </span>
+            <Sparkles size={16} className="text-orange-500" />
+            <span className="text-sm text-slate-600 dark:text-slate-300 font-medium">AI-Powered</span>
           </div>
-        </div>
+        }
+      />
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
-          {messages.map((m, i) => (
-            <div key={i} className={`flex gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
-              {/* Avatar */}
-              <div className={`h-7 w-7 rounded-full shrink-0 flex items-center justify-center ${
-                m.role === "user"
-                  ? "bg-orange-600"
-                  : "bg-gradient-to-br from-indigo-500 to-purple-600"
-              }`}>
-                {m.role === "user"
-                  ? <User size={13} className="text-white" />
-                  : <Bot size={13} className="text-white" />
-                }
-              </div>
-
-              {/* Bubble */}
-              <div className={`max-w-[78%] px-4 py-3 rounded-2xl ${
-                m.role === "user"
-                  ? "bg-orange-600 text-white rounded-tr-sm"
-                  : "bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-tl-sm border border-slate-100 dark:border-slate-700"
-              }`}>
-                {m.role === "user"
-                  ? <p className="text-sm">{m.content}</p>
-                  : <MessageContent text={m.content} />
-                }
-              </div>
-            </div>
-          ))}
-
-          {/* Typing indicator */}
-          {chatLoading && (
-            <div className="flex gap-3">
-              <div className="h-7 w-7 rounded-full shrink-0 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                <Bot size={13} className="text-white" />
-              </div>
-              <div className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
-              </div>
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-
-        {/* Input bar */}
-        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800">
-          <div className="flex items-end gap-2">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={chatLoading}
-              rows={1}
-              placeholder="Ask anything about your CRM, pipeline, customers…"
-              className="flex-1 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 resize-none leading-relaxed"
-              style={{ maxHeight: "120px" }}
-              onInput={(e) => {
-                e.target.style.height = "auto";
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
-              }}
-            />
-            <button
-              onClick={() => handleSend()}
-              disabled={chatLoading || !input.trim()}
-              className="h-10 w-10 flex items-center justify-center rounded-xl bg-orange-600 hover:bg-orange-700 text-white transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-            >
-              {chatLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-            </button>
-          </div>
-          <p className="text-xs text-slate-400 mt-1.5">Enter to send · Shift+Enter for new line</p>
-        </div>
+      <div className="flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden w-fit">
+        {["chat", "insights", "actions"].map(t => (
+          <button key={t} onClick={() => setTab(t)} className={`px-4 py-1.5 text-sm font-medium capitalize transition ${tab === t ? "bg-orange-600 text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"}`}>{t}</button>
+        ))}
       </div>
 
-      {/* ── Right: Context sidebar ───────────────────────────────────────────── */}
-      <div className="w-72 shrink-0 flex flex-col gap-4 overflow-y-auto">
-
-        {/* CRM Stats */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles size={14} className="text-orange-500" />
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">CRM Overview</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 p-2.5">
-              <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{healthyCount}</div>
-              <div className="text-xs text-emerald-600 dark:text-emerald-500 flex items-center gap-1">
-                <CheckCircle2 size={10} /> Healthy
-              </div>
-            </div>
-            <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 p-2.5">
-              <div className="text-lg font-bold text-amber-700 dark:text-amber-400">{atRiskCount}</div>
-              <div className="text-xs text-amber-600 dark:text-amber-500 flex items-center gap-1">
-                <AlertTriangle size={10} /> At Risk
-              </div>
-            </div>
-            {forecastSummary?.target != null && (
-              <div className="col-span-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800 p-2.5">
-                <div className="text-xs text-orange-500 dark:text-orange-400 mb-0.5">Forecast Commit</div>
-                <div className="text-sm font-bold text-orange-700 dark:text-orange-300">
-                  ${Number(forecastSummary.committed ?? 0).toLocaleString()}
+      {tab === "chat" && (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          <div className="lg:col-span-3">
+            <Card>
+              <div className="flex flex-col h-[520px]">
+                <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-200 dark:border-slate-800">
+                  <Bot size={16} className="text-orange-600" />
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white">CRM Assistant</span>
+                  <div className="ml-auto h-2 w-2 rounded-full bg-emerald-500" />
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Customer context selector */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <User size={14} className="text-slate-500" />
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Customer Context</h3>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-            Optionally select a customer to focus the AI on their specific account.
-          </p>
-
-          {selectedCustomer ? (
-            <div className="flex items-center justify-between bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg px-3 py-2">
-              <div>
-                <p className="text-sm font-medium text-orange-700 dark:text-orange-300">{selectedCustomer.name}</p>
-                <p className="text-xs text-orange-500 dark:text-orange-400">{selectedCustomer.email ?? "No email"}</p>
-              </div>
-              <button onClick={handleClearCustomer} className="text-orange-400 hover:text-orange-700 dark:hover:text-orange-200">
-                <X size={14} />
-              </button>
-            </div>
-          ) : (
-            <div className="relative">
-              <button
-                onClick={() => setCustomerOpen(o => !o)}
-                className="w-full flex items-center justify-between border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-orange-400 dark:hover:border-orange-500 transition"
-              >
-                <span>Select customer…</span>
-                <ChevronDown size={14} className={`transition-transform ${customerOpen ? "rotate-180" : ""}`} />
-              </button>
-              {customerOpen && (
-                <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl max-h-52 overflow-y-auto">
-                  {customersLoading ? (
-                    <div className="flex justify-center py-4">
-                      <Loader2 size={16} className="animate-spin text-slate-400" />
+                <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                  {messages.map((m, i) => <ChatMessage key={i} msg={m} />)}
+                  {chatLoading && (
+                    <div className="flex gap-3">
+                      <div className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0"><Bot size={14} className="text-slate-600 dark:text-slate-300" /></div>
+                      <div className="bg-slate-100 dark:bg-slate-800 rounded-xl px-4 py-3 flex gap-1.5 items-center">
+                        {[0, 1, 2].map(i => <div key={i} className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
+                      </div>
                     </div>
-                  ) : (customers ?? []).length === 0 ? (
-                    <p className="text-sm text-slate-500 text-center py-4">No customers found.</p>
-                  ) : (
-                    (customers ?? []).map(c => (
-                      <button
-                        key={c.id}
-                        onClick={() => handleSelectCustomer(c)}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700 transition text-sm"
-                      >
-                        <div className="h-6 w-6 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center shrink-0">
-                          <User size={11} className="text-orange-600 dark:text-orange-400" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-medium text-slate-900 dark:text-white truncate">{c.name}</p>
-                          {c.email && <p className="text-xs text-slate-500 truncate">{c.email}</p>}
-                        </div>
-                        {(c.lastContactDays ?? 0) > 14 && (
-                          <AlertTriangle size={12} className="text-amber-500 shrink-0 ml-auto" />
-                        )}
-                      </button>
-                    ))
                   )}
+                  <div ref={bottomRef} />
                 </div>
-              )}
+                <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex gap-2">
+                    <input
+                      value={input}
+                      onChange={e => setInput(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && !e.shiftKey && submit()}
+                      placeholder="Ask about your deals, leads, pipeline…"
+                      className="flex-1 text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                    <button onClick={submit} disabled={!input.trim() || chatLoading} className="p-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-lg transition">
+                      <Send size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          <div className="space-y-3">
+            <Card>
+              <CardBody className="space-y-2">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Quick Prompts</h3>
+                {QUICK_PROMPTS.map((p, i) => (
+                  <button key={i} onClick={() => setInput(p)} className="w-full text-left text-xs text-slate-600 dark:text-slate-300 px-3 py-2 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600 border border-slate-100 dark:border-slate-800 transition">
+                    {p}
+                  </button>
+                ))}
+              </CardBody>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {tab === "insights" && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <button onClick={refetchSummaries} className="flex items-center gap-1.5 text-xs border border-slate-200 dark:border-slate-700 text-slate-500 px-3 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition"><RefreshCw size={13} /> Refresh Insights</button>
+          </div>
+          {sumLoading ? <SkeletonTable rows={6} /> : Object.keys(allSummaries).length === 0 ? (
+            <Card>
+              <CardBody>
+                <div className="flex flex-col items-center py-10 text-slate-500">
+                  <Sparkles size={32} className="text-orange-400 mb-3" />
+                  <p className="text-sm">AI insights are being generated…</p>
+                  <p className="text-xs text-slate-400 mt-1">This may take a moment</p>
+                </div>
+              </CardBody>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Object.entries(allSummaries).map(([key, val]) => (
+                <Card key={key}>
+                  <CardHeader title={key.replace(/([A-Z])/g, " $1").trim()} icon={Lightbulb} />
+                  <CardBody>
+                    <p className="text-sm text-slate-700 dark:text-slate-300">{typeof val === "string" ? val : JSON.stringify(val)}</p>
+                  </CardBody>
+                </Card>
+              ))}
             </div>
           )}
         </div>
+      )}
 
-        {/* Quick topics */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Zap size={14} className="text-amber-500" />
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Quick Topics</h3>
-          </div>
-          <div className="space-y-1.5">
-            {TOPICS.map(({ label, prompt, icon: Icon }) => (
-              <button
-                key={label}
-                onClick={() => handleTopic(prompt)}
-                disabled={chatLoading}
-                className="w-full flex items-center gap-2.5 text-left px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-700 dark:hover:text-orange-300 transition disabled:opacity-40 group"
-              >
-                <Icon size={13} className="text-slate-400 group-hover:text-orange-500 shrink-0 transition" />
-                {label}
-              </button>
-            ))}
-          </div>
+      {tab === "actions" && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader title="AI-Powered Actions" icon={Zap} subtitle="Let AI take intelligent actions on your behalf" />
+            <CardBody>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {QUICK_ACTIONS.map(({ label, icon: Icon, action }) => (
+                  <button key={action} onClick={() => { setMessages(prev => [...prev, { role: "user", content: label }]); runAction({ action }); setTab("chat"); }}
+                    className="flex flex-col items-center gap-3 p-6 bg-slate-50 dark:bg-slate-800 rounded-xl hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:border-orange-300 border border-slate-200 dark:border-slate-700 transition group">
+                    <div className="h-12 w-12 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center group-hover:bg-orange-200 dark:group-hover:bg-orange-900/50 transition">
+                      <Icon size={22} className="text-orange-600" />
+                    </div>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-orange-600 transition text-center">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </CardBody>
+          </Card>
         </div>
-
-        {/* Clear chat */}
-        <button
-          onClick={() => setMessages([{
-            role: "assistant",
-            content: "Chat cleared. How can I help you with your CRM today?",
-          }])}
-          className="flex items-center justify-center gap-2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 py-2 transition"
-        >
-          <RefreshCw size={12} /> Clear conversation
-        </button>
-      </div>
+      )}
     </div>
   );
 }

@@ -4,23 +4,27 @@ import {
   LayoutDashboard, Database, Bell, Activity, ArrowLeft, Library,
   Settings, Map, AlertTriangle, GitBranch,
   ShieldCheck, TrendingUp, HeartPulse, Bot,
-  ChevronLeft, ChevronRight, Server
+  ChevronLeft, ChevronRight, Server, Monitor, Lock, ShieldAlert
 } from "lucide-react";
 
 const items = [
-  { id: "dashboard",  label: "Dashboard",          icon: LayoutDashboard, path: "/network/dashboard" },
-  { id: "inventory",  label: "Inventory",           icon: Database,        path: "/network/inventory" },
-  { id: "incidents",  label: "Incident Center",     icon: AlertTriangle,   path: "/network/incidents" },
-  { id: "changes",    label: "Change Management",   icon: GitBranch,       path: "/network/changes" },
-  { id: "policy",     label: "Policy & Compliance", icon: ShieldCheck,     path: "/network/policy" },
-  { id: "capacity",   label: "Capacity Planning",   icon: TrendingUp,      path: "/network/capacity" },
-  { id: "slo",        label: "Service Health",      icon: HeartPulse,      path: "/network/slo" },
-  { id: "automation", label: "Automation Jobs",     icon: Bot,             path: "/network/automation" },
-  { id: "map",        label: "Topology",            icon: Map,             path: "/network/map" },
-  { id: "alerts",     label: "Alerts",              icon: Bell,            path: "/network/alerts" },
-  { id: "traffic",    label: "Traffic",             icon: Activity,        path: "/network/traffic" },
-  { id: "docs",       label: "Documentation",       icon: Library,         path: "/network/docs" },
-  { id: "settings",   label: "Settings",            icon: Settings,        path: "/network/settings" },
+  { id: "dashboard",    label: "Dashboard",          icon: LayoutDashboard, path: "/network/dashboard" },
+  { id: "inventory",    label: "Inventory",           icon: Database,        path: "/network/inventory" },
+  { id: "servers",      label: "Server Manager",      icon: Server,          path: "/network/servers" },
+  { id: "monitor",      label: "Visual Monitor",      icon: Monitor,         path: "/network/monitor" },
+  { id: "incidents",    label: "Incident Center",     icon: AlertTriangle,   path: "/network/incidents" },
+  { id: "changes",      label: "Change Management",   icon: GitBranch,       path: "/network/changes" },
+  { id: "policy",       label: "Policy & Compliance", icon: ShieldCheck,     path: "/network/policy" },
+  { id: "capacity",     label: "Capacity Planning",   icon: TrendingUp,      path: "/network/capacity" },
+  { id: "slo",          label: "Service Health",      icon: HeartPulse,      path: "/network/slo" },
+  { id: "automation",   label: "Automation Jobs",     icon: Bot,             path: "/network/automation" },
+  { id: "map",          label: "Topology",            icon: Map,             path: "/network/map" },
+  { id: "alerts",       label: "Alerts",              icon: Bell,            path: "/network/alerts" },
+  { id: "traffic",      label: "Traffic",             icon: Activity,        path: "/network/traffic" },
+  { id: "restrictions", label: "User Restrictions",   icon: Lock,            path: "/network/restrictions" },
+  { id: "firewall",     label: "Firewall Setup",      icon: ShieldAlert,     path: "/network/firewall" },
+  { id: "docs",         label: "Documentation",       icon: Library,         path: "/network/docs" },
+  { id: "settings",     label: "Settings",            icon: Settings,        path: "/network/settings" },
 ];
 
 function NavBtn({ icon: Icon, label, path, current, collapsed }) {
