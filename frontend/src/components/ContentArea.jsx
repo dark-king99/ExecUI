@@ -13,6 +13,16 @@ import TopologyMap from "../apps/network/views/TopologyMap";
 import Traffic from "../apps/network/views/Traffic";
 import Settings from "../apps/network/views/Settings";
 import Documentation from "../apps/network/views/Documentation";
+import IncidentCenter from "../apps/network/views/IncidentCenter";
+import ChangeManagement from "../apps/network/views/ChangeManagement";
+import PolicyCompliance from "../apps/network/views/PolicyCompliance";
+import CapacityPlanning from "../apps/network/views/CapacityPlanning";
+import ServiceHealth from "../apps/network/views/ServiceHealth";
+import AutomationJobs from "../apps/network/views/AutomationJobs";
+import ServerManager from "../apps/network/views/ServerManager";
+import NetworkMonitor from "../apps/network/views/NetworkMonitor";
+import UserRestrictions from "../apps/network/views/UserRestrictions";
+import FirewallSetup from "../apps/network/views/FirewallSetup";
 
 // CRM
 import CRMView from "../apps/CRMView";
@@ -57,13 +67,23 @@ export default function ContentArea({ roleToUse }) {
 
   // Network
   if (appSection === "network") {
-    if (networkView === "dashboard") return <NetworkView />;
-    if (networkView === "inventory") return <Inventory />;
-    if (networkView === "docs")      return <Documentation />;
-    if (networkView === "alerts")    return <Alerts />;
-    if (networkView === "traffic")   return <Traffic />;
-    if (networkView === "map")       return <TopologyMap />;
-    if (networkView === "settings")  return <Settings />;
+    if (networkView === "dashboard")  return <NetworkView />;
+    if (networkView === "inventory")  return <Inventory />;
+    if (networkView === "incidents")  return <IncidentCenter />;
+    if (networkView === "changes")    return <ChangeManagement />;
+    if (networkView === "policy")     return <PolicyCompliance />;
+    if (networkView === "capacity")   return <CapacityPlanning />;
+    if (networkView === "slo")        return <ServiceHealth />;
+    if (networkView === "automation") return <AutomationJobs />;
+    if (networkView === "map")        return <TopologyMap />;
+    if (networkView === "alerts")       return <Alerts />;
+    if (networkView === "traffic")     return <Traffic />;
+    if (networkView === "servers")     return <ServerManager />;
+    if (networkView === "monitor")     return <NetworkMonitor />;
+    if (networkView === "restrictions") return <UserRestrictions />;
+    if (networkView === "firewall")    return <FirewallSetup />;
+    if (networkView === "docs")        return <Documentation />;
+    if (networkView === "settings")    return <Settings />;
     return <NetworkView />;
   }
 

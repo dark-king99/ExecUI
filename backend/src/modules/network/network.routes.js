@@ -83,4 +83,40 @@ router.put("/settings/profiles/:id",   auth, c.updateSettingsProfile);
 router.get("/settings",                auth, c.getNetworkSettings);
 router.put("/settings",                auth, c.updateNetworkSettings);
 
+// ── Servers ───────────────────────────────────────────────────────────────────
+router.get("/servers",              auth, c.listServers);
+router.post("/servers",             auth, c.createServer);
+router.get("/servers/metrics",      auth, c.getServerMetrics);
+router.get("/servers/:id",          auth, c.getServer);
+router.put("/servers/:id",          auth, c.updateServer);
+router.delete("/servers/:id",       auth, c.deleteServer);
+router.post("/servers/:id/restart", auth, c.restartServer);
+router.post("/servers/:id/sync",    auth, c.syncServerMetrics);
+
+// ── Visual Monitor ────────────────────────────────────────────────────────────
+router.get("/monitor/overview", auth, c.getMonitorOverview);
+router.get("/monitor/metrics",  auth, c.getMonitorMetrics);
+router.get("/monitor/events",   auth, c.getMonitorEvents);
+
+// ── User Restrictions ─────────────────────────────────────────────────────────
+router.get("/restrictions",              auth, c.listRestrictions);
+router.post("/restrictions",             auth, c.createRestriction);
+router.get("/restrictions/:id",          auth, c.getRestriction);
+router.put("/restrictions/:id",          auth, c.updateRestriction);
+router.delete("/restrictions/:id",       auth, c.deleteRestriction);
+router.post("/restrictions/:id/toggle",  auth, c.toggleRestriction);
+
+// ── Firewall ──────────────────────────────────────────────────────────────────
+router.get("/firewall/zones",             auth, c.getFirewallZones);
+router.get("/firewall/logs",              auth, c.getFirewallLogs);
+router.get("/firewall/rules",             auth, c.listFirewallRules);
+router.post("/firewall/rules",            auth, c.createFirewallRule);
+router.get("/firewall/rules/:id",         auth, c.getFirewallRule);
+router.put("/firewall/rules/:id",         auth, c.updateFirewallRule);
+router.delete("/firewall/rules/:id",      auth, c.deleteFirewallRule);
+router.post("/firewall/rules/:id/toggle", auth, c.toggleFirewallRule);
+
+// ── Global Sync ───────────────────────────────────────────────────────────────
+router.post("/sync", auth, c.syncAllNetwork);
+
 export default router;
