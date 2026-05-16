@@ -38,16 +38,22 @@ model Tenant {
   networkServers          NetworkServer[]
   networkUserRestrictions NetworkUserRestriction[]
   firewallRules           FirewallRule[]
+  userSessions            UserSession[]
+  auditLogs               AuditLog[]
 }
 
 model User {
-  id           String  @id @default(uuid())
-  email        String  @unique
+  id           String   @id @default(uuid())
+  email        String   @unique
   passwordHash String
   firstName    String
   lastName     String
   avatarUrl    String?
   department   String?
+  jobTitle     String?
+  phone        String?
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id])
@@ -56,6 +62,7 @@ model User {
   role   Role   @relation(fields: [roleId], references: [id])
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
 
   // Dashboard back-relations
   crmTasks         CrmTask[]
@@ -65,6 +72,35 @@ model User {
   marketingTodos   MarketingTodo[]
   scheduleEvents   MarketingScheduleEvent[]
   activities       MarketingActivity[]
+  sessions         UserSession[]
+  auditLogs        AuditLog[]
+}
+
+model UserSession {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  ipAddress   String?
+  userAgent   String?
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  isActive    Boolean   @default(true)
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  action     String
+  resource   String?
+  resourceId String?
+  detail     String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
 }
 
 model Role {

@@ -2,17 +2,18 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeft, User, ShieldCheck, Key, Bell, Users,
-  CreditCard, FileText, ChevronLeft, ChevronRight, UserLock
+  CreditCard, FileText, ChevronLeft, ChevronRight, Building2
 } from "lucide-react";
 
 const items = [
-  { id: "profile",       label: "Profile",            icon: User,       path: "/account/profile" },
-  { id: "security",      label: "Security",           icon: ShieldCheck, path: "/account/security" },
-  { id: "api-keys",      label: "API Keys",           icon: Key,        path: "/account/api-keys" },
-  { id: "notifications", label: "Notifications",      icon: Bell,       path: "/account/notifications" },
-  { id: "team",          label: "Team Permissions",   icon: Users,      path: "/account/team" },
-  { id: "billing",       label: "Billing",            icon: CreditCard, path: "/account/billing" },
-  { id: "audit",         label: "Audit Logs",         icon: FileText,   path: "/account/audit" },
+  { id: "profile",       label: "Profile",              icon: User,       path: "/account/profile" },
+  { id: "security",      label: "Security",             icon: ShieldCheck, path: "/account/security" },
+  { id: "workspace",     label: "Enterprise Workspace", icon: Building2,  path: "/account/workspace" },
+  { id: "team",          label: "Team Permissions",     icon: Users,      path: "/account/team" },
+  { id: "api-keys",      label: "API Keys",             icon: Key,        path: "/account/api-keys" },
+  { id: "notifications", label: "Notifications",        icon: Bell,       path: "/account/notifications" },
+  { id: "billing",       label: "Billing",              icon: CreditCard, path: "/account/billing" },
+  { id: "audit",         label: "Audit Logs",           icon: FileText,   path: "/account/audit" },
 ];
 
 function NavBtn({ icon: Icon, label, path, current, collapsed }) {
