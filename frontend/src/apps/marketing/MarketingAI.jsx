@@ -1,166 +1,145 @@
-import { useState } from "react";
-import { Sparkles, Send, Laptop2Icon, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Sparkles, Send, Bot, Copy, RefreshCw, Zap } from "lucide-react";
+import PageHeader from "../../components/ui/PageHeader";
+import { Card, CardHeader, CardBody } from "../../components/ui/Card";
+import { useToast } from "../../components/ui/Toast";
 import { useMutation } from "../../hooks/useApi";
 import { marketing } from "../../services/api";
-import { useToast } from "../../components/ui/Toast";
-import MediaPromptPanel from "./MediaPromptPanel";
 
-const MODES = ["content", "campaign", "social", "ads"];
+const MODES = [
+  { id: "content", label: "Content Copy", desc: "Blog posts, landing pages, ad copy" },
+  { id: "campaign", label: "Campaign Brief", desc: "Full campaign strategy and messaging" },
+  { id: "social", label: "Social Posts", desc: "Platform-specific social content" },
+  { id: "ads", label: "Ad Creative", desc: "Headlines, descriptions, CTAs" },
+  { id: "email", label: "Email", desc: "Subject lines, body copy, CTAs" },
+  { id: "seo", label: "SEO Content", desc: "Keyword-optimized content and meta" },
+];
+
+const QUICK_PROMPTS = {
+  content:  ["Write a product launch blog post", "Create a landing page for enterprise SaaS", "Write a case study outline"],
+  campaign: ["Plan a Q4 demand gen campaign", "Create an ABM campaign for Fortune 500s", "Design a product launch campaign"],
+  social:   ["Write 5 LinkedIn posts for our new feature", "Create Twitter thread on industry trends", "Generate Instagram captions"],
+  ads:      ["Write Google Ads for our enterprise product", "Create Facebook ad copy for lead gen", "Generate display ad headlines"],
+  email:    ["Write a nurture sequence for trial users", "Create a re-engagement email campaign", "Write a product announcement email"],
+  seo:      ["Write SEO meta for our pricing page", "Create keyword-rich product descriptions", "Optimize FAQ section content"],
+};
 
 export default function MarketingAI() {
   const toast = useToast();
+  const [mode, setMode] = useState("content");
+  const [prompt, setPrompt] = useState("");
+  const [output, setOutput] = useState(null);
+  const [history, setHistory] = useState([]);
+  const textareaRef = useRef(null);
 
-  const [mode,         setMode]         = useState("content");
-  const [prompt,       setPrompt]       = useState("");
-  const [output,       setOutput]       = useState(null);
-  const [activeModule, setActiveModule] = useState("mediapromptpanel");
+  const { mutate: generate, loading } = useMutation((body) => marketing.ai.generate(body), {
+    onSuccess: (result) => {
+      const text = result?.content ?? result?.output ?? result?.text ?? JSON.stringify(result);
+      setOutput(text);
+      setHistory(prev => [{ mode, prompt, output: text, at: new Date().toLocaleTimeString() }, ...prev.slice(0, 9)]);
+      setPrompt("");
+    },
+    onError: (e) => toast({ message: e?.message ?? "Generation failed", type: "error" }),
+  });
 
-  const { mutate: generate, loading: generating } = useMutation(
-    (body) => marketing.ai.generate(body),
-    {
-      onSuccess: (data) => {
-        setOutput(data);
-        setPrompt("");
-      },
-      onError: (err) => toast({ message: err?.message ?? "AI generation failed.", type: "error" }),
-    }
-  );
+  function submit() {
+    if (!prompt.trim() || loading) return;
+    generate({ mode, prompt: prompt.trim() });
+  }
 
-  const handleGenerate = () => {
-    if (!prompt.trim()) {
-      toast({ message: "Please enter a prompt first.", type: "warning" });
-      return;
-    }
-    generate({ mode, prompt });
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && e.ctrlKey) handleGenerate();
-  };
+  function copyOutput() {
+    if (!output) return;
+    navigator.clipboard.writeText(output).then(() => toast({ message: "Copied to clipboard", type: "success" }));
+  }
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <Sparkles className="text-indigo-600" />
-        <h3 className="font-semibold text-slate-900 dark:text-white">AI Marketing Assistant</h3>
-      </div>
+    <div className="space-y-6">
+      <PageHeader title="Marketing AI" subtitle="AI-powered content generation for every marketing channel"
+        actions={<div className="flex items-center gap-2"><Sparkles size={16} className="text-violet-500" /><span className="text-sm text-slate-600 dark:text-slate-300 font-medium">Powered by AI</span></div>}
+      />
 
       {/* Mode selector */}
-      <div className="flex gap-2 mb-3">
-        {MODES.map((m) => (
-          <button
-            key={m}
-            onClick={() => { setMode(m); setOutput(null); }}
-            className={`px-3 py-1 rounded text-sm font-medium transition ${
-              mode === m
-                ? "bg-indigo-600 text-white"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-            }`}
-          >
-            {m.toUpperCase()}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        {MODES.map(m => (
+          <button key={m.id} onClick={() => { setMode(m.id); setOutput(null); }} className={`p-3 rounded-xl border text-left transition ${mode === m.id ? "border-violet-500 bg-violet-50 dark:bg-violet-900/20" : "border-slate-200 dark:border-slate-800 hover:border-violet-300"}`}>
+            <div className={`text-sm font-semibold mb-0.5 ${mode === m.id ? "text-violet-700 dark:text-violet-400" : "text-slate-900 dark:text-white"}`}>{m.label}</div>
+            <div className="text-xs text-slate-400 leading-tight">{m.desc}</div>
           </button>
         ))}
       </div>
 
-      {/* Prompt input */}
-      <textarea
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={generating}
-        placeholder={`Describe what you want to generate (${mode})… Ctrl+Enter to submit`}
-        className="w-full border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm mb-3 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none disabled:opacity-50"
-        rows={3}
-      />
-
-      <button
-        onClick={handleGenerate}
-        disabled={generating || !prompt.trim()}
-        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {generating ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-        Generate
-      </button>
-
-      {/* Output */}
-      {output && (
-        <div className="mt-5 space-y-4">
-          {output.title && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Title</p>
-              <p className="font-semibold text-slate-900 dark:text-white">{output.title}</p>
-            </div>
-          )}
-
-          {output.summary && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Summary</p>
-              <p className="text-sm text-slate-700 dark:text-slate-300">{output.summary}</p>
-            </div>
-          )}
-
-          {output.copy && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Copy</p>
-              <div className="rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
-                {output.copy}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Input + output */}
+        <div className="lg:col-span-2 space-y-4">
+          <Card>
+            <CardBody className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Your prompt</label>
+                <textarea
+                  ref={textareaRef}
+                  rows={5}
+                  value={prompt}
+                  onChange={e => setPrompt(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && e.metaKey && submit()}
+                  placeholder={`Describe what you want to create for ${MODES.find(m2 => m2.id === mode)?.label.toLowerCase()}…`}
+                  className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+                />
               </div>
-            </div>
-          )}
-
-          {Array.isArray(output.steps) && output.steps.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Action Steps</p>
-              <ol className="list-decimal ml-5 space-y-1">
-                {output.steps.map((step, i) => (
-                  <li key={i} className="text-sm text-slate-700 dark:text-slate-300">{step}</li>
-                ))}
-              </ol>
-            </div>
-          )}
-
-          {output.content && typeof output.content === "string" && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Content</p>
-              <div className="rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
-                {output.content}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">⌘+Enter to generate</span>
+                <button onClick={submit} disabled={!prompt.trim() || loading} className="flex items-center gap-2 text-sm px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white rounded-lg transition">
+                  {loading ? <><RefreshCw size={14} className="animate-spin" /> Generating…</> : <><Send size={14} /> Generate</>}
+                </button>
               </div>
-            </div>
-          )}
+            </CardBody>
+          </Card>
 
-          <button
-            onClick={() => setOutput(null)}
-            className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-          >
-            Clear output
-          </button>
+          {output && (
+            <Card>
+              <CardHeader title="Generated Output" icon={Sparkles} actions={
+                <button onClick={copyOutput} className="flex items-center gap-1.5 text-xs border border-slate-200 dark:border-slate-700 text-slate-500 px-3 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                  <Copy size={12} /> Copy
+                </button>
+              } />
+              <CardBody>
+                <div className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed font-mono bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+                  {output}
+                </div>
+              </CardBody>
+            </Card>
+          )}
         </div>
-      )}
 
-      {/* Sub-modules */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-2 px-0 pt-6 pb-0">
-        <div
-          onClick={() => setActiveModule("mediapromptpanel")}
-          className="cursor-pointer transition hover:scale-[1.02]"
-        >
-          <Section title="Media Prompt Panel" icon={Laptop2Icon}>
-            Behavioral rules, dynamic audiences, predictive lookalikes.
-          </Section>
+        {/* Quick prompts + history */}
+        <div className="space-y-4">
+          <Card>
+            <CardBody className="space-y-2">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Quick Prompts</h3>
+              {(QUICK_PROMPTS[mode] ?? []).map((p, i) => (
+                <button key={i} onClick={() => setPrompt(p)} className="w-full text-left text-xs text-slate-600 dark:text-slate-300 px-3 py-2 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-600 border border-slate-100 dark:border-slate-800 transition">
+                  {p}
+                </button>
+              ))}
+            </CardBody>
+          </Card>
+
+          {history.length > 0 && (
+            <Card>
+              <CardBody>
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Recent Generations</h3>
+                <div className="space-y-2">
+                  {history.map((h, i) => (
+                    <button key={i} onClick={() => { setOutput(h.output); setMode(h.mode); }} className="w-full text-left p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition">
+                      <div className="text-xs font-medium text-slate-900 dark:text-white truncate">{h.prompt}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">{h.mode} • {h.at}</div>
+                    </button>
+                  ))}
+                </div>
+              </CardBody>
+            </Card>
+          )}
         </div>
       </div>
-
-      {activeModule === "mediapromptpanel" && <MediaPromptPanel />}
-    </div>
-  );
-}
-
-function Section({ title, icon: Icon, children }) {
-  return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
-      <div className="flex items-center gap-2 font-semibold mb-3">
-        <Icon size={18} /> {title}
-      </div>
-      <p className="text-sm text-slate-600 dark:text-slate-400">{children}</p>
     </div>
   );
 }
