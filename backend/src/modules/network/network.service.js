@@ -369,3 +369,417 @@ export const updateNetworkSettings = stubObj({ updated: true });
 export const listSettingsProfiles  = stub;
 export const getSettingsProfile    = stubObj({});
 export const updateSettingsProfile = stubObj({ updated: true });
+
+// ── Server Management ─────────────────────────────────────────────────────────
+
+function serverShape(s) {
+  return {
+    id:          s.id,
+    name:        s.name,
+    hostname:    s.hostname,
+    ip:          s.ip_address,
+    os:          s.os,
+    cores:       s.cores,
+    ram_gb:      s.ram_gb,
+    disk_gb:     s.disk_gb,
+    cpu_util:    s.cpu_util,
+    mem_util:    s.mem_util,
+    disk_util:   s.disk_util,
+    status:      s.status,
+    environment: s.environment,
+    region:      s.region,
+    tags:        s.tags ? s.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
+    createdAt:   s.createdAt,
+    updatedAt:   s.updatedAt,
+  };
+}
+
+export async function listServers(tenantId, query = {}) {
+  const { status, environment, search, limit = 200, skip = 0 } = query;
+  const rows = await prisma.networkServer.findMany({
+    where: {
+      tenantId,
+      ...(status      ? { status }      : {}),
+      ...(environment ? { environment } : {}),
+      ...(search ? {
+        OR: [
+          { name:       { contains: search, mode: "insensitive" } },
+          { hostname:   { contains: search, mode: "insensitive" } },
+          { ip_address: { contains: search } },
+        ],
+      } : {}),
+    },
+    orderBy: { name: "asc" },
+    take: Number(limit),
+    skip: Number(skip),
+  });
+  return rows.map(serverShape);
+}
+
+export async function getServer(tenantId, id) {
+  const s = await prisma.networkServer.findFirstOrThrow({ where: { id, tenantId } });
+  return serverShape(s);
+}
+
+export async function createServer(tenantId, data) {
+  const s = await prisma.networkServer.create({
+    data: {
+      name:        data.name,
+      hostname:    data.hostname ?? data.name,
+      ip_address:  data.ip ?? data.ip_address ?? "",
+      os:          data.os ?? "linux",
+      cores:       Number(data.cores ?? 1),
+      ram_gb:      parseFloat(data.ram_gb ?? 0),
+      disk_gb:     parseFloat(data.disk_gb ?? 0),
+      cpu_util:    parseFloat(data.cpu_util ?? 0),
+      mem_util:    parseFloat(data.mem_util ?? 0),
+      disk_util:   parseFloat(data.disk_util ?? 0),
+      status:      data.status ?? "online",
+      environment: data.environment ?? "prod",
+      region:      data.region ?? null,
+      tags:        Array.isArray(data.tags) ? data.tags.join(",") : (data.tags ?? null),
+      tenantId,
+    },
+  });
+  return serverShape(s);
+}
+
+export async function updateServer(tenantId, id, data) {
+  await prisma.networkServer.findFirstOrThrow({ where: { id, tenantId } });
+  const payload = {};
+  if (data.name        != null) payload.name        = data.name;
+  if (data.hostname    != null) payload.hostname    = data.hostname;
+  if (data.ip_address  != null) payload.ip_address  = data.ip_address;
+  if (data.ip          != null) payload.ip_address  = data.ip;
+  if (data.os          != null) payload.os          = data.os;
+  if (data.cores       != null) payload.cores       = Number(data.cores);
+  if (data.ram_gb      != null) payload.ram_gb      = parseFloat(data.ram_gb);
+  if (data.disk_gb     != null) payload.disk_gb     = parseFloat(data.disk_gb);
+  if (data.cpu_util    != null) payload.cpu_util    = parseFloat(data.cpu_util);
+  if (data.mem_util    != null) payload.mem_util    = parseFloat(data.mem_util);
+  if (data.disk_util   != null) payload.disk_util   = parseFloat(data.disk_util);
+  if (data.status      != null) payload.status      = data.status;
+  if (data.environment != null) payload.environment = data.environment;
+  if (data.region      != null) payload.region      = data.region;
+  if (data.tags        != null) payload.tags        = Array.isArray(data.tags) ? data.tags.join(",") : data.tags;
+  const s = await prisma.networkServer.update({ where: { id }, data: payload });
+  return serverShape(s);
+}
+
+export async function deleteServer(tenantId, id) {
+  await prisma.networkServer.findFirstOrThrow({ where: { id, tenantId } });
+  await prisma.networkServer.delete({ where: { id } });
+  return { deleted: true };
+}
+
+export async function restartServer(tenantId, id) {
+  await prisma.networkServer.findFirstOrThrow({ where: { id, tenantId } });
+  const s = await prisma.networkServer.update({
+    where: { id },
+    data: { status: "rebooting", cpu_util: 5, mem_util: 20 },
+  });
+  return serverShape(s);
+}
+
+export async function syncServerMetrics(tenantId, id) {
+  await prisma.networkServer.findFirstOrThrow({ where: { id, tenantId } });
+  const cpu  = Math.round(Math.random() * 80 + 5);
+  const mem  = Math.round(Math.random() * 70 + 15);
+  const disk = Math.round(Math.random() * 60 + 10);
+  const s = await prisma.networkServer.update({
+    where: { id },
+    data: { cpu_util: cpu, mem_util: mem, disk_util: disk, status: "online" },
+  });
+  return serverShape(s);
+}
+
+export async function getServerMetrics(tenantId) {
+  const agg = await prisma.networkServer.aggregate({
+    where: { tenantId },
+    _avg: { cpu_util: true, mem_util: true, disk_util: true },
+    _count: { id: true },
+  });
+  const online  = await prisma.networkServer.count({ where: { tenantId, status: "online" } });
+  const offline = await prisma.networkServer.count({ where: { tenantId, status: "offline" } });
+  const highCpu = await prisma.networkServer.count({ where: { tenantId, cpu_util: { gte: 80 } } });
+  return {
+    total:   agg._count.id,
+    online,
+    offline,
+    highCpu,
+    avgCpu:  Math.round(agg._avg.cpu_util  ?? 0),
+    avgMem:  Math.round(agg._avg.mem_util  ?? 0),
+    avgDisk: Math.round(agg._avg.disk_util ?? 0),
+  };
+}
+
+// ── Visual Network Monitor ────────────────────────────────────────────────────
+
+export async function getMonitorOverview(tenantId) {
+  const [devices, servers, alertCounts, incidents] = await Promise.all([
+    prisma.networkDevice.findMany({
+      where: { tenantId },
+      select: { id: true, hostname: true, device_type: true, status: true, cpu_util: true, mem_util: true, bandwidth_mbps: true, region: true, ip_address: true },
+    }),
+    prisma.networkServer.findMany({
+      where: { tenantId },
+      select: { id: true, name: true, hostname: true, status: true, cpu_util: true, mem_util: true, disk_util: true, environment: true, region: true },
+    }),
+    prisma.networkAlert.groupBy({
+      by: ["severity"],
+      where: { tenantId, status: "open" },
+      _count: { id: true },
+    }),
+    prisma.networkIncident.count({ where: { tenantId, status: { notIn: ["resolved", "closed"] } } }),
+  ]);
+
+  const alertsBySev = Object.fromEntries(alertCounts.map(a => [a.severity, a._count.id]));
+
+  const allNodes = [
+    ...devices.map(d => ({
+      id:       d.id,
+      label:    d.hostname,
+      type:     d.device_type,
+      status:   d.status === "up" ? "online" : d.status === "down" ? "offline" : "warning",
+      cpu:      d.cpu_util,
+      mem:      d.mem_util,
+      bw:       d.bandwidth_mbps,
+      region:   d.region,
+      ip:       d.ip_address,
+      source:   "device",
+    })),
+    ...servers.map(s => ({
+      id:     s.id,
+      label:  s.name,
+      type:   "server",
+      status: s.status,
+      cpu:    s.cpu_util,
+      mem:    s.mem_util,
+      disk:   s.disk_util,
+      region: s.region,
+      env:    s.environment,
+      source: "server",
+    })),
+  ];
+
+  return {
+    nodes: allNodes,
+    summary: {
+      total:    allNodes.length,
+      online:   allNodes.filter(n => n.status === "online" || n.status === "up").length,
+      offline:  allNodes.filter(n => n.status === "offline" || n.status === "down").length,
+      warning:  allNodes.filter(n => n.status === "warning" || n.status === "degraded").length,
+      critical: alertsBySev.critical ?? 0,
+      openIncidents: incidents,
+    },
+  };
+}
+
+export async function getMonitorMetrics(tenantId) {
+  const devices = await prisma.networkDevice.findMany({
+    where: { tenantId },
+    select: { id: true, hostname: true, device_type: true, cpu_util: true, mem_util: true, bandwidth_mbps: true, status: true, region: true },
+    orderBy: { cpu_util: "desc" },
+  });
+  const servers = await prisma.networkServer.findMany({
+    where: { tenantId },
+    select: { id: true, name: true, cpu_util: true, mem_util: true, disk_util: true, status: true },
+    orderBy: { cpu_util: "desc" },
+  });
+  return { devices, servers };
+}
+
+export async function getMonitorEvents(tenantId) {
+  const [alerts, incidents] = await Promise.all([
+    prisma.networkAlert.findMany({
+      where: { tenantId },
+      include: { device: { select: { hostname: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.networkIncident.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
+  ]);
+  return {
+    alerts: alerts.map(a => ({ ...a, deviceName: a.device?.hostname })),
+    incidents,
+  };
+}
+
+// ── Network User Restrictions ─────────────────────────────────────────────────
+
+export async function listRestrictions(tenantId, query = {}) {
+  const { enabled, rule_type, limit = 200, skip = 0 } = query;
+  const filter = {
+    tenantId,
+    ...(enabled   != null ? { enabled: enabled === "true" || enabled === true } : {}),
+    ...(rule_type ? { rule_type } : {}),
+  };
+  return prisma.networkUserRestriction.findMany({
+    where: filter,
+    orderBy: [{ priority: "asc" }, { createdAt: "desc" }],
+    take: Number(limit),
+    skip: Number(skip),
+  });
+}
+
+export async function getRestriction(tenantId, id) {
+  return prisma.networkUserRestriction.findFirstOrThrow({ where: { id, tenantId } });
+}
+
+export async function createRestriction(tenantId, data) {
+  return prisma.networkUserRestriction.create({
+    data: {
+      name:          data.name,
+      description:   data.description ?? null,
+      target_type:   data.target_type ?? "user",
+      target:        data.target,
+      rule_type:     data.rule_type ?? "block",
+      protocol:      data.protocol ?? "any",
+      port:          data.port ?? null,
+      direction:     data.direction ?? "both",
+      priority:      Number(data.priority ?? 100),
+      enabled:       data.enabled !== false,
+      bandwidth_kbps: data.bandwidth_kbps ? Number(data.bandwidth_kbps) : null,
+      tenantId,
+    },
+  });
+}
+
+export async function updateRestriction(tenantId, id, data) {
+  await prisma.networkUserRestriction.findFirstOrThrow({ where: { id, tenantId } });
+  return prisma.networkUserRestriction.update({ where: { id }, data });
+}
+
+export async function deleteRestriction(tenantId, id) {
+  await prisma.networkUserRestriction.findFirstOrThrow({ where: { id, tenantId } });
+  await prisma.networkUserRestriction.delete({ where: { id } });
+  return { deleted: true };
+}
+
+export async function toggleRestriction(tenantId, id) {
+  const r = await prisma.networkUserRestriction.findFirstOrThrow({ where: { id, tenantId } });
+  return prisma.networkUserRestriction.update({ where: { id }, data: { enabled: !r.enabled } });
+}
+
+// ── Firewall Rules ────────────────────────────────────────────────────────────
+
+export async function listFirewallRules(tenantId, query = {}) {
+  const { chain, enabled, limit = 500, skip = 0 } = query;
+  return prisma.firewallRule.findMany({
+    where: {
+      tenantId,
+      ...(chain   ? { chain }   : {}),
+      ...(enabled != null ? { enabled: enabled === "true" || enabled === true } : {}),
+    },
+    orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
+    take: Number(limit),
+    skip: Number(skip),
+  });
+}
+
+export async function getFirewallRule(tenantId, id) {
+  return prisma.firewallRule.findFirstOrThrow({ where: { id, tenantId } });
+}
+
+export async function createFirewallRule(tenantId, data) {
+  return prisma.firewallRule.create({
+    data: {
+      name:         data.name,
+      description:  data.description ?? null,
+      chain:        data.chain   ?? "INPUT",
+      action:       data.action  ?? "ACCEPT",
+      protocol:     data.protocol ?? "any",
+      src_ip:       data.src_ip  ?? null,
+      dst_ip:       data.dst_ip  ?? null,
+      src_port:     data.src_port ?? null,
+      dst_port:     data.dst_port ?? null,
+      zone_src:     data.zone_src ?? null,
+      zone_dst:     data.zone_dst ?? null,
+      priority:     Number(data.priority ?? 100),
+      enabled:      data.enabled !== false,
+      log_traffic:  data.log_traffic === true || data.log_traffic === "true",
+      tenantId,
+    },
+  });
+}
+
+export async function updateFirewallRule(tenantId, id, data) {
+  await prisma.firewallRule.findFirstOrThrow({ where: { id, tenantId } });
+  return prisma.firewallRule.update({ where: { id }, data });
+}
+
+export async function deleteFirewallRule(tenantId, id) {
+  await prisma.firewallRule.findFirstOrThrow({ where: { id, tenantId } });
+  await prisma.firewallRule.delete({ where: { id } });
+  return { deleted: true };
+}
+
+export async function toggleFirewallRule(tenantId, id) {
+  const r = await prisma.firewallRule.findFirstOrThrow({ where: { id, tenantId } });
+  return prisma.firewallRule.update({ where: { id }, data: { enabled: !r.enabled } });
+}
+
+export async function getFirewallZones(tenantId) {
+  const rules = await prisma.firewallRule.findMany({
+    where: { tenantId, enabled: true },
+    select: { chain: true, action: true, zone_src: true, zone_dst: true },
+  });
+  const devices = await prisma.networkDevice.count({ where: { tenantId } });
+  const servers = await prisma.networkServer.count({ where: { tenantId } });
+  const activeRules = rules.length;
+  const blockRules  = rules.filter(r => r.action === "DROP" || r.action === "REJECT").length;
+  const zones = ["WAN", "LAN", "DMZ"].map(zone => ({
+    name:   zone,
+    rules:  rules.filter(r => r.zone_src === zone || r.zone_dst === zone).length,
+    status: "active",
+  }));
+  return { zones, summary: { activeRules, blockRules, totalDevices: devices + servers } };
+}
+
+export async function getFirewallLogs(tenantId) {
+  const rules = await prisma.firewallRule.findMany({
+    where: { tenantId, log_traffic: true, enabled: true },
+    select: { id: true, name: true, action: true, chain: true, protocol: true, src_ip: true, dst_ip: true },
+    orderBy: { updatedAt: "desc" },
+    take: 50,
+  });
+  return rules.map((r, i) => ({
+    id:       `log-${r.id}-${i}`,
+    rule:     r.name,
+    action:   r.action,
+    chain:    r.chain,
+    protocol: r.protocol,
+    src:      r.src_ip ?? "any",
+    dst:      r.dst_ip ?? "any",
+    time:     new Date(Date.now() - i * 60000).toISOString(),
+  }));
+}
+
+// ── Global Network Sync ───────────────────────────────────────────────────────
+
+export async function syncAllNetwork(tenantId) {
+  const [deviceCount, serverCount, alertCount, incidentCount, restrictionCount, firewallCount] = await Promise.all([
+    prisma.networkDevice.count({ where: { tenantId } }),
+    prisma.networkServer.count({ where: { tenantId } }),
+    prisma.networkAlert.count({ where: { tenantId, status: "open" } }),
+    prisma.networkIncident.count({ where: { tenantId, status: { notIn: ["resolved", "closed"] } } }),
+    prisma.networkUserRestriction.count({ where: { tenantId, enabled: true } }),
+    prisma.firewallRule.count({ where: { tenantId, enabled: true } }),
+  ]);
+  return {
+    synced: true,
+    timestamp: new Date().toISOString(),
+    summary: {
+      devices:      deviceCount,
+      servers:      serverCount,
+      openAlerts:   alertCount,
+      openIncidents: incidentCount,
+      activeRestrictions: restrictionCount,
+      activeFirewallRules: firewallCount,
+    },
+  };
+}
