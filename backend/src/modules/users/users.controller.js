@@ -1,43 +1,172 @@
 import prisma from "../../config/database.js";
 import bcrypt from "bcrypt";
 
-export const listUsers = async (req, res) => {
-  try {
+const handle = (fn) => async (req, res) => {
+  try { res.json(await fn(req)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+};
 
-    const users = await prisma.user.findMany({
+const tid = (req) => req.user.tenantId;
+
+const userShape = (u) => ({
+  id:          u.id,
+  email:       u.email,
+  firstName:   u.firstName,
+  lastName:    u.lastName,
+  fullName:    `${u.firstName} ${u.lastName}`,
+  avatarUrl:   u.avatarUrl,
+  department:  u.department,
+  jobTitle:    u.jobTitle,
+  phone:       u.phone,
+  isActive:    u.isActive,
+  lastLoginAt: u.lastLoginAt,
+  createdAt:   u.createdAt,
+  updatedAt:   u.updatedAt,
+  role:        u.role ? { id: u.role.id, name: u.role.name } : null,
+  tenantId:    u.tenantId,
+});
+
+// ── List users ────────────────────────────────────────────────────────────────
+export const listUsers = handle(async (req) => {
+  const users = await prisma.user.findMany({
+    where: { tenantId: tid(req) },
+    include: { role: true },
+    orderBy: { createdAt: "desc" },
+  });
+  return users.map(userShape);
+});
+
+// ── Get single user ───────────────────────────────────────────────────────────
+export const getUser = handle(async (req) => {
+  const user = await prisma.user.findFirst({
+    where: { id: req.params.id, tenantId: tid(req) },
+    include: { role: true, sessions: { orderBy: { startedAt: "desc" }, take: 10 } },
+  });
+  if (!user) throw new Error("User not found");
+  return { ...userShape(user), sessions: user.sessions };
+});
+
+// ── Invite / create user ──────────────────────────────────────────────────────
+export const inviteUser = handle(async (req) => {
+  const { email, password, firstName, lastName, roleId, department, jobTitle, phone } = req.body;
+  const passwordHash = await bcrypt.hash(password || "ChangeMe123!", 10);
+  const user = await prisma.user.create({
+    data: { email, passwordHash, firstName, lastName, roleId, tenantId: tid(req), department, jobTitle, phone },
+    include: { role: true },
+  });
+  await prisma.auditLog.create({
+    data: { userId: req.user.userId, tenantId: tid(req), action: "create_user", resource: "user", resourceId: user.id, detail: `Created user ${email}` },
+  });
+  return userShape(user);
+});
+
+// ── Update user ───────────────────────────────────────────────────────────────
+export const updateUser = handle(async (req) => {
+  const { firstName, lastName, department, jobTitle, phone, roleId } = req.body;
+  const user = await prisma.user.update({
+    where: { id: req.params.id },
+    data: { firstName, lastName, department, jobTitle, phone, roleId, updatedAt: new Date() },
+    include: { role: true },
+  });
+  await prisma.auditLog.create({
+    data: { userId: req.user.userId, tenantId: tid(req), action: "update_user", resource: "user", resourceId: req.params.id },
+  });
+  return userShape(user);
+});
+
+// ── Suspend / activate user ───────────────────────────────────────────────────
+export const toggleUserStatus = handle(async (req) => {
+  const existing = await prisma.user.findFirst({ where: { id: req.params.id, tenantId: tid(req) } });
+  if (!existing) throw new Error("User not found");
+  if (existing.id === req.user.userId) throw new Error("Cannot suspend your own account");
+  const user = await prisma.user.update({
+    where: { id: req.params.id },
+    data: { isActive: !existing.isActive, updatedAt: new Date() },
+    include: { role: true },
+  });
+  // End all active sessions when suspending
+  if (!user.isActive) {
+    await prisma.userSession.updateMany({
+      where: { userId: req.params.id, isActive: true },
+      data: { isActive: false, endedAt: new Date() },
+    });
+  }
+  await prisma.auditLog.create({
+    data: { userId: req.user.userId, tenantId: tid(req), action: user.isActive ? "activate_user" : "suspend_user", resource: "user", resourceId: req.params.id, detail: `${user.isActive ? "Activated" : "Suspended"} user ${user.email}` },
+  });
+  return userShape(user);
+});
+
+// ── Delete user ───────────────────────────────────────────────────────────────
+export const deleteUser = handle(async (req) => {
+  if (req.params.id === req.user.userId) throw new Error("Cannot delete your own account");
+  const user = await prisma.user.findFirst({ where: { id: req.params.id, tenantId: tid(req) } });
+  if (!user) throw new Error("User not found");
+  await prisma.user.delete({ where: { id: req.params.id } });
+  await prisma.auditLog.create({
+    data: { userId: req.user.userId, tenantId: tid(req), action: "delete_user", resource: "user", resourceId: req.params.id, detail: `Deleted user ${user.email}` },
+  });
+  return { success: true };
+});
+
+// ── Sessions ──────────────────────────────────────────────────────────────────
+export const listSessions = handle(async (req) => {
+  const sessions = await prisma.userSession.findMany({
+    where: { tenantId: tid(req) },
+    include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } },
+    orderBy: { startedAt: "desc" },
+    take: 200,
+  });
+  return sessions.map((s) => ({
+    id: s.id,
+    userId: s.userId,
+    userName: `${s.user.firstName} ${s.user.lastName}`,
+    userEmail: s.user.email,
+    ipAddress: s.ipAddress,
+    userAgent: s.userAgent,
+    startedAt: s.startedAt,
+    endedAt: s.endedAt,
+    isActive: s.isActive,
+  }));
+});
+
+// ── Audit logs ────────────────────────────────────────────────────────────────
+export const listAuditLogs = handle(async (req) => {
+  const { limit = 100, userId } = req.query;
+  const logs = await prisma.auditLog.findMany({
+    where: { tenantId: tid(req), ...(userId ? { userId } : {}) },
+    include: { user: { select: { firstName: true, lastName: true, email: true } } },
+    orderBy: { createdAt: "desc" },
+    take: Number(limit),
+  });
+  return logs.map((l) => ({
+    id: l.id,
+    userId: l.userId,
+    userName: `${l.user.firstName} ${l.user.lastName}`,
+    userEmail: l.user.email,
+    action: l.action,
+    resource: l.resource,
+    resourceId: l.resourceId,
+    detail: l.detail,
+    ipAddress: l.ipAddress,
+    createdAt: l.createdAt,
+  }));
+});
+
+// ── Workspace stats ───────────────────────────────────────────────────────────
+export const getWorkspaceStats = handle(async (req) => {
+  const tenantId = tid(req);
+  const [totalUsers, activeUsers, activeSessions, todayLogins] = await Promise.all([
+    prisma.user.count({ where: { tenantId } }),
+    prisma.user.count({ where: { tenantId, isActive: true } }),
+    prisma.userSession.count({ where: { tenantId, isActive: true } }),
+    prisma.auditLog.count({
       where: {
-        tenantId: req.user.tenantId
-      }
-    });
-
-    res.json(users);
-
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-export const inviteUser = async (req, res) => {
-  try {
-
-    const { email, password, firstName, lastName, roleId } = req.body;
-
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        firstName,
-        lastName,
-        roleId,
-        tenantId: req.user.tenantId
-      }
-    });
-
-    res.status(201).json(user);
-
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+        tenantId,
+        action: "login",
+        createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+      },
+    }),
+  ]);
+  return { totalUsers, activeUsers, suspendedUsers: totalUsers - activeUsers, activeSessions, todayLogins };
+});
