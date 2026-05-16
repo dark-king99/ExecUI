@@ -5,6 +5,7 @@ import {
 import { useApi, useMutation } from "../../hooks/useApi";
 import { crm } from "../../services/api";
 import { useToast } from "../../components/ui/Toast";
+import PageHeader from "../../components/ui/PageHeader";
 
 const STATUS_MAP = {
   healthy: { icon: CheckCircle2, cls: "bg-emerald-100 text-emerald-700" },
@@ -86,25 +87,22 @@ export default function ServiceIntegration() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Service Integration</h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400">Unified communication, history, lead ingestion, and marketing sync</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <StatusPill status="healthy" />
-          <button
-            onClick={() => syncNow()}
-            disabled={syncing}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm disabled:opacity-60"
-          >
-            {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Sync Now
-          </button>
-          <button className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm">
-            <Settings className="h-4 w-4" /> Manage Integrations
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Service Integration"
+        subtitle="Unified communication, interaction history, lead ingestion, and marketing sync."
+        actions={
+          <div className="flex items-center gap-2">
+            <StatusPill status="healthy" />
+            <button
+              onClick={() => syncNow()}
+              disabled={syncing}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-60"
+            >
+              {syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Sync Now
+            </button>
+          </div>
+        }
+      />
 
       <Section title="Connected Services">
         {intError && (
@@ -135,8 +133,8 @@ export default function ServiceIntegration() {
                   <StatusPill status={item.status} />
                 </div>
                 <div className="flex gap-2">
-                  <button className="text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-800">Configure</button>
-                  <button className="text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-800">View Logs</button>
+                  <button onClick={() => toast({ message: `${item.name} configuration opened.`, type: "info" })} className="text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition">Configure</button>
+                  <button onClick={() => toast({ message: `Viewing logs for ${item.name}.`, type: "info" })} className="text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition">View Logs</button>
                 </div>
               </div>
             );

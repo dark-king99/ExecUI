@@ -3,10 +3,12 @@ import { useApi, useMutation } from "../../hooks/useApi";
 import { marketing } from "../../services/api";
 import { useToast } from "../../components/ui/Toast";
 import { SkeletonCard, SkeletonTable } from "../../components/ui/Skeleton";
+import PageHeader from "../../components/ui/PageHeader";
+import { Stat } from "../../components/ui/Card";
 import {
   Megaphone, Plus, Search, Calendar, Users, Target, BarChart3,
   DollarSign, Mail, PlayCircle, PauseCircle, CheckCircle2,
-  Settings, ShieldCheck, FileText, ArrowUpRight, RefreshCw, Loader2, X,
+  ShieldCheck, FileText, ArrowUpRight, RefreshCw, Loader2, X, AlertCircle,
 } from "lucide-react";
 
 const TABS = [
@@ -17,19 +19,6 @@ const TABS = [
   { id: "performance", label: "Performance" },
   { id: "governance",  label: "Governance" },
 ];
-
-function ErrorBanner({ message, onRetry }) {
-  return (
-    <div className="flex items-center justify-between rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3">
-      <p className="text-sm text-red-700 dark:text-red-300">{message}</p>
-      {onRetry && (
-        <button onClick={onRetry} className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400 hover:underline">
-          <RefreshCw size={12} /> Retry
-        </button>
-      )}
-    </div>
-  );
-}
 
 const EMPTY_C = { name: "", objective: "", owner: "", start: "", end: "" };
 
@@ -147,51 +136,34 @@ export default function Campaign() {
     <div className="space-y-6">
       {showNewCampaign && <NewCampaignModal onClose={() => setShowNewCampaign(false)} onCreated={refetch} />}
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <Megaphone className="h-6 w-6" /> Campaign Management
-          </h1>
-          <p className="text-slate-500">Plan, execute, govern, and measure enterprise marketing campaigns</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={refetch}
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg transition"
-          >
-            <RefreshCw size={13} /> Refresh
-          </button>
-          <button
-            onClick={() => setShowNewCampaign(true)}
-            className="px-3 py-2 rounded border flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-          >
-            <Plus className="h-4 w-4" /> New Campaign
-          </button>
-          <button
-            onClick={() => toast({ message: "Campaign settings coming soon.", type: "info" })}
-            className="px-3 py-2 rounded border flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-          >
-            <Settings className="h-4 w-4" /> Settings
-          </button>
-        </div>
+      <PageHeader
+        title="Campaign Management"
+        subtitle="Plan, execute, govern, and measure enterprise marketing campaigns."
+        actions={
+          <div className="flex gap-2">
+            <button onClick={refetch} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg transition">
+              <RefreshCw size={13} /> Refresh
+            </button>
+            <button onClick={() => setShowNewCampaign(true)} className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm px-4 py-2 rounded-lg transition">
+              <Plus size={15} /> New Campaign
+            </button>
+          </div>
+        }
+      />
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Stat label="Total Budget"        value={summaryLoading ? "…" : (campaignSummary?.totalBudget    ?? "—")} icon={DollarSign} color="indigo" />
+        <Stat label="Total Spend"         value={summaryLoading ? "…" : (campaignSummary?.totalSpend     ?? "—")} icon={DollarSign} color="amber" />
+        <Stat label="Pipeline Influenced" value={summaryLoading ? "…" : (campaignSummary?.totalPipeline  ?? "—")} icon={Target}    color="emerald" />
+        <Stat label="Revenue Attributed"  value={summaryLoading ? "…" : (campaignSummary?.totalRevenue   ?? "—")} icon={BarChart3} color="sky" />
       </div>
 
-      {/* KPIs from summary */}
-      {summaryLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {error}
+          <button onClick={refetch} className="ml-auto text-xs hover:underline flex items-center gap-1"><RefreshCw size={11} /> Retry</button>
         </div>
-      ) : campaignSummary ? (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <KPI title="Total Budget"       value={campaignSummary.totalBudget    ?? "—"} icon={DollarSign} />
-          <KPI title="Total Spend"        value={campaignSummary.totalSpend     ?? "—"} icon={DollarSign} />
-          <KPI title="Pipeline Influenced" value={campaignSummary.totalPipeline ?? "—"} icon={Target} />
-          <KPI title="Revenue Attributed"  value={campaignSummary.totalRevenue  ?? "—"} icon={BarChart3} />
-        </div>
-      ) : null}
-
-      {error && <ErrorBanner message={error} onRetry={refetch} />}
+      )}
 
       {/* Main Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -233,8 +205,8 @@ export default function Campaign() {
                         {c.status ?? "—"}
                       </div>
                     </div>
-                    <div className="mt-2 h-2 bg-slate-200 rounded">
-                      <div className="h-2 rounded bg-indigo-600" style={{ width: `${progress}%` }} />
+                    <div className="mt-2 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-violet-500" style={{ width: `${progress}%` }} />
                     </div>
                     <div className="mt-1 text-xs text-slate-500">
                       Spend ${(c.spend ?? 0).toLocaleString()} / ${(c.budget ?? 0).toLocaleString()}
@@ -266,10 +238,10 @@ export default function Campaign() {
                   <button
                     key={t.id}
                     onClick={() => setTab(t.id)}
-                    className={`pb-2 whitespace-nowrap ${
+                    className={`pb-2 whitespace-nowrap transition ${
                       tab === t.id
-                        ? "border-b-2 border-indigo-600 text-indigo-600"
-                        : "text-slate-500"
+                        ? "border-b-2 border-violet-600 text-violet-600 dark:text-violet-400"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                     }`}
                   >
                     {t.label}
@@ -374,16 +346,3 @@ export default function Campaign() {
   );
 }
 
-function KPI({ title, value, icon: Icon }) {
-  return (
-    <div className="rounded-xl border bg-white dark:bg-slate-900 p-4 flex items-center gap-3">
-      <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
-        <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-      </div>
-      <div>
-        <div className="text-xs text-slate-500">{title}</div>
-        <div className="text-lg font-semibold">{value}</div>
-      </div>
-    </div>
-  );
-}

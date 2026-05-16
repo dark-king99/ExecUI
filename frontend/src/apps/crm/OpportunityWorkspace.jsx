@@ -67,7 +67,7 @@ function NewOpportunityModal({ onClose, onCreated }) {
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               placeholder="Opportunity name"
-              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
 
@@ -80,7 +80,7 @@ function NewOpportunityModal({ onClose, onCreated }) {
                 value={form.value}
                 onChange={(e) => set("value", e.target.value)}
                 placeholder="0"
-                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
             <div>
@@ -88,7 +88,7 @@ function NewOpportunityModal({ onClose, onCreated }) {
               <select
                 value={form.stage}
                 onChange={(e) => set("stage", e.target.value)}
-                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
               >
                 {OPP_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -102,7 +102,7 @@ function NewOpportunityModal({ onClose, onCreated }) {
                 type="date"
                 value={form.close}
                 onChange={(e) => set("close", e.target.value)}
-                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
             <div>
@@ -112,7 +112,7 @@ function NewOpportunityModal({ onClose, onCreated }) {
                 value={form.owner}
                 onChange={(e) => set("owner", e.target.value)}
                 placeholder="Assignee name"
-                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
           </div>
@@ -128,7 +128,7 @@ function NewOpportunityModal({ onClose, onCreated }) {
             <button
               type="submit"
               disabled={loading}
-              className="text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white transition"
+              className="text-sm px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white transition"
             >
               {loading ? "Saving…" : "Create"}
             </button>
@@ -176,7 +176,7 @@ export default function OpportunityWorkspace() {
         actions={
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition"
+            className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white text-sm px-4 py-2 rounded-lg transition"
           >
             <Plus size={15} /> New Opportunity
           </button>
@@ -184,7 +184,7 @@ export default function OpportunityWorkspace() {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Open Opps"      value={summaryLoading ? "…" : (summary?.openCount       ?? allOpps.length)} icon={Target}     color="indigo" />
+        <Stat label="Open Opps"      value={summaryLoading ? "…" : (summary?.openCount       ?? allOpps.length)} icon={Target}     color="orange" />
         <Stat label="Pipeline Value" value={summaryLoading ? "…" : (summary?.pipelineValue   ?? "—")}            icon={DollarSign} color="sky" />
         <Stat label="Avg Deal Size"  value={summaryLoading ? "…" : (summary?.avgDealSize     ?? "—")}            icon={TrendingUp} color="emerald" delta={summary?.avgDealSizeDelta} />
         <Stat label="Win Rate (90d)" value={summaryLoading ? "…" : (summary?.winRate         ?? "—")}            icon={Users}      color="amber" />
@@ -239,7 +239,7 @@ export default function OpportunityWorkspace() {
 
           <div className="space-y-3">
             {allOpps.map(opp => (
-              <div key={opp.id ?? opp.name} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition">
+              <div key={opp.id ?? opp.name} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-600 transition">
                 <div>
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">{opp.name}</p>
                   <div className="flex items-center gap-2 mt-1">
