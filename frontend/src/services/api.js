@@ -407,6 +407,42 @@ export const network = {
       update: (id,d) => put(`/network/settings/profiles/${id}`, d),
     },
   },
+  servers: {
+    list:    (params) => get('/network/servers', params),
+    get:     (id)     => get(`/network/servers/${id}`),
+    metrics: ()       => get('/network/servers/metrics'),
+    create:  (data)   => post('/network/servers', data),
+    update:  (id, d)  => put(`/network/servers/${id}`, d),
+    delete:  (id)     => del(`/network/servers/${id}`),
+    restart: (id)     => post(`/network/servers/${id}/restart`),
+    sync:    (id)     => post(`/network/servers/${id}/sync`),
+  },
+  monitor: {
+    overview: () => get('/network/monitor/overview'),
+    metrics:  () => get('/network/monitor/metrics'),
+    events:   () => get('/network/monitor/events'),
+  },
+  restrictions: {
+    list:   (params) => get('/network/restrictions', params),
+    get:    (id)     => get(`/network/restrictions/${id}`),
+    create: (data)   => post('/network/restrictions', data),
+    update: (id, d)  => put(`/network/restrictions/${id}`, d),
+    delete: (id)     => del(`/network/restrictions/${id}`),
+    toggle: (id)     => post(`/network/restrictions/${id}/toggle`),
+  },
+  firewall: {
+    rules:  {
+      list:   (params) => get('/network/firewall/rules', params),
+      get:    (id)     => get(`/network/firewall/rules/${id}`),
+      create: (data)   => post('/network/firewall/rules', data),
+      update: (id, d)  => put(`/network/firewall/rules/${id}`, d),
+      delete: (id)     => del(`/network/firewall/rules/${id}`),
+      toggle: (id)     => post(`/network/firewall/rules/${id}/toggle`),
+    },
+    zones: () => get('/network/firewall/zones'),
+    logs:  () => get('/network/firewall/logs'),
+  },
+  sync: () => post('/network/sync'),
 };
 
 // ── Account ───────────────────────────────────────────────────────────────
