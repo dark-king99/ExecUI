@@ -5,6 +5,8 @@ import {
 import { useApi, useMutation } from "../../hooks/useApi";
 import { crm } from "../../services/api";
 import { useToast } from "../../components/ui/Toast";
+import PageHeader from "../../components/ui/PageHeader";
+import { Stat } from "../../components/ui/Card";
 
 export default function Partners() {
   const toast = useToast();
@@ -32,14 +34,10 @@ export default function Partners() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl text-slate-900 dark:text-white font-semibold flex items-center gap-2">
-            <Building2 className="h-6 w-6" /> Partners & Board Command Center
-          </h1>
-          <p className="text-slate-500">Executive governance, ownership, partners, and board operations</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Partners & Board"
+        subtitle="Executive governance, ownership, partners, and board operations."
+      />
 
       {partnersError && (
         <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -47,11 +45,11 @@ export default function Partners() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KPI icon={Users}       label="Partners"           value={partnersLoading ? "…" : allPartners.length} />
-        <KPI icon={TrendingUp}  label="Total Shares"       value={partnersLoading ? "…" : totalShares.toLocaleString()} />
-        <KPI icon={Calendar}    label="Upcoming Meetings"  value={meetingsLoading ? "…" : allMeetings.length} />
-        <KPI icon={ShieldCheck} label="Governance Status"  value="Compliant" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Stat label="Partners"           value={partnersLoading ? "…" : allPartners.length}               icon={Users}       color="indigo" />
+        <Stat label="Total Shares"       value={partnersLoading ? "…" : totalShares.toLocaleString()}    icon={TrendingUp}  color="emerald" />
+        <Stat label="Upcoming Meetings"  value={meetingsLoading ? "…" : allMeetings.length}              icon={Calendar}    color="sky" />
+        <Stat label="Governance"         value="Compliant"                                                 icon={ShieldCheck} color="emerald" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -151,16 +149,3 @@ export default function Partners() {
   );
 }
 
-function KPI({ icon: Icon, label, value }) {
-  return (
-    <div className="rounded-xl border bg-white dark:bg-slate-900 p-4 flex items-center gap-3">
-      <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
-        <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-      </div>
-      <div>
-        <div className="text-xs text-slate-400">{label}</div>
-        <div className="text-lg text-slate-900 dark:text-white font-semibold">{value}</div>
-      </div>
-    </div>
-  );
-}

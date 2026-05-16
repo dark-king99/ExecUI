@@ -1,24 +1,12 @@
 import { useApi } from "../../../hooks/useApi";
 import { network } from "../../../services/api";
 import { SkeletonCard, SkeletonTable } from "../../../components/ui/Skeleton";
-import { Activity, ArrowDownUp, Wifi, AlertTriangle, Server, Boxes, RefreshCw } from "lucide-react";
+import { Activity, ArrowDownUp, Wifi, AlertTriangle, Server, Boxes, RefreshCw, AlertCircle } from "lucide-react";
+import PageHeader from "../../../components/ui/PageHeader";
 
 const KPI_ICON_MAP = {
   ArrowDownUp, Activity, AlertTriangle, Wifi, Server, Boxes,
 };
-
-function ErrorBanner({ message, onRetry }) {
-  return (
-    <div className="flex items-center justify-between rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3">
-      <p className="text-sm text-red-700 dark:text-red-300">{message}</p>
-      {onRetry && (
-        <button onClick={onRetry} className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400 hover:underline">
-          <RefreshCw size={12} /> Retry
-        </button>
-      )}
-    </div>
-  );
-}
 
 export default function Traffic() {
   const {
@@ -55,26 +43,26 @@ export default function Traffic() {
 
   return (
     <div className="h-full w-full space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Network Traffic</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">
-            Real-time network flows, bandwidth usage, and anomaly detection.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400">Auto-refresh 15s</span>
-          <button
-            onClick={handleRefreshAll}
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg transition"
-          >
-            <RefreshCw size={13} /> Refresh
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Network Traffic"
+        subtitle="Real-time network flows, bandwidth usage, and anomaly detection."
+        actions={
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400">Auto-refresh 15s</span>
+            <button onClick={handleRefreshAll} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg transition">
+              <RefreshCw size={13} /> Refresh
+            </button>
+          </div>
+        }
+      />
 
       {/* KPI Grid */}
-      {overviewError && <ErrorBanner message={overviewError} onRetry={refetchOverview} />}
+      {overviewError && (
+        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle size={15} /> {overviewError}
+          <button onClick={refetchOverview} className="ml-auto text-xs hover:underline flex items-center gap-1"><RefreshCw size={11} /> Retry</button>
+        </div>
+      )}
       {overviewLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}

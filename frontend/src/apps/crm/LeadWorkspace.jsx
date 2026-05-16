@@ -105,7 +105,7 @@ function AddLeadModal({ onClose, onCreated }) {
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               placeholder="Full name"
-              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
 
@@ -118,7 +118,7 @@ function AddLeadModal({ onClose, onCreated }) {
               value={form.email}
               onChange={(e) => set("email", e.target.value)}
               placeholder="email@company.com"
-              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
 
@@ -131,7 +131,7 @@ function AddLeadModal({ onClose, onCreated }) {
               value={form.company}
               onChange={(e) => set("company", e.target.value)}
               placeholder="Company name"
-              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
 
@@ -142,7 +142,7 @@ function AddLeadModal({ onClose, onCreated }) {
             <select
               value={form.stage}
               onChange={(e) => set("stage", e.target.value)}
-              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               {STAGES.map((s) => (
                 <option key={s} value={s}>{s}</option>
@@ -162,7 +162,7 @@ function AddLeadModal({ onClose, onCreated }) {
             <button
               type="submit"
               disabled={loading}
-              className="text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white transition"
+              className="text-sm px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white transition"
             >
               {loading ? "Saving…" : "Add Lead"}
             </button>
@@ -220,7 +220,7 @@ export default function LeadWorkspace() {
             </button>
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition"
+              className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white text-sm px-4 py-2 rounded-lg transition"
             >
               <Plus size={15} /> Add Lead
             </button>
@@ -235,7 +235,7 @@ export default function LeadWorkspace() {
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Stat label="Total Leads"    value={totalLeads} icon={UserPlus} color="indigo" />
+          <Stat label="Total Leads"    value={totalLeads} icon={UserPlus} color="orange" />
           <Stat label="Qualified"      value={qualified}  icon={Star}     color="emerald" />
           <Stat label="Demo Booked"    value={demoBooked} icon={Calendar} color="sky" />
           <Stat label="Avg Lead Score" value={avgScore}   icon={Star}     color="amber" />
