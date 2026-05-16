@@ -34,6 +34,10 @@ const PolicyCompliance    = lazy(() => import("../apps/network/views/PolicyCompl
 const CapacityPlanning    = lazy(() => import("../apps/network/views/CapacityPlanning"));
 const ServiceHealth       = lazy(() => import("../apps/network/views/ServiceHealth"));
 const AutomationJobs      = lazy(() => import("../apps/network/views/AutomationJobs"));
+const ServerManager       = lazy(() => import("../apps/network/views/ServerManager"));
+const NetworkMonitor      = lazy(() => import("../apps/network/views/NetworkMonitor"));
+const UserRestrictions    = lazy(() => import("../apps/network/views/UserRestrictions"));
+const FirewallSetup       = lazy(() => import("../apps/network/views/FirewallSetup"));
 
 // CRM
 const SmartCRM            = lazy(() => import("../apps/crm/SmartCRM"));
@@ -89,6 +93,7 @@ const Notifications       = lazy(() => import("../apps/account/Notifications"));
 const TeamPermissions     = lazy(() => import("../apps/account/TeamPermissions"));
 const Billing             = lazy(() => import("../apps/account/Billing"));
 const AuditLogs           = lazy(() => import("../apps/account/AuditLogs"));
+const EnterpriseWorkspace = lazy(() => import("../apps/account/EnterpriseWorkspace"));
 
 // Services
 const FinancialManagement             = lazy(() => import("../apps/services/FinancialManagement"));
@@ -150,7 +155,8 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/account/notifications" element={<Notifications />} />
                 <Route path="/account/team"         element={<TeamPermissions />} />
                 <Route path="/account/billing"      element={<Billing />} />
-                <Route path="/account/audit"        element={<AuditLogs />} />
+                <Route path="/account/audit"         element={<AuditLogs />} />
+                <Route path="/account/workspace"     element={<EnterpriseWorkspace />} />
                 <Route path="/account/overview"     element={<AccountView />} />
 
                 {/* Analytics */}
@@ -176,8 +182,12 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/network/changes"    element={<ChangeManagement />} />
                 <Route path="/network/policy"     element={<PolicyCompliance />} />
                 <Route path="/network/capacity"   element={<CapacityPlanning />} />
-                <Route path="/network/slo"        element={<ServiceHealth />} />
-                <Route path="/network/automation" element={<AutomationJobs />} />
+                <Route path="/network/slo"          element={<ServiceHealth />} />
+                <Route path="/network/automation"   element={<AutomationJobs />} />
+                <Route path="/network/servers"      element={<ServerManager />} />
+                <Route path="/network/monitor"      element={<NetworkMonitor />} />
+                <Route path="/network/restrictions" element={<UserRestrictions />} />
+                <Route path="/network/firewall"     element={<FirewallSetup />} />
 
                 {/* CRM */}
                 <Route path="/crm" element={<Navigate to="/crm/stream" replace />} />

@@ -101,6 +101,23 @@ export const auth = {
   refresh: ()            => post('/auth/refresh'),
 };
 
+// ── Enterprise / Admin ────────────────────────────────────────────────────
+export const enterprise = {
+  workspace: {
+    stats:    ()           => get('/users/admin/workspace/stats'),
+    sessions: ()           => get('/users/admin/workspace/sessions'),
+    audit:    (params)     => get('/users/admin/workspace/audit', params),
+  },
+  users: {
+    list:         ()           => get('/users/admin/users'),
+    get:          (id)         => get(`/users/admin/users/${id}`),
+    invite:       (data)       => post('/users/admin/invite', data),
+    update:       (id, data)   => put(`/users/admin/users/${id}`, data),
+    delete:       (id)         => del(`/users/admin/users/${id}`),
+    toggleStatus: (id)         => post(`/users/admin/users/${id}/toggle-status`),
+  },
+};
+
 // ── Analytics ─────────────────────────────────────────────────────────────
 export const analytics = {
   kpis:              ()       => get('/analytics/kpis'),
