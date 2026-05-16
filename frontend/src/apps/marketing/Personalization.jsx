@@ -1,18 +1,12 @@
 import { useState } from "react";
 import {
-  Sparkles,
-  Users,
-  Layers,
-  TrendingUp,
-  Brain,
-  Activity,
-  AlertCircle,
-  Loader2,
-  X,
+  Sparkles, Users, Layers, TrendingUp, Brain, Activity, AlertCircle, Loader2, X, Plus,
 } from "lucide-react";
 import { useApi, useMutation } from "../../hooks/useApi";
 import { useToast } from "../../components/ui/Toast";
 import { marketing } from "../../services/api";
+import PageHeader from "../../components/ui/PageHeader";
+import { Card, CardBody, CardHeader, Stat } from "../../components/ui/Card";
 
 function NewExperienceModal({ onClose, onCreated }) {
   const toast = useToast();
@@ -94,36 +88,29 @@ export default function Personalization() {
   const allExperiences = experiences ?? [];
 
   return (
-    <div className="min-h-full w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-8 space-y-8">
-      {showNewExp && <NewExperienceModal onClose={() => setShowNewExp(false)} />}
+    <div className="space-y-6">
+      {showNewExp && <NewExperienceModal onClose={() => setShowNewExp(false)} onCreated={() => {}} />}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <Sparkles size={20} /> Personalization Engine
-          </h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Real-time behavioral targeting, segmentation, and AI-driven optimization.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <select
-            value={environment}
-            onChange={(e) => setEnvironment(e.target.value)}
-            className="border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-md px-3 py-2 text-sm"
-          >
-            <option value="web">Web</option>
-            <option value="email">Email</option>
-            <option value="app">Mobile App</option>
-            <option value="omni">Omnichannel</option>
-          </select>
-
-          <button onClick={() => setShowNewExp(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700">
-            Create Experience
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Personalization Engine"
+        subtitle="Real-time behavioral targeting, segmentation, and AI-driven experience optimization."
+        actions={
+          <div className="flex items-center gap-2">
+            <select
+              value={environment} onChange={e => setEnvironment(e.target.value)}
+              className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              <option value="web">Web</option>
+              <option value="email">Email</option>
+              <option value="app">Mobile App</option>
+              <option value="omni">Omnichannel</option>
+            </select>
+            <button onClick={() => setShowNewExp(true)} className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm px-4 py-2 rounded-lg transition">
+              <Plus size={15} /> Create Experience
+            </button>
+          </div>
+        }
+      />
 
       {metricsError && (
         <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -131,127 +118,109 @@ export default function Personalization() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <MetricCard icon={Users}     title="Active Segments"  value={metricsLoading ? "…" : (metrics?.activeSegments ?? "—")} />
-        <MetricCard icon={Layers}    title="Live Experiences" value={metricsLoading ? "…" : (metrics?.liveExperiences ?? "—")} />
-        <MetricCard icon={Activity}  title="Live Visitors"    value={metricsLoading ? "…" : (metrics?.liveVisitors ?? "—")} />
-        <MetricCard icon={TrendingUp} title="Conversion Lift" value={metricsLoading ? "…" : (metrics?.conversionLift ?? "—")} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Stat label="Active Segments"  value={metricsLoading ? "…" : (metrics?.activeSegments  ?? "—")} icon={Users}      color="indigo" />
+        <Stat label="Live Experiences" value={metricsLoading ? "…" : (metrics?.liveExperiences ?? "—")} icon={Layers}     color="emerald" />
+        <Stat label="Live Visitors"    value={metricsLoading ? "…" : (metrics?.liveVisitors    ?? "—")} icon={Activity}   color="sky" />
+        <Stat label="Conversion Lift"  value={metricsLoading ? "…" : (metrics?.conversionLift  ?? "—")} icon={TrendingUp} color="amber" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-
-        <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-6 shadow-sm">
-          <h2 className="font-semibold text-lg">Audience Segmentation</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Rule label="Lifecycle Stage" value={metrics?.topLifecycleStage ?? "—"} />
-            <Rule label="Last Visit"      value={metrics?.lastVisitWindow ?? "—"} />
-            <Rule label="Top Industry"    value={metrics?.topIndustry ?? "—"} />
-          </div>
-
-          <div className="flex items-center justify-between mt-6">
-            <span className="text-sm text-slate-600 dark:text-slate-400">
-              Estimated Reach: {metrics?.estimatedReach != null
-                ? Number(metrics.estimatedReach).toLocaleString() + " users"
-                : "—"}
-            </span>
-            <button
-              onClick={() => toast({ message: "Segmentation rules updated.", type: "success" })}
-              className="px-4 py-2 text-sm bg-slate-200 dark:bg-slate-800 rounded-md hover:bg-slate-300 dark:hover:bg-slate-700 transition"
-            >
-              Edit Rules
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
-          <h2 className="font-semibold text-lg flex items-center gap-2">
-            <Brain size={18} /> AI Optimization
-          </h2>
-
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Auto Optimize Traffic</span>
-            <button
-              onClick={() => setAiEnabled(!aiEnabled)}
-              className={`px-3 py-1 text-xs rounded-full ${
-                aiEnabled ? "bg-green-500 text-white" : "bg-slate-300 dark:bg-slate-700"
-              }`}
-            >
-              {aiEnabled ? "Enabled" : "Disabled"}
-            </button>
-          </div>
-
-          <div className="text-sm text-slate-600 dark:text-slate-400">
-            {metrics?.aiRecommendation ?? "AI analyzing traffic patterns…"}
-          </div>
-
-          <button
-            onClick={() => toast({ message: "AI recommendation applied.", type: "success" })}
-            className="w-full mt-4 bg-indigo-600 text-white py-2 rounded-md text-sm hover:bg-indigo-700"
-          >
-            Apply Recommendation
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
-        <h2 className="font-semibold text-lg mb-4">Active Experiences</h2>
-
-        {expLoading && allExperiences.length === 0 && (
-          <div className="flex justify-center py-4">
-            <Loader2 size={18} className="animate-spin text-slate-400" />
-          </div>
-        )}
-
-        {!expLoading && allExperiences.length === 0 && (
-          <p className="text-sm text-slate-500 text-center py-4">No experiences found.</p>
-        )}
-
-        {allExperiences.length > 0 && (
-          <table className="w-full text-sm">
-            <thead className="text-left text-slate-600 dark:text-slate-400">
-              <tr>
-                <th className="py-2">Experience</th>
-                <th>Segment</th>
-                <th>Status</th>
-                <th>Conversion</th>
-              </tr>
-            </thead>
-            <tbody>
-              {allExperiences.map(exp => (
-                <tr key={exp.id ?? exp.name} className="border-t border-slate-200 dark:border-slate-800">
-                  <td className="py-3">{exp.name}</td>
-                  <td>{exp.segment}</td>
-                  <td className={statusColor[exp.status] ?? "text-slate-400"}>{exp.status}</td>
-                  <td>{exp.conversion ?? exp.conversionRate ?? "—"}</td>
-                </tr>
+        <Card className="xl:col-span-2">
+          <CardHeader title="Audience Segmentation" icon={Layers} />
+          <CardBody className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                { label: "Lifecycle Stage", value: metrics?.topLifecycleStage ?? "—" },
+                { label: "Last Visit",      value: metrics?.lastVisitWindow ?? "—" },
+                { label: "Top Industry",    value: metrics?.topIndustry ?? "—" },
+              ].map(({ label, value }) => (
+                <div key={label} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{label}</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{value}</p>
+                </div>
               ))}
-            </tbody>
-          </table>
-        )}
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+              <span className="text-sm text-slate-600 dark:text-slate-400">
+                Estimated Reach: {metrics?.estimatedReach != null
+                  ? Number(metrics.estimatedReach).toLocaleString() + " users" : "—"}
+              </span>
+              <button
+                onClick={() => toast({ message: "Edit rules in the Segmentation Studio.", type: "info" })}
+                className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              >
+                Edit Rules
+              </button>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader title="AI Optimization" icon={Brain} />
+          <CardBody className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-700 dark:text-slate-300">Auto Optimize Traffic</span>
+              <button
+                onClick={() => setAiEnabled(!aiEnabled)}
+                className={`px-3 py-1 text-xs rounded-full font-medium transition ${
+                  aiEnabled ? "bg-emerald-500 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                }`}
+              >
+                {aiEnabled ? "Enabled" : "Disabled"}
+              </button>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              {metrics?.aiRecommendation ?? "AI is analyzing traffic patterns and engagement signals…"}
+            </p>
+            <button
+              onClick={() => toast({ message: "AI recommendation applied.", type: "success" })}
+              className="w-full bg-violet-600 hover:bg-violet-700 text-white py-2 rounded-lg text-sm transition"
+            >
+              Apply Recommendation
+            </button>
+          </CardBody>
+        </Card>
       </div>
+
+      <Card>
+        <CardHeader title="Active Experiences" icon={Sparkles} actions={
+          <button onClick={() => setShowNewExp(true)} className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400 hover:underline"><Plus size={12} /> New</button>
+        } />
+
+        <CardBody>
+          {expLoading && allExperiences.length === 0 && (
+            <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-slate-400" /></div>
+          )}
+          {!expLoading && allExperiences.length === 0 && (
+            <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">No experiences yet.</p>
+          )}
+          {allExperiences.length > 0 && (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800">
+                  {["Experience","Segment","Status","Conversion"].map(h => (
+                    <th key={h} className="text-left py-2 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {allExperiences.map(exp => (
+                  <tr key={exp.id ?? exp.name} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                    <td className="py-3 px-2 font-medium text-slate-900 dark:text-white">{exp.name}</td>
+                    <td className="py-3 px-2 text-slate-600 dark:text-slate-300">{exp.segment ?? "—"}</td>
+                    <td className="py-3 px-2">
+                      <span className={`text-xs font-semibold ${statusColor[exp.status] ?? "text-slate-500"}`}>{exp.status ?? "—"}</span>
+                    </td>
+                    <td className="py-3 px-2 text-slate-600 dark:text-slate-300">{exp.conversion ?? exp.conversionRate ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </CardBody>
+      </Card>
     </div>
   );
 }
 
-function MetricCard({ icon: Icon, title, value }) {
-  return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
-      <div className="flex items-center justify-between">
-        <Icon size={18} />
-        <span className="text-xs text-slate-500 dark:text-slate-400">Real-time</span>
-      </div>
-      <div className="mt-4 text-xl font-semibold">{value}</div>
-      <div className="text-sm text-slate-600 dark:text-slate-400">{title}</div>
-    </div>
-  );
-}
-
-function Rule({ label, value }) {
-  return (
-    <div className="bg-slate-100 dark:bg-slate-800 rounded-md p-3">
-      <div className="text-xs text-slate-500 dark:text-slate-400">{label}</div>
-      <div className="text-sm font-medium">{value}</div>
-    </div>
-  );
-}

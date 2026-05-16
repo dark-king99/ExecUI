@@ -51,10 +51,10 @@ function MessageContent({ text }) {
 function CustomerPill({ customer, onClear }) {
   if (!customer) return null;
   return (
-    <div className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 rounded-full px-3 py-1 text-xs text-indigo-700 dark:text-indigo-300">
+    <div className="flex items-center gap-2 bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 rounded-full px-3 py-1 text-xs text-orange-700 dark:text-orange-300">
       <User size={11} />
       <span className="font-medium">{customer.name}</span>
-      <button onClick={onClear} className="hover:text-indigo-900 dark:hover:text-white ml-0.5">
+      <button onClick={onClear} className="hover:text-orange-900 dark:hover:text-white ml-0.5">
         <X size={11} />
       </button>
     </div>
@@ -152,9 +152,9 @@ export default function SmartCRM() {
       <div className="flex-1 flex flex-col min-h-0 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-slate-900">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/40 dark:to-slate-900">
           <div className="flex items-center gap-3">
-            <div className="p-1.5 rounded-lg bg-indigo-600">
+            <div className="p-1.5 rounded-lg bg-orange-600">
               <Bot size={16} className="text-white" />
             </div>
             <div>
@@ -178,7 +178,7 @@ export default function SmartCRM() {
               {/* Avatar */}
               <div className={`h-7 w-7 rounded-full shrink-0 flex items-center justify-center ${
                 m.role === "user"
-                  ? "bg-indigo-600"
+                  ? "bg-orange-600"
                   : "bg-gradient-to-br from-indigo-500 to-purple-600"
               }`}>
                 {m.role === "user"
@@ -190,7 +190,7 @@ export default function SmartCRM() {
               {/* Bubble */}
               <div className={`max-w-[78%] px-4 py-3 rounded-2xl ${
                 m.role === "user"
-                  ? "bg-indigo-600 text-white rounded-tr-sm"
+                  ? "bg-orange-600 text-white rounded-tr-sm"
                   : "bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-tl-sm border border-slate-100 dark:border-slate-700"
               }`}>
                 {m.role === "user"
@@ -228,7 +228,7 @@ export default function SmartCRM() {
               disabled={chatLoading}
               rows={1}
               placeholder="Ask anything about your CRM, pipeline, customers…"
-              className="flex-1 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 resize-none leading-relaxed"
+              className="flex-1 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 resize-none leading-relaxed"
               style={{ maxHeight: "120px" }}
               onInput={(e) => {
                 e.target.style.height = "auto";
@@ -238,7 +238,7 @@ export default function SmartCRM() {
             <button
               onClick={() => handleSend()}
               disabled={chatLoading || !input.trim()}
-              className="h-10 w-10 flex items-center justify-center rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              className="h-10 w-10 flex items-center justify-center rounded-xl bg-orange-600 hover:bg-orange-700 text-white transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
             >
               {chatLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>
@@ -253,7 +253,7 @@ export default function SmartCRM() {
         {/* CRM Stats */}
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
           <div className="flex items-center gap-2 mb-3">
-            <Sparkles size={14} className="text-indigo-500" />
+            <Sparkles size={14} className="text-orange-500" />
             <h3 className="text-sm font-semibold text-slate-900 dark:text-white">CRM Overview</h3>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -270,9 +270,9 @@ export default function SmartCRM() {
               </div>
             </div>
             {forecastSummary?.target != null && (
-              <div className="col-span-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 p-2.5">
-                <div className="text-xs text-indigo-500 dark:text-indigo-400 mb-0.5">Forecast Commit</div>
-                <div className="text-sm font-bold text-indigo-700 dark:text-indigo-300">
+              <div className="col-span-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800 p-2.5">
+                <div className="text-xs text-orange-500 dark:text-orange-400 mb-0.5">Forecast Commit</div>
+                <div className="text-sm font-bold text-orange-700 dark:text-orange-300">
                   ${Number(forecastSummary.committed ?? 0).toLocaleString()}
                 </div>
               </div>
@@ -291,12 +291,12 @@ export default function SmartCRM() {
           </p>
 
           {selectedCustomer ? (
-            <div className="flex items-center justify-between bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-lg px-3 py-2">
+            <div className="flex items-center justify-between bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg px-3 py-2">
               <div>
-                <p className="text-sm font-medium text-indigo-700 dark:text-indigo-300">{selectedCustomer.name}</p>
-                <p className="text-xs text-indigo-500 dark:text-indigo-400">{selectedCustomer.email ?? "No email"}</p>
+                <p className="text-sm font-medium text-orange-700 dark:text-orange-300">{selectedCustomer.name}</p>
+                <p className="text-xs text-orange-500 dark:text-orange-400">{selectedCustomer.email ?? "No email"}</p>
               </div>
-              <button onClick={handleClearCustomer} className="text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-200">
+              <button onClick={handleClearCustomer} className="text-orange-400 hover:text-orange-700 dark:hover:text-orange-200">
                 <X size={14} />
               </button>
             </div>
@@ -304,7 +304,7 @@ export default function SmartCRM() {
             <div className="relative">
               <button
                 onClick={() => setCustomerOpen(o => !o)}
-                className="w-full flex items-center justify-between border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500 transition"
+                className="w-full flex items-center justify-between border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-orange-400 dark:hover:border-orange-500 transition"
               >
                 <span>Select customer…</span>
                 <ChevronDown size={14} className={`transition-transform ${customerOpen ? "rotate-180" : ""}`} />
@@ -324,8 +324,8 @@ export default function SmartCRM() {
                         onClick={() => handleSelectCustomer(c)}
                         className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700 transition text-sm"
                       >
-                        <div className="h-6 w-6 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
-                          <User size={11} className="text-indigo-600 dark:text-indigo-400" />
+                        <div className="h-6 w-6 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center shrink-0">
+                          <User size={11} className="text-orange-600 dark:text-orange-400" />
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium text-slate-900 dark:text-white truncate">{c.name}</p>
@@ -355,9 +355,9 @@ export default function SmartCRM() {
                 key={label}
                 onClick={() => handleTopic(prompt)}
                 disabled={chatLoading}
-                className="w-full flex items-center gap-2.5 text-left px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-700 dark:hover:text-indigo-300 transition disabled:opacity-40 group"
+                className="w-full flex items-center gap-2.5 text-left px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-700 dark:hover:text-orange-300 transition disabled:opacity-40 group"
               >
-                <Icon size={13} className="text-slate-400 group-hover:text-indigo-500 shrink-0 transition" />
+                <Icon size={13} className="text-slate-400 group-hover:text-orange-500 shrink-0 transition" />
                 {label}
               </button>
             ))}

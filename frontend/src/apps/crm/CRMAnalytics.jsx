@@ -22,7 +22,7 @@ export default function CRMAnalytics() {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Pipeline Velocity" value={summaryLoading ? "…" : (summary?.pipelineVelocity ?? "—")} icon={TrendingUp} color="indigo" delta={summary?.pipelineVelocityDelta} />
+        <Stat label="Pipeline Velocity" value={summaryLoading ? "…" : (summary?.pipelineVelocity ?? "—")} icon={TrendingUp} color="orange" delta={summary?.pipelineVelocityDelta} />
         <Stat label="Conversion Rate"   value={summaryLoading ? "…" : (summary?.conversionRate   ?? "—")} icon={Target}    color="emerald" delta={summary?.conversionRateDelta} />
         <Stat label="Avg Sales Cycle"   value={summaryLoading ? "…" : (summary?.avgSalesCycle     ?? "—")} icon={BarChart3} color="sky" />
         <Stat label="Win Rate"          value={summaryLoading ? "…" : (summary?.winRate           ?? "—")} icon={Users}     color="amber" delta={summary?.winRateDelta} />
@@ -51,7 +51,7 @@ export default function CRMAnalytics() {
                   </span>
                 </div>
                 <div className="h-6 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                  <div className="h-full bg-indigo-500 rounded-full flex items-center px-3 transition-all" style={{ width: `${s.pct}%` }}>
+                  <div className="h-full bg-orange-500 rounded-full flex items-center px-3 transition-all" style={{ width: `${s.pct}%` }}>
                     {s.pct > 15 && <span className="text-xs font-semibold text-white">{s.pct}%</span>}
                   </div>
                 </div>

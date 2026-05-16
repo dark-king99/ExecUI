@@ -3,6 +3,7 @@ import { useApi } from "../../../hooks/useApi";
 import { network } from "../../../services/api";
 import { SkeletonTable } from "../../../components/ui/Skeleton";
 import { Search, RefreshCw, AlertTriangle } from "lucide-react";
+import PageHeader from "../../../components/ui/PageHeader";
 
 function StatusBadge({ status }) {
   let color = "bg-slate-400";
@@ -53,18 +54,15 @@ export default function Inventory() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl text-slate-900 dark:text-white font-semibold">Network Inventory</h1>
-          <p className="text-slate-500">Manage and track all devices, servers, endpoints, and cloud nodes.</p>
-        </div>
-        <button
-          onClick={refetch}
-          className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg transition"
-        >
-          <RefreshCw size={13} /> Refresh
-        </button>
-      </div>
+      <PageHeader
+        title="Network Inventory"
+        subtitle="Manage and track all devices, servers, endpoints, and cloud nodes."
+        actions={
+          <button onClick={refetch} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg transition">
+            <RefreshCw size={13} /> Refresh
+          </button>
+        }
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-4 items-center">
