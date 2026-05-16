@@ -1,9 +1,9 @@
 # ── ExecUI Backend ────────────────────────────────────────────────────────────
-# Node 20 Alpine with native build tools required by bcrypt
-FROM node:20-alpine
+# Node 20 slim with native build tools required by bcrypt
+FROM node:20-slim
 
-# python3 / make / g++ are needed to compile bcrypt native bindings
-RUN apk add --no-cache python3 make g++
+#Install OpenSSL IMMEDIATELY
+RUN apt-get update && apt-get install -y openssl libssl-dev
 
 WORKDIR /app
 
