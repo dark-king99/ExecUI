@@ -1,206 +1,88 @@
 import { useState } from "react";
-import {
-  ShoppingCart,
-  TrendingUp,
-  Activity,
-  BarChart3,
-  AlertTriangle,
-  Repeat,
-  AlertCircle,
-  Loader2,
-} from "lucide-react";
+import { ShoppingCart, DollarSign, TrendingUp, Package, RefreshCw, AlertCircle } from "lucide-react";
+import PageHeader from "../../components/ui/PageHeader";
+import { Stat, Card, CardHeader, CardBody } from "../../components/ui/Card";
+import StatusBadge from "../../components/ui/StatusBadge";
+import { SkeletonCard, SkeletonTable } from "../../components/ui/Skeleton";
 import { useApi } from "../../hooks/useApi";
 import { marketing } from "../../services/api";
 
+const ORDER_STATUS = { completed: "success", processing: "info", pending: "warning", cancelled: "danger", refunded: "neutral" };
+
 export default function CommerceCommand() {
-  const [selectedOrder, setSelectedOrder] = useState(null);
-
-  const { data: metrics, loading: metricsLoading, error: metricsError } = useApi(
-    () => marketing.commerce.metrics(), [], { pollingInterval: 30000 }
-  );
-  const { data: orders, loading: ordersLoading } = useApi(
-    () => marketing.commerce.orders({ limit: 20 }), [], { pollingInterval: 15000 }
-  );
-
+  const [tab, setTab] = useState("orders");
+  const { data: orders, loading: ordLoading, error, refetch } = useApi(() => marketing.commerce.orders({ limit: 100 }), [], { pollingInterval: 60000 });
+  const { data: metrics, loading: metLoading } = useApi(() => marketing.commerce.metrics(), [], { pollingInterval: 120000 });
   const allOrders = orders ?? [];
-
+  const m = metrics ?? {};
+  const totalRevenue = allOrders.reduce((s, o) => s + (o.rawTotal ?? 0), 0);
+  const avgOrder = allOrders.length ? Math.round(totalRevenue / allOrders.length) : 0;
   return (
-    <div className="min-h-full w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-
-      <div className="border-b border-slate-200 dark:border-slate-800 px-8 py-6">
-        <h1 className="text-2xl font-semibold flex items-center gap-2">
-          <ShoppingCart size={22} /> Commerce Intelligence Platform
-        </h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400">
-          Order attribution, subscription tracking, revenue intelligence & marketing impact.
-        </p>
-      </div>
-
-      {metricsError && (
-        <div className="mx-8 mt-4 flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <AlertCircle size={15} /> {metricsError}
+    <div className="space-y-6">
+      <PageHeader title="Commerce Command" subtitle="Track orders, revenue, and commerce performance"
+        actions={<button onClick={refetch} className="flex items-center gap-1.5 text-xs border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition"><RefreshCw size={13} /> Refresh</button>}
+      />
+      {metLoading && allOrders.length === 0 ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}</div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Stat label="Total Orders" value={m.totalOrders ?? allOrders.length} icon={ShoppingCart} color="violet" />
+          <Stat label="Total Revenue" value={m.totalRevenue ?? (totalRevenue ? `$${(totalRevenue / 1000).toFixed(0)}k` : "—")} icon={DollarSign} color="emerald" delta={m.revenueDelta} />
+          <Stat label="Avg Order Value" value={m.avgOrderValue ?? (avgOrder ? `$${avgOrder}` : "—")} icon={TrendingUp} color="sky" />
+          <Stat label="Top Product" value={m.topProduct ?? "—"} icon={Package} color="amber" />
         </div>
       )}
-
-      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-6 px-8 py-6">
-        {metricsLoading && !metrics ? (
-          <div className="col-span-6 grid grid-cols-6 gap-6 animate-pulse">
-            {[1,2,3,4,5,6].map(i => <div key={i} className="h-16 bg-slate-100 dark:bg-slate-700 rounded-xl" />)}
-          </div>
-        ) : metrics && (
-          <>
-            <Metric label="Revenue (30d)"        value={metrics.revenue ?? "—"} />
-            <Metric label="Orders"               value={metrics.orders ?? "—"} />
-            <Metric label="AOV"                  value={metrics.aov ?? "—"} />
-            <Metric label="Refund Rate"          value={metrics.refundRate ?? "—"} />
-            <Metric label="Subscriptions Active" value={metrics.subscriptionsActive ?? "—"} />
-            <Metric label="High LTV Customers"   value={metrics.highLtvCustomers ?? "—"} />
-          </>
-        )}
+      {error && <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"><AlertCircle size={15} />{error}</div>}
+      <div className="flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden w-fit">
+        {["orders", "metrics"].map(t => (
+          <button key={t} onClick={() => setTab(t)} className={`px-4 py-1.5 text-sm font-medium capitalize transition ${tab === t ? "bg-violet-600 text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"}`}>{t}</button>
+        ))}
       </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-6 px-8 pb-10">
-
-        <div className="space-y-6">
-
-          <Card title="Channel Revenue Matrix" icon={BarChart3}>
-            {metrics?.channelMatrix ? (
-              metrics.channelMatrix.map(row => (
-                <MatrixRow key={row.channel} channel={row.channel} revenue={row.revenue} lift={row.lift} />
-              ))
-            ) : (
-              <p className="text-sm text-slate-400">No channel data available.</p>
-            )}
-          </Card>
-
-          <Card title="Live Order Stream" icon={Activity}>
-            {ordersLoading && allOrders.length === 0 && (
-              <div className="flex justify-center py-4">
-                <Loader2 size={18} className="animate-spin text-slate-400" />
-              </div>
-            )}
-            {!ordersLoading && allOrders.length === 0 && (
-              <p className="text-sm text-slate-400 text-center py-4">No orders found.</p>
-            )}
-            {allOrders.map(order => (
-              <OrderRow
-                key={order.id}
-                order={order}
-                onClick={() => setSelectedOrder(order)}
-              />
-            ))}
-          </Card>
-
-          <Card title="Revenue Cohort Analysis" icon={TrendingUp}>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {metrics?.cohortSummary ?? "Loading cohort data…"}
-            </p>
-          </Card>
-
-        </div>
-
-        <div className="space-y-6">
-
-          <Card title="Subscription Lifecycle" icon={Repeat}>
-            {metrics?.subscriptions ? (
-              <>
-                <p className="text-sm">New Subscriptions: {metrics.subscriptions.new ?? "—"}</p>
-                <p className="text-sm">Upgrades: {metrics.subscriptions.upgrades ?? "—"}</p>
-                <p className="text-sm">Cancellations: {metrics.subscriptions.cancellations ?? "—"}</p>
-              </>
-            ) : (
-              <p className="text-sm text-slate-400">No subscription data.</p>
-            )}
-          </Card>
-
-          <Card title="Refund & Risk Signals" icon={AlertTriangle}>
-            {metrics?.riskSignals ? (
-              <p className="text-sm text-red-500">{metrics.riskSignals}</p>
-            ) : (
-              <p className="text-sm text-slate-400">No risk signals.</p>
-            )}
-          </Card>
-
-          {selectedOrder && (
-            <OrderDrawer order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+      {tab === "orders" && (
+        <Card>
+          {ordLoading && allOrders.length === 0 ? <div className="p-5"><SkeletonTable rows={8} /></div> : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800">
+                    {["Order ID", "Customer", "Product / Items", "Total", "Date", "Status"].map(h => (
+                      <th key={h} className="text-left p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {allOrders.length === 0 ? (
+                    <tr><td colSpan={6} className="py-10 text-center text-sm text-slate-500">No orders found.</td></tr>
+                  ) : allOrders.map((o, i) => (
+                    <tr key={o.id ?? i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                      <td className="p-4 font-mono text-xs text-slate-400">#{o.id?.toString().slice(-6) ?? "—"}</td>
+                      <td className="p-4 text-slate-900 dark:text-white font-medium">{o.customer ?? o.customerName ?? "—"}</td>
+                      <td className="p-4 text-slate-600 dark:text-slate-300">
+                        <div className="truncate max-w-40">{o.product ?? o.items?.map(i => i.name).join(", ") ?? "—"}</div>
+                        {o.quantity != null && <div className="text-xs text-slate-400">{o.quantity} items</div>}
+                      </td>
+                      <td className="p-4 font-bold text-slate-900 dark:text-white">{o.total ?? o.value ?? "—"}</td>
+                      <td className="p-4 text-slate-400 text-xs">{o.date ?? o.createdAt ?? "—"}</td>
+                      <td className="p-4"><StatusBadge label={o.status ?? "pending"} variant={ORDER_STATUS[o.status] ?? "neutral"} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-
+        </Card>
+      )}
+      {tab === "metrics" && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {Object.entries(m).filter(([, v]) => v != null && typeof v !== "object").map(([key, val]) => (
+            <div key={key} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+              <div className="text-xs text-slate-500 mb-1 capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</div>
+              <div className="text-xl font-bold text-slate-900 dark:text-white">{String(val)}</div>
+            </div>
+          ))}
+          {Object.keys(m).length === 0 && <p className="col-span-3 text-sm text-slate-500 text-center py-8">No metrics available.</p>}
         </div>
-
-      </div>
-    </div>
-  );
-}
-
-function Metric({ label, value }) {
-  return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm text-sm">
-      <div className="text-slate-500 dark:text-slate-400">{label}</div>
-      <div className="text-lg font-semibold mt-1">{value}</div>
-    </div>
-  );
-}
-
-function Card({ title, icon: Icon, children }) {
-  return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm space-y-3">
-      <div className="flex items-center gap-2 font-semibold">
-        <Icon size={16} /> {title}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function MatrixRow({ channel, revenue, lift }) {
-  return (
-    <div className="flex justify-between text-sm">
-      <span>{channel}</span>
-      <span>{revenue}</span>
-      <span className="text-green-500">{lift}</span>
-    </div>
-  );
-}
-
-function OrderRow({ order, onClick }) {
-  const statusColor =
-    order.status === "Completed" || order.status === "completed"
-      ? "text-green-500"
-      : order.status === "Processing" || order.status === "processing"
-      ? "text-yellow-500"
-      : "text-red-500";
-
-  return (
-    <div
-      onClick={onClick}
-      className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 py-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
-    >
-      <div>
-        <div className="font-medium">{order.id}</div>
-        <div className="text-xs text-slate-500">
-          {order.customer} • {order.product}
-        </div>
-      </div>
-      <div className="text-right text-sm">
-        <div>${order.amount}</div>
-        <div className={statusColor}>{order.status}</div>
-      </div>
-    </div>
-  );
-}
-
-function OrderDrawer({ order, onClose }) {
-  return (
-    <div className="border border-indigo-500 rounded-xl p-4 bg-slate-100 dark:bg-slate-800 space-y-2 text-sm">
-      <div className="flex justify-between">
-        <div className="font-semibold">Order Intelligence</div>
-        <button onClick={onClose}>✕</button>
-      </div>
-      <p><strong>Customer:</strong> {order.customer}</p>
-      <p><strong>Campaign:</strong> {order.campaign ?? "—"}</p>
-      <p><strong>Channel:</strong> {order.channel ?? "—"}</p>
-      <p><strong>LTV:</strong> {order.ltv != null ? `$${order.ltv}` : "—"}</p>
-      <p><strong>Status:</strong> {order.status}</p>
+      )}
     </div>
   );
 }
