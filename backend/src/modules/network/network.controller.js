@@ -87,3 +87,39 @@ export const updateNetworkSettings = handle((req) => svc.updateNetworkSettings(t
 export const listSettingsProfiles  = handle((req) => svc.listSettingsProfiles(tid(req)));
 export const getSettingsProfile    = handle((req) => svc.getSettingsProfile(tid(req), req.params.id));
 export const updateSettingsProfile = handle((req) => svc.updateSettingsProfile(tid(req), req.params.id, req.body));
+
+// Servers
+export const listServers       = handle((req) => svc.listServers(tid(req), req.query));
+export const getServer         = handle((req) => svc.getServer(tid(req), req.params.id));
+export const createServer      = handle((req) => svc.createServer(tid(req), req.body));
+export const updateServer      = handle((req) => svc.updateServer(tid(req), req.params.id, req.body));
+export const deleteServer      = handle((req) => svc.deleteServer(tid(req), req.params.id));
+export const restartServer     = handle((req) => svc.restartServer(tid(req), req.params.id));
+export const syncServerMetrics = handle((req) => svc.syncServerMetrics(tid(req), req.params.id));
+export const getServerMetrics  = handle((req) => svc.getServerMetrics(tid(req)));
+
+// Monitor
+export const getMonitorOverview = handle((req) => svc.getMonitorOverview(tid(req)));
+export const getMonitorMetrics  = handle((req) => svc.getMonitorMetrics(tid(req)));
+export const getMonitorEvents   = handle((req) => svc.getMonitorEvents(tid(req)));
+
+// User Restrictions
+export const listRestrictions  = handle((req) => svc.listRestrictions(tid(req), req.query));
+export const getRestriction    = handle((req) => svc.getRestriction(tid(req), req.params.id));
+export const createRestriction = handle((req) => svc.createRestriction(tid(req), req.body));
+export const updateRestriction = handle((req) => svc.updateRestriction(tid(req), req.params.id, req.body));
+export const deleteRestriction = handle((req) => svc.deleteRestriction(tid(req), req.params.id));
+export const toggleRestriction = handle((req) => svc.toggleRestriction(tid(req), req.params.id));
+
+// Firewall
+export const listFirewallRules  = handle((req) => svc.listFirewallRules(tid(req), req.query));
+export const getFirewallRule    = handle((req) => svc.getFirewallRule(tid(req), req.params.id));
+export const createFirewallRule = handle((req) => svc.createFirewallRule(tid(req), req.body));
+export const updateFirewallRule = handle((req) => svc.updateFirewallRule(tid(req), req.params.id, req.body));
+export const deleteFirewallRule = handle((req) => svc.deleteFirewallRule(tid(req), req.params.id));
+export const toggleFirewallRule = handle((req) => svc.toggleFirewallRule(tid(req), req.params.id));
+export const getFirewallZones   = handle((req) => svc.getFirewallZones(tid(req)));
+export const getFirewallLogs    = handle((req) => svc.getFirewallLogs(tid(req)));
+
+// Global sync
+export const syncAllNetwork = handle((req) => svc.syncAllNetwork(tid(req)));

@@ -19,6 +19,10 @@ import PolicyCompliance from "../apps/network/views/PolicyCompliance";
 import CapacityPlanning from "../apps/network/views/CapacityPlanning";
 import ServiceHealth from "../apps/network/views/ServiceHealth";
 import AutomationJobs from "../apps/network/views/AutomationJobs";
+import ServerManager from "../apps/network/views/ServerManager";
+import NetworkMonitor from "../apps/network/views/NetworkMonitor";
+import UserRestrictions from "../apps/network/views/UserRestrictions";
+import FirewallSetup from "../apps/network/views/FirewallSetup";
 
 // CRM
 import CRMView from "../apps/CRMView";
@@ -72,10 +76,14 @@ export default function ContentArea({ roleToUse }) {
     if (networkView === "slo")        return <ServiceHealth />;
     if (networkView === "automation") return <AutomationJobs />;
     if (networkView === "map")        return <TopologyMap />;
-    if (networkView === "alerts")     return <Alerts />;
-    if (networkView === "traffic")    return <Traffic />;
-    if (networkView === "docs")       return <Documentation />;
-    if (networkView === "settings")   return <Settings />;
+    if (networkView === "alerts")       return <Alerts />;
+    if (networkView === "traffic")     return <Traffic />;
+    if (networkView === "servers")     return <ServerManager />;
+    if (networkView === "monitor")     return <NetworkMonitor />;
+    if (networkView === "restrictions") return <UserRestrictions />;
+    if (networkView === "firewall")    return <FirewallSetup />;
+    if (networkView === "docs")        return <Documentation />;
+    if (networkView === "settings")    return <Settings />;
     return <NetworkView />;
   }
 
