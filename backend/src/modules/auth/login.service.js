@@ -2,43 +2,53 @@ import prisma from "../../config/database.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-export async function loginUser({ email, password }) {
-
+export async function loginUser({ email, password }, meta = {}) {
   const user = await prisma.user.findUnique({
     where: { email },
-    include: {
-      tenant: true,
-      role: true
-    }
+    include: { tenant: true, role: true },
   });
 
-  if (!user) {
-    throw new Error("Invalid credentials");
-  }
+  if (!user) throw new Error("Invalid credentials");
+  if (!user.isActive) throw new Error("Account is suspended. Contact your administrator.");
 
   const valid = await bcrypt.compare(password, user.passwordHash);
-
-  if (!valid) {
-    throw new Error("Invalid credentials");
-  }
+  if (!valid) throw new Error("Invalid credentials");
 
   const token = jwt.sign(
-    {
-      userId: user.id,
-      tenantId: user.tenantId,
-      role: user.role.name
-    },
+    { userId: user.id, tenantId: user.tenantId, role: user.role.name },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES || "1d" }
   );
 
+  // Record session and update lastLoginAt in parallel
+  await Promise.all([
+    prisma.userSession.create({
+      data: {
+        userId: user.id,
+        tenantId: user.tenantId,
+        ipAddress: meta.ipAddress ?? null,
+        userAgent: meta.userAgent ?? null,
+        isActive: true,
+      },
+    }),
+    prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        tenantId: user.tenantId,
+        action: "login",
+        resource: "auth",
+        detail: `Login from ${meta.ipAddress ?? "unknown"}`,
+        ipAddress: meta.ipAddress ?? null,
+      },
+    }),
+  ]);
+
   return {
     token,
-    user: {
-      id: user.id,
-      email: user.email,
-      tenantId: user.tenantId,
-      role: user.role.name
-    }
+    user: { id: user.id, email: user.email, tenantId: user.tenantId, role: user.role.name },
   };
 }
