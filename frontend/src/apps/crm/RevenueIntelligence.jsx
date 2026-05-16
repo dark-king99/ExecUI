@@ -5,6 +5,8 @@ import {
 } from "lucide-react";
 import { useApi } from "../../hooks/useApi";
 import { crm } from "../../services/api";
+import PageHeader from "../../components/ui/PageHeader";
+import { Card, CardBody, CardHeader, Stat } from "../../components/ui/Card";
 
 function currency(n) { return n != null ? `$${Number(n).toLocaleString()}` : "—"; }
 
@@ -17,7 +19,10 @@ export default function RevenueIntelligence() {
 
   const allDeals = deals ?? [];
 
-  const owners = useMemo(() => ["all", ...new Set(allDeals.map(d => d.owner).filter(Boolean))], [allDeals]);
+  const owners = useMemo(() =>
+    ["all", ...new Set(allDeals.map(d => d.owner).filter(Boolean))],
+    [allDeals]
+  );
 
   const filtered = useMemo(() =>
     ownerFilter === "all" ? allDeals : allDeals.filter(d => d.owner === ownerFilter),
@@ -25,13 +30,13 @@ export default function RevenueIntelligence() {
   );
 
   const metrics = useMemo(() => {
-    const open   = filtered.filter(d => !d.closed && d.stage !== "won" && d.stage !== "lost");
-    const won    = filtered.filter(d => d.stage === "won"  || d.closed === true);
-    const lost   = filtered.filter(d => d.stage === "lost");
+    const open          = filtered.filter(d => !d.closed && d.stage !== "won" && d.stage !== "lost");
+    const won           = filtered.filter(d => d.stage === "won"  || d.closed === true);
+    const lost          = filtered.filter(d => d.stage === "lost");
     const pipelineValue = open.reduce((s, d) => s + (d.value ?? 0), 0);
     const weighted      = open.reduce((s, d) => s + (d.value ?? 0) * (d.probability ?? 0), 0);
-    const winRate = won.length + lost.length > 0 ? Math.round((won.length / (won.length + lost.length)) * 100) : 0;
-    const avgDealAge = open.length > 0 ? Math.round(open.reduce((s, d) => s + (d.age ?? 0), 0) / open.length) : 0;
+    const winRate       = won.length + lost.length > 0 ? Math.round((won.length / (won.length + lost.length)) * 100) : 0;
+    const avgDealAge    = open.length > 0 ? Math.round(open.reduce((s, d) => s + (d.age ?? 0), 0) / open.length) : 0;
     return { pipelineValue, weighted, winRate, avgDealAge };
   }, [filtered]);
 
@@ -61,14 +66,15 @@ export default function RevenueIntelligence() {
     [filtered]
   );
 
-  const forecastCategory = (cat) => filtered.filter(d => d.forecastCategory === cat).reduce((s, d) => s + (d.value ?? 0), 0);
+  const forecastCategory = (cat) =>
+    filtered.filter(d => d.forecastCategory === cat).reduce((s, d) => s + (d.value ?? 0), 0);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl text-slate-900 dark:text-white font-semibold">Revenue Intelligence</h1>
-        <p className="text-slate-500">Forecast accuracy, deal health, execution risk, and performance intelligence.</p>
-      </div>
+      <PageHeader
+        title="Revenue Intelligence"
+        subtitle="Forecast accuracy, deal health, execution risk, and performance intelligence."
+      />
 
       {error && (
         <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -77,119 +83,109 @@ export default function RevenueIntelligence() {
       )}
 
       <div className="flex items-center gap-3">
-        <Filter className="h-4 w-4 text-slate-500" />
+        <Filter size={14} className="text-slate-500 dark:text-slate-400" />
         <select
-          value={ownerFilter}
-          onChange={e => setOwnerFilter(e.target.value)}
-          className="px-3 py-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white"
+          value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}
+          className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
         >
           {owners.map(o => <option key={o} value={o}>{o === "all" ? "All Owners" : o}</option>)}
         </select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KPI icon={BarChart3}    label="Open Pipeline"        value={loading ? "…" : currency(metrics.pipelineValue)} />
-        <KPI icon={Target}       label="Weighted Forecast"    value={loading ? "…" : currency(Math.round(metrics.weighted))} />
-        <KPI icon={TrendingUp}   label="Win Rate"             value={loading ? "…" : `${metrics.winRate}%`} />
-        <KPI icon={CalendarClock} label="Avg Deal Age (days)" value={loading ? "…" : metrics.avgDealAge} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Stat label="Open Pipeline"      value={loading ? "…" : currency(metrics.pipelineValue)}          icon={BarChart3}    color="indigo" />
+        <Stat label="Weighted Forecast"  value={loading ? "…" : currency(Math.round(metrics.weighted))}   icon={Target}       color="emerald" />
+        <Stat label="Win Rate"           value={loading ? "…" : `${metrics.winRate}%`}                    icon={TrendingUp}   color="amber" />
+        <Stat label="Avg Deal Age (days)" value={loading ? "…" : metrics.avgDealAge}                      icon={CalendarClock} color="sky" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 text-slate-900 dark:text-white gap-4">
-        {["commit", "best", "pipeline"].map(cat => (
-          <ForecastBox key={cat} title={cat === "best" ? "Best Case" : cat.charAt(0).toUpperCase() + cat.slice(1)} value={currency(forecastCategory(cat))} />
-        ))}
-        <ForecastBox title="Closed" value={currency(filtered.filter(d => d.closed || d.stage === "won").reduce((s, d) => s + (d.value ?? 0), 0))} />
+      {/* Forecast Categories */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { cat: "commit",   label: "Commit" },
+          { cat: "best",     label: "Best Case" },
+          { cat: "pipeline", label: "Pipeline" },
+          { cat: null,       label: "Closed Won" },
+        ].map(({ cat, label }) => {
+          const val = cat
+            ? forecastCategory(cat)
+            : filtered.filter(d => d.closed || d.stage === "won").reduce((s, d) => s + (d.value ?? 0), 0);
+          return (
+            <div key={label} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{label}</p>
+              <p className="text-xl font-bold text-slate-900 dark:text-white mt-1">{currency(val)}</p>
+            </div>
+          );
+        })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 text-slate-400 gap-6">
-        <Panel title="Stage Distribution" icon={PieChart}>
-          <div className="space-y-3">
-            {Object.entries(byStage).map(([s, data]) => (
-              <div key={s} className="flex items-center justify-between text-sm">
-                <span className="capitalize text-slate-600 dark:text-slate-400">{s}</span>
-                <span className="font-medium">{data.count} deals · {currency(data.value)}</span>
-              </div>
-            ))}
-            {Object.keys(byStage).length === 0 && !loading && (
-              <p className="text-sm text-slate-400">No stage data available.</p>
-            )}
-          </div>
-        </Panel>
-
-        <Panel title="Rep Performance" icon={Users}>
-          <div className="space-y-3">
-            {Object.entries(byOwner).map(([owner, stats]) => (
-              <div key={owner} className="flex items-center justify-between text-sm">
-                <span className="font-medium">{owner}</span>
-                <span className="text-slate-600 dark:text-slate-400">
-                  Open: {stats.open} · Won: {stats.won} · Value: {currency(stats.value)}
-                </span>
-              </div>
-            ))}
-            {Object.keys(byOwner).length === 0 && !loading && (
-              <p className="text-sm text-slate-400">No rep data available.</p>
-            )}
-          </div>
-        </Panel>
-      </div>
-      <div className="text-slate-400">
-      <Panel title="Execution Risk Radar" icon={AlertTriangle}>
-        {riskDeals.length === 0 && !loading ? (
-          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm">
-            <CheckCircle2 className="h-4 w-4" /> No high-risk deals detected
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {riskDeals.map(d => (
-              <div key={d.id} className="flex items-center justify-between rounded border p-3 bg-amber-50 dark:bg-amber-900/20">
-                <div>
-                  <div className="font-medium">{d.name}</div>
-                  <div className="text-xs text-slate-500">{d.owner} · Stage: {d.stage} · Age: {d.age} days</div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Stage Distribution */}
+        <Card>
+          <CardHeader title="Stage Distribution" icon={PieChart} />
+          <CardBody>
+            <div className="space-y-3">
+              {Object.entries(byStage).map(([s, data]) => (
+                <div key={s} className="flex items-center justify-between text-sm">
+                  <span className="capitalize text-slate-700 dark:text-slate-300">{s}</span>
+                  <span className="font-medium text-slate-900 dark:text-white">{data.count} deals · {currency(data.value)}</span>
                 </div>
-                <div className="text-amber-600 dark:text-amber-400 flex items-center gap-1 text-sm">
-                  <TrendingDown className="h-4 w-4" /> Risk
+              ))}
+              {Object.keys(byStage).length === 0 && !loading && (
+                <p className="text-sm text-slate-500 dark:text-slate-400">No stage data available.</p>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* Rep Performance */}
+        <Card>
+          <CardHeader title="Rep Performance" icon={Users} />
+          <CardBody>
+            <div className="space-y-3">
+              {Object.entries(byOwner).map(([owner, stats]) => (
+                <div key={owner} className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-slate-900 dark:text-white">{owner}</span>
+                  <span className="text-slate-600 dark:text-slate-400">
+                    Open: {stats.open} · Won: {stats.won} · {currency(stats.value)}
+                  </span>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
+              ))}
+              {Object.keys(byOwner).length === 0 && !loading && (
+                <p className="text-sm text-slate-500 dark:text-slate-400">No rep data available.</p>
+              )}
+            </div>
+          </CardBody>
+        </Card>
       </div>
-    </div>
-  );
-}
 
-function KPI({ icon: Icon, label, value }) {
-  return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex items-center gap-3">
-      <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
-        <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-      </div>
-      <div>
-        <div className="text-xs text-slate-500">{label}</div>
-        <div className="text-lg text-slate-900 dark:text-white font-semibold">{value}</div>
-      </div>
-    </div>
-  );
-}
-
-function ForecastBox({ title, value }) {
-  return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-      <div className="text-sm text-slate-500">{title}</div>
-      <div className="text-2xl text-slate-900 dark:text-white font-semibold mt-1">{value}</div>
-    </div>
-  );
-}
-
-function Panel({ title, icon: Icon, children }) {
-  return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-        <div className=" text-slate-900 dark:text-white font-semibold">{title}</div>
-      </div>
-      {children}
+      {/* Execution Risk Radar */}
+      <Card>
+        <CardHeader title="Execution Risk Radar" icon={AlertTriangle} />
+        <CardBody>
+          {riskDeals.length === 0 && !loading ? (
+            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm">
+              <CheckCircle2 size={16} /> No high-risk deals detected — pipeline looks healthy.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {riskDeals.map(d => (
+                <div key={d.id} className="flex items-center justify-between rounded-lg border border-amber-200 dark:border-amber-800 p-3 bg-amber-50 dark:bg-amber-900/20">
+                  <div>
+                    <p className="font-medium text-slate-900 dark:text-white text-sm">{d.name ?? d.title}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      {d.owner ?? "—"} · Stage: {d.stage ?? "—"} · Age: {d.age ?? "?"} days
+                    </p>
+                  </div>
+                  <div className="text-amber-600 dark:text-amber-400 flex items-center gap-1 text-xs font-semibold">
+                    <TrendingDown size={14} /> At Risk
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardBody>
+      </Card>
     </div>
   );
 }

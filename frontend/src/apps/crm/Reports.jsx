@@ -5,6 +5,8 @@ import {
 } from "lucide-react";
 import { useApi, useMutation } from "../../hooks/useApi";
 import { crm } from "../../services/api";
+import PageHeader from "../../components/ui/PageHeader";
+import { Stat } from "../../components/ui/Card";
 
 function hoursSince(ts) {
   return Math.floor((Date.now() - new Date(ts).getTime()) / (1000 * 60 * 60));
@@ -49,18 +51,18 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl text-slate-900 dark:text-white font-semibold">Customer Reports & Complaints</h1>
-          <p className="text-slate-500">SLA-driven, audited, compliant case management.</p>
-        </div>
-        <button
-          onClick={() => setShowCustomerView(v => !v)}
-          className="px-3 py-2 rounded border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-sm"
-        >
-          <Eye className="h-4 w-4" /> {showCustomerView ? "Hide" : "Show"} Customer View
-        </button>
-      </div>
+      <PageHeader
+        title="Customer Cases"
+        subtitle="SLA-driven, audited, and compliant case management."
+        actions={
+          <button
+            onClick={() => setShowCustomerView(v => !v)}
+            className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+          >
+            <Eye size={14} /> {showCustomerView ? "Hide" : "Show"} Customer View
+          </button>
+        }
+      />
 
       {error && (
         <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -68,17 +70,17 @@ export default function Reports() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-5 dark:border-slate-700  gap-4">
-        <KPI icon={Inbox}       label="Total"       value={metrics.total} />
-        <KPI icon={AlertTriangle} label="Open"      value={metrics.open} />
-        <KPI icon={Clock}       label="In Progress"  value={metrics.inProgress} />
-        <KPI icon={CheckCircle2} label="Resolved"   value={metrics.resolved} />
-        <KPI icon={ShieldAlert} label="Escalated"   value={metrics.escalated} />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Stat label="Total"       value={loading ? "…" : metrics.total}      icon={Inbox}        color="indigo" />
+        <Stat label="Open"        value={loading ? "…" : metrics.open}       icon={AlertTriangle} color="amber" />
+        <Stat label="In Progress" value={loading ? "…" : metrics.inProgress} icon={Clock}        color="sky" />
+        <Stat label="Resolved"    value={loading ? "…" : metrics.resolved}   icon={CheckCircle2} color="emerald" />
+        <Stat label="Escalated"   value={loading ? "…" : metrics.escalated}  icon={ShieldAlert}  color="red" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-          <div className="border-b border-slate-200 dark:border-slate-800 p-3 text-slate-400 font-semibold">Cases</div>
+          <div className="border-b border-slate-200 dark:border-slate-800 p-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Cases</div>
 
           {loading && allCases.length === 0 && (
             <div className="p-4 space-y-2 animate-pulse">
@@ -195,16 +197,3 @@ export default function Reports() {
   );
 }
 
-function KPI({ icon: Icon, label, value }) {
-  return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex items-center gap-3">
-      <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
-        <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-      </div>
-      <div>
-        <div className="text-xs text-slate-500">{label}</div>
-        <div className="text-lg text-slate-900 dark:text-white font-semibold">{value}</div>
-      </div>
-    </div>
-  );
-}

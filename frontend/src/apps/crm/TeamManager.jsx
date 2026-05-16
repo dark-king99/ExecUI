@@ -3,6 +3,8 @@ import { AlertCircle, Loader2, Plus, X, Users } from "lucide-react";
 import { useToast } from "../../components/ui/Toast";
 import { useApi, useMutation } from "../../hooks/useApi";
 import { crm } from "../../services/api";
+import PageHeader from "../../components/ui/PageHeader";
+import { Stat } from "../../components/ui/Card";
 
 function ManageTeamModal({ team, onClose }) {
   const toast = useToast();
@@ -29,7 +31,7 @@ function ManageTeamModal({ team, onClose }) {
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
-              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
           {Array.isArray(team.members) && team.members.length > 0 && (
@@ -50,7 +52,7 @@ function ManageTeamModal({ team, onClose }) {
             <button
               onClick={() => save({ name })}
               disabled={loading}
-              className="text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white transition"
+              className="text-sm px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white transition"
             >
               {loading ? "Saving…" : "Save"}
             </button>
@@ -81,11 +83,29 @@ export default function TeamManager({ role }) {
   const allTeams = teams ?? [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {managing && <ManageTeamModal team={managing} onClose={() => setManaging(null)} />}
-      <div>
-        <h3 className="font-semibold text-slate-800 dark:text-white">Teams</h3>
-        <p className="text-sm text-slate-500">Organize users into functional teams</p>
+      <PageHeader
+        title="Team Manager"
+        subtitle="Organize users into functional teams and manage access."
+        actions={
+          isAdmin && (
+            <button
+              onClick={() => createTeam()}
+              disabled={creating}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm hover:bg-orange-700 disabled:opacity-60 transition"
+            >
+              {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              Create Team
+            </button>
+          )
+        }
+      />
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <Stat label="Total Teams" value={loading ? "…" : allTeams.length} icon={Users} color="orange" />
+        <Stat label="Total Members" value={loading ? "…" : allTeams.reduce((s, t) => s + (Array.isArray(t.members) ? t.members.length : (t.memberCount ?? 0)), 0)} icon={Users} color="sky" />
+        <Stat label="Admin Access" value={isAdmin ? "Enabled" : "Restricted"} icon={Users} color={isAdmin ? "emerald" : "amber"} />
       </div>
 
       {error && (
@@ -118,23 +138,14 @@ export default function TeamManager({ role }) {
                 </p>
               </div>
               {isAdmin && (
-                <button onClick={() => setManaging(team)} className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">Manage</button>
+                <button onClick={() => setManaging(team)} className="text-sm text-orange-600 dark:text-orange-400 hover:underline">Manage</button>
               )}
             </div>
           </div>
         ))}
       </div>
 
-      {isAdmin ? (
-        <button
-          onClick={() => createTeam()}
-          disabled={creating}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 disabled:opacity-60 transition"
-        >
-          {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-          Create New Team
-        </button>
-      ) : (
+      {!isAdmin && (
         <p className="text-xs text-slate-400">Team management is restricted to administrators.</p>
       )}
     </div>

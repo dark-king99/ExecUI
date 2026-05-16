@@ -136,7 +136,18 @@ export default function AudienceStudio() {
                 >
                   {creatingLookalike && <Loader2 size={13} className="animate-spin" />} Create Lookalike
                 </button>
-                <button className="w-full py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 hover:border-indigo-400 transition">
+                <button
+                  onClick={async () => {
+                    if (!selectedSeg?.id) return;
+                    try {
+                      await marketing.audiences.overlap(selectedSeg.id);
+                      toast({ message: "Overlap analysis complete.", type: "success" });
+                    } catch (err) {
+                      toast({ message: err?.message ?? "Overlap analysis failed.", type: "error" });
+                    }
+                  }}
+                  className="w-full py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 hover:border-indigo-400 transition"
+                >
                   Analyze Overlap
                 </button>
               </div>
