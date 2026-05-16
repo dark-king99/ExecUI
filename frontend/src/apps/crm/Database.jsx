@@ -1,327 +1,144 @@
-import { useState, useMemo, useRef } from "react";
-import {
-  Database, Search, Shield, FileText, BarChart3, Settings, Download, Upload, History, Lock,
-  AlertCircle, CheckCircle, Key, Eye, Server, Clock, RefreshCw, Users,
-} from "lucide-react";
-import { useApi } from "../../hooks/useApi";
-import { useToast } from "../../components/ui/Toast";
-import { crm } from "../../services/api";
+import { useState, useMemo } from "react";
+import { Database as DbIcon, Search, RefreshCw, AlertCircle, HardDrive, FileText, Activity } from "lucide-react";
 import PageHeader from "../../components/ui/PageHeader";
-import { Stat } from "../../components/ui/Card";
+import { Stat, Card, CardHeader, CardBody } from "../../components/ui/Card";
+import StatusBadge from "../../components/ui/StatusBadge";
+import { SkeletonCard, SkeletonTable } from "../../components/ui/Skeleton";
+import { useApi } from "../../hooks/useApi";
+import { crm } from "../../services/api";
 
-export default function CrmDatabase() {
-  const toast = useToast();
-  const fileInputRef = useRef(null);
-  const [activeTab, setActiveTab] = useState("records");
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(null);
+const ENTITY_VARIANT = { lead: "info", deal: "warning", contact: "neutral", account: "indigo", task: "sky", opportunity: "success" };
 
-  function handleExport() {
-    if (!allRecords.length) {
-      toast({ message: "No records to export.", type: "warning" });
-      return;
-    }
-    const headers = ["id", "name", "type", "owner", "lastUpdated", "usage", "sensitive"];
-    const rows = allRecords.map(r =>
-      headers.map(h => JSON.stringify(r[h] ?? "")).join(",")
-    );
-    const csv = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `crm-records-${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast({ message: `Exported ${allRecords.length} records.`, type: "success" });
-  }
+export default function Database() {
+  const [search, setSearch] = useState("");
+  const [entityFilter, setEntityFilter] = useState("all");
+  const [tab, setTab] = useState("records");
+  const { data: records, loading, error, refetch } = useApi(() => crm.database.records({ limit: 200 }), [], { pollingInterval: 60000 });
+  const { data: usage } = useApi(() => crm.database.usage(), [], { pollingInterval: 120000 });
+  const { data: audit } = useApi(() => crm.database.auditTrail({ limit: 50 }), [], { pollingInterval: 60000 });
+  const all = records ?? [];
+  const usageData = usage ?? {};
+  const auditLog = audit ?? [];
 
-  function handleImportClick() {
-    fileInputRef.current?.click();
-  }
+  const ENTITIES = ["all", "lead", "deal", "contact", "account", "task", "opportunity"];
 
-  function handleFileChange(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.name.endsWith(".csv")) {
-      toast({ message: "Only CSV files are supported.", type: "error" });
-      e.target.value = "";
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target.result;
-      const lines = text.trim().split("\n");
-      const count = Math.max(0, lines.length - 1); // subtract header
-      toast({ message: `Imported ${count} records from ${file.name}.`, type: "success" });
-    };
-    reader.readAsText(file);
-    e.target.value = "";
-  }
-
-  const { data: records, loading: recordsLoading, error: recordsError } = useApi(
-    () => crm.database.records({ limit: 200 }), [], { pollingInterval: 60000 }
-  );
-  const { data: usage, loading: usageLoading } = useApi(
-    () => crm.database.usage(), [], { pollingInterval: 60000 }
-  );
-  const { data: auditData, loading: auditLoading } = useApi(
-    () => crm.database.auditTrail({ limit: 20 }), [], { pollingInterval: 30000 }
-  );
-
-  const allRecords = records ?? [];
-  const filtered = useMemo(() =>
-    allRecords.filter(r => r.name?.toLowerCase().includes(query.toLowerCase())),
-    [allRecords, query]
-  );
+  const filtered = useMemo(() => all.filter(r => {
+    const matchEntity = entityFilter === "all" || r.entity === entityFilter || r.type === entityFilter;
+    const matchSearch = !search || r.name?.toLowerCase().includes(search.toLowerCase()) || r.id?.toString().includes(search);
+    return matchEntity && matchSearch;
+  }), [all, search, entityFilter]);
 
   return (
     <div className="space-y-6">
-      <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
-      <PageHeader
-        title="CRM Database"
-        subtitle="Enterprise data management, security, usage, and compliance"
-        actions={
-          <div className="flex gap-2">
-            <button
-              onClick={handleImportClick}
-              className="px-3 py-2 rounded border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-            >
-              <Upload className="h-4 w-4" /> Import
-            </button>
-            <button
-              onClick={handleExport}
-              className="px-3 py-2 rounded border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-            >
-              <Download className="h-4 w-4" /> Export
-            </button>
-          </div>
-        }
+      <PageHeader title="CRM Database" subtitle="Browse, audit, and manage all CRM records"
+        actions={<button onClick={refetch} className="flex items-center gap-1.5 text-xs border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition"><RefreshCw size={13} /> Refresh</button>}
       />
 
-      <div className="flex gap-2 border-b">
-        {[
-          { id: "records",  label: "Records",     icon: Database },
-          { id: "security", label: "Security",     icon: Shield },
-          { id: "usage",    label: "Usage",        icon: BarChart3 },
-          { id: "reports",  label: "Reports",      icon: FileText },
-          { id: "settings", label: "Preferences",  icon: Settings },
-          { id: "audit",    label: "Audit Trail",  icon: History },
-        ].map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-2 px-3 py-2 text-sm border-b-2 ${
-              activeTab === t.id ? "border-orange-600 text-orange-600" : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <t.icon className="h-4 w-4" />{t.label}
-          </button>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Stat label="Total Records" value={usageData.totalRecords ?? all.length} icon={DbIcon} color="orange" />
+        <Stat label="Storage Used" value={usageData.storageUsed ?? "—"} icon={HardDrive} color="sky" />
+        <Stat label="Audit Events" value={usageData.auditEvents ?? auditLog.length} icon={Activity} color="amber" />
+        <Stat label="Last Updated" value={usageData.lastUpdated ?? "—"} icon={FileText} color="emerald" />
+      </div>
+
+      {error && <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"><AlertCircle size={15} />{error}</div>}
+
+      <div className="flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden w-fit">
+        {["records", "usage", "audit"].map(t => (
+          <button key={t} onClick={() => setTab(t)} className={`px-4 py-1.5 text-sm font-medium capitalize transition ${tab === t ? "bg-orange-600 text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"}`}>{t}</button>
         ))}
       </div>
 
-      {activeTab === "records" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-            <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
-              <Search className="h-4 w-4 text-slate-400" />
-              <input
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Search records..."
-                className="flex-1 outline-none text-sm bg-transparent dark:text-slate-100"
-              />
+      {tab === "records" && (
+        <>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-900 flex-1 max-w-80">
+              <Search size={14} className="text-slate-400" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records…" className="flex-1 text-sm bg-transparent outline-none text-slate-900 dark:text-white" />
             </div>
-
-            {recordsError && (
-              <div className="flex items-center gap-2 p-4 text-sm text-red-600 dark:text-red-400">
-                <AlertCircle size={15} /> {recordsError}
-              </div>
-            )}
-
-            {recordsLoading && allRecords.length === 0 && (
-              <div className="p-4 space-y-2 animate-pulse">
-                {[1,2,3].map(i => <div key={i} className="h-16 bg-slate-100 dark:bg-slate-700 rounded" />)}
-              </div>
-            )}
-
-            {!recordsLoading && !recordsError && filtered.length === 0 && (
-              <p className="p-6 text-sm text-slate-500 text-center">No records found.</p>
-            )}
-
-            <div className="divide-y">
-              {filtered.map(r => (
-                <button
-                  key={r.id}
-                  onClick={() => setSelected(r)}
-                  className="w-full text-left p-4 hover:bg-slate-50 dark:hover:bg-slate-800"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">{r.name}</div>
-                      <div className="text-xs text-slate-500">{r.type} • Owner: {r.owner}</div>
-                    </div>
-                    {r.sensitive && (
-                      <span className="text-xs flex items-center gap-1 text-red-600">
-                        <Lock className="h-3 w-3" /> Sensitive
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-400">
-                    Last updated: {r.lastUpdated} • Usage: {r.usage} queries
-                  </div>
-                </button>
+            <div className="flex gap-1.5 flex-wrap">
+              {ENTITIES.map(e => (
+                <button key={e} onClick={() => setEntityFilter(e)} className={`text-xs px-2.5 py-1 rounded-full border capitalize transition ${entityFilter === e ? "bg-orange-600 text-white border-orange-600" : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-orange-400"}`}>{e}</button>
               ))}
             </div>
           </div>
-
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-            {!selected ? (
-              <div className="text-sm text-slate-500">Select a record to view details.</div>
-            ) : (
-              <div className="space-y-3">
-                <div className="font-semibold text-lg">{selected.name}</div>
-                {[["ID", selected.id], ["Type", selected.type], ["Owner", selected.owner], ["Last Updated", selected.lastUpdated], ["Usage", `${selected.usage} queries`], ["Sensitivity", selected.sensitive ? "Restricted" : "Standard"]].map(([label, val]) => (
-                  <div key={label} className="text-sm"><strong>{label}:</strong> {val}</div>
-                ))}
-                <div className="pt-2 flex gap-2">
-                  <button className="px-3 py-1 rounded border text-sm">View Report</button>
-                  <button className="px-3 py-1 rounded border text-sm">Permissions</button>
-                </div>
+          <Card>
+            {loading && all.length === 0 ? <div className="p-5"><SkeletonTable rows={10} /></div> : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 dark:border-slate-800">
+                      {["ID", "Name", "Type", "Owner", "Created", "Updated"].map(h => (
+                        <th key={h} className="text-left p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {filtered.length === 0 ? (
+                      <tr><td colSpan={6} className="py-10 text-center text-sm text-slate-500">No records found.</td></tr>
+                    ) : filtered.map((r, i) => (
+                      <tr key={r.id ?? i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                        <td className="p-4 font-mono text-xs text-slate-400">{String(r.id ?? "—").slice(0, 8)}</td>
+                        <td className="p-4 font-medium text-slate-900 dark:text-white">{r.name ?? r.title ?? "—"}</td>
+                        <td className="p-4"><StatusBadge label={r.entity ?? r.type ?? "record"} variant={ENTITY_VARIANT[r.entity ?? r.type] ?? "neutral"} /></td>
+                        <td className="p-4 text-slate-600 dark:text-slate-300">{r.owner ?? r.createdBy ?? "—"}</td>
+                        <td className="p-4 text-slate-400 text-xs">{r.createdAt ?? r.created ?? "—"}</td>
+                        <td className="p-4 text-slate-400 text-xs">{r.updatedAt ?? r.updated ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
-          </div>
-        </div>
+          </Card>
+        </>
       )}
 
-      {activeTab === "security" && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Stat label="Access Level" value="RBAC" icon={Key} color="orange" />
-            <Stat label="Encryption" value="AES-256" icon={Shield} color="emerald" />
-            <Stat label="Compliance" value="SOC 2 / GDPR" icon={CheckCircle} color="sky" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              { icon: Key,       title: "Role-Based Access Control", desc: "Users access only what their role permits. Admins, managers, and reps have distinct permission tiers." },
-              { icon: Lock,      title: "Field-Level Encryption",    desc: "Sensitive fields (email, phone, revenue) are encrypted at rest and in transit using AES-256." },
-              { icon: Shield,    title: "Sensitive Record Locking",  desc: "Records flagged as sensitive require elevated permissions to view or modify." },
-              { icon: Eye,       title: "Audit Logging",             desc: "Every read, write, and delete is logged with user identity, timestamp, and IP address." },
-              { icon: Server,    title: "Data Residency",            desc: "Tenant data is isolated per region. Cross-tenant access is structurally blocked at the API layer." },
-              { icon: FileText,  title: "Compliance Export",         desc: "Export GDPR data subject reports, SOC 2 audit packages, and ISO 27001 evidence bundles on demand." },
-            ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex gap-3">
-                <div className="h-9 w-9 rounded-lg bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center shrink-0">
-                  <Icon size={16} className="text-orange-600 dark:text-orange-400" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm text-slate-900 dark:text-white">{title}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{desc}</p>
-                </div>
+      {tab === "usage" && (
+        <Card>
+          <CardHeader title="Database Usage" icon={HardDrive} />
+          <CardBody>
+            {Object.keys(usageData).length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-8">No usage data available.</p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {Object.entries(usageData).filter(([, v]) => v != null && typeof v !== "object").map(([key, val]) => (
+                  <div key={key} className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
+                    <div className="text-xs text-slate-500 mb-1 capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</div>
+                    <div className="font-bold text-slate-900 dark:text-white">{String(val)}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            )}
+          </CardBody>
+        </Card>
       )}
 
-      {activeTab === "usage" && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900">
-          <div className="text-slate-900 dark:text-white font-medium mb-2">Database Usage Analytics</div>
-          {usageLoading ? (
-            <div className="grid grid-cols-3 gap-4 animate-pulse">
-              {[1,2,3].map(i => <div key={i} className="h-14 bg-slate-100 dark:bg-slate-700 rounded" />)}
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-4 text-sm">
-              <div className="p-3 border border-slate-200 dark:border-slate-800 rounded text-slate-600 dark:text-slate-400">Total Records: {usage?.totalRecords ?? allRecords.length}</div>
-              <div className="p-3 border border-slate-200 dark:border-slate-800 rounded text-slate-600 dark:text-slate-400">Queries Today: {usage?.queriesToday ?? "—"}</div>
-              <div className="p-3 border border-slate-200 dark:border-slate-800 rounded text-slate-600 dark:text-slate-400">Storage Used: {usage?.storageUsed ?? "—"}</div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === "reports" && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Stat label="Total Records" value={recordsLoading ? "…" : allRecords.length} icon={Database} color="orange" />
-            <Stat label="Sensitive Records" value={recordsLoading ? "…" : allRecords.filter(r => r.sensitive).length} icon={Lock} color="amber" />
-            <Stat label="Queries Today" value={usageLoading ? "…" : (usage?.queriesToday ?? "—")} icon={BarChart3} color="sky" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              { icon: BarChart3,  title: "Data Growth Trends",          desc: "Month-over-month record growth, broken down by object type (Leads, Accounts, Deals, Contacts)." },
-              { icon: Users,      title: "Access Frequency by Team",     desc: "Track which teams query the database most frequently and identify usage bottlenecks." },
-              { icon: Lock,       title: "Sensitive Data Exposure",      desc: "View which users accessed sensitive records and whether access was justified by role." },
-              { icon: Clock,      title: "Inactive / Stale Records",     desc: "Identify records not updated in 90+ days for archival or cleanup workflows." },
-              { icon: Shield,     title: "Compliance Readiness",         desc: "Overall compliance score across GDPR, SOC 2, and ISO 27001 controls with gap analysis." },
-              { icon: RefreshCw,  title: "Sync Health Report",           desc: "Status of data integrations — last sync time, record count delta, and error rates." },
-            ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex gap-3 items-start">
-                <div className="h-9 w-9 rounded-lg bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center shrink-0">
-                  <Icon size={16} className="text-orange-600 dark:text-orange-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-sm text-slate-900 dark:text-white">{title}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{desc}</p>
-                </div>
-                <button
-                  onClick={() => toast({ message: `${title} report opened.`, type: "info" })}
-                  className="text-xs text-orange-600 dark:text-orange-400 hover:underline shrink-0"
-                >
-                  View
-                </button>
+      {tab === "audit" && (
+        <Card>
+          <CardHeader title="Audit Trail" icon={Activity} />
+          <CardBody>
+            {auditLog.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-8">No audit events found.</p>
+            ) : (
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {auditLog.map((e, i) => (
+                  <div key={e.id ?? i} className="flex items-center gap-4 py-3 first:pt-0 text-sm">
+                    <div className={`h-2 w-2 rounded-full shrink-0 ${e.action === "delete" ? "bg-red-500" : e.action === "create" ? "bg-emerald-500" : "bg-sky-500"}`} />
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-slate-900 dark:text-white capitalize">{e.action}</span>
+                      <span className="text-slate-500 mx-1">on</span>
+                      <span className="text-slate-700 dark:text-slate-300">{e.entity ?? e.record ?? "record"}</span>
+                      {e.name && <span className="text-slate-500 mx-1">"{e.name}"</span>}
+                    </div>
+                    <div className="shrink-0 text-xs text-slate-400">{e.by ?? e.user ?? "system"}</div>
+                    <div className="shrink-0 text-xs text-slate-400">{e.at ?? e.createdAt ?? e.date}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === "settings" && (
-        <div className="space-y-4">
-          {[
-            { icon: Clock,    title: "Retention Policies",    desc: "Define how long records of each type are retained before auto-archival or deletion.",   action: "Configure" },
-            { icon: History,  title: "Auto-Archival Rules",   desc: "Set inactivity thresholds to automatically archive stale records and free up active storage.", action: "Configure" },
-            { icon: Eye,      title: "PII Masking",           desc: "Mask or tokenize personally identifiable information in exports, logs, and non-production environments.", action: "Configure" },
-            { icon: Server,   title: "Backup Schedules",      desc: "Configure full and incremental backup cadences, retention duration, and restore point objectives.", action: "Configure" },
-            { icon: RefreshCw,title: "Data Sync Integrations",desc: "Manage bidirectional sync with HubSpot, Salesforce, and other CRM data sources.",       action: "Manage" },
-          ].map(({ icon: Icon, title, desc, action }) => (
-            <div key={title} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex items-start gap-3">
-              <div className="h-9 w-9 rounded-lg bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center shrink-0">
-                <Icon size={16} className="text-orange-600 dark:text-orange-400" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-sm text-slate-900 dark:text-white">{title}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{desc}</p>
-              </div>
-              <button
-                onClick={() => toast({ message: `${title} settings opened.`, type: "info" })}
-                className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-orange-400 transition shrink-0"
-              >
-                {action}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {activeTab === "audit" && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900 space-y-2">
-          <div className="text-slate-900 dark:text-white font-medium">Audit Trail</div>
-          {auditLoading && (
-            <div className="space-y-1 animate-pulse">
-              {[1,2,3].map(i => <div key={i} className="h-5 bg-slate-100 dark:bg-slate-700 rounded" />)}
-            </div>
-          )}
-          {!auditLoading && auditData?.length === 0 && (
-            <p className="text-sm text-slate-500">No audit entries found.</p>
-          )}
-          <div className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
-            {auditData?.map((entry, i) => (
-              <div key={i}>• {entry.time} — {entry.user} {entry.action}</div>
-            ))}
-          </div>
-        </div>
+            )}
+          </CardBody>
+        </Card>
       )}
     </div>
   );

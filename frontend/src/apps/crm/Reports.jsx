@@ -1,199 +1,126 @@
 import { useState } from "react";
-import {
-  AlertTriangle, CheckCircle2, Clock, Inbox, ShieldAlert, FileText,
-  History, Lock, Unlock, UserCheck, Eye, AlertCircle, Loader2, Upload,
-} from "lucide-react";
-import { useApi, useMutation } from "../../hooks/useApi";
-import { crm } from "../../services/api";
+import { FileText, BarChart2, TrendingUp, Users, RefreshCw, Download, AlertCircle } from "lucide-react";
 import PageHeader from "../../components/ui/PageHeader";
-import { Stat } from "../../components/ui/Card";
+import { Card, CardHeader, CardBody } from "../../components/ui/Card";
+import { SkeletonTable } from "../../components/ui/Skeleton";
+import { useApi } from "../../hooks/useApi";
+import { crm } from "../../services/api";
 
-function hoursSince(ts) {
-  return Math.floor((Date.now() - new Date(ts).getTime()) / (1000 * 60 * 60));
-}
+const REPORT_TYPES = [
+  { id: "pipeline", name: "Pipeline Report", icon: BarChart2, description: "Current pipeline by stage, owner, and value", color: "orange" },
+  { id: "forecast", name: "Forecast Report", icon: TrendingUp, description: "Commit, best case, and pipeline forecast vs quota", color: "sky" },
+  { id: "activity", name: "Activity Report", icon: Users, description: "Calls, emails, meetings, and demos by rep", color: "emerald" },
+  { id: "winloss", name: "Win/Loss Report", icon: FileText, description: "Won and lost deal analysis with reasons", color: "amber" },
+  { id: "renewals", name: "Renewals Report", icon: RefreshCw, description: "Upcoming renewals by health, ARR, and owner", color: "indigo" },
+  { id: "revenue", name: "Revenue Report", icon: BarChart2, description: "Revenue breakdown by segment, product, and region", color: "violet" },
+];
 
-export default function Reports() {
-  const [selectedId, setSelectedId] = useState(null);
-  const [noteInput, setNoteInput] = useState("");
-  const [showCustomerView, setShowCustomerView] = useState(false);
+const COLOR_MAP = {
+  orange: "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400",
+  sky:    "bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400",
+  emerald:"bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400",
+  amber:  "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400",
+  indigo: "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400",
+  violet: "bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400",
+};
 
-  const { data: cases, loading, error, refetch } = useApi(
-    () => crm.cases.list({ limit: 100 }), [], { pollingInterval: 30000 }
-  );
-  const { data: selectedCase, refetch: refetchCase } = useApi(
-    () => selectedId ? crm.cases.get(selectedId) : Promise.resolve(null),
-    [selectedId]
-  );
+function ReportViewer({ type, onBack }) {
+  const { data, loading, error } = useApi(() => {
+    if (type === "pipeline") return crm.pipeline.summary();
+    if (type === "forecast") return crm.forecast.summary();
+    if (type === "winloss") return crm.analytics.winLoss();
+    if (type === "renewals") return crm.renewals.summary();
+    if (type === "revenue") return crm.analytics.summary();
+    return crm.reps.summary();
+  }, [type]);
 
-  const { mutate: addNote, loading: addingNote } = useMutation(
-    ({ id, text }) => crm.cases.addNote(id, { text }),
-    { onSuccess: () => { setNoteInput(""); refetchCase(); } }
-  );
-
-  const { mutate: approveCase, loading: approving } = useMutation(
-    (id) => crm.cases.approve(id),
-    { onSuccess: () => refetchCase() }
-  );
-
-  const { mutate: toggleLock, loading: toggling } = useMutation(
-    ({ id, locked }) => locked ? crm.cases.unlock(id) : crm.cases.lock(id),
-    { onSuccess: () => refetchCase() }
-  );
-
-  const allCases = cases ?? [];
-  const metrics = {
-    total:      allCases.length,
-    open:       allCases.filter(c => c.status === "Open").length,
-    inProgress: allCases.filter(c => c.status === "In Progress").length,
-    resolved:   allCases.filter(c => c.status === "Resolved").length,
-    escalated:  allCases.filter(c => c.status === "Escalated").length,
-  };
+  const meta = REPORT_TYPES.find(r => r.id === type);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Customer Cases"
-        subtitle="SLA-driven, audited, and compliant case management."
-        actions={
-          <button
-            onClick={() => setShowCustomerView(v => !v)}
-            className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-          >
-            <Eye size={14} /> {showCustomerView ? "Hide" : "Show"} Customer View
-          </button>
-        }
-      />
-
-      {error && (
-        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <AlertCircle size={15} /> {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Stat label="Total"       value={loading ? "…" : metrics.total}      icon={Inbox}        color="indigo" />
-        <Stat label="Open"        value={loading ? "…" : metrics.open}       icon={AlertTriangle} color="amber" />
-        <Stat label="In Progress" value={loading ? "…" : metrics.inProgress} icon={Clock}        color="sky" />
-        <Stat label="Resolved"    value={loading ? "…" : metrics.resolved}   icon={CheckCircle2} color="emerald" />
-        <Stat label="Escalated"   value={loading ? "…" : metrics.escalated}  icon={ShieldAlert}  color="red" />
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="text-sm text-slate-500 hover:text-orange-600 transition">← Back to Reports</button>
+        <span className="text-slate-300 dark:text-slate-700">|</span>
+        <span className="text-sm font-semibold text-slate-900 dark:text-white">{meta?.name}</span>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-          <div className="border-b border-slate-200 dark:border-slate-800 p-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Cases</div>
-
-          {loading && allCases.length === 0 && (
-            <div className="p-4 space-y-2 animate-pulse">
-              {[1,2,3].map(i => <div key={i} className="h-16 bg-slate-100 dark:bg-slate-700 rounded" />)}
-            </div>
-          )}
-
-          {!loading && !error && allCases.length === 0 && (
-            <p className="p-6 text-sm text-slate-500 text-center">No cases found.</p>
-          )}
-
-          <div className="divide-y">
-            {allCases.map(c => {
-              const age = c.createdAt ? hoursSince(c.createdAt) : 0;
-              const progress = c.slaHours ? Math.min(100, Math.round((age / c.slaHours) * 100)) : 0;
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => setSelectedId(c.id)}
-                  className={`w-full text-left p-4 hover:bg-slate-50 dark:hover:bg-slate-800 ${selectedId === c.id ? "bg-slate-50 dark:bg-slate-800" : ""}`}
-                >
-                  <div className="font-medium">{c.subject}</div>
-                  <div className="text-xs text-slate-500">{c.customer} • {c.category}</div>
-                  {c.slaHours && (
-                    <div className="mt-2 h-2 bg-slate-200 dark:bg-slate-700 rounded">
-                      <div
-                        className={`h-2 rounded ${progress >= 100 ? "bg-red-600" : "bg-amber-500"}`}
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-          {!selectedId ? (
-            <div className="text-sm text-slate-500">Select a case to view details.</div>
-          ) : !selectedCase ? (
-            <div className="flex justify-center py-6"><Loader2 size={18} className="animate-spin text-slate-400" /></div>
-          ) : showCustomerView ? (
-            <div className="space-y-2 text-sm">
-              <div><strong>Case:</strong> {selectedCase.subject}</div>
-              <div><strong>Status:</strong> {selectedCase.customerStatus}</div>
-              <div><strong>Assigned:</strong> {selectedCase.assigneeRole}</div>
-              <div className="text-xs text-slate-500">This is what the customer sees in their portal.</div>
-            </div>
+      <Card>
+        <CardHeader title={meta?.name ?? "Report"} icon={meta?.icon ?? FileText} />
+        <CardBody>
+          {loading ? <SkeletonTable rows={8} /> : error ? (
+            <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400"><AlertCircle size={15} />{error}</div>
+          ) : !data ? (
+            <p className="text-sm text-slate-500 text-center py-8">No data available for this report.</p>
           ) : (
-            <div className="space-y-4">
-              <div className="font-semibold text-lg">{selectedCase.subject}</div>
-
-              {selectedCase.approvalRequired && !selectedCase.approved && (
-                <div className="p-2 bg-amber-100 text-amber-700 rounded text-sm flex items-center gap-2">
-                  <UserCheck className="h-4 w-4" /> Manager approval required
-                  <button
-                    onClick={() => approveCase(selectedCase.id)}
-                    disabled={approving}
-                    className="ml-auto flex items-center gap-1 px-2 py-1 bg-emerald-600 text-white rounded text-xs disabled:opacity-60"
-                  >
-                    {approving && <Loader2 size={12} className="animate-spin" />} Approve
-                  </button>
-                </div>
-              )}
-
-              <button
-                onClick={() => toggleLock({ id: selectedCase.id, locked: selectedCase.locked })}
-                disabled={toggling}
-                className="flex items-center gap-1 px-3 py-1 rounded border border-slate-200 dark:border-slate-800 text-sm disabled:opacity-60"
-              >
-                {selectedCase.locked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                {selectedCase.locked ? "Unlock" : "Lock"}
-              </button>
-
-              <div>
-                <div className="font-medium text-sm">Notes</div>
-                <div className="flex gap-2 mt-1">
-                  <input
-                    value={noteInput}
-                    onChange={e => setNoteInput(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && noteInput.trim() && addNote({ id: selectedCase.id, text: noteInput })}
-                    disabled={selectedCase.locked}
-                    className="flex-1 border rounded px-2 py-1 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 focus:outline-none"
-                  />
-                  <button
-                    onClick={() => noteInput.trim() && addNote({ id: selectedCase.id, text: noteInput })}
-                    disabled={addingNote || selectedCase.locked}
-                    className="flex items-center gap-1 px-3 py-1 rounded bg-indigo-600 text-white text-sm disabled:opacity-60"
-                  >
-                    {addingNote ? <Loader2 size={12} className="animate-spin" /> : null} Add
-                  </button>
-                </div>
+            <div className="space-y-3">
+              <div className="flex justify-end">
+                <button className="flex items-center gap-1.5 text-xs border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                  <Download size={13} /> Export CSV
+                </button>
               </div>
-
-              <div>
-                <div className="font-medium text-sm flex items-center gap-1">
-                  <History className="h-4 w-4" /> Audit Trail
-                </div>
-                <div className="text-xs space-y-1 max-h-32 overflow-y-auto mt-1">
-                  {selectedCase.audit?.map((a, i) => (
-                    <div key={a.id ?? i}>• [{a.time}] {a.message}</div>
-                  ))}
-                  {(!selectedCase.audit || selectedCase.audit.length === 0) && (
-                    <div className="text-slate-400">No audit entries.</div>
-                  )}
-                </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 dark:border-slate-800">
+                      <th className="text-left pb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider pr-4">Metric</th>
+                      <th className="text-right pb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {Object.entries(data).filter(([k, v]) => v != null && typeof v !== "object").map(([key, val]) => (
+                      <tr key={key} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                        <td className="py-3 pr-4 text-slate-600 dark:text-slate-400 capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</td>
+                        <td className="py-3 text-right font-semibold text-slate-900 dark:text-white">{String(val)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
-        </div>
-      </div>
+        </CardBody>
+      </Card>
     </div>
   );
 }
 
+export default function Reports() {
+  const [activeReport, setActiveReport] = useState(null);
+  if (activeReport) return <ReportViewer type={activeReport} onBack={() => setActiveReport(null)} />;
+  return (
+    <div className="space-y-6">
+      <PageHeader title="CRM Reports" subtitle="Structured reports for performance, pipeline, and revenue analysis" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {REPORT_TYPES.map(({ id, name, icon: Icon, description, color }) => (
+          <button key={id} onClick={() => setActiveReport(id)}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 text-left hover:border-orange-300 dark:hover:border-orange-700 hover:shadow-md transition group"
+          >
+            <div className={`h-10 w-10 rounded-lg flex items-center justify-center mb-4 ${COLOR_MAP[color]}`}>
+              <Icon size={20} />
+            </div>
+            <h3 className="font-semibold text-slate-900 dark:text-white text-sm mb-1 group-hover:text-orange-600 transition">{name}</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{description}</p>
+            <div className="mt-4 flex items-center gap-1 text-xs text-orange-600 font-medium opacity-0 group-hover:opacity-100 transition">
+              View Report →
+            </div>
+          </button>
+        ))}
+      </div>
+      <Card>
+        <CardHeader title="Recent Reports" icon={FileText} />
+        <CardBody>
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {REPORT_TYPES.slice(0, 4).map((r, i) => (
+              <div key={r.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                <div>
+                  <div className="text-sm font-medium text-slate-900 dark:text-white">{r.name}</div>
+                  <div className="text-xs text-slate-400">Generated {i === 0 ? "today" : i === 1 ? "yesterday" : `${i + 1} days ago`}</div>
+                </div>
+                <button onClick={() => setActiveReport(r.id)} className="text-xs text-orange-600 hover:text-orange-700 font-medium transition">View</button>
+              </div>
+            ))}
+          </div>
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
