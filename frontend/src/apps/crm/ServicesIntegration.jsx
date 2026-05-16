@@ -1,224 +1,168 @@
-import {
-  Mail, MessageSquare, Share2, Megaphone, Calendar, Plug, Database, Activity,
-  RefreshCw, Settings, AlertTriangle, CheckCircle2, XCircle, Phone, UserPlus, AlertCircle, Loader2,
-} from "lucide-react";
+import { useState } from "react";
+import { Plug, RefreshCw, AlertCircle, CheckCircle, XCircle, Clock } from "lucide-react";
+import PageHeader from "../../components/ui/PageHeader";
+import { Stat, Card, CardHeader, CardBody } from "../../components/ui/Card";
+import StatusBadge from "../../components/ui/StatusBadge";
+import { SkeletonCard, SkeletonTable } from "../../components/ui/Skeleton";
+import { useToast } from "../../components/ui/Toast";
 import { useApi, useMutation } from "../../hooks/useApi";
 import { crm } from "../../services/api";
-import { useToast } from "../../components/ui/Toast";
-import PageHeader from "../../components/ui/PageHeader";
 
-const STATUS_MAP = {
-  healthy: { icon: CheckCircle2, cls: "bg-emerald-100 text-emerald-700" },
-  warning: { icon: AlertTriangle, cls: "bg-amber-100 text-amber-700" },
-  down:    { icon: XCircle,       cls: "bg-rose-100 text-rose-700" },
-  syncing: { icon: RefreshCw,     cls: "bg-sky-100 text-sky-700" },
-};
+const STATUS_VARIANT = { connected: "success", disconnected: "danger", syncing: "info", error: "danger", warning: "warning", healthy: "success" };
+const STATUS_ICON = { connected: CheckCircle, disconnected: XCircle, syncing: RefreshCw, error: XCircle, healthy: CheckCircle };
 
-const CHANNEL_META = {
-  email:    { label: "Email",    icon: Mail,         cls: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300" },
-  call:     { label: "Call",     icon: Phone,        cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
-  chat:     { label: "Chat",     icon: MessageSquare,cls: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300" },
-  social:   { label: "Social",   icon: Share2,       cls: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300" },
-  meeting:  { label: "Meeting",  icon: Calendar,     cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
-  campaign: { label: "Campaign", icon: Megaphone,    cls: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300" },
-  lead:     { label: "Lead",     icon: UserPlus,     cls: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300" },
-};
-
-const ICON_MAP = { Mail, MessageSquare, Share2, Calendar, Database, Plug, Activity };
-
-function StatusPill({ status }) {
-  const { icon: Icon, cls } = STATUS_MAP[status] ?? STATUS_MAP.healthy;
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${cls}`}>
-      <Icon className="h-3.5 w-3.5" /> {status}
-    </span>
-  );
-}
-
-function ChannelBadge({ channel }) {
-  const meta = CHANNEL_META[channel] ?? CHANNEL_META.email;
-  const Icon = meta.icon;
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${meta.cls}`}>
-      <Icon className="h-3.5 w-3.5" /> {meta.label}
-    </span>
-  );
-}
-
-function Section({ title, right, children }) {
-  return (
-    <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
-        {right}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-export default function ServiceIntegration() {
+export default function ServicesIntegration() {
   const toast = useToast();
+  const [tab, setTab] = useState("integrations");
+  const { data: integrations, loading, error, refetch } = useApi(() => crm.integrations.list(), [], { pollingInterval: 60000 });
+  const { data: syncHealth } = useApi(() => crm.integrations.syncHealth(), [], { pollingInterval: 30000 });
+  const { data: leadSources } = useApi(() => crm.integrations.leadSources(), [], { pollingInterval: 120000 });
+  const { data: timeline } = useApi(() => crm.integrations.timeline({ limit: 20 }), [], { pollingInterval: 60000 });
+  const { mutate: sync, loading: syncing } = useMutation(() => crm.integrations.sync(), {
+    onSuccess: () => { toast({ message: "Sync triggered", type: "success" }); refetch(); },
+    onError: (e) => toast({ message: e?.message ?? "Sync failed", type: "error" }),
+  });
 
-  const { data: integrations, loading: intLoading, error: intError } = useApi(
-    () => crm.integrations.list(), [], { pollingInterval: 60000 }
-  );
-  const { data: timeline, loading: tlLoading } = useApi(
-    () => crm.integrations.timeline({ limit: 20 }), [], { pollingInterval: 30000 }
-  );
-  const { data: leadSources, loading: lsLoading } = useApi(
-    () => crm.integrations.leadSources(), [], { pollingInterval: 30000 }
-  );
-  const { data: syncHealth, loading: syncLoading } = useApi(
-    () => crm.integrations.syncHealth(), [], { pollingInterval: 30000 }
-  );
-
-  const { mutate: syncNow, loading: syncing } = useMutation(
-    () => crm.integrations.sync(),
-    {
-      onSuccess: () => toast({ message: "Sync initiated", type: "success" }),
-      onError: (err) => toast({ message: err?.message ?? "Sync failed", type: "error" }),
-    }
-  );
-
-  const allIntegrations = integrations ?? [];
-  const allTimeline = timeline ?? [];
-  const allLeadSources = leadSources ?? [];
+  const all = integrations ?? [];
+  const health = syncHealth ?? {};
+  const sources = leadSources ?? [];
+  const events = timeline ?? [];
+  const connected = all.filter(i => i.status === "connected" || i.status === "healthy").length;
+  const errors = all.filter(i => i.status === "error" || i.status === "disconnected").length;
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Service Integration"
-        subtitle="Unified communication, interaction history, lead ingestion, and marketing sync."
+      <PageHeader title="Services & Integrations" subtitle="Connect your CRM to third-party tools and data sources"
         actions={
-          <div className="flex items-center gap-2">
-            <StatusPill status="healthy" />
-            <button
-              onClick={() => syncNow()}
-              disabled={syncing}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-60"
-            >
-              {syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Sync Now
-            </button>
-          </div>
+          <button onClick={() => sync()} disabled={syncing} className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white text-sm px-4 py-2 rounded-lg transition">
+            <RefreshCw size={15} className={syncing ? "animate-spin" : ""} /> {syncing ? "Syncing…" : "Sync All"}
+          </button>
         }
       />
 
-      <Section title="Connected Services">
-        {intError && (
-          <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 mb-3">
-            <AlertCircle size={15} /> {intError}
-          </div>
-        )}
-        {intLoading && allIntegrations.length === 0 && (
-          <div className="grid grid-cols-3 gap-3 animate-pulse">
-            {[1,2,3,4,5,6].map(i => <div key={i} className="h-20 bg-slate-100 dark:bg-slate-700 rounded-lg" />)}
-          </div>
-        )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {allIntegrations.map(item => {
-            const Icon = ICON_MAP[item.icon] ?? Plug;
+      {loading && all.length === 0 ? (
+        <div className="grid grid-cols-3 gap-4">{[...Array(3)].map((_, i) => <SkeletonCard key={i} />)}</div>
+      ) : (
+        <div className="grid grid-cols-3 gap-4">
+          <Stat label="Connected" value={connected} icon={CheckCircle} color="emerald" />
+          <Stat label="Errors" value={errors} icon={XCircle} color="orange" />
+          <Stat label="Lead Sources" value={sources.length} icon={Plug} color="sky" />
+        </div>
+      )}
+
+      {error && <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"><AlertCircle size={15} />{error}</div>}
+
+      <div className="flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden w-fit">
+        {["integrations", "sync-health", "lead-sources", "timeline"].map(t => (
+          <button key={t} onClick={() => setTab(t)} className={`px-4 py-1.5 text-sm font-medium capitalize transition ${tab === t ? "bg-orange-600 text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"}`}>{t.replace("-", " ")}</button>
+        ))}
+      </div>
+
+      {tab === "integrations" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {loading && all.length === 0 ? [...Array(4)].map((_, i) => <SkeletonCard key={i} />) : all.length === 0 ? (
+            <div className="col-span-2 text-center py-12 text-slate-500">No integrations configured.</div>
+          ) : all.map((int, i) => {
+            const Icon = STATUS_ICON[int.status] ?? Plug;
             return (
-              <div key={item.id} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="p-2 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                      <Icon className="h-4 w-4" />
-                    </span>
+              <div key={int.id ?? i} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                      <Plug size={20} className="text-slate-600 dark:text-slate-400" />
+                    </div>
                     <div>
-                      <p className="font-medium text-slate-900 dark:text-slate-100">{item.name}</p>
-                      <p className="text-xs text-slate-500">{item.desc ?? item.description}</p>
+                      <div className="font-semibold text-slate-900 dark:text-white">{int.name ?? int.service}</div>
+                      <div className="text-xs text-slate-400">{int.category ?? int.type ?? ""}</div>
                     </div>
                   </div>
-                  <StatusPill status={item.status} />
+                  <StatusBadge label={int.status ?? "unknown"} variant={STATUS_VARIANT[int.status] ?? "neutral"} />
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => toast({ message: `${item.name} configuration opened.`, type: "info" })} className="text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition">Configure</button>
-                  <button onClick={() => toast({ message: `Viewing logs for ${item.name}.`, type: "info" })} className="text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition">View Logs</button>
+                <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
+                  {int.lastSync && <span>Last sync: {int.lastSync}</span>}
+                  {int.recordsSync != null && <span>{int.recordsSync.toLocaleString()} records</span>}
+                  {int.errorCount != null && int.errorCount > 0 && <span className="text-red-500">{int.errorCount} errors</span>}
                 </div>
               </div>
             );
           })}
         </div>
-      </Section>
+      )}
 
-      <Section title="Unified Interaction Stream">
-        {tlLoading && allTimeline.length === 0 && (
-          <div className="space-y-3 animate-pulse">
-            {[1,2,3].map(i => <div key={i} className="h-20 bg-slate-100 dark:bg-slate-700 rounded-lg" />)}
-          </div>
-        )}
-        {!tlLoading && allTimeline.length === 0 && (
-          <p className="text-sm text-slate-500 text-center py-4">No interaction data available.</p>
-        )}
-        <div className="divide-y divide-slate-200 dark:divide-slate-800">
-          {allTimeline.map((item, i) => (
-            <div key={item.id ?? i} className="py-4 flex gap-4 hover:bg-slate-50 dark:hover:bg-slate-950/50 transition">
-              <div className="flex flex-col items-center">
-                <div className="w-2 h-2 rounded-full bg-indigo-500 mt-2" />
-                <div className="flex-1 w-px bg-slate-200 dark:bg-slate-800" />
-              </div>
-              <div className="flex-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2">
-                    <ChannelBadge channel={item.channel} />
-                    <span className="text-xs text-slate-500">{item.ts ?? item.timestamp}</span>
+      {tab === "sync-health" && (
+        <Card>
+          <CardHeader title="Sync Health Dashboard" icon={CheckCircle} />
+          <CardBody>
+            {Object.keys(health).length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-6">No sync health data available.</p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {Object.entries(health).filter(([, v]) => v != null).map(([key, val]) => (
+                  <div key={key} className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+                    <div className="text-xs text-slate-500 mb-1 capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</div>
+                    <div className="font-bold text-slate-900 dark:text-white">{typeof val === "boolean" ? (val ? "✓ OK" : "✗ Issue") : String(val)}</div>
                   </div>
-                  {item.status === "warn" ? (
-                    <span className="inline-flex items-center gap-1 text-amber-600 text-xs"><AlertTriangle className="h-3.5 w-3.5" /> Attention</span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-emerald-600 text-xs"><CheckCircle2 className="h-3.5 w-3.5" /> OK</span>
-                  )}
-                </div>
-                <p className="font-medium text-slate-900 dark:text-slate-100">{item.title}</p>
-                <p className="text-sm text-slate-600 dark:text-slate-400"><strong>{item.who}</strong> — {item.summary}</p>
+                ))}
               </div>
-            </div>
-          ))}
-        </div>
-      </Section>
+            )}
+          </CardBody>
+        </Card>
+      )}
 
-      <Section title="Lead Generation & Ingestion">
-        {lsLoading && allLeadSources.length === 0 && (
-          <div className="grid grid-cols-3 gap-3 animate-pulse">
-            {[1,2,3].map(i => <div key={i} className="h-20 bg-slate-100 dark:bg-slate-700 rounded-lg" />)}
-          </div>
-        )}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {allLeadSources.map(s => (
-            <div key={s.name} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4">
-              <div className="flex items-center justify-between">
-                <p className="font-medium text-slate-900 dark:text-slate-100">{s.name}</p>
-                <StatusPill status={s.status} />
+      {tab === "lead-sources" && (
+        <Card>
+          <CardHeader title="Lead Sources" icon={Plug} />
+          <CardBody>
+            {sources.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-6">No lead source data available.</p>
+            ) : (
+              <div className="space-y-3">
+                {sources.map((s, i) => {
+                  const max = Math.max(...sources.map(x => x.count ?? x.leads ?? 0));
+                  const pct = max ? Math.round(((s.count ?? s.leads ?? 0) / max) * 100) : 0;
+                  return (
+                    <div key={s.source ?? i} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium text-slate-700 dark:text-slate-300">{s.source ?? s.name}</span>
+                        <div className="flex items-center gap-3 text-xs">
+                          <span className="text-slate-500">{s.count ?? s.leads ?? 0} leads</span>
+                          {s.conversion != null && <span className="text-orange-600 font-medium">{s.conversion}% conv.</span>}
+                        </div>
+                      </div>
+                      <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${Math.max(4, pct)}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">Leads today: <strong>{s.today ?? "—"}</strong></p>
-              <button className="mt-3 text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-800">Configure Source</button>
-            </div>
-          ))}
-        </div>
-      </Section>
+            )}
+          </CardBody>
+        </Card>
+      )}
 
-      <Section title="CRM ↔ Marketing Sync Health">
-        {syncLoading ? (
-          <div className="grid grid-cols-4 gap-3 animate-pulse">
-            {[1,2,3,4].map(i => <div key={i} className="h-16 bg-slate-100 dark:bg-slate-700 rounded-lg" />)}
-          </div>
-        ) : syncHealth ? (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            {Object.entries(syncHealth).map(([label, value]) => (
-              <div key={label} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4">
-                <p className="text-xs text-slate-500">{label}</p>
-                <p className="text-xl font-semibold text-slate-900 dark:text-slate-100">{String(value)}</p>
+      {tab === "timeline" && (
+        <Card>
+          <CardHeader title="Integration Timeline" icon={Clock} />
+          <CardBody>
+            {events.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-6">No timeline events.</p>
+            ) : (
+              <div className="space-y-3">
+                {events.map((e, i) => (
+                  <div key={e.id ?? i} className="flex gap-4 items-start">
+                    <div className={`mt-0.5 h-2.5 w-2.5 rounded-full shrink-0 ${e.type === "error" ? "bg-red-500" : e.type === "success" ? "bg-emerald-500" : "bg-sky-500"}`} />
+                    <div className="flex-1">
+                      <div className="text-sm text-slate-900 dark:text-white">{e.text ?? e.description ?? e.action}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">{e.service ?? e.integration ?? ""}{e.at ? ` • ${e.at}` : e.date ? ` • ${e.date}` : ""}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : null}
-        <div className="mt-3 flex gap-2">
-          <button className="text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-800">View Sync Logs</button>
-          <button onClick={() => syncNow()} disabled={syncing} className="text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-800 disabled:opacity-60">Force Resync</button>
-          <button className="text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-800">Field Mapping</button>
-        </div>
-      </Section>
+            )}
+          </CardBody>
+        </Card>
+      )}
     </div>
   );
 }

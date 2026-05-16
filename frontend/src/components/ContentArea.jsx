@@ -2,11 +2,8 @@ import { useSidebar } from "./SidebarContext";
 
 // Main app
 import HomeView from "../apps/HomeView";
-
 import AnalyticsView from "../apps/AnalyticsView";
-
 import AccountView from "../apps/AccountView";
-
 
 // Network
 import NetworkView from "../apps/NetworkView";
@@ -16,123 +13,126 @@ import TopologyMap from "../apps/network/views/TopologyMap";
 import Traffic from "../apps/network/views/Traffic";
 import Settings from "../apps/network/views/Settings";
 import Documentation from "../apps/network/views/Documentation";
+import IncidentCenter from "../apps/network/views/IncidentCenter";
+import ChangeManagement from "../apps/network/views/ChangeManagement";
+import PolicyCompliance from "../apps/network/views/PolicyCompliance";
+import CapacityPlanning from "../apps/network/views/CapacityPlanning";
+import ServiceHealth from "../apps/network/views/ServiceHealth";
+import AutomationJobs from "../apps/network/views/AutomationJobs";
+import ServerManager from "../apps/network/views/ServerManager";
+import NetworkMonitor from "../apps/network/views/NetworkMonitor";
+import UserRestrictions from "../apps/network/views/UserRestrictions";
+import FirewallSetup from "../apps/network/views/FirewallSetup";
 
-
-
-
-
-// CRM (use your existing views or placeholders)
+// CRM
 import CRMView from "../apps/CRMView";
-import SmartCRM from "../apps/crm/SmartCRM";
-import TeamManager from "../apps/crm/TeamManager";
-import ServicesIntegration from "../apps/crm/ServicesIntegration";
+import LeadWorkspace from "../apps/crm/LeadWorkspace";
+import OpportunityWorkspace from "../apps/crm/OpportunityWorkspace";
+import TaskCadence from "../apps/crm/TaskCadence";
 import PipelineTracking from "../apps/crm/PipelineTracking";
-import RevenueIntelligence from "../apps/crm/RevenueIntelligence";
 import DealCommandCenter from "../apps/crm/DealCommandCenter";
+import ForecastingQuota from "../apps/crm/ForecastingQuota";
+import RenewalsExpansion from "../apps/crm/RenewalsExpansion";
 import Account360 from "../apps/crm/Account360";
-import Team from "../apps/crm/Team"
+import RevenueIntelligence from "../apps/crm/RevenueIntelligence";
+import SmartCRM from "../apps/crm/SmartCRM";
+import PlaybooksLibrary from "../apps/crm/PlaybooksLibrary";
+import CRMAnalytics from "../apps/crm/CRMAnalytics";
 import Reports from "../apps/crm/Reports";
+import ServicesIntegration from "../apps/crm/ServicesIntegration";
+import Team from "../apps/crm/Team";
+import TeamManager from "../apps/crm/TeamManager";
+import Database from "../apps/crm/Database";
 import Partners from "../apps/crm/Partners";
 import BoardVoting from "../apps/crm/BoardVoting";
-import Database from "../apps/crm/Database";
 
-
-// Marketing (use your existing views or placeholders)
+// Marketing
 import MarketingView from "../apps/MarketingView";
-import B2B from "../apps/marketing/B2B";
+import MarketingAI from "../apps/marketing/MarketingAI";
 import Campaign from "../apps/marketing/Campaign";
 import EMMA from "../apps/marketing/EMMA";
+import AudienceStudio from "../apps/marketing/AudienceStudio";
 import Personalization from "../apps/marketing/Personalization";
-import Teams from "../apps/marketing/Teams";
+import B2B from "../apps/marketing/B2B";
+import ExperimentationLab from "../apps/marketing/ExperimentationLab";
+import AttributionROI from "../apps/marketing/AttributionROI";
+import CreativeAssets from "../apps/marketing/CreativeAssets";
+import MarketingAnalytics from "../apps/marketing/MarketingAnalytics";
 import CustomerDataPlatform from "../apps/marketing/CustomerDataPlatform";
 import CommerceCommand from "../apps/marketing/CommerceCommand";
-import MarketingAI from "../apps/marketing/MarketingAI";
-
-//Managerial services 
-import { Dashboard } from './apps/services/Dashboard';
-import { FinancialManagement } from './apps/services/FinancialManagement';
-import { OperationsSystems } from './apps/services/OperationsSystems';
-import { StrategicPlanning } from './apps/services/StrategicPlanning';
-import { MarketingSales } from './apps/services/MarketingSales';
-import { TeamProjectCoordination } from './apps/services/TeamProjectCoordination';
-
-
+import Teams from "../apps/marketing/Teams";
 
 export default function ContentArea({ roleToUse }) {
   const { appSection, networkView, crmView, marketingView } = useSidebar();
-  console.log("appSection:", appSection);
 
-  // 🟦 Network mini-app
- if  (appSection === "network") {
-    if (networkView === "dashboard") return <NetworkView />;
-    if (networkView === "inventory") return <div><Inventory /></div>;
-    if (networkView === "docs") return <div><Documentation /></div>;
-    if (networkView === "alerts") return <div><Alerts /></div>;
-    if (networkView === "traffic") return <div><Traffic /></div>;
-    if (networkView === "map") return <div> <TopologyMap /></div>
-    if (networkView === "settings") return <div> <Settings /></div>
-  }                
-  // 🟩 CRM mini-app
+  // Network
+  if (appSection === "network") {
+    if (networkView === "dashboard")  return <NetworkView />;
+    if (networkView === "inventory")  return <Inventory />;
+    if (networkView === "incidents")  return <IncidentCenter />;
+    if (networkView === "changes")    return <ChangeManagement />;
+    if (networkView === "policy")     return <PolicyCompliance />;
+    if (networkView === "capacity")   return <CapacityPlanning />;
+    if (networkView === "slo")        return <ServiceHealth />;
+    if (networkView === "automation") return <AutomationJobs />;
+    if (networkView === "map")        return <TopologyMap />;
+    if (networkView === "alerts")       return <Alerts />;
+    if (networkView === "traffic")     return <Traffic />;
+    if (networkView === "servers")     return <ServerManager />;
+    if (networkView === "monitor")     return <NetworkMonitor />;
+    if (networkView === "restrictions") return <UserRestrictions />;
+    if (networkView === "firewall")    return <FirewallSetup />;
+    if (networkView === "docs")        return <Documentation />;
+    if (networkView === "settings")    return <Settings />;
+    return <NetworkView />;
+  }
+
+  // CRM
   if (appSection === "crm") {
-    if (crmView === "stream") return <CRMView />;
-    if (crmView === "account360") return <Account360 />;
-    if (crmView === "service integration") return <div><ServicesIntegration /> (coming soon)</div>;
-    if (crmView === "pipeline tracking") return <div><PipelineTracking /></div>;
-    if (crmView === "revenue intelligence") return <RevenueIntelligence />;
-    if (crmView === "deal") return <DealCommandCenter />;
-    if (crmView === "smartcrm") return <div><SmartCRM 
-    role={roleToUse}
-    customer={{ name: "Alice Johnson",
-                interactions:14,
-                lastContactDays:2,
-                segment: "High Value", }} /> </div>;
-    if (crmView === "reports") return <div><Reports /></div>;
-    if (crmView === "team") return <Team />;
-    if (crmView === "teammanager") return <div><TeamManager /></div>;
-    if (crmView === "partners") return <div><Partners /></div>;
-    if (crmView === "partners.board") return <BoardVoting />;
-    if (crmView === "database") return <div><Database /></div>;
-    if (crmView === "crm analytics") return <div>CRM Analytics (coming soon)</div>;
-
+    if (crmView === "stream")               return <CRMView />;
+    if (crmView === "leads")                return <LeadWorkspace />;
+    if (crmView === "opportunities")        return <OpportunityWorkspace />;
+    if (crmView === "tasks")                return <TaskCadence />;
+    if (crmView === "pipeline")             return <PipelineTracking />;
+    if (crmView === "deals")                return <DealCommandCenter />;
+    if (crmView === "forecasting")          return <ForecastingQuota />;
+    if (crmView === "renewals")             return <RenewalsExpansion />;
+    if (crmView === "account360")           return <Account360 />;
+    if (crmView === "revenue-intelligence") return <RevenueIntelligence />;
+    if (crmView === "smart-crm")            return <SmartCRM role={roleToUse} />;
+    if (crmView === "playbooks")            return <PlaybooksLibrary />;
+    if (crmView === "analytics")            return <CRMAnalytics />;
+    if (crmView === "reports")              return <Reports />;
+    if (crmView === "service-integration")  return <ServicesIntegration />;
+    if (crmView === "team")                 return <Team />;
+    if (crmView === "team-manager")         return <TeamManager />;
+    if (crmView === "database")             return <Database />;
+    if (crmView === "partners")             return <Partners />;
+    if (crmView === "partners/board")       return <BoardVoting />;
+    return <CRMView />;
   }
+
+  // Marketing
   if (appSection === "marketing") {
-    // ✅ DEFAULT (this fixes your issue)
-    if (!marketingView) return <MarketingView />;
-  
-    if (marketingView === "stream") return <MarketingView />;
-    if (marketingView === "marketingai") return <MarketingAI />;
-    if (marketingView === "campaign") return <Campaign />;
-    if (marketingView === "e.m.m.a") return <EMMA />;
-    if (marketingView === "b2b") return <B2B />;
+    if (!marketingView || marketingView === "stream") return <MarketingView />;
+    if (marketingView === "ai")              return <MarketingAI />;
+    if (marketingView.startsWith("campaign"))return <Campaign />;
+    if (marketingView === "emma")            return <EMMA />;
+    if (marketingView === "audience")        return <AudienceStudio />;
     if (marketingView === "personalization") return <Personalization />;
-    if (marketingView === "team") return <Teams />;
-    if (marketingView === "marketingAnalytics") return <div>Marketing Analytics (coming soon)</div>;
-    if (marketingView === "cdp") return <CustomerDataPlatform />;
-    if (marketingView === "commercecommand") return <CommerceCommand />;
-  
-    return <MarketingView />; // safety fallback
+    if (marketingView === "b2b")             return <B2B />;
+    if (marketingView === "experimentation") return <ExperimentationLab />;
+    if (marketingView === "attribution")     return <AttributionROI />;
+    if (marketingView === "creative")        return <CreativeAssets />;
+    if (marketingView === "analytics")       return <MarketingAnalytics />;
+    if (marketingView === "cdp")             return <CustomerDataPlatform />;
+    if (marketingView === "commerce")        return <CommerceCommand />;
+    if (marketingView === "team")            return <Teams />;
+    return <MarketingView />;
   }
 
-  if (appSection === "services") {
-    if (serviceView === "dashboard") return <Dashboard />;
-    if (serviceView === "financial") return <div><FinancialManagement /></div>;
-    if (serviceView === "operation") return <div><MarketingSales /></div>;
-    if (serviceView === "strategic") return <div><OperationsSystem /></div>;
-    if (serviceView === "marketing") return <div><StrategicPlanning /></div>;
-    if (serviceView === "team") return <div> <TeamProjectCoordination /></div>;
-  }       
-  
-  // 🟨 Analytics (single page workspace)
-  if (appSection === "analytics") {
-    return <AnalyticsView />;
-  }
+  if (appSection === "analytics") return <AnalyticsView />;
+  if (appSection === "account")   return <AccountView />;
 
-  if (appSection === "account") {
-    return <AccountView />;
-  }
-
-  // 🏠 Main app
   return <HomeView />;
-};
-
-
+}

@@ -1,379 +1,175 @@
-import { useState, useEffect, useCallback } from 'react';
-import {
-  Server, Activity, Bell, Cloud, Cpu, HardDrive,
-  ShieldCheck, Boxes, TrendingUp, RefreshCw,
-  AlertTriangle, CheckCircle2, XCircle, Loader2,
-} from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
-import { useSidebar } from '../components/SidebarContext';
- 
-// ── API helper ────────────────────────────────────────────────────────────────
-const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
- 
-async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem('auth_token');
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.message ?? `HTTP ${res.status}`);
-  }
-  if (res.status === 204) return null;
-  return await res.json();
-}
- 
-// ── Status helpers ────────────────────────────────────────────────────────────
- 
-function statusColor(value) {
-  const v = (value ?? '').toLowerCase();
-  if (['operational', 'good', 'normal', 'secure'].includes(v)) return 'text-emerald-500';
-  if (['moderate', 'fair', 'warning'].includes(v)) return 'text-amber-500';
-  return 'text-rose-500';
-}
- 
-function utilizationColor(pct) {
-  if (pct < 60) return 'bg-emerald-500';
-  if (pct < 80) return 'bg-amber-500';
-  return 'bg-rose-500';
-}
- 
-// ── Sub-components ────────────────────────────────────────────────────────────
- 
-function KpiCard({ label, value, icon: Icon, isDark }) {
-  return (
-    <div className={`rounded-xl border p-4 flex items-center justify-between shadow-sm
-      ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-      <div>
-        <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{label}</p>
-        <p className={`text-2xl font-semibold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{value}</p>
-      </div>
-      <div className={`p-3 rounded-lg ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
-        <Icon className="h-5 w-5 text-indigo-500" />
-      </div>
-    </div>
-  );
-}
- 
-function StatusCard({ title, value, isDark }) {
-  return (
-    <div className={`rounded-lg border p-4 ${isDark ? 'border-slate-700 bg-slate-950' : 'border-slate-200 bg-slate-50'}`}>
-      <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{title}</p>
-      <p className={`text-base font-semibold mt-1 ${statusColor(value)}`}>{value || '—'}</p>
-    </div>
-  );
-}
- 
-function Row({ label, value, highlight, isDark }) {
-  return (
-    <div className="flex items-center justify-between text-sm">
-      <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{label}</span>
-      <span className={`font-semibold ${highlight ? 'text-amber-500' : isDark ? 'text-slate-100' : 'text-slate-800'}`}>
-        {value}
-      </span>
-    </div>
-  );
-}
- 
-function UtilBar({ hostname, device_type, cpu_util, mem_util, status, isDark }) {
+import { useApi } from "../hooks/useApi";
+import { network } from "../services/api";
+import { Stat, Card, CardHeader, CardBody } from "../components/ui/Card";
+import { SkeletonCard, SkeletonTable } from "../components/ui/Skeleton";
+import PageHeader from "../components/ui/PageHeader";
+import StatusBadge from "../components/ui/StatusBadge";
+import { Server, Bell, ShieldCheck, Cloud, Cpu, Boxes, Activity, RefreshCw, AlertCircle, TrendingUp, HardDrive, CheckCircle2, XCircle } from "lucide-react";
+
+function UtilBar({ hostname, device_type, cpu_util, mem_util, status }) {
   const cpu = Math.round(cpu_util ?? 0);
   const mem = Math.round(mem_util ?? 0);
-  const isDown = status === 'down' || status === 'maintenance';
+  const cpuColor = cpu >= 90 ? "bg-red-500" : cpu >= 70 ? "bg-amber-500" : "bg-emerald-500";
+  const memColor = mem >= 90 ? "bg-red-500" : mem >= 70 ? "bg-amber-500" : "bg-sky-500";
   return (
-    <div className={`rounded-lg border p-3 ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50'}`}>
+    <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span className={`h-2 w-2 rounded-full shrink-0 ${isDown ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-          <span className={`text-xs font-medium truncate ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{hostname}</span>
+          <span className={`h-2 w-2 rounded-full shrink-0 ${status === "down" || status === "maintenance" ? "bg-red-500" : "bg-emerald-500"}`} />
+          <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">{hostname}</span>
         </div>
-        <span className={`text-[10px] uppercase tracking-wide shrink-0 ml-2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{device_type}</span>
+        <span className="text-[10px] uppercase text-slate-400 shrink-0 ml-2">{device_type}</span>
       </div>
       <div className="space-y-1.5">
         <div>
-          <div className="flex justify-between text-[10px] mb-0.5">
-            <span className={isDark ? 'text-slate-500' : 'text-slate-400'}>CPU</span>
-            <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>{cpu}%</span>
-          </div>
-          <div className={`h-1.5 rounded-full ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
-            <div className={`h-1.5 rounded-full transition-all ${utilizationColor(cpu)}`} style={{ width: `${cpu}%` }} />
-          </div>
+          <div className="flex justify-between text-[10px] mb-0.5"><span className="text-slate-400">CPU</span><span className="text-slate-500">{cpu}%</span></div>
+          <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full"><div className={`h-1.5 rounded-full ${cpuColor}`} style={{ width: `${cpu}%` }} /></div>
         </div>
         <div>
-          <div className="flex justify-between text-[10px] mb-0.5">
-            <span className={isDark ? 'text-slate-500' : 'text-slate-400'}>MEM</span>
-            <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>{mem}%</span>
-          </div>
-          <div className={`h-1.5 rounded-full ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
-            <div className={`h-1.5 rounded-full transition-all ${utilizationColor(mem)}`} style={{ width: `${mem}%` }} />
-          </div>
+          <div className="flex justify-between text-[10px] mb-0.5"><span className="text-slate-400">MEM</span><span className="text-slate-500">{mem}%</span></div>
+          <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full"><div className={`h-1.5 rounded-full ${memColor}`} style={{ width: `${mem}%` }} /></div>
         </div>
       </div>
     </div>
   );
 }
- 
-// ── Main dashboard ────────────────────────────────────────────────────────────
- 
-export default function NetworkDashboard() {
-  const { theme } = useSidebar();
-  const isDark = theme === 'dark';
- 
-  const [employee, setEmployee]       = useState(null);
-  const [overview,  setOverview]  = useState(null);
-  const [devices,   setDevices]   = useState([]);
-  const [storage,   setStorage]   = useState(null);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState(null);
- 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [ov, dv, st] = await Promise.all([
-        apiFetch('/network/dashboard/overview').catch(() => null),
-        apiFetch('/network/dashboard/device-usage').catch(() => []),
-        apiFetch('/network/dashboard/storage').catch(() => null),
-      ]);
-      setOverview(ov);
-      setDevices(Array.isArray(dv) ? dv : []);
-      setStorage(st);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
- 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
- 
-  // ── Derived display values ─────────────────────────────────────────────────
+
+export default function NetworkView() {
+  const { data: overview, loading: ovLoading, error, refetch } = useApi(() => fetch("/network/dashboard/overview").then(r => r.json()).catch(() => null), [], { pollingInterval: 60000 });
+  const { data: devices, loading: devLoading } = useApi(() => network.devices.list({ limit: 20 }), [], { pollingInterval: 30000 });
+  const { data: alerts } = useApi(() => network.alerts.list({ limit: 5, status: "open" }), [], { pollingInterval: 15000 });
+  const { data: incidents } = useApi(() => network.incidents.list({ limit: 5, status: "open" }), [], { pollingInterval: 30000 });
+
   const kpis = overview?.kpis ?? {};
   const health = overview?.health ?? {};
-  const cloud  = overview?.cloud  ?? {};
- 
-  const statCards = [
-    { label: 'Total Devices',      value: loading ? '…' : kpis.total_devices ?? 0,                   icon: Boxes },
-    { label: 'Servers Online',     value: loading ? '…' : `${kpis.servers_online ?? 0} / ${kpis.servers_total ?? 0}`, icon: Server },
-    { label: 'Active Alerts',      value: loading ? '…' : kpis.active_alerts ?? 0,                   icon: Bell },
-    { label: 'Endpoints Healthy',  value: loading ? '…' : `${kpis.endpoints_healthy_pct ?? 0}%`,     icon: ShieldCheck },
-    { label: 'Cloud Regions',      value: loading ? '…' : kpis.cloud_regions ?? 0,                   icon: Cloud },
-    { label: 'Avg CPU Util',       value: loading ? '…' : `${kpis.avg_cpu_util ?? 0}%`,              icon: Cpu },
-  ];
- 
-  const healthCards = [
-    { title: 'Network Status',   value: health.network_status },
-    { title: 'Endpoint Health',  value: health.endpoint_health },
-    { title: 'Server Load',      value: health.server_load },
-    { title: 'Security Posture', value: health.security_posture },
+  const cloud = overview?.cloud ?? {};
+  const allDevices = devices ?? [];
+  const allAlerts = alerts ?? [];
+  const allIncidents = incidents ?? [];
+
+  const totalDevices = kpis.total_devices ?? allDevices.length;
+  const onlineDevices = allDevices.filter(d => d.status === "Online" || d.status === "online").length;
+  const openAlerts = kpis.active_alerts ?? allAlerts.length;
+
+  const healthItems = [
+    { label: "Network Status", value: health.network_status ?? "—" },
+    { label: "Endpoint Health", value: health.endpoint_health ?? "—" },
+    { label: "Server Load", value: health.server_load ?? "—" },
+    { label: "Security Posture", value: health.security_posture ?? "—" },
   ];
 
-  const getGreeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Good Morning';
-    if (h < 17) return 'Good Afternoon';
-    return 'Good Evening';
-  };
- 
-  // ── Error state ────────────────────────────────────────────────────────────
-  if (error && !overview) {
-    return (
-      <div className={`flex flex-col items-center justify-center h-64 gap-4 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-        <AlertTriangle className="h-10 w-10 text-rose-500" />
-        <p className="text-sm font-medium">{error}</p>
-        <button onClick={fetchAll} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700">
-          <RefreshCw className="h-4 w-4" /> Retry
-        </button>
-      </div>
-    );
+  function statusVariant(v) {
+    const s = (v ?? "").toLowerCase();
+    if (["operational", "good", "normal", "secure"].includes(s)) return "success";
+    if (["moderate", "fair", "warning"].includes(s)) return "warning";
+    return "danger";
   }
- 
+
+  const SEVERITY_COLOR = { Critical: "text-red-600 dark:text-red-400", Warning: "text-amber-600 dark:text-amber-400", Info: "text-sky-600 dark:text-sky-400" };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-      <div className="flex items-center gap-4">
-  <Avatar className="h-16 w-16 border-2 border-orange-500/30">
-    <AvatarImage src={employee?.avatar_url} alt={employee?.name} />
-    <AvatarFallback className="font-heading text-xl bg-slate-200 text-orange-600">
-      {employee?.name?.split(" ").map((n) => n[0]).join("") || "?"}
-    </AvatarFallback>
-  </Avatar>
+      <PageHeader title="Network Operations" subtitle="Real-time overview of your infrastructure health and performance"
+        actions={<button onClick={refetch} className="flex items-center gap-1.5 text-xs border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition"><RefreshCw size={13} /> Refresh</button>}
+      />
 
-  <div>
-    <p className="text-sm font-body text-slate-500">
-      {getGreeting()}
-    </p>
+      {ovLoading && allDevices.length === 0 ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">{[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}</div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <Stat label="Total Devices" value={totalDevices || "—"} icon={Boxes} color="emerald" />
+          <Stat label="Devices Online" value={devLoading ? "…" : `${onlineDevices} / ${allDevices.length}`} icon={Server} color="sky" />
+          <Stat label="Open Alerts" value={openAlerts} icon={Bell} color="amber" />
+          <Stat label="Cloud Regions" value={kpis.cloud_regions ?? cloud.active_regions ?? "—"} icon={Cloud} color="indigo" />
+          <Stat label="Avg CPU Util" value={kpis.avg_cpu_util != null ? `${kpis.avg_cpu_util}%` : "—"} icon={Cpu} color="red" />
+          <Stat label="Endpoints Healthy" value={kpis.endpoints_healthy_pct != null ? `${kpis.endpoints_healthy_pct}%` : "—"} icon={ShieldCheck} color="emerald" />
+        </div>
+      )}
 
-    <h1
-      className="text-2xl sm:text-3xl font-semibold tracking-tight font-heading text-slate-900"
-      data-testid="employee-name"
-    >
-      {employee?.name ?? "—"}
-    </h1>
+      {error && <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg"><AlertCircle size={15} />Dashboard overview unavailable — showing live device data</div>}
 
-    <p className="text-sm font-body text-slate-600">
-      {employee?.role} — {employee?.department}
-    </p>
-  </div>
-</div>
-        <button
-          onClick={fetchAll}
-          disabled={loading}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors
-            ${isDark ? 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
-      </div>
- 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {statCards.map((s) => (
-          <KpiCard key={s.label} label={s.label} value={s.value} icon={s.icon} isDark={isDark} />
-        ))}
-      </div>
- 
-      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Monitoring & Health */}
-        <div className={`lg:col-span-2 rounded-xl border p-5 ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Monitoring & Health</h2>
-            <Activity className="h-5 w-5 text-emerald-500" />
-          </div>
-          {loading ? (
-            <div className="flex items-center justify-center h-28">
-              <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4">
-              {healthCards.map((c) => (
-                <StatusCard key={c.title} title={c.title} value={c.value} isDark={isDark} />
+        <Card className="lg:col-span-2">
+          <CardHeader title="Infrastructure Health" icon={Activity} />
+          <CardBody>
+            <div className="grid grid-cols-2 gap-3">
+              {healthItems.map(({ label, value }) => (
+                <div key={label} className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
+                  <div className="text-xs text-slate-500 mb-1">{label}</div>
+                  <StatusBadge label={value} variant={statusVariant(value)} />
+                </div>
               ))}
             </div>
-          )}
-        </div>
- 
-        {/* Cloud Control */}
-        <div className={`rounded-xl border p-5 ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Cloud Control</h2>
-            <Cloud className="h-5 w-5 text-sky-500" />
-          </div>
-          {loading ? (
-            <div className="flex items-center justify-center h-20">
-              <Loader2 className="h-5 w-5 animate-spin text-indigo-500" />
-            </div>
-          ) : (
-            <div className="space-y-3 text-sm">
-              <Row label="Active Regions"   value={cloud.active_regions ?? 0}   isDark={isDark} />
-              <Row label="Cloud Devices"    value={cloud.cloud_devices  ?? 0}   isDark={isDark} />
-              <Row
-                label="Open Incidents"
-                value={cloud.incidents_count > 0 ? `${cloud.incidents_count} Warning` : 'None'}
-                highlight={cloud.has_warnings}
-                isDark={isDark}
-              />
-            </div>
-          )}
-        </div>
-      </div>
- 
-      {/* Bottom panels */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Device Usage */}
-        <div className={`rounded-xl border p-5 ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              Server & Device Usage
-            </h2>
-            <TrendingUp className="h-5 w-5 text-indigo-500" />
-          </div>
- 
-          {loading ? (
-            <div className="flex items-center justify-center h-40">
-              <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
-            </div>
-          ) : devices.length === 0 ? (
-            <div className={`flex flex-col items-center justify-center h-40 gap-2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-              <Server className="h-8 w-8" />
-              <p className="text-sm">No devices found.</p>
-              <p className="text-xs">Add devices via the Inventory view.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
-              {devices.map((d) => (
-                <UtilBar key={d.id} {...d} isDark={isDark} />
-              ))}
-            </div>
-          )}
-        </div>
- 
-        {/* Storage & Backups */}
-        <div className={`rounded-xl border p-5 ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              Storage & Backups
-            </h2>
-            <HardDrive className="h-5 w-5 text-emerald-500" />
-          </div>
- 
-          {loading ? (
-            <div className="flex items-center justify-center h-40">
-              <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
-            </div>
-          ) : !storage || storage.total_backups === 0 ? (
-            <div className={`flex flex-col items-center justify-center h-40 gap-2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-              <HardDrive className="h-8 w-8" />
-              <p className="text-sm">No backup records found.</p>
-              <p className="text-xs">Backups will appear here once recorded.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: 'Total Backups',    value: storage.total_backups,   icon: HardDrive,    color: 'text-indigo-500' },
-                  { label: 'Success Today',    value: storage.successful_today, icon: CheckCircle2, color: 'text-emerald-500' },
-                  { label: 'Failed Today',     value: storage.failed_today,     icon: XCircle,      color: 'text-rose-500' },
-                  { label: 'Total Size (GB)',  value: storage.total_size_gb,    icon: HardDrive,    color: 'text-sky-500' },
-                ].map(({ label, value, icon: Icon, color }) => (
-                  <div key={label} className={`rounded-lg border p-3 ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50'}`}>
-                    <Icon className={`h-4 w-4 mb-1 ${color}`} />
-                    <p className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{value}</p>
-                    <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{label}</p>
-                  </div>
-                ))}
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader title="Cloud Summary" icon={Cloud} />
+          <CardBody className="space-y-3">
+            {[
+              ["Active Regions", cloud.active_regions ?? kpis.cloud_regions ?? "—"],
+              ["Cloud Devices", cloud.cloud_devices ?? "—"],
+              ["Open Incidents", cloud.incidents_count ?? allIncidents.length],
+            ].map(([label, value]) => (
+              <div key={label} className="flex items-center justify-between text-sm">
+                <span className="text-slate-500 dark:text-slate-400">{label}</span>
+                <span className="font-semibold text-slate-900 dark:text-white">{value}</span>
               </div>
- 
-              {/* Success rate bar */}
-              {storage.successful_today + storage.failed_today > 0 && (() => {
-                const total = storage.successful_today + storage.failed_today;
-                const pct = Math.round((storage.successful_today / total) * 100);
-                return (
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>Today's success rate</span>
-                      <span className={`font-semibold ${pct >= 90 ? 'text-emerald-500' : pct >= 70 ? 'text-amber-500' : 'text-rose-500'}`}>{pct}%</span>
-                    </div>
-                    <div className={`h-2 rounded-full ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
-                      <div
-                        className={`h-2 rounded-full transition-all ${pct >= 90 ? 'bg-emerald-500' : pct >= 70 ? 'bg-amber-500' : 'bg-rose-500'}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-        </div>
+            ))}
+          </CardBody>
+        </Card>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader title="Device Utilisation" icon={TrendingUp} />
+          <CardBody>
+            {devLoading ? <SkeletonTable rows={4} /> : allDevices.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-6">No devices discovered. Configure inventory to begin monitoring.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                {allDevices.slice(0, 12).map((d, i) => <UtilBar key={d.id ?? i} {...d} />)}
+              </div>
+            )}
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader title="Recent Alerts" icon={Bell} actions={<span className="text-xs text-slate-400">{openAlerts} open</span>} />
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {allAlerts.length === 0 ? (
+              <p className="p-6 text-sm text-slate-500 text-center">No open alerts.</p>
+            ) : allAlerts.slice(0, 5).map((a, i) => (
+              <div key={a.id ?? i} className="flex items-start gap-3 px-4 py-3">
+                <AlertCircle size={14} className={`mt-0.5 shrink-0 ${SEVERITY_COLOR[a.severity] ?? "text-slate-400"}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-slate-900 dark:text-white truncate">{a.title ?? a.message ?? a.description}</div>
+                  <div className="text-xs text-slate-400">{a.device ?? a.source ?? ""}{a.time ? ` · ${a.time}` : ""}</div>
+                </div>
+                <span className={`text-xs font-semibold shrink-0 ${SEVERITY_COLOR[a.severity] ?? "text-slate-400"}`}>{a.severity}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {allIncidents.length > 0 && (
+        <Card>
+          <CardHeader title="Open Incidents" icon={AlertCircle} />
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {allIncidents.map((inc, i) => (
+              <div key={inc.id ?? i} className="flex items-center gap-3 px-4 py-3">
+                <div className={`h-2 w-2 rounded-full shrink-0 ${inc.severity === "critical" ? "bg-red-500" : inc.severity === "high" ? "bg-orange-500" : "bg-amber-500"}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-slate-900 dark:text-white">{inc.title}</div>
+                  <div className="text-xs text-slate-400">{inc.owner ?? "Unassigned"}</div>
+                </div>
+                <StatusBadge label={inc.severity ?? "medium"} variant={inc.severity === "critical" ? "danger" : inc.severity === "high" ? "warning" : "info"} />
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
