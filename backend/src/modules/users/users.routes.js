@@ -3,12 +3,15 @@ import { authenticate } from "../../middleware/auth.middleware.js";
 import { requireRole } from "../../middleware/role.middleware.js";
 import {
   listUsers, getUser, inviteUser, updateUser, deleteUser, toggleUserStatus,
-  listSessions, listAuditLogs, getWorkspaceStats,
+  listSessions, listAuditLogs, getWorkspaceStats, listRoles,
 } from "./users.controller.js";
 
 const router = express.Router();
 const auth  = authenticate;
 const admin = [authenticate, requireRole("enterprise_admin")];
+
+// Roles list (for invite dropdown)
+router.get("/admin/roles",             ...admin, listRoles);
 
 // Workspace overview (admin)
 router.get("/admin/workspace/stats",   ...admin, getWorkspaceStats);
