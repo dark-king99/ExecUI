@@ -46,16 +46,42 @@ export const getUser = handle(async (req) => {
   return { ...userShape(user), sessions: user.sessions };
 });
 
+// ── List roles (for invite dropdown) ─────────────────────────────────────────
+export const listRoles = handle(async (req) => {
+  const roles = await prisma.role.findMany({
+    where: { tenantId: tid(req) },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+  return roles;
+});
+
 // ── Invite / create user ──────────────────────────────────────────────────────
 export const inviteUser = handle(async (req) => {
-  const { email, password, firstName, lastName, roleId, department, jobTitle, phone } = req.body;
+  const { email, password, firstName, lastName, roleId: rawRoleId, role: roleName, department, jobTitle, phone } = req.body;
+
+  // Resolve roleId — accept UUID directly or fall back to name lookup → default
+  let resolvedRoleId = rawRoleId && rawRoleId.length === 36 ? rawRoleId : null;
+  if (!resolvedRoleId && roleName) {
+    const found = await prisma.role.findFirst({ where: { tenantId: tid(req), name: roleName } });
+    resolvedRoleId = found?.id ?? null;
+  }
+  if (!resolvedRoleId) {
+    const fallback = await prisma.role.findFirst({
+      where: { tenantId: tid(req), NOT: { name: "enterprise_admin" } },
+      orderBy: { name: "asc" },
+    });
+    resolvedRoleId = fallback?.id;
+  }
+  if (!resolvedRoleId) throw new Error("No valid role found for this tenant");
+
   const passwordHash = await bcrypt.hash(password || "ChangeMe123!", 10);
   const user = await prisma.user.create({
-    data: { email, passwordHash, firstName, lastName, roleId, tenantId: tid(req), department, jobTitle, phone },
+    data: { email, passwordHash, firstName, lastName, roleId: resolvedRoleId, tenantId: tid(req), department, jobTitle, phone },
     include: { role: true },
   });
   await prisma.auditLog.create({
-    data: { userId: req.user.userId, tenantId: tid(req), action: "create_user", resource: "user", resourceId: user.id, detail: `Created user ${email}` },
+    data: { userId: req.user.userId, tenantId: tid(req), action: "create_user", resource: "user", resourceId: user.id, detail: `Invited user ${email}` },
   });
   return userShape(user);
 });
