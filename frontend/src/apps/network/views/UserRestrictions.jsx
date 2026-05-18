@@ -58,15 +58,15 @@ export default function UserRestrictions() {
     onError: (e) => toast({ message: e.message, type: "error" }),
   });
 
-  const filtered = restrictions.filter((r) => {
+  const filtered = restrictions?.filter((r) => {
     if (filterType !== "all" && r.rule_type !== filterType) return false;
     if (search && !r.name?.toLowerCase().includes(search.toLowerCase()) && !r.target?.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
-  const active = restrictions.filter((r) => r.enabled).length;
-  const blocked = restrictions.filter((r) => r.rule_type === "block").length;
-  const rateLimited = restrictions.filter((r) => r.rule_type === "rate_limit").length;
+  const active = (restrictions?.filter((r) => r.enabled)).length;
+  const blocked = (restrictions?.filter((r) => r.rule_type === "block")).length;
+  const rateLimited = (restrictions?.filter((r) => r.rule_type === "rate_limit")).length;
 
   return (
     <div className="space-y-6">
@@ -83,7 +83,7 @@ export default function UserRestrictions() {
       />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Stat label="Total Rules" value={restrictions.length} color="emerald" />
+        <Stat label="Total Rules" value={restrictions?.length} color="emerald" />
         <Stat label="Active" value={active} color="emerald" />
         <Stat label="Block Rules" value={blocked} color="red" />
         <Stat label="Rate Limited" value={rateLimited} color="amber" />
@@ -105,11 +105,11 @@ export default function UserRestrictions() {
       </Card>
 
       <Card>
-        <CardHeader title={`Rules (${filtered.length})`} />
+        <CardHeader title={`Rules (${filtered?.length})`} />
         <CardBody className="p-0">
           {loading ? (
             <div className="p-5"><SkeletonTable rows={5} cols={6} /></div>
-          ) : filtered.length === 0 ? (
+          ) : filtered?.length === 0 ? (
             <div className="py-16 text-center text-slate-400 dark:text-slate-500 text-sm">
               No restriction rules found. Add a rule to control network access.
             </div>
