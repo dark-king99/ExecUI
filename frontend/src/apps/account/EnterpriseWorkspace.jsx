@@ -8,12 +8,13 @@ import { SkeletonTable } from "../../components/ui/Skeleton";
 import StatusBadge from "../../components/ui/StatusBadge";
 import {
   Building2, Users, Plus, Trash2, UserX, UserCheck,
-  Search, X, Shield, Activity, Clock, Monitor
+  Search, X, Shield, Activity, Clock, Monitor, Pencil
 } from "lucide-react";
 
 const TABS = ["users", "sessions", "audit"];
 
 const inputCls  = "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500";
+const selectCls = "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
 const EMPTY_INVITE = { firstName: "", lastName: "", email: "", password: "", department: "", jobTitle: "", phone: "", roleId: "" };
 
@@ -29,21 +30,48 @@ function RelativeTime({ date }) {
   return <span className="text-slate-500 dark:text-slate-400 text-xs" title={d.toLocaleString()}>{label}</span>;
 }
 
+function Field({ label, children, span }) {
+  return (
+    <div className={span ? `col-span-${span}` : ""}>
+      <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{label}</label>
+      {children}
+    </div>
+  );
+}
+
 export default function EnterpriseWorkspace() {
   const toast = useToast();
   const [tab, setTab] = useState("users");
   const [search, setSearch] = useState("");
   const [showInvite, setShowInvite] = useState(false);
+  const [editUser, setEditUser] = useState(null);
   const [form, setForm] = useState(EMPTY_INVITE);
+  const [editForm, setEditForm] = useState({});
   const F = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const EF = (k) => (e) => setEditForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const { data: stats } = useApi(() => enterprise.workspace.stats(), [], { pollingInterval: 30000 });
-  const { data: users = [], loading: loadU, refetch: refetchUsers } = useApi(() => enterprise.users.list(), [], { pollingInterval: 30000 });
-  const { data: sessions = [], loading: loadS } = useApi(() => enterprise.workspace.sessions(), [], { pollingInterval: 15000 });
-  const { data: auditLogs = [], loading: loadA } = useApi(() => enterprise.workspace.audit({ limit: 100 }), [], { pollingInterval: 30000 });
+  const { data: statsData } = useApi(() => enterprise.workspace.stats(), [], { pollingInterval: 30000 });
+  const stats = statsData ?? null;
+
+  const { data: usersData, loading: loadU, refetch: refetchUsers } = useApi(() => enterprise.users.list(), [], { pollingInterval: 30000 });
+  const users = usersData ?? [];
+
+  const { data: sessionsData, loading: loadS } = useApi(() => enterprise.workspace.sessions(), [], { pollingInterval: 15000 });
+  const sessions = sessionsData ?? [];
+
+  const { data: auditLogsData, loading: loadA } = useApi(() => enterprise.workspace.audit({ limit: 100 }), [], { pollingInterval: 30000 });
+  const auditLogs = auditLogsData ?? [];
+
+  const { data: rolesData } = useApi(() => enterprise.roles.list(), []);
+  const roles = rolesData ?? [];
 
   const inviteMut = useMutation((d) => enterprise.users.invite(d), {
     onSuccess: () => { toast({ message: "User invited successfully", type: "success" }); setShowInvite(false); setForm(EMPTY_INVITE); refetchUsers(); },
+    onError: (e) => toast({ message: e.message, type: "error" }),
+  });
+
+  const updateMut = useMutation(({ id, data }) => enterprise.users.update(id, data), {
+    onSuccess: () => { toast({ message: "User updated", type: "success" }); setEditUser(null); refetchUsers(); },
     onError: (e) => toast({ message: e.message, type: "error" }),
   });
 
@@ -56,6 +84,11 @@ export default function EnterpriseWorkspace() {
     onSuccess: () => { toast({ message: "User removed", type: "success" }); refetchUsers(); },
     onError: (e) => toast({ message: e.message, type: "error" }),
   });
+
+  const openEdit = (user) => {
+    setEditUser(user);
+    setEditForm({ firstName: user.firstName, lastName: user.lastName, department: user.department ?? "", jobTitle: user.jobTitle ?? "", phone: user.phone ?? "", roleId: user.role?.id ?? "" });
+  };
 
   const filteredUsers = users.filter((u) =>
     !search ||
@@ -87,11 +120,11 @@ export default function EnterpriseWorkspace() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <Stat label="Total Users" value={stats?.totalUsers ?? users.length} color="indigo" />
-        <Stat label="Active" value={stats?.activeUsers ?? users.filter((u) => u.isActive).length} color="emerald" />
-        <Stat label="Suspended" value={stats?.suspendedUsers ?? users.filter((u) => !u.isActive).length} color="red" />
+        <Stat label="Total Users"   value={stats?.totalUsers    ?? users.length}                         color="indigo" />
+        <Stat label="Active"        value={stats?.activeUsers   ?? users.filter((u) => u.isActive).length}  color="emerald" />
+        <Stat label="Suspended"     value={stats?.suspendedUsers ?? users.filter((u) => !u.isActive).length} color="red" />
         <Stat label="Live Sessions" value={stats?.activeSessions ?? sessions.filter((s) => s.isActive).length} color="sky" />
-        <Stat label="Logins Today" value={stats?.todayLogins ?? 0} color="amber" />
+        <Stat label="Logins Today"  value={stats?.todayLogins   ?? 0}                                    color="amber" />
       </div>
 
       {/* Tabs */}
@@ -175,6 +208,13 @@ export default function EnterpriseWorkspace() {
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
                               <button
+                                onClick={() => openEdit(user)}
+                                title="Edit user"
+                                className="p-1.5 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
                                 onClick={() => toggleMut.mutate(user.id)}
                                 title={user.isActive ? "Suspend" : "Activate"}
                                 className={`p-1.5 rounded-md transition ${user.isActive ? "text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10" : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10"}`}
@@ -228,7 +268,9 @@ export default function EnterpriseWorkspace() {
                           <p className="text-xs text-slate-400">{s.userEmail}</p>
                         </td>
                         <td className="px-4 py-3 text-xs font-mono text-slate-600 dark:text-slate-400">{s.ipAddress ?? "—"}</td>
-                        <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">{s.userAgent ? s.userAgent.slice(0, 60) + (s.userAgent.length > 60 ? "…" : "") : "—"}</td>
+                        <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400 max-w-xs truncate">
+                          {s.userAgent ? s.userAgent.slice(0, 60) + (s.userAgent.length > 60 ? "…" : "") : "—"}
+                        </td>
                         <td className="px-4 py-3"><RelativeTime date={s.startedAt} /></td>
                         <td className="px-4 py-3"><RelativeTime date={s.endedAt} /></td>
                         <td className="px-4 py-3">
@@ -296,7 +338,7 @@ export default function EnterpriseWorkspace() {
         </Card>
       )}
 
-      {/* Invite modal */}
+      {/* ── Invite modal ──────────────────────────────────────────────────────── */}
       {showInvite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-lg">
@@ -309,26 +351,27 @@ export default function EnterpriseWorkspace() {
             </div>
             <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
-                {[["firstName", "First Name"], ["lastName", "Last Name"]].map(([k, label]) => (
-                  <div key={k}>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{label}</label>
-                    <input value={form[k]} onChange={F(k)} className={inputCls} />
-                  </div>
-                ))}
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Email Address</label>
+                <Field label="First Name"><input value={form.firstName} onChange={F("firstName")} className={inputCls} /></Field>
+                <Field label="Last Name"><input value={form.lastName} onChange={F("lastName")} className={inputCls} /></Field>
+                <Field label="Email Address" span={2}>
                   <input type="email" value={form.email} onChange={F("email")} className={inputCls} />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Temporary Password</label>
+                </Field>
+                <Field label="Temporary Password" span={2}>
                   <input type="password" value={form.password} onChange={F("password")} placeholder="Leave blank to auto-generate" className={inputCls} />
-                </div>
-                {[["department", "Department"], ["jobTitle", "Job Title"], ["phone", "Phone (optional)"]].map(([k, label]) => (
-                  <div key={k} className={k === "phone" ? "" : ""}>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{label}</label>
-                    <input value={form[k]} onChange={F(k)} className={inputCls} />
-                  </div>
-                ))}
+                </Field>
+                <Field label="Role" span={2}>
+                  <select value={form.roleId} onChange={F("roleId")} className={selectCls}>
+                    <option value="">— Select a role —</option>
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.id}>{r.name.replace(/_/g, " ")}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Department"><input value={form.department} onChange={F("department")} className={inputCls} /></Field>
+                <Field label="Job Title"><input value={form.jobTitle} onChange={F("jobTitle")} className={inputCls} /></Field>
+                <Field label="Phone (optional)" span={2}>
+                  <input value={form.phone} onChange={F("phone")} className={inputCls} />
+                </Field>
               </div>
               <p className="text-xs text-slate-400 dark:text-slate-500">
                 The user will receive access immediately. Share their temporary password securely.
@@ -342,6 +385,47 @@ export default function EnterpriseWorkspace() {
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition"
               >
                 {inviteMut.loading ? "Inviting..." : "Send Invite"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit user modal ───────────────────────────────────────────────────── */}
+      {editUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-lg">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+              <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">Edit User</h2>
+              <button onClick={() => setEditUser(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"><X size={18} /></button>
+            </div>
+            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="First Name"><input value={editForm.firstName} onChange={EF("firstName")} className={inputCls} /></Field>
+                <Field label="Last Name"><input value={editForm.lastName} onChange={EF("lastName")} className={inputCls} /></Field>
+                <Field label="Role" span={2}>
+                  <select value={editForm.roleId} onChange={EF("roleId")} className={selectCls}>
+                    <option value="">— Select a role —</option>
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.id}>{r.name.replace(/_/g, " ")}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Department"><input value={editForm.department} onChange={EF("department")} className={inputCls} /></Field>
+                <Field label="Job Title"><input value={editForm.jobTitle} onChange={EF("jobTitle")} className={inputCls} /></Field>
+                <Field label="Phone" span={2}>
+                  <input value={editForm.phone} onChange={EF("phone")} className={inputCls} />
+                </Field>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-4 border-t border-slate-100 dark:border-slate-800">
+              <button onClick={() => setEditUser(null)} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition">Cancel</button>
+              <button
+                onClick={() => updateMut.mutate({ id: editUser.id, data: editForm })}
+                disabled={updateMut.loading}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition"
+              >
+                {updateMut.loading ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </div>
