@@ -116,6 +116,9 @@ export const enterprise = {
     delete:       (id)         => del(`/users/admin/users/${id}`),
     toggleStatus: (id)         => post(`/users/admin/users/${id}/toggle-status`),
   },
+  roles: {
+    list: () => get('/users/admin/roles'),
+  },
 };
 
 // ── Analytics ─────────────────────────────────────────────────────────────
