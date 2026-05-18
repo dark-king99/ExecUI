@@ -42,7 +42,7 @@ export default function PipelineTracking() {
           <Stat label="Total Pipeline" value={totalPipeline ? `$${(totalPipeline / 1000).toFixed(0)}k` : (summary?.totalPipeline ?? "—")} icon={DollarSign} color="orange" />
           <Stat label="Deals in Pipeline" value={all.filter(d => d.stage !== "Closed Won" && d.stage !== "Closed Lost").length} icon={BarChart2} color="sky" />
           <Stat label="Won Revenue" value={closedWon ? `$${(closedWon / 1000).toFixed(0)}k` : (summary?.wonRevenue ?? "—")} icon={TrendingUp} color="emerald" />
-          <Stat label="Active Reps" value={summary?.activeReps ?? ownersList.length || "—"} icon={Users} color="amber" />
+          <Stat label="Active Reps" value={summary?.activeReps ?? (ownersList.length || "—")} icon={Users} color="amber" />
         </div>
       )}
 
