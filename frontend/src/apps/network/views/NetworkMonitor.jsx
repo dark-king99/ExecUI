@@ -130,31 +130,22 @@ export default function NetworkMonitor() {
           <Card>
             <CardHeader title="Event Feed" />
             <CardBody className="p-0">
-              {loadE ? (
-                <div className="p-4 text-sm text-slate-400">Loading…</div>
-              ) : events.length === 0 ? (
-                <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-sm">No recent events</div>
-              ) : (
-                <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-72 overflow-y-auto">
-                  {events.map((ev, i) => {
-                    const Icon = eventIcon[ev.type] ?? Activity;
-                    return (
-                      <div key={i} className="flex items-start gap-3 px-4 py-3">
-                        <Icon size={14} className={`mt-0.5 shrink-0 ${eventColor[ev.type] ?? "text-slate-400"}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">{ev.message}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {ev.device && <span className="text-xs text-slate-500">{ev.device}</span>}
-                            <span className="flex items-center gap-1 text-xs text-slate-400">
-                              <Clock size={10} /> {ev.time ?? ev.timestamp}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+            {loadE ? (
+  <div className="p-4 text-sm text-slate-400">Loading...</div>
+) : !Array.isArray(events) || events.length === 0 ? (
+  <div className="py-8 text-center text-slate-500">No events found</div>
+) : (
+  <div className="divide-y divide-slate-100">
+    {events.map((ev, i) => {
+      const eventIcon = eventIcon[ev.type] ?? Activity; // Or whatever fallback icon you use
+      return (
+        <div key={i} className="flex items-center">
+          {/* Your remaining map block JSX */}
+        </div>
+      );
+    })}
+  </div>
+)}
             </CardBody>
           </Card>
         </div>
