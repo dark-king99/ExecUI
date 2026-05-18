@@ -32,6 +32,9 @@ model Tenant {
   marketingTodos   MarketingTodo[]
   scheduleEvents   MarketingScheduleEvent[]
   activities       MarketingActivity[]
+  campaigns        MarketingCampaign[]
+  audiences        MarketingAudience[]
+  experiments      MarketingExperiment[]
   networkDevices          NetworkDevice[]
   networkAlerts           NetworkAlert[]
   networkIncidents        NetworkIncident[]
@@ -419,4 +422,58 @@ model FirewallRule {
   updatedAt   DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+model MarketingCampaign {
+  id          String    @id @default(uuid())
+  name        String
+  objective   String    @default("lead_generation")
+  channel     String    @default("email")
+  status      String    @default("draft")
+  budget      Float     @default(0)
+  spent       Float     @default(0)
+  leads       Int       @default(0)
+  clicks      Int       @default(0)
+  opens       Int       @default(0)
+  conversions Int       @default(0)
+  revenue     Float     @default(0)
+  ctr         Float?
+  openRate    Float?
+  roi         Float?
+  startDate   DateTime?
+  endDate     DateTime?
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model MarketingAudience {
+  id          String   @id @default(uuid())
+  name        String
+  type        String   @default("behavioral")
+  size        Int      @default(0)
+  status      String   @default("draft")
+  description String?
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MarketingExperiment {
+  id         String   @id @default(uuid())
+  name       String
+  type       String   @default("a/b")
+  status     String   @default("draft")
+  metric     String   @default("conversion_rate")
+  hypothesis String?
+  variants   Json?
+  result     String?
+  confidence Float?
+  lift       Float?
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
