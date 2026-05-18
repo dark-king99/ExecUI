@@ -45,7 +45,8 @@ export default function ServerManager() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(EMPTY);
 
-  const { data: servers = [], loading, refetch } = useApi(() => network.servers.list(), []);
+  const { data: serversData, loading, refetch } = useApi(() => network.servers.list(), []);
+  const servers = serversData ?? [];
   const { data: metrics } = useApi(() => network.servers.metrics(), []);
 
   const createMut = useMutation((d) => network.servers.create(d), {
