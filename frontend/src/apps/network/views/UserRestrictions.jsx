@@ -41,7 +41,8 @@ export default function UserRestrictions() {
   const [form, setForm] = useState(EMPTY);
   const F = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const { data: restrictions = [], loading, refetch } = useApi(() => network.restrictions.list(), []);
+  const { data: restrictionsData, loading, refetch } = useApi(() => network.restrictions.list(), []);
+  const restrictions = restrictionsData ?? [];
 
   const createMut = useMutation((d) => network.restrictions.create(d), {
     onSuccess: () => { toast({ message: "Restriction created", type: "success" }); setShowAdd(false); setForm(EMPTY); refetch(); },

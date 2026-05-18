@@ -43,9 +43,12 @@ export default function FirewallSetup() {
   const [form, setForm] = useState(EMPTY);
   const F = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
 
-  const { data: rules = [], loading: loadR, refetch: refetchRules } = useApi(() => network.firewall.rules.list(), []);
-  const { data: zones = [], loading: loadZ } = useApi(() => network.firewall.zones(), []);
-  const { data: logs = [], loading: loadL } = useApi(() => network.firewall.logs(), []);
+  const { data: rulesData, loading: loadR, refetch: refetchRules } = useApi(() => network.firewall.rules.list(), []);
+  const { data: zonesData, loading: loadZ } = useApi(() => network.firewall.zones(), []);
+  const { data: logsData, loading: loadL } = useApi(() => network.firewall.logs(), []);
+  const rules = rulesData ?? [];
+  const zones = zonesData ?? [];
+  const logs = logsData ?? [];
 
   const createMut = useMutation((d) => network.firewall.rules.create(d), {
     onSuccess: () => { toast({ message: "Rule created", type: "success" }); setShowAdd(false); setForm(EMPTY); refetchRules(); },
