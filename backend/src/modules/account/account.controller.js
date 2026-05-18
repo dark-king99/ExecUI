@@ -1,7 +1,13 @@
 import prisma from "../../config/database.js";
+import * as billing from "./billing.service.js";
 
 const tid = (req) => req.user.tenantId;
 const uid = (req) => req.user.userId;
+
+const handle = (fn) => async (req, res) => {
+  try { res.json(await fn(req)); }
+  catch (err) { res.status(500).json({ message: err.message }); }
+};
 
 // ── Profile ───────────────────────────────────────────────────────────────
 export const getProfile = async (req, res) => {
@@ -111,11 +117,47 @@ export const listRoles = async (req, res) => {
 };
 
 // ── Billing ───────────────────────────────────────────────────────────────
-export const getBilling        = (_req, res) => res.json({ plan: "enterprise", status: "active" });
-export const getPlans          = (_req, res) => res.json([]);
-export const upgradePlan       = (_req, res) => res.json({ upgraded: true });
-export const getPaymentMethods = (_req, res) => res.json([]);
-export const getInvoices       = (_req, res) => res.json([]);
+export const getBilling        = handle((req) => billing.getBilling(tid(req)));
+export const getPlans          = handle(()    => billing.getPlans());
+export const upgradePlan       = handle((req) => billing.upgradePlan(tid(req), req.body));
+export const getPaymentMethods = handle((req) => billing.getPaymentMethods(tid(req)));
+export const getInvoices       = handle((req) => billing.getInvoices(tid(req)));
+export const createPortalSession = handle((req) => billing.createPortalSession(tid(req), req.body?.returnUrl));
+export const createSetupSession  = handle((req) => billing.createSetupSession(tid(req), req.body?.returnUrl));
+
+export const stripeWebhook = async (req, res) => {
+  try {
+    const result = await billing.handleWebhook(req.body, req.headers["stripe-signature"]);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
 
 // ── Audit logs ────────────────────────────────────────────────────────────
-export const listAuditLogs = (_req, res) => res.json([]);
+export const listAuditLogs = handle(async (req) => {
+  const { limit = 200, userId: filterUserId, action: filterAction } = req.query;
+  const where = {
+    tenantId: tid(req),
+    ...(filterUserId ? { userId: filterUserId } : {}),
+    ...(filterAction ? { action: filterAction } : {}),
+  };
+  const logs = await prisma.auditLog.findMany({
+    where,
+    include: { user: { select: { firstName: true, lastName: true, email: true } } },
+    orderBy: { createdAt: "desc" },
+    take: Number(limit),
+  });
+  return logs.map((l) => ({
+    id: l.id,
+    time: l.createdAt,
+    user: l.user ? `${l.user.firstName} ${l.user.lastName}` : "System",
+    userEmail: l.user?.email ?? null,
+    action: l.action,
+    resource: l.resource ?? "—",
+    resourceId: l.resourceId,
+    detail: l.detail,
+    ip: l.ipAddress ?? "—",
+    result: l.action?.startsWith("fail") || l.action?.includes("error") ? "failed" : "success",
+  }));
+});

@@ -20,9 +20,9 @@ router.get("/security/sessions",            auth, c.listSessions);
 router.delete("/security/sessions/:id",     auth, c.revokeSession);
 
 // ── API Keys ──────────────────────────────────────────────────────────────
-router.get("/api-keys",          auth, c.listApiKeys);
-router.post("/api-keys",         auth, c.createApiKey);
-router.delete("/api-keys/:id",   auth, c.deleteApiKey);
+router.get("/api-keys",             auth, c.listApiKeys);
+router.post("/api-keys",            auth, c.createApiKey);
+router.delete("/api-keys/:id",      auth, c.deleteApiKey);
 router.post("/api-keys/:id/rotate", auth, c.rotateApiKey);
 
 // ── Notifications ─────────────────────────────────────────────────────────
@@ -42,6 +42,11 @@ router.get("/billing/plans",             auth, c.getPlans);
 router.post("/billing/upgrade",          auth, c.upgradePlan);
 router.get("/billing/payment-methods",   auth, c.getPaymentMethods);
 router.get("/billing/invoices",          auth, c.getInvoices);
+router.post("/billing/portal",           auth, c.createPortalSession);
+router.post("/billing/setup",            auth, c.createSetupSession);
+
+// Stripe webhook (raw body required — mounted before JSON parser in server.js)
+router.post("/billing/webhook", express.raw({ type: "application/json" }), c.stripeWebhook);
 
 // ── Audit logs ────────────────────────────────────────────────────────────
 router.get("/audit-logs", auth, c.listAuditLogs);

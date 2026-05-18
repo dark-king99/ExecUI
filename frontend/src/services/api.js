@@ -511,11 +511,13 @@ export const account = {
     roles:  ()         => get('/account/team/roles'),
   },
   billing: {
-    get:             ()     => get('/account/billing'),
-    plans:           ()     => get('/account/billing/plans'),
-    upgrade:         (data) => post('/account/billing/upgrade', data),
-    paymentMethods:  ()     => get('/account/billing/payment-methods'),
-    invoices:        ()     => get('/account/billing/invoices'),
+    get:             ()          => get('/account/billing'),
+    plans:           ()          => get('/account/billing/plans'),
+    upgrade:         (data)      => post('/account/billing/upgrade', data),
+    paymentMethods:  ()          => get('/account/billing/payment-methods'),
+    invoices:        ()          => get('/account/billing/invoices'),
+    portal:          (data)      => post('/account/billing/portal', data),
+    setup:           (data)      => post('/account/billing/setup', data),
   },
   auditLogs: {
     list: (params) => get('/account/audit-logs', params),
