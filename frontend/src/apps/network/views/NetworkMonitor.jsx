@@ -62,7 +62,8 @@ function MetricRow({ label, value, unit }) {
 export default function NetworkMonitor() {
   const { data: overview, loading: loadO } = useApi(() => network.monitor.overview(), [], { pollingInterval: POLL });
   const { data: metrics, loading: loadM } = useApi(() => network.monitor.metrics(), [], { pollingInterval: POLL });
-  const { data: events = [], loading: loadE } = useApi(() => network.monitor.events(), [], { pollingInterval: POLL });
+  const { data: eventsData, loading: loadE } = useApi(() => network.monitor.events(), [], { pollingInterval: POLL });
+  const events = eventsData ?? [];
 
   const devices = overview?.devices ?? [];
   const healthy = devices.filter((d) => d.health === "healthy").length;
