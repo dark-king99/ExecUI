@@ -1,5 +1,5 @@
 import { useApi } from "../hooks/useApi";
-import { network } from "../services/api";
+import { network, views } from "../services/api";
 import { Stat, Card, CardHeader, CardBody } from "../components/ui/Card";
 import { SkeletonCard, SkeletonTable } from "../components/ui/Skeleton";
 import PageHeader from "../components/ui/PageHeader";
@@ -35,7 +35,7 @@ function UtilBar({ hostname, device_type, cpu_util, mem_util, status }) {
 }
 
 export default function NetworkView() {
-  const { data: overview, loading: ovLoading, error, refetch } = useApi(() => fetch("/network/dashboard/overview").then(r => r.json()).catch(() => null), [], { pollingInterval: 60000 });
+  const { data: overview, loading: ovLoading, error, refetch } = useApi(() => views.network(), [], { pollingInterval: 60000 });
   const { data: devices, loading: devLoading } = useApi(() => network.devices.list({ limit: 20 }), [], { pollingInterval: 30000 });
   const { data: alerts } = useApi(() => network.alerts.list({ limit: 5, status: "open" }), [], { pollingInterval: 15000 });
   const { data: incidents } = useApi(() => network.incidents.list({ limit: 5, status: "open" }), [], { pollingInterval: 30000 });
