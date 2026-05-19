@@ -36,6 +36,18 @@ model Tenant {
   campaigns        MarketingCampaign[]
   audiences        MarketingAudience[]
   experiments      MarketingExperiment[]
+  bizTransactions  BizTransaction[]
+  bizTaxPlans      BizTaxPlan[]
+  bizInvestments   BizInvestment[]
+  bizSOPs          BizSOP[]
+  bizWorkflows     BizWorkflow[]
+  bizGoals         BizGoal[]
+  bizMarketAnalysis BizMarketAnalysis[]
+  bizCampaigns     BizCampaign[]
+  bizClients       BizClient[]
+  bizMembers       BizMember[]
+  bizProjects      BizProject[]
+  bizTasks         BizTask[]
   networkDevices          NetworkDevice[]
   networkAlerts           NetworkAlert[]
   networkIncidents        NetworkIncident[]
@@ -477,4 +489,181 @@ model MarketingExperiment {
   tenant     Tenant   @relation(fields: [tenantId], references: [id])
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+// -- Services / Business Operations Models ------------------------------------
+
+model BizTransaction {
+  id          String   @id @default(uuid())
+  type        String   @default("income")   // income | expense
+  category    String
+  amount      Float
+  description String?
+  date        String
+  status      String   @default("completed") // completed | pending | cancelled
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model BizTaxPlan {
+  id                 String   @id @default(uuid())
+  title              String
+  year               Int
+  status             String   @default("active") // active | inactive | completed
+  estimated_savings  Float    @default(0)
+  strategy           String?
+  notes              String?
+  tenantId           String
+  tenant             Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt          DateTime @default(now())
+}
+
+model BizInvestment {
+  id            String   @id @default(uuid())
+  name          String
+  type          String   @default("stocks") // stocks | bonds | real_estate | crypto | other
+  initial_value Float    @default(0)
+  current_value Float    @default(0)
+  status        String   @default("active") // active | closed
+  notes         String?
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+model BizSOP {
+  id          String   @id @default(uuid())
+  title       String
+  department  String
+  description String?
+  steps       Json     @default("[]")
+  status      String   @default("active") // active | inactive | draft
+  version     String   @default("1.0")
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BizWorkflow {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  department   String?
+  trigger      String?
+  steps        Json     @default("[]")
+  status       String   @default("active") // active | inactive
+  is_automated Boolean  @default(false)
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model BizGoal {
+  id          String   @id @default(uuid())
+  title       String
+  category    String   @default("growth")
+  description String?
+  target_date String?
+  progress    Int      @default(0)
+  milestones  Json     @default("[]")
+  status      String   @default("in_progress") // in_progress | completed | at_risk | planning
+  priority    String   @default("medium")
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BizMarketAnalysis {
+  id            String   @id @default(uuid())
+  title         String
+  market        String
+  analysis_type String   @default("competitive")
+  summary       String?
+  opportunities Json     @default("[]")
+  threats       Json     @default("[]")
+  status        String   @default("active")
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+model BizCampaign {
+  id          String    @id @default(uuid())
+  name        String
+  platform    String    @default("email")
+  status      String    @default("draft")   // draft | active | paused | completed
+  budget      Float     @default(0)
+  spent       Float     @default(0)
+  leads       Int       @default(0)
+  conversions Int       @default(0)
+  start_date  String?
+  end_date    String?
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model BizClient {
+  id           String   @id @default(uuid())
+  name         String
+  company      String?
+  email        String?
+  phone        String?
+  annual_value Float    @default(0)
+  status       String   @default("active") // active | inactive | prospect
+  contract_end String?
+  industry     String?
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model BizMember {
+  id         String   @id @default(uuid())
+  name       String
+  role       String
+  department String
+  email      String?
+  status     String   @default("active") // active | inactive
+  skills     Json     @default("[]")
+  avatar_url String?
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+model BizProject {
+  id           String    @id @default(uuid())
+  name         String
+  description  String?
+  status       String    @default("planning") // planning | in_progress | review | completed
+  priority     String    @default("medium")
+  progress     Int       @default(0)
+  budget       Float     @default(0)
+  team_members Json      @default("[]")
+  start_date   String?
+  end_date     String?
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model BizTask {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  project_id  String?
+  status      String    @default("todo")    // todo | in_progress | review | done
+  priority    String    @default("medium")
+  assignee    String?
+  due_date    String?
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
