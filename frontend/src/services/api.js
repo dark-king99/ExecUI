@@ -121,6 +121,16 @@ export const enterprise = {
   },
 };
 
+// ── Views (bootstrap payloads per module) ─────────────────────────────────
+export const views = {
+  home:      () => get('/views/home'),
+  account:   () => get('/views/account'),
+  analytics: () => get('/views/analytics'),
+  crm:       () => get('/views/crm'),
+  marketing: () => get('/views/marketing'),
+  network:   () => get('/views/network'),
+};
+
 // ── Analytics ─────────────────────────────────────────────────────────────
 export const analytics = {
   kpis:              ()       => get('/analytics/kpis'),
