@@ -11,6 +11,7 @@ import analyticsRoutes  from "../modules/analytics/analytics.routes.js";
 import accountRoutes    from "../modules/account/account.routes.js";
 import assistantRoutes  from "../modules/assistant/assistant.routes.js";
 import servicesRoutes   from "../modules/services/services.routes.js";
+import viewsRoutes      from "../modules/views/views.routes.js";
 
 const router = express.Router();
 
@@ -27,5 +28,6 @@ router.use("/analytics",  analyticsRoutes);
 router.use("/account",    accountRoutes);
 router.use("/assistant",  assistantRoutes);
 router.use("/services",   servicesRoutes);
+router.use("/views",      viewsRoutes);
 
 export default router;
