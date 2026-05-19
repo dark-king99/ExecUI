@@ -1,64 +1,29 @@
-// Analytics module – returns tenant-scoped empty/zero shapes.
-// Replace stub returns with real DB queries as data models are added.
+import * as svc from "./analytics.service.js";
 
-const stubObj = (shape) => shape;
-const stub    = [];
-
-const kpisShape = {
-  revenue: 0, revenueGrowth: 0,
-  customers: 0, customerGrowth: 0,
-  churnRate: 0, nps: 0,
-  mrr: 0, arr: 0,
+const handle = (fn) => async (req, res) => {
+  try {
+    res.json(await fn(req));
+  } catch (err) {
+    console.error("[analytics]", err.message);
+    res.status(500).json({ message: err.message });
+  }
 };
 
-const healthSummaryShape = {
-  uptime: 0, incidents: 0, mttr: 0, sla: 0,
-};
+const tid = (req) => req.user.tenantId;
 
-export const getKpis = (_req, res) =>
-  res.json(stubObj(kpisShape));
-
-export const getHealthSummary = (_req, res) =>
-  res.json(stubObj(healthSummaryShape));
-
-export const getRevenueVsPlan = (_req, res) =>
-  res.json(stub);
-
-export const getOperationalServices = (_req, res) =>
-  res.json(stub);
-
-export const getOperationalEvents = (_req, res) =>
-  res.json(stub);
-
-export const getCohorts = (_req, res) =>
-  res.json(stub);
-
-export const getRetentionByTier = (_req, res) =>
-  res.json(stub);
-
-export const getChurnSignals = (_req, res) =>
-  res.json(stub);
-
-export const getRevenueSegments = (_req, res) =>
-  res.json(stub);
-
-export const getExpansionPipeline = (_req, res) =>
-  res.json(stub);
-
-export const getDatasets = (_req, res) =>
-  res.json(stub);
-
-export const getSavedQueries = (_req, res) =>
-  res.json(stub);
-
-export const runQuery = (_req, res) =>
-  res.json({ columns: [], rows: [] });
-
-export const saveQuery = (req, res) =>
-  res.status(201).json({ id: `q-${Date.now()}`, ...req.body });
-
-export const deleteQuery = (_req, res) =>
-  res.status(204).end();
-
-export const deduplicateDataset = (_req, res) =>
-  res.json({ deduplicated: true });
+export const getKpis                = handle((req) => svc.getKpis(tid(req)));
+export const getHealthSummary       = handle((req) => svc.getHealthSummary(tid(req)));
+export const getRevenueVsPlan       = handle((req) => svc.getRevenueVsPlan(tid(req)));
+export const getOperationalServices = handle((req) => svc.getOperationalServices(tid(req)));
+export const getOperationalEvents   = handle((req) => svc.getOperationalEvents(tid(req)));
+export const getCohorts             = handle((req) => svc.getCohorts(tid(req)));
+export const getRetentionByTier     = handle((req) => svc.getRetentionByTier(tid(req)));
+export const getChurnSignals        = handle((req) => svc.getChurnSignals(tid(req)));
+export const getRevenueSegments     = handle((req) => svc.getRevenueSegments(tid(req)));
+export const getExpansionPipeline   = handle((req) => svc.getExpansionPipeline(tid(req)));
+export const getDatasets            = handle((req) => svc.getDatasets(tid(req)));
+export const getSavedQueries        = handle(()    => svc.getSavedQueries());
+export const runQuery               = handle((req) => svc.runQuery(tid(req), req.body));
+export const saveQuery              = handle((req) => svc.saveQuery(req.body));
+export const deleteQuery            = (_req, res)  => res.status(204).end();
+export const deduplicateDataset     = handle((req) => svc.deduplicateDataset(req.params.id));
