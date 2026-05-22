@@ -753,8 +753,8 @@ export const OperationsSystems = () => {
                       {workflow.steps.map((step, idx) => (
                         <div key={idx} className="flex items-center">
                           <div className={`px-3 py-1.5 rounded-lg text-xs ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
-                            {step.action}
-                            {step.assignee && (
+                            {typeof step === 'string' ? step : step.action}
+                            {typeof step !== 'string' && step.assignee && (
                               <span className={`ml-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                                 ({step.assignee})
                               </span>

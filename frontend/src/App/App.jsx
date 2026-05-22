@@ -7,6 +7,7 @@ import { SidebarProvider } from "../components/SidebarContext";
 import SidebarInset from "../components/SidebarInset";
 import Navbar from "../components/Navbar";
 import { ToastProvider } from "../components/ui/Toast";
+import { Toaster } from "../components/ui/sonner";
 import { SkeletonCard } from "../components/ui/Skeleton";
 import ErrorBoundary from "../components/ErrorBoundary";
 import BotWidget from "../components/BotWidget";
@@ -320,6 +321,7 @@ export default function App() {
           setEffectiveRole={setEffectiveRole}
         />
       </SidebarProvider>
+      <Toaster />
     </ToastProvider>
   );
 }

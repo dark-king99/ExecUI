@@ -215,8 +215,8 @@ const GoalForm = ({ onSubmit, onClose, initialData, isDarkMode }) => {
 const MarketAnalysisForm = ({ onSubmit, onClose, isDarkMode }) => {
   const [formData, setFormData] = useState({
     title: '',
-    market_segment: '',
-    findings: '',
+    market: '',
+    summary: '',
     opportunities: [''],
     threats: [''],
     recommendations: ['']
@@ -292,8 +292,8 @@ const MarketAnalysisForm = ({ onSubmit, onClose, isDarkMode }) => {
         <Label className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>Market Segment</Label>
         <Input
           data-testid="analysis-segment-input"
-          value={formData.market_segment}
-          onChange={(e) => setFormData({ ...formData, market_segment: e.target.value })}
+          value={formData.market}
+          onChange={(e) => setFormData({ ...formData, market: e.target.value })}
           className={isDarkMode ? 'bg-slate-800 border-slate-700' : ''}
           placeholder="e.g., B2B SaaS, Healthcare, E-commerce"
           required
@@ -303,8 +303,8 @@ const MarketAnalysisForm = ({ onSubmit, onClose, isDarkMode }) => {
         <Label className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>Key Findings</Label>
         <Textarea
           data-testid="analysis-findings-input"
-          value={formData.findings}
-          onChange={(e) => setFormData({ ...formData, findings: e.target.value })}
+          value={formData.summary}
+          onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
           className={isDarkMode ? 'bg-slate-800 border-slate-700' : ''}
           rows={3}
           required
@@ -782,7 +782,7 @@ export const StrategicPlanning = () => {
                           {analysis.title}
                         </h4>
                         <Badge variant="outline" className="mt-1 bg-indigo-500/10 text-indigo-500 border-indigo-500/20">
-                          {analysis.market_segment}
+                          {analysis.market ?? analysis.market_segment}
                         </Badge>
                       </div>
                       <Button 
@@ -796,7 +796,7 @@ export const StrategicPlanning = () => {
                       </Button>
                     </div>
                     <p className={`text-sm mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                      {analysis.findings}
+                      {analysis.summary ?? analysis.findings}
                     </p>
                     <div className="grid md:grid-cols-3 gap-3">
                       {analysis.opportunities?.length > 0 && (

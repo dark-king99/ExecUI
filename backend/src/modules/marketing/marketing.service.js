@@ -689,16 +689,55 @@ export const createCdpSegment = (tenantId, data) =>
   Promise.resolve({ id: `seg-${Date.now()}`, ...data, size: 0, status: "building" });
 
 // ── Flows (automation) ────────────────────────────────────────────────────────
+const DEMO_FLOW_STEPS = {
+  "flow-1": [
+    { id: "s1", type: "trigger", label: "User Signs Up",       config: "Entry trigger", icon: "Zap" },
+    { id: "s2", type: "email",   label: "Welcome Email",       config: "Subject + body", icon: "Mail" },
+    { id: "s3", type: "wait",    label: "Wait 2 Days",         config: "2 days",         icon: "Clock" },
+    { id: "s4", type: "email",   label: "Getting Started Tips",config: "Subject + body", icon: "Mail" },
+    { id: "s5", type: "condition",label: "Opened Email?",      config: "Check condition",icon: "GitBranch" },
+  ],
+  "flow-2": [
+    { id: "s1", type: "trigger",  label: "Trial Started",      config: "Entry trigger",  icon: "Zap" },
+    { id: "s2", type: "email",    label: "Trial Welcome",      config: "Subject + body", icon: "Mail" },
+    { id: "s3", type: "wait",     label: "Wait 3 Days",        config: "3 days",         icon: "Clock" },
+    { id: "s4", type: "email",    label: "Feature Highlight",  config: "Subject + body", icon: "Mail" },
+    { id: "s5", type: "wait",     label: "Wait 4 Days",        config: "4 days",         icon: "Clock" },
+    { id: "s6", type: "condition",label: "Used Key Feature?",  config: "Check condition",icon: "GitBranch" },
+    { id: "s7", type: "email",    label: "Upgrade Nudge",      config: "Subject + body", icon: "Mail" },
+  ],
+  "flow-3": [
+    { id: "s1", type: "trigger",  label: "Risk Score High",    config: "Entry trigger",  icon: "Zap" },
+    { id: "s2", type: "email",    label: "Check-In Email",     config: "Subject + body", icon: "Mail" },
+    { id: "s3", type: "wait",     label: "Wait 2 Days",        config: "2 days",         icon: "Clock" },
+    { id: "s4", type: "email",    label: "Offer Discount",     config: "Subject + body", icon: "Mail" },
+  ],
+  "flow-4": [
+    { id: "s1", type: "trigger", label: "Purchase Made",       config: "Entry trigger",  icon: "Zap" },
+    { id: "s2", type: "email",   label: "Upsell Offer",        config: "Subject + body", icon: "Mail" },
+    { id: "s3", type: "wait",    label: "Wait 7 Days",         config: "7 days",         icon: "Clock" },
+  ],
+  "flow-5": [
+    { id: "s1", type: "trigger", label: "30 Days Inactive",    config: "Entry trigger",  icon: "Zap" },
+    { id: "s2", type: "email",   label: "We Miss You",         config: "Subject + body", icon: "Mail" },
+    { id: "s3", type: "wait",    label: "Wait 5 Days",         config: "5 days",         icon: "Clock" },
+  ],
+};
+
 const DEMO_FLOWS = [
-  { id: "flow-1", name: "Welcome Series", status: "active", steps: 5, enrolled: 1240, converted: 187, trigger: "signup" },
-  { id: "flow-2", name: "Trial Nurture", status: "active", steps: 7, enrolled: 342, converted: 89, trigger: "trial_start" },
-  { id: "flow-3", name: "Churn Prevention", status: "active", steps: 4, enrolled: 128, converted: 34, trigger: "risk_score" },
-  { id: "flow-4", name: "Post-Purchase Upsell", status: "paused", steps: 3, enrolled: 0, converted: 0, trigger: "purchase" },
-  { id: "flow-5", name: "Re-engagement", status: "draft", steps: 3, enrolled: 0, converted: 0, trigger: "inactivity_30d" },
+  { id: "flow-1", name: "Welcome Series",       status: "active", step_count: 5, enrolled: 1240, converted: 187, trigger: "signup" },
+  { id: "flow-2", name: "Trial Nurture",        status: "active", step_count: 7, enrolled: 342,  converted: 89,  trigger: "trial_start" },
+  { id: "flow-3", name: "Churn Prevention",     status: "active", step_count: 4, enrolled: 128,  converted: 34,  trigger: "risk_score" },
+  { id: "flow-4", name: "Post-Purchase Upsell", status: "paused", step_count: 3, enrolled: 0,    converted: 0,   trigger: "purchase" },
+  { id: "flow-5", name: "Re-engagement",        status: "draft",  step_count: 3, enrolled: 0,    converted: 0,   trigger: "inactivity_30d" },
 ];
 
-export const listFlows    = () => Promise.resolve(DEMO_FLOWS);
-export const getFlow      = (tenantId, id) => Promise.resolve(DEMO_FLOWS.find((f) => f.id === id) ?? null);
+export const listFlows = () => Promise.resolve(DEMO_FLOWS);
+export const getFlow   = (tenantId, id) => {
+  const flow = DEMO_FLOWS.find((f) => f.id === id);
+  if (!flow) return Promise.resolve(null);
+  return Promise.resolve({ ...flow, steps: DEMO_FLOW_STEPS[id] ?? [] });
+};
 export const getFlowStats = (tenantId, id) => {
   const flow = DEMO_FLOWS.find((f) => f.id === id);
   return Promise.resolve({

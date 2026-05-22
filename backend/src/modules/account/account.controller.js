@@ -86,10 +86,13 @@ export const listTeamMembers = async (req, res) => {
     res.json(
       users.map((u) => ({
         id: u.id,
+        name: `${u.firstName} ${u.lastName}`.trim(),
         email: u.email,
         firstName: u.firstName,
         lastName: u.lastName,
         role: u.role?.name ?? null,
+        status: u.isActive ? "active" : "inactive",
+        lastLogin: u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : "—",
         createdAt: u.createdAt,
       }))
     );
