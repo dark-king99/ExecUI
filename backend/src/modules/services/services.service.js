@@ -526,13 +526,32 @@ export async function deleteTaxPlan(tenantId, id) {
 }
 
 // ── Financial – Investments ───────────────────────────────────────────────────
+const RISK_LEVEL_BY_TYPE = { stocks: 'high', bonds: 'low', real_estate: 'medium', other: 'medium' };
+
 export async function listInvestments(tenantId) {
   await lazySeed(tenantId);
-  return prisma.bizInvestment.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+  const invs = await prisma.bizInvestment.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+  return invs.map((inv) => ({
+    ...inv,
+    roi_percentage: inv.initial_value > 0
+      ? Number(((inv.current_value - inv.initial_value) / inv.initial_value * 100).toFixed(2))
+      : 0,
+    risk_level: RISK_LEVEL_BY_TYPE[inv.type] ?? 'medium',
+  }));
 }
 
 export async function createInvestment(tenantId, data) {
-  return prisma.bizInvestment.create({ data: { ...data, tenantId } });
+  return prisma.bizInvestment.create({
+    data: {
+      name:          data.name,
+      type:          data.type ?? 'stocks',
+      initial_value: Number(data.initial_value) || 0,
+      current_value: Number(data.current_value) || 0,
+      status:        data.status ?? 'active',
+      notes:         data.notes ?? null,
+      tenantId,
+    },
+  });
 }
 
 export async function deleteInvestment(tenantId, id) {
@@ -609,7 +628,16 @@ export async function listMarketAnalysis(tenantId) {
 
 export async function createMarketAnalysis(tenantId, data) {
   return prisma.bizMarketAnalysis.create({
-    data: { ...data, opportunities: data.opportunities ?? [], threats: data.threats ?? [], tenantId },
+    data: {
+      title:         data.title,
+      market:        data.market ?? data.market_segment ?? '',
+      analysis_type: data.analysis_type ?? 'competitive',
+      summary:       data.summary ?? data.findings ?? null,
+      opportunities: data.opportunities ?? [],
+      threats:       data.threats ?? [],
+      status:        data.status ?? 'active',
+      tenantId,
+    },
   });
 }
 
@@ -620,15 +648,36 @@ export async function deleteMarketAnalysis(tenantId, id) {
 // ── Marketing / Sales – Campaigns ────────────────────────────────────────────
 export async function listCampaigns(tenantId) {
   await lazySeed(tenantId);
-  return prisma.bizCampaign.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+  const campaigns = await prisma.bizCampaign.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+  return campaigns.map((c) => ({ ...c, type: c.platform }));
 }
 
 export async function createCampaign(tenantId, data) {
-  return prisma.bizCampaign.create({ data: { ...data, tenantId } });
+  return prisma.bizCampaign.create({
+    data: {
+      name:       data.name,
+      platform:   data.type ?? data.platform ?? 'email',
+      status:     data.status ?? 'draft',
+      budget:     Number(data.budget) || 0,
+      spent:      Number(data.spent) || 0,
+      start_date: data.start_date ?? null,
+      end_date:   data.end_date ?? null,
+      tenantId,
+    },
+  });
 }
 
 export async function updateCampaign(tenantId, id, data) {
-  return prisma.bizCampaign.update({ where: { id }, data });
+  const updateData = {};
+  if (data.name !== undefined)       updateData.name       = data.name;
+  if (data.type !== undefined)       updateData.platform   = data.type;
+  if (data.platform !== undefined)   updateData.platform   = data.platform;
+  if (data.status !== undefined)     updateData.status     = data.status;
+  if (data.budget !== undefined)     updateData.budget     = Number(data.budget) || 0;
+  if (data.spent !== undefined)      updateData.spent      = Number(data.spent) || 0;
+  if (data.start_date !== undefined) updateData.start_date = data.start_date;
+  if (data.end_date !== undefined)   updateData.end_date   = data.end_date;
+  return prisma.bizCampaign.update({ where: { id }, data: updateData });
 }
 
 export async function deleteCampaign(tenantId, id) {
@@ -666,10 +715,15 @@ export async function createMember(tenantId, data) {
 }
 
 export async function updateMember(tenantId, id, data) {
-  return prisma.bizMember.update({
-    where: { id },
-    data: { ...data, skills: data.skills ?? undefined },
-  });
+  const updateData = {};
+  if (data.name !== undefined)       updateData.name       = data.name;
+  if (data.role !== undefined)       updateData.role       = data.role;
+  if (data.department !== undefined) updateData.department = data.department;
+  if (data.email !== undefined)      updateData.email      = data.email;
+  if (data.status !== undefined)     updateData.status     = data.status;
+  if (data.skills !== undefined)     updateData.skills     = data.skills;
+  if (data.avatar_url !== undefined) updateData.avatar_url = data.avatar_url;
+  return prisma.bizMember.update({ where: { id }, data: updateData });
 }
 
 export async function deleteMember(tenantId, id) {
@@ -684,15 +738,33 @@ export async function listProjects(tenantId) {
 
 export async function createProject(tenantId, data) {
   return prisma.bizProject.create({
-    data: { ...data, team_members: data.team_members ?? [], tenantId },
+    data: {
+      name:         data.name,
+      description:  data.description ?? null,
+      status:       data.status ?? 'planning',
+      priority:     data.priority ?? 'medium',
+      progress:     Number(data.progress) || 0,
+      budget:       Number(data.budget) || 0,
+      team_members: data.team_members ?? [],
+      start_date:   data.start_date ?? null,
+      end_date:     data.end_date ?? null,
+      tenantId,
+    },
   });
 }
 
 export async function updateProject(tenantId, id, data) {
-  return prisma.bizProject.update({
-    where: { id },
-    data: { ...data, team_members: data.team_members ?? undefined },
-  });
+  const updateData = {};
+  if (data.name !== undefined)         updateData.name         = data.name;
+  if (data.description !== undefined)  updateData.description  = data.description;
+  if (data.status !== undefined)       updateData.status       = data.status;
+  if (data.priority !== undefined)     updateData.priority     = data.priority;
+  if (data.progress !== undefined)     updateData.progress     = Number(data.progress) || 0;
+  if (data.budget !== undefined)       updateData.budget       = Number(data.budget) || 0;
+  if (data.team_members !== undefined) updateData.team_members = data.team_members;
+  if (data.start_date !== undefined)   updateData.start_date   = data.start_date;
+  if (data.end_date !== undefined)     updateData.end_date     = data.end_date;
+  return prisma.bizProject.update({ where: { id }, data: updateData });
 }
 
 export async function deleteProject(tenantId, id) {
@@ -706,11 +778,31 @@ export async function listTasks(tenantId) {
 }
 
 export async function createTask(tenantId, data) {
-  return prisma.bizTask.create({ data: { ...data, tenantId } });
+  return prisma.bizTask.create({
+    data: {
+      title:       data.title,
+      description: data.description ?? null,
+      project_id:  data.project_id ?? null,
+      status:      data.status ?? 'todo',
+      priority:    data.priority ?? 'medium',
+      assignee:    data.assignee ?? data.assigned_to ?? null,
+      due_date:    data.due_date ?? null,
+      tenantId,
+    },
+  });
 }
 
 export async function updateTask(tenantId, id, data) {
-  return prisma.bizTask.update({ where: { id }, data });
+  const updateData = {};
+  if (data.title !== undefined)       updateData.title       = data.title;
+  if (data.description !== undefined) updateData.description = data.description;
+  if (data.project_id !== undefined)  updateData.project_id  = data.project_id;
+  if (data.status !== undefined)      updateData.status      = data.status;
+  if (data.priority !== undefined)    updateData.priority    = data.priority;
+  if (data.due_date !== undefined)    updateData.due_date    = data.due_date;
+  const assignee = data.assignee ?? data.assigned_to;
+  if (assignee !== undefined)         updateData.assignee    = assignee;
+  return prisma.bizTask.update({ where: { id }, data: updateData });
 }
 
 export async function deleteTask(tenantId, id) {

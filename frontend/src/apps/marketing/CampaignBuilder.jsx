@@ -94,7 +94,7 @@ export default function CampaignBuilder() {
   );
 
   const allFlows = flows ?? [];
-  const serverSteps = flowDetail?.steps ?? (allFlows[0]?.steps ?? []);
+  const serverSteps = Array.isArray(flowDetail?.steps) ? flowDetail.steps : [];
   const steps = [...serverSteps, ...localSteps];
 
   function addStep(type) {
