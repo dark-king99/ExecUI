@@ -504,7 +504,17 @@ export async function listTransactions(tenantId) {
 }
 
 export async function createTransaction(tenantId, data) {
-  return prisma.bizTransaction.create({ data: { ...data, tenantId } });
+  return prisma.bizTransaction.create({
+    data: {
+      type:        data.type ?? 'income',
+      category:    data.category,
+      amount:      Number(data.amount) || 0,
+      description: data.description ?? null,
+      date:        data.date ?? new Date().toISOString().split('T')[0],
+      status:      data.status ?? 'completed',
+      tenantId,
+    },
+  });
 }
 
 export async function deleteTransaction(tenantId, id) {
@@ -518,7 +528,17 @@ export async function listTaxPlans(tenantId) {
 }
 
 export async function createTaxPlan(tenantId, data) {
-  return prisma.bizTaxPlan.create({ data: { ...data, tenantId } });
+  return prisma.bizTaxPlan.create({
+    data: {
+      title:             data.title ?? `Tax Plan ${data.year ?? new Date().getFullYear()}`,
+      year:              Number(data.year) || new Date().getFullYear(),
+      status:            data.status ?? 'active',
+      estimated_savings: Number(data.estimated_savings) || 0,
+      strategy:          data.strategy ?? null,
+      notes:             data.notes ?? null,
+      tenantId,
+    },
+  });
 }
 
 export async function deleteTaxPlan(tenantId, id) {
@@ -566,15 +586,27 @@ export async function listSOPs(tenantId) {
 
 export async function createSOP(tenantId, data) {
   return prisma.bizSOP.create({
-    data: { ...data, steps: data.steps ?? [], tenantId },
+    data: {
+      title:       data.title,
+      department:  data.department,
+      description: data.description ?? null,
+      steps:       data.steps ?? [],
+      status:      data.status ?? 'active',
+      version:     data.version ?? '1.0',
+      tenantId,
+    },
   });
 }
 
 export async function updateSOP(tenantId, id, data) {
-  return prisma.bizSOP.update({
-    where: { id },
-    data: { ...data, steps: data.steps ?? undefined },
-  });
+  const updateData = {};
+  if (data.title !== undefined)       updateData.title       = data.title;
+  if (data.department !== undefined)  updateData.department  = data.department;
+  if (data.description !== undefined) updateData.description = data.description;
+  if (data.steps !== undefined)       updateData.steps       = data.steps;
+  if (data.status !== undefined)      updateData.status      = data.status;
+  if (data.version !== undefined)     updateData.version     = data.version;
+  return prisma.bizSOP.update({ where: { id }, data: updateData });
 }
 
 export async function deleteSOP(tenantId, id) {
@@ -589,7 +621,16 @@ export async function listWorkflows(tenantId) {
 
 export async function createWorkflow(tenantId, data) {
   return prisma.bizWorkflow.create({
-    data: { ...data, steps: data.steps ?? [], tenantId },
+    data: {
+      name:         data.name,
+      description:  data.description ?? null,
+      department:   data.department ?? null,
+      trigger:      data.trigger ?? null,
+      steps:        data.steps ?? [],
+      status:       data.status ?? 'active',
+      is_automated: data.is_automated ?? false,
+      tenantId,
+    },
   });
 }
 
@@ -605,15 +646,31 @@ export async function listGoals(tenantId) {
 
 export async function createGoal(tenantId, data) {
   return prisma.bizGoal.create({
-    data: { ...data, milestones: data.milestones ?? [], tenantId },
+    data: {
+      title:       data.title,
+      category:    data.category ?? 'growth',
+      description: data.description ?? null,
+      target_date: data.target_date ?? null,
+      progress:    Number(data.progress) || 0,
+      milestones:  data.milestones ?? [],
+      status:      data.status ?? 'in_progress',
+      priority:    data.priority ?? 'medium',
+      tenantId,
+    },
   });
 }
 
 export async function updateGoal(tenantId, id, data) {
-  return prisma.bizGoal.update({
-    where: { id },
-    data: { ...data, milestones: data.milestones ?? undefined },
-  });
+  const updateData = {};
+  if (data.title !== undefined)       updateData.title       = data.title;
+  if (data.category !== undefined)    updateData.category    = data.category;
+  if (data.description !== undefined) updateData.description = data.description;
+  if (data.target_date !== undefined) updateData.target_date = data.target_date;
+  if (data.progress !== undefined)    updateData.progress    = Number(data.progress) || 0;
+  if (data.milestones !== undefined)  updateData.milestones  = data.milestones;
+  if (data.status !== undefined)      updateData.status      = data.status;
+  if (data.priority !== undefined)    updateData.priority    = data.priority;
+  return prisma.bizGoal.update({ where: { id }, data: updateData });
 }
 
 export async function deleteGoal(tenantId, id) {
@@ -687,15 +744,38 @@ export async function deleteCampaign(tenantId, id) {
 // ── Marketing / Sales – Clients ───────────────────────────────────────────────
 export async function listClients(tenantId) {
   await lazySeed(tenantId);
-  return prisma.bizClient.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+  const clients = await prisma.bizClient.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+  return clients.map((c) => ({ ...c, value: c.annual_value }));
 }
 
 export async function createClient(tenantId, data) {
-  return prisma.bizClient.create({ data: { ...data, tenantId } });
+  return prisma.bizClient.create({
+    data: {
+      name:         data.name,
+      company:      data.company ?? null,
+      email:        data.email ?? null,
+      phone:        data.phone ?? null,
+      annual_value: Number(data.annual_value ?? data.value) || 0,
+      status:       data.status ?? 'active',
+      contract_end: data.contract_end ?? null,
+      industry:     data.industry ?? null,
+      tenantId,
+    },
+  });
 }
 
 export async function updateClient(tenantId, id, data) {
-  return prisma.bizClient.update({ where: { id }, data });
+  const updateData = {};
+  if (data.name !== undefined)         updateData.name         = data.name;
+  if (data.company !== undefined)      updateData.company      = data.company;
+  if (data.email !== undefined)        updateData.email        = data.email;
+  if (data.phone !== undefined)        updateData.phone        = data.phone;
+  const av = data.annual_value ?? data.value;
+  if (av !== undefined)                updateData.annual_value = Number(av) || 0;
+  if (data.status !== undefined)       updateData.status       = data.status;
+  if (data.contract_end !== undefined) updateData.contract_end = data.contract_end;
+  if (data.industry !== undefined)     updateData.industry     = data.industry;
+  return prisma.bizClient.update({ where: { id }, data: updateData });
 }
 
 export async function deleteClient(tenantId, id) {
