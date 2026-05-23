@@ -22,6 +22,8 @@ export const getProfile = async (req, res) => {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      phone: user.phone ?? null,
       role: user.role?.name ?? null,
       tenantId: user.tenantId,
       tenant: { id: user.tenant.id, name: user.tenant.name, slug: user.tenant.slug },
@@ -34,12 +36,30 @@ export const getProfile = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { firstName, lastName } = req.body;
+    const { name, firstName: fName, lastName: lName, phone } = req.body;
+    let firstName = fName;
+    let lastName = lName;
+    if (name && !fName && !lName) {
+      const parts = name.trim().split(/\s+/);
+      firstName = parts[0] ?? '';
+      lastName = parts.slice(1).join(' ') || '';
+    }
+    const updateData = {};
+    if (firstName) updateData.firstName = firstName;
+    if (lastName !== undefined && lastName !== null) updateData.lastName = lastName;
+    if (phone !== undefined) updateData.phone = phone || null;
     const user = await prisma.user.update({
       where: { id: uid(req) },
-      data: { ...(firstName && { firstName }), ...(lastName && { lastName }) },
+      data: updateData,
     });
-    res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName });
+    res.json({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      phone: user.phone ?? null,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
