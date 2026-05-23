@@ -790,7 +790,16 @@ export async function listMembers(tenantId) {
 
 export async function createMember(tenantId, data) {
   return prisma.bizMember.create({
-    data: { ...data, skills: data.skills ?? [], tenantId },
+    data: {
+      name:       data.name,
+      role:       data.role,
+      department: data.department,
+      email:      data.email ?? null,
+      status:     data.status ?? 'active',
+      skills:     data.skills ?? [],
+      avatar_url: data.avatar_url ?? null,
+      tenantId,
+    },
   });
 }
 
