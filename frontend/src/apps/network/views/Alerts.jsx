@@ -97,7 +97,7 @@ export default function Alerts() {
                       <div className="font-medium text-slate-900 dark:text-white">{a.title ?? a.message ?? a.description ?? "—"}</div>
                       {a.details && <div className="text-xs text-slate-400 mt-0.5 truncate max-w-xs">{a.details}</div>}
                     </td>
-                    <td className="p-4 text-slate-500">{a.device ?? a.source ?? "—"}</td>
+                    <td className="p-4 text-slate-500">{a.device?.hostname ?? a.device ?? a.source ?? "—"}</td>
                     <td className="p-4 text-slate-400 text-xs">
                       <div className="flex items-center gap-1"><Clock size={11} />{a.time ?? a.timestamp ?? a.createdAt ?? "—"}</div>
                     </td>
