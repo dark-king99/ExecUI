@@ -17,26 +17,11 @@ import Dashboard from "../apps/services/Dashboard";
 const HomeView            = lazy(() => import("../apps/HomeView"));
 const AccountView         = lazy(() => import("../apps/AccountView"));
 const AnalyticsView       = lazy(() => import("../apps/AnalyticsView"));
-const NetworkView         = lazy(() => import("../apps/NetworkView"));
 const NotFound            = lazy(() => import("../apps/NotFound"));
 
-// Network
-const Inventory           = lazy(() => import("../apps/network/views/Inventory"));
-const Alerts              = lazy(() => import("../apps/network/views/Alerts"));
-const TopologyMap         = lazy(() => import("../apps/network/views/TopologyMap"));
-const Traffic             = lazy(() => import("../apps/network/views/Traffic"));
-const Settings            = lazy(() => import("../apps/network/views/Settings"));
-const Documentation       = lazy(() => import("../apps/network/views/Documentation"));
-const IncidentCenter      = lazy(() => import("../apps/network/views/IncidentCenter"));
-const ChangeManagement    = lazy(() => import("../apps/network/views/ChangeManagement"));
-const PolicyCompliance    = lazy(() => import("../apps/network/views/PolicyCompliance"));
-const CapacityPlanning    = lazy(() => import("../apps/network/views/CapacityPlanning"));
-const ServiceHealth       = lazy(() => import("../apps/network/views/ServiceHealth"));
-const AutomationJobs      = lazy(() => import("../apps/network/views/AutomationJobs"));
-const ServerManager       = lazy(() => import("../apps/network/views/ServerManager"));
-const NetworkMonitor      = lazy(() => import("../apps/network/views/NetworkMonitor"));
-const UserRestrictions    = lazy(() => import("../apps/network/views/UserRestrictions"));
-const FirewallSetup       = lazy(() => import("../apps/network/views/FirewallSetup"));
+// Network — solution-based architecture (Auvik model)
+const NetworkSolutions    = lazy(() => import("../apps/network/NetworkSolutions"));
+import { NETWORK_ROUTES } from "../apps/network/solutions.config";
 
 // CRM — solution-based architecture (Salesforce Sales Cloud model)
 const CrmSolutions        = lazy(() => import("../apps/crm/CrmSolutions"));
@@ -138,25 +123,11 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/analytics/quality"    element={<DataQualityMonitor />} />
                 <Route path="/analytics/overview"   element={<AnalyticsView />} />
 
-                {/* Network */}
-                <Route path="/network" element={<Navigate to="/network/dashboard" replace />} />
-                <Route path="/network/dashboard"  element={<NetworkView />} />
-                <Route path="/network/inventory"  element={<Inventory />} />
-                <Route path="/network/alerts"     element={<Alerts />} />
-                <Route path="/network/traffic"    element={<Traffic />} />
-                <Route path="/network/map"        element={<TopologyMap />} />
-                <Route path="/network/settings"   element={<Settings />} />
-                <Route path="/network/docs"       element={<Documentation />} />
-                <Route path="/network/incidents"  element={<IncidentCenter />} />
-                <Route path="/network/changes"    element={<ChangeManagement />} />
-                <Route path="/network/policy"     element={<PolicyCompliance />} />
-                <Route path="/network/capacity"   element={<CapacityPlanning />} />
-                <Route path="/network/slo"          element={<ServiceHealth />} />
-                <Route path="/network/automation"   element={<AutomationJobs />} />
-                <Route path="/network/servers"      element={<ServerManager />} />
-                <Route path="/network/monitor"      element={<NetworkMonitor />} />
-                <Route path="/network/restrictions" element={<UserRestrictions />} />
-                <Route path="/network/firewall"     element={<FirewallSetup />} />
+                {/* Network — solution launcher + config-driven solution pages */}
+                <Route path="/network" element={<NetworkSolutions />} />
+                {NETWORK_ROUTES.map(({ path, Component }) => (
+                  <Route key={path} path={path} element={<Component />} />
+                ))}
 
                 {/* CRM — solution launcher + config-driven solution pages */}
                 <Route path="/crm" element={<CrmSolutions />} />
