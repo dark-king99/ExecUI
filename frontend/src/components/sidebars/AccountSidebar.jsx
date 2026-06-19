@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
-  ArrowLeft, User, ShieldCheck, Key, Bell, Users,
+  ArrowLeft, User, ShieldCheck, Key, Bell, Users, UserLock,
   CreditCard, FileText, ChevronLeft, ChevronRight, Building2
 } from "lucide-react";
 
