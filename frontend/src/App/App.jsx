@@ -19,7 +19,6 @@ const AccountView         = lazy(() => import("../apps/AccountView"));
 const AnalyticsView       = lazy(() => import("../apps/AnalyticsView"));
 const NetworkView         = lazy(() => import("../apps/NetworkView"));
 const CRMView             = lazy(() => import("../apps/CRMView"));
-const MarketingView       = lazy(() => import("../apps/MarketingView"));
 const NotFound            = lazy(() => import("../apps/NotFound"));
 
 // Network
@@ -61,22 +60,9 @@ const RenewalsExpansion   = lazy(() => import("../apps/crm/RenewalsExpansion"));
 const PlaybooksLibrary    = lazy(() => import("../apps/crm/PlaybooksLibrary"));
 const CRMAnalytics        = lazy(() => import("../apps/crm/CRMAnalytics"));
 
-// Marketing
-const B2B                 = lazy(() => import("../apps/marketing/B2B"));
-const Campaign            = lazy(() => import("../apps/marketing/Campaign"));
-const EMMA                = lazy(() => import("../apps/marketing/EMMA"));
-const Personalization     = lazy(() => import("../apps/marketing/Personalization"));
-const Teams               = lazy(() => import("../apps/marketing/Teams"));
-const CustomerDataPlatform= lazy(() => import("../apps/marketing/CustomerDataPlatform"));
-const CommerceCommand     = lazy(() => import("../apps/marketing/CommerceCommand"));
-const MarketingAI         = lazy(() => import("../apps/marketing/MarketingAI"));
-const CampaignOverview    = lazy(() => import("../apps/marketing/CampaignOverview"));
-const CampaignBuilder     = lazy(() => import("../apps/marketing/CampaignBuilder"));
-const ExperimentationLab  = lazy(() => import("../apps/marketing/ExperimentationLab"));
-const AudienceStudio      = lazy(() => import("../apps/marketing/AudienceStudio"));
-const AttributionROI      = lazy(() => import("../apps/marketing/AttributionROI"));
-const CreativeAssets      = lazy(() => import("../apps/marketing/CreativeAssets"));
-const MarketingAnalytics  = lazy(() => import("../apps/marketing/MarketingAnalytics"));
+// Marketing — solution-based architecture (Salesforce Marketing Cloud model)
+const MarketingSolutions  = lazy(() => import("../apps/marketing/MarketingSolutions"));
+import { MARKETING_ROUTES } from "../apps/marketing/solutions.config";
 
 // Analytics
 const ExecutiveOverview   = lazy(() => import("../apps/analytics/ExecutiveOverview"));
@@ -213,26 +199,11 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/crm/playbooks"           element={<PlaybooksLibrary />} />
                 <Route path="/crm/analytics"           element={<CRMAnalytics />} />
 
-                {/* Marketing */}
-                <Route path="/marketing" element={<Navigate to="/marketing/stream" replace />} />
-                <Route path="/marketing/stream"           element={<MarketingView />} />
-                <Route path="/marketing/ai"               element={<MarketingAI />} />
-                <Route path="/marketing/campaign"         element={<Campaign />} />
-                <Route path="/marketing/campaign/overview"   element={<CampaignOverview />} />
-                <Route path="/marketing/campaign/builder"    element={<CampaignBuilder />} />
-                <Route path="/marketing/campaign/analytics"  element={<MarketingAnalytics />} />
-                <Route path="/marketing/campaign/scheduler"  element={<CampaignOverview />} />
-                <Route path="/marketing/emma"             element={<EMMA />} />
-                <Route path="/marketing/b2b"              element={<B2B />} />
-                <Route path="/marketing/personalization"  element={<Personalization />} />
-                <Route path="/marketing/team"             element={<Teams />} />
-                <Route path="/marketing/cdp"              element={<CustomerDataPlatform />} />
-                <Route path="/marketing/commerce"         element={<CommerceCommand />} />
-                <Route path="/marketing/analytics"        element={<MarketingAnalytics />} />
-                <Route path="/marketing/experimentation"  element={<ExperimentationLab />} />
-                <Route path="/marketing/audience"         element={<AudienceStudio />} />
-                <Route path="/marketing/attribution"      element={<AttributionROI />} />
-                <Route path="/marketing/creative"         element={<CreativeAssets />} />
+                {/* Marketing — solution launcher + config-driven solution pages */}
+                <Route path="/marketing" element={<MarketingSolutions />} />
+                {MARKETING_ROUTES.map(({ path, Component }) => (
+                  <Route key={path} path={path} element={<Component />} />
+                ))}
 
 
                 {/* Services */}

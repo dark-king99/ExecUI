@@ -1,73 +1,87 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import {
-  LayoutDashboard, DatabaseBackup, Activity, ShoppingCart,
-  Laptop2, BotIcon, Megaphone, ArrowLeft,
-  ChevronDown, ChevronRight, ChevronLeft,
-  FlaskConical, Users, BarChart3, Image, DollarSign, Crosshair,
-} from "lucide-react";
+import { Megaphone, ArrowLeft, LayoutGrid, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
+import { SOLUTIONS, colorOf } from "../../apps/marketing/solutions.config";
 
-const topItems = [
-  { id: "stream",           label: "Stream",               icon: LayoutDashboard, path: "/marketing/stream" },
-  { id: "ai",               label: "Marketing AI",         icon: BotIcon,         path: "/marketing/ai" },
-  { id: "emma",             label: "E.M.M.A",              icon: Laptop2,         path: "/marketing/emma" },
-  { id: "audience",         label: "Audience Studio",      icon: Crosshair,       path: "/marketing/audience" },
-  { id: "personalization",  label: "Personalization",      icon: Activity,        path: "/marketing/personalization" },
-  { id: "b2b",              label: "B2B Marketing",        icon: Users,           path: "/marketing/b2b" },
-  { id: "experimentation",  label: "Experimentation Lab",  icon: FlaskConical,    path: "/marketing/experimentation" },
-  { id: "attribution",      label: "Attribution & ROI",    icon: DollarSign,      path: "/marketing/attribution" },
-  { id: "creative",         label: "Creative Assets",      icon: Image,           path: "/marketing/creative" },
-  { id: "analytics",        label: "Marketing Analytics",  icon: BarChart3,       path: "/marketing/analytics" },
-  { id: "cdp",              label: "Customer Data Platform", icon: DatabaseBackup, path: "/marketing/cdp" },
-  { id: "commerce",         label: "Commerce Command",     icon: ShoppingCart,    path: "/marketing/commerce" },
-  { id: "team",             label: "Team",                 icon: Users,           path: "/marketing/team" },
-];
-
-const campaignSubItems = [
-  { id: "campaign/overview",   label: "Overview",   path: "/marketing/campaign/overview" },
-  { id: "campaign/builder",    label: "Builder",    path: "/marketing/campaign/builder" },
-  { id: "campaign/analytics",  label: "Analytics",  path: "/marketing/campaign/analytics" },
-  { id: "campaign/scheduler",  label: "Schedule",   path: "/marketing/campaign/scheduler" },
-];
-
-function NavBtn({ icon: Icon, label, path, current, collapsed }) {
-  const navigate = useNavigate();
-  const active = current === path;
-
+function PageLink({ page, active, color, onNavigate }) {
+  const Icon = page.icon;
+  const c = colorOf(color);
   return (
     <button
-      onClick={() => navigate(path)}
-      title={collapsed ? label : undefined}
-      className={`relative flex items-center ${
-        collapsed ? "justify-center" : "gap-2.5"
-      } w-full px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 group ${
+      onClick={() => onNavigate(page.path)}
+      className={`w-full flex items-center gap-2 text-left px-2.5 py-1.5 rounded-lg text-sm transition ${
         active
-          ? "bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400"
+          ? `${c.soft} ${c.softText} font-medium`
           : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/70 hover:text-slate-800 dark:hover:text-slate-200"
       }`}
     >
-      {active && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-violet-500 dark:bg-violet-400 rounded-r-full" />
-      )}
-      <Icon
-        size={15}
-        className={`shrink-0 ${
-          active
-            ? "text-violet-500 dark:text-violet-400"
-            : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"
-        }`}
-      />
-      {!collapsed && <span className="truncate">{label}</span>}
+      <Icon size={13} className="shrink-0" />
+      <span className="truncate">{page.label}</span>
     </button>
+  );
+}
+
+function SolutionGroup({ solution, pathname, collapsed, onNavigate }) {
+  const root = solution.pages[0].path;
+  const isActive = pathname === root || pathname.startsWith(root + "/");
+  const [open, setOpen] = useState(isActive);
+  const c = colorOf(solution.color);
+  const Icon = solution.icon;
+
+  useEffect(() => { if (isActive) setOpen(true); }, [isActive]);
+
+  if (collapsed) {
+    return (
+      <button
+        onClick={() => onNavigate(root)}
+        title={solution.name}
+        className={`flex items-center justify-center w-full px-2.5 py-2 rounded-lg transition ${
+          isActive ? c.soft : "hover:bg-slate-50 dark:hover:bg-slate-800/70"
+        }`}
+      >
+        <Icon size={16} className={isActive ? c.text : "text-slate-400 dark:text-slate-500"} />
+      </button>
+    );
+  }
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`relative flex items-center justify-between w-full px-2.5 py-2 rounded-lg text-sm font-medium transition ${
+          isActive
+            ? `${c.soft} ${c.softText}`
+            : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/70"
+        }`}
+      >
+        {isActive && <span className={`absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 ${c.bg} rounded-r-full`} />}
+        <span className="flex items-center gap-2.5 min-w-0">
+          <Icon size={15} className={isActive ? c.text : "text-slate-400 dark:text-slate-500"} />
+          <span className="truncate">{solution.name}</span>
+        </span>
+        {open ? <ChevronDown size={13} className="text-slate-400 shrink-0" /> : <ChevronRight size={13} className="text-slate-400 shrink-0" />}
+      </button>
+
+      {open && (
+        <div className="ml-4 pl-3 border-l border-slate-100 dark:border-slate-800 space-y-0.5 mt-0.5 mb-1">
+          {solution.pages.map((p) => (
+            <PageLink
+              key={p.id}
+              page={p}
+              color={solution.color}
+              active={pathname === p.path || (p.path !== root && pathname.startsWith(p.path + "/"))}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
 export default function MarketingSidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-
-  const campaignActive = pathname.startsWith("/marketing/campaign");
-  const [campaignOpen, setCampaignOpen] = useState(campaignActive);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -81,11 +95,11 @@ export default function MarketingSidebar() {
     localStorage.setItem("marketing-sidebar-collapsed", JSON.stringify(next));
   };
 
+  const onHome = pathname === "/marketing";
+
   return (
     <aside
-      className={`${
-        collapsed ? "w-[60px]" : "w-60"
-      } shrink-0 flex flex-col h-full bg-white dark:bg-slate-950 border-r border-slate-100 dark:border-slate-800/80 transition-all duration-250`}
+      className={`${collapsed ? "w-[60px]" : "w-60"} shrink-0 flex flex-col h-full bg-white dark:bg-slate-950 border-r border-slate-100 dark:border-slate-800/80 transition-all duration-250`}
     >
       {/* Header */}
       <div className="flex items-center h-14 px-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
@@ -95,7 +109,7 @@ export default function MarketingSidebar() {
           </div>
           {!collapsed && (
             <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate leading-none">
-              Marketing Hub
+              Marketing Cloud
             </span>
           )}
         </div>
@@ -107,78 +121,45 @@ export default function MarketingSidebar() {
         </button>
       </div>
 
-      {/* Back button */}
+      {/* Back to main */}
       <div className="px-2 pt-2">
         <button
           onClick={() => navigate("/home")}
-          className={`flex items-center ${
-            collapsed ? "justify-center" : "gap-2"
-          } w-full px-2.5 py-2 rounded-lg text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/70 transition`}
+          className={`flex items-center ${collapsed ? "justify-center" : "gap-2"} w-full px-2.5 py-2 rounded-lg text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/70 transition`}
         >
           <ArrowLeft size={13} />
           {!collapsed && "Back to main"}
         </button>
       </div>
 
-      {/* Nav items */}
-      <nav className="flex-1 overflow-y-auto px-2 pb-2 pt-1 space-y-0.5">
-        {!collapsed && (
-          <p className="px-2.5 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-600 select-none">
-            Marketing
-          </p>
-        )}
-        {collapsed && <div className="my-1 border-t border-slate-100 dark:border-slate-800/60" />}
-
-        {topItems.map(({ id, label, icon, path }) => (
-          <NavBtn key={id} icon={icon} label={label} path={path} current={pathname} collapsed={collapsed} />
-        ))}
-
-        {/* Campaign group */}
+      <nav className="flex-1 overflow-y-auto px-2 pb-3 pt-1 space-y-0.5">
+        {/* Solutions launcher */}
         <button
-          onClick={() => setCampaignOpen((o) => !o)}
-          title={collapsed ? "Campaigns" : undefined}
-          className={`relative flex items-center ${
-            collapsed ? "justify-center" : "justify-between"
-          } w-full px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
-            campaignActive
+          onClick={() => navigate("/marketing")}
+          title={collapsed ? "All Solutions" : undefined}
+          className={`relative flex items-center ${collapsed ? "justify-center" : "gap-2.5"} w-full px-2.5 py-2 rounded-lg text-sm font-medium transition ${
+            onHome
               ? "bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400"
-              : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/70 hover:text-slate-800 dark:hover:text-slate-200"
+              : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/70"
           }`}
         >
-          {campaignActive && (
-            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-violet-500 dark:bg-violet-400 rounded-r-full" />
-          )}
-          <span className={`flex items-center ${collapsed ? "" : "gap-2.5"}`}>
-            <Megaphone size={15} className={campaignActive ? "text-violet-500 dark:text-violet-400" : "text-slate-400 dark:text-slate-500"} />
-            {!collapsed && "Campaign"}
-          </span>
-          {!collapsed && (
-            campaignOpen
-              ? <ChevronDown size={13} className="text-slate-400" />
-              : <ChevronRight size={13} className="text-slate-400" />
-          )}
+          {onHome && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-violet-500 rounded-r-full" />}
+          <LayoutGrid size={15} className={onHome ? "text-violet-500 dark:text-violet-400" : "text-slate-400 dark:text-slate-500"} />
+          {!collapsed && "All Solutions"}
         </button>
 
-        {!collapsed && campaignOpen && (
-          <div className="ml-4 pl-3 border-l border-slate-100 dark:border-slate-800 space-y-0.5 mt-0.5">
-            {campaignSubItems.map(({ id, label, path }) => {
-              const active = pathname === path;
-              return (
-                <button
-                  key={id}
-                  onClick={() => navigate(path)}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-sm transition ${
-                    active
-                      ? "bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 font-medium"
-                      : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/70 hover:text-slate-800 dark:hover:text-slate-200"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+        {!collapsed && (
+          <p className="px-2.5 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-600 select-none">
+            Solutions
+          </p>
         )}
+        {collapsed && <div className="my-1.5 border-t border-slate-100 dark:border-slate-800/60" />}
+
+        <div className="space-y-0.5">
+          {SOLUTIONS.map((s) => (
+            <SolutionGroup key={s.id} solution={s} pathname={pathname} collapsed={collapsed} onNavigate={navigate} />
+          ))}
+        </div>
       </nav>
     </aside>
   );
