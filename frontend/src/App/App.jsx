@@ -18,7 +18,6 @@ const HomeView            = lazy(() => import("../apps/HomeView"));
 const AccountView         = lazy(() => import("../apps/AccountView"));
 const AnalyticsView       = lazy(() => import("../apps/AnalyticsView"));
 const NetworkView         = lazy(() => import("../apps/NetworkView"));
-const CRMView             = lazy(() => import("../apps/CRMView"));
 const NotFound            = lazy(() => import("../apps/NotFound"));
 
 // Network
@@ -39,26 +38,9 @@ const NetworkMonitor      = lazy(() => import("../apps/network/views/NetworkMoni
 const UserRestrictions    = lazy(() => import("../apps/network/views/UserRestrictions"));
 const FirewallSetup       = lazy(() => import("../apps/network/views/FirewallSetup"));
 
-// CRM
-const SmartCRM            = lazy(() => import("../apps/crm/SmartCRM"));
-const TeamManager         = lazy(() => import("../apps/crm/TeamManager"));
-const ServicesIntegration = lazy(() => import("../apps/crm/ServicesIntegration"));
-const PipelineTracking    = lazy(() => import("../apps/crm/PipelineTracking"));
-const RevenueIntelligence = lazy(() => import("../apps/crm/RevenueIntelligence"));
-const DealCommandCenter   = lazy(() => import("../apps/crm/DealCommandCenter"));
-const Account360          = lazy(() => import("../apps/crm/Account360"));
-const Team                = lazy(() => import("../apps/crm/Team"));
-const Reports             = lazy(() => import("../apps/crm/Reports"));
-const Partners            = lazy(() => import("../apps/crm/Partners"));
-const BoardVoting         = lazy(() => import("../apps/crm/BoardVoting"));
-const Database            = lazy(() => import("../apps/crm/Database"));
-const LeadWorkspace       = lazy(() => import("../apps/crm/LeadWorkspace"));
-const OpportunityWorkspace= lazy(() => import("../apps/crm/OpportunityWorkspace"));
-const TaskCadence         = lazy(() => import("../apps/crm/TaskCadence"));
-const ForecastingQuota    = lazy(() => import("../apps/crm/ForecastingQuota"));
-const RenewalsExpansion   = lazy(() => import("../apps/crm/RenewalsExpansion"));
-const PlaybooksLibrary    = lazy(() => import("../apps/crm/PlaybooksLibrary"));
-const CRMAnalytics        = lazy(() => import("../apps/crm/CRMAnalytics"));
+// CRM — solution-based architecture (Salesforce Sales Cloud model)
+const CrmSolutions        = lazy(() => import("../apps/crm/CrmSolutions"));
+import { CRM_ROUTES } from "../apps/crm/solutions.config";
 
 // Marketing — solution-based architecture (Salesforce Marketing Cloud model)
 const MarketingSolutions  = lazy(() => import("../apps/marketing/MarketingSolutions"));
@@ -176,28 +158,11 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/network/restrictions" element={<UserRestrictions />} />
                 <Route path="/network/firewall"     element={<FirewallSetup />} />
 
-                {/* CRM */}
-                <Route path="/crm" element={<Navigate to="/crm/stream" replace />} />
-                <Route path="/crm/stream"              element={<CRMView />} />
-                <Route path="/crm/account360"          element={<Account360 />} />
-                <Route path="/crm/service-integration" element={<ServicesIntegration />} />
-                <Route path="/crm/pipeline"            element={<PipelineTracking />} />
-                <Route path="/crm/revenue-intelligence" element={<RevenueIntelligence />} />
-                <Route path="/crm/deals"               element={<DealCommandCenter />} />
-                <Route path="/crm/smart-crm"           element={<SmartCRM role={roleToUse} />} />
-                <Route path="/crm/reports"             element={<Reports />} />
-                <Route path="/crm/team"                element={<Team />} />
-                <Route path="/crm/team-manager"        element={<TeamManager />} />
-                <Route path="/crm/partners"            element={<Partners />} />
-                <Route path="/crm/partners/board"      element={<BoardVoting />} />
-                <Route path="/crm/database"            element={<Database />} />
-                <Route path="/crm/leads"               element={<LeadWorkspace />} />
-                <Route path="/crm/opportunities"       element={<OpportunityWorkspace />} />
-                <Route path="/crm/tasks"               element={<TaskCadence />} />
-                <Route path="/crm/forecasting"         element={<ForecastingQuota />} />
-                <Route path="/crm/renewals"            element={<RenewalsExpansion />} />
-                <Route path="/crm/playbooks"           element={<PlaybooksLibrary />} />
-                <Route path="/crm/analytics"           element={<CRMAnalytics />} />
+                {/* CRM — solution launcher + config-driven solution pages */}
+                <Route path="/crm" element={<CrmSolutions />} />
+                {CRM_ROUTES.map(({ path, Component }) => (
+                  <Route key={path} path={path} element={<Component />} />
+                ))}
 
                 {/* Marketing — solution launcher + config-driven solution pages */}
                 <Route path="/marketing" element={<MarketingSolutions />} />
