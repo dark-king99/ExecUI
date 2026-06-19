@@ -16,7 +16,6 @@ import Dashboard from "../apps/services/Dashboard";
 // ── Lazy-loaded mini-app route groups ─────────────────────────────────────────
 const HomeView            = lazy(() => import("../apps/HomeView"));
 const AccountView         = lazy(() => import("../apps/AccountView"));
-const AnalyticsView       = lazy(() => import("../apps/AnalyticsView"));
 const NotFound            = lazy(() => import("../apps/NotFound"));
 
 // Network — solution-based architecture (Auvik model)
@@ -31,13 +30,9 @@ import { CRM_ROUTES } from "../apps/crm/solutions.config";
 const MarketingSolutions  = lazy(() => import("../apps/marketing/MarketingSolutions"));
 import { MARKETING_ROUTES } from "../apps/marketing/solutions.config";
 
-// Analytics
-const ExecutiveOverview   = lazy(() => import("../apps/analytics/ExecutiveOverview"));
-const OperationalMetrics  = lazy(() => import("../apps/analytics/OperationalMetrics"));
-const SelfServeExplorer   = lazy(() => import("../apps/analytics/SelfServeExplorer"));
-const CohortRetention     = lazy(() => import("../apps/analytics/CohortRetention"));
-const AnalyticsRevenue    = lazy(() => import("../apps/analytics/RevenueIntelligence"));
-const DataQualityMonitor  = lazy(() => import("../apps/analytics/DataQualityMonitor"));
+// Analytics — cross-service data overview (config-driven solutions)
+const AnalyticsSolutions   = lazy(() => import("../apps/analytics/AnalyticsSolutions"));
+import { ANALYTICS_ROUTES } from "../apps/analytics/solutions.config";
 
 // Account
 const Profile             = lazy(() => import("../apps/account/Profile"));
@@ -76,7 +71,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
 
   // Sections with their own sidebar that replace the top navbar
   const section = location.pathname.split("/")[1];
-  const hideNavbar = ["network", "crm", "marketing"].includes(section);
+  const hideNavbar = ["network", "crm", "marketing", "analytics"].includes(section);
 
   return (
     <div className="flex h-screen w-screen bg-slate-50 dark:bg-slate-950">
@@ -113,15 +108,11 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/account/workspace"     element={<EnterpriseWorkspace />} />
                 <Route path="/account/overview"     element={<AccountView />} />
 
-                {/* Analytics */}
-                <Route path="/analytics" element={<Navigate to="/analytics/executive" replace />} />
-                <Route path="/analytics/executive"  element={<ExecutiveOverview />} />
-                <Route path="/analytics/operational" element={<OperationalMetrics />} />
-                <Route path="/analytics/explorer"   element={<SelfServeExplorer />} />
-                <Route path="/analytics/cohort"     element={<CohortRetention />} />
-                <Route path="/analytics/revenue"    element={<AnalyticsRevenue />} />
-                <Route path="/analytics/quality"    element={<DataQualityMonitor />} />
-                <Route path="/analytics/overview"   element={<AnalyticsView />} />
+                {/* Analytics — cross-service launcher + config-driven solution pages */}
+                <Route path="/analytics" element={<AnalyticsSolutions />} />
+                {ANALYTICS_ROUTES.map(({ path, Component }) => (
+                  <Route key={path} path={path} element={<Component />} />
+                ))}
 
                 {/* Network — solution launcher + config-driven solution pages */}
                 <Route path="/network" element={<NetworkSolutions />} />
