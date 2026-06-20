@@ -94,15 +94,20 @@ const del    = (path)         => request(path, { method: 'DELETE' });
 
 // ── Auth ──────────────────────────────────────────────────────────────────
 export const auth = {
-  login:   (credentials) => post('/auth/login', credentials),
-  signup:  (data)        => post('/auth/signup', data),
-  logout:  ()            => post('/auth/logout'),
-  me:      ()            => get('/auth/me'),
-  refresh: ()            => post('/auth/refresh'),
+  login:          (credentials) => post('/auth/login', credentials),
+  signup:         (data)        => post('/auth/signup', data),            // register enterprise (admin)
+  employeeSignup: (data)        => post('/auth/employee-signup', data),   // employee joins existing enterprise
+  logout:         ()            => post('/auth/logout'),
+  me:             ()            => get('/auth/me'),
+  refresh:        ()            => post('/auth/refresh'),
 };
 
 // ── Enterprise / Admin ────────────────────────────────────────────────────
 export const enterprise = {
+  organization: {
+    get:    ()      => get('/users/admin/organization'),
+    update: (data)  => put('/users/admin/organization', data),
+  },
   workspace: {
     stats:    ()           => get('/users/admin/workspace/stats'),
     sessions: ()           => get('/users/admin/workspace/sessions'),

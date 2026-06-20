@@ -4,6 +4,7 @@ import { requireRole } from "../../middleware/role.middleware.js";
 import {
   listUsers, getUser, inviteUser, updateUser, deleteUser, toggleUserStatus,
   listSessions, listAuditLogs, getWorkspaceStats, listRoles,
+  getOrganization, updateOrganization,
 } from "./users.controller.js";
 
 const router = express.Router();
@@ -12,6 +13,10 @@ const admin = [authenticate, requireRole("enterprise_admin")];
 
 // Roles list (for invite dropdown)
 router.get("/admin/roles",             ...admin, listRoles);
+
+// Organization (the enterprise account) — admin only
+router.get("/admin/organization",      ...admin, getOrganization);
+router.put("/admin/organization",      ...admin, updateOrganization);
 
 // Workspace overview (admin)
 router.get("/admin/workspace/stats",   ...admin, getWorkspaceStats);
