@@ -2,47 +2,42 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeft, User, ShieldCheck, Key, Bell, Users,
-  CreditCard, FileText, ChevronLeft, ChevronRight, Building2
+  CreditCard, FileText, ChevronLeft, ChevronRight, Building2, IdCard,
 } from "lucide-react";
 
-const items = [
-  { id: "profile",       label: "Profile",              icon: User,       path: "/account/profile" },
-  { id: "security",      label: "Security",             icon: ShieldCheck, path: "/account/security" },
-  { id: "workspace",     label: "Enterprise Workspace", icon: Building2,  path: "/account/workspace" },
-  { id: "team",          label: "Team Permissions",     icon: Users,      path: "/account/team" },
-  { id: "api-keys",      label: "API Keys",             icon: Key,        path: "/account/api-keys" },
-  { id: "notifications", label: "Notifications",        icon: Bell,       path: "/account/notifications" },
-  { id: "billing",       label: "Billing",              icon: CreditCard, path: "/account/billing" },
-  { id: "audit",         label: "Audit Logs",           icon: FileText,   path: "/account/audit" },
+const personalItems = [
+  { id: "profile",       label: "Profile",       icon: User,        path: "/account/profile" },
+  { id: "security",      label: "Security",      icon: ShieldCheck, path: "/account/security" },
+  { id: "notifications", label: "Notifications", icon: Bell,        path: "/account/notifications" },
+  { id: "api-keys",      label: "API Keys",      icon: Key,         path: "/account/api-keys" },
 ];
 
-function NavBtn({ icon: Icon, label, path, current, collapsed }) {
-  const navigate = useNavigate();
-  const active = current === path;
+const orgItems = [
+  { id: "organization", label: "Organization",        icon: Building2,   path: "/account/organization" },
+  { id: "members",      label: "Members",             icon: Users,       path: "/account/members" },
+  { id: "team",         label: "Roles & Permissions", icon: ShieldCheck, path: "/account/team" },
+  { id: "billing",      label: "Billing",             icon: CreditCard,  path: "/account/billing" },
+  { id: "audit",        label: "Audit Logs",          icon: FileText,    path: "/account/audit" },
+];
 
+function readUser() {
+  try { return JSON.parse(localStorage.getItem("user")) ?? {}; } catch { return {}; }
+}
+
+function NavBtn({ icon: Icon, label, path, current, collapsed, onNavigate }) {
+  const active = current === path;
   return (
     <button
-      onClick={() => navigate(path)}
+      onClick={() => onNavigate(path)}
       title={collapsed ? label : undefined}
-      className={`relative flex items-center ${
-        collapsed ? "justify-center" : "gap-2.5"
-      } w-full px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 group ${
+      className={`relative flex items-center ${collapsed ? "justify-center" : "gap-2.5"} w-full px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 group ${
         active
           ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
           : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/70 hover:text-slate-800 dark:hover:text-slate-200"
       }`}
     >
-      {active && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-slate-600 dark:bg-slate-400 rounded-r-full" />
-      )}
-      <Icon
-        size={15}
-        className={`shrink-0 ${
-          active
-            ? "text-slate-700 dark:text-slate-300"
-            : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"
-        }`}
-      />
+      {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-slate-600 dark:bg-slate-400 rounded-r-full" />}
+      <Icon size={15} className={`shrink-0 ${active ? "text-slate-700 dark:text-slate-300" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"}`} />
       {!collapsed && <span className="truncate">{label}</span>}
     </button>
   );
@@ -51,8 +46,11 @@ function NavBtn({ icon: Icon, label, path, current, collapsed }) {
 export default function AccountSidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-
   const [collapsed, setCollapsed] = useState(false);
+
+  const user = readUser();
+  const isAdmin = ["enterprise_admin", "system_admin"].includes(user.role);
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email || "Account";
 
   useEffect(() => {
     const saved = localStorage.getItem("account-sidebar-collapsed");
@@ -66,56 +64,59 @@ export default function AccountSidebar() {
   };
 
   return (
-    <aside
-      className={`${
-        collapsed ? "w-[60px]" : "w-56"
-      } shrink-0 flex flex-col h-full bg-white dark:bg-slate-950 border-r border-slate-100 dark:border-slate-800/80 transition-all duration-250`}
-    >
+    <aside className={`${collapsed ? "w-[60px]" : "w-60"} shrink-0 flex flex-col h-full bg-white dark:bg-slate-950 border-r border-slate-100 dark:border-slate-800/80 transition-all duration-250`}>
       {/* Header */}
       <div className="flex items-center h-14 px-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
         <div className={`flex items-center gap-2.5 flex-1 min-w-0 ${collapsed ? "justify-center" : ""}`}>
-          <div className="h-7 w-7 rounded-lg bg-slate-700 dark:bg-slate-700 flex items-center justify-center shrink-0 shadow-sm">
-            <UserLock size={14} className="text-white" />
+          <div className="h-7 w-7 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 shadow-sm">
+            <User size={14} className="text-white" />
           </div>
-          {!collapsed && (
-            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate leading-none">
-              Account
-            </span>
-          )}
+          {!collapsed && <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate leading-none">Account</span>}
         </div>
-        <button
-          onClick={toggleCollapse}
-          className="ml-auto p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-        >
+        <button onClick={toggleCollapse} className="ml-auto p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
           {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
         </button>
       </div>
 
+      {/* Identity block */}
+      {!collapsed && (
+        <div className="px-3 pt-3">
+          <div className="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 p-3">
+            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{fullName}</div>
+            <div className="text-xs text-slate-400 truncate">{user.email}</div>
+            <div className="flex items-center gap-3 mt-2 text-[11px]">
+              {user.employeeId && <span className="inline-flex items-center gap-1 text-slate-500"><IdCard size={11} />{user.employeeId}</span>}
+              {user.enterprise && <span className="inline-flex items-center gap-1 text-slate-500 truncate"><Building2 size={11} />{user.enterprise}</span>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Back button */}
       <div className="px-2 pt-2">
-        <button
-          onClick={() => navigate("/home")}
-          className={`flex items-center ${
-            collapsed ? "justify-center" : "gap-2"
-          } w-full px-2.5 py-2 rounded-lg text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/70 transition`}
-        >
+        <button onClick={() => navigate("/home")} className={`flex items-center ${collapsed ? "justify-center" : "gap-2"} w-full px-2.5 py-2 rounded-lg text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/70 transition`}>
           <ArrowLeft size={13} />
           {!collapsed && "Back to main"}
         </button>
       </div>
 
-      {/* Nav items */}
+      {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-2 pb-2 pt-1 space-y-0.5">
-        {!collapsed && (
-          <p className="px-2.5 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-600 select-none">
-            Settings
-          </p>
-        )}
-        {collapsed && <div className="my-1 border-t border-slate-100 dark:border-slate-800/60" />}
-
-        {items.map(({ id, label, icon, path }) => (
-          <NavBtn key={id} icon={icon} label={label} path={path} current={pathname} collapsed={collapsed} />
+        {!collapsed && <p className="px-2.5 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-600 select-none">Personal</p>}
+        {collapsed && <div className="my-1.5 border-t border-slate-100 dark:border-slate-800/60" />}
+        {personalItems.map((it) => (
+          <NavBtn key={it.id} {...it} current={pathname} collapsed={collapsed} onNavigate={navigate} />
         ))}
+
+        {isAdmin && (
+          <>
+            {!collapsed && <p className="px-2.5 pt-4 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-600 select-none">Organization</p>}
+            {collapsed && <div className="my-1.5 border-t border-slate-100 dark:border-slate-800/60" />}
+            {orgItems.map((it) => (
+              <NavBtn key={it.id} {...it} current={pathname} collapsed={collapsed} onNavigate={navigate} />
+            ))}
+          </>
+        )}
       </nav>
     </aside>
   );
