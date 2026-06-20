@@ -11,6 +11,8 @@ const tid = (req) => req.user.tenantId;
 const userShape = (u) => ({
   id:          u.id,
   email:       u.email,
+  employeeId:  u.employeeId,
+  status:      u.status,
   firstName:   u.firstName,
   lastName:    u.lastName,
   fullName:    `${u.firstName} ${u.lastName}`,
@@ -57,8 +59,28 @@ export const listRoles = handle(async (req) => {
 });
 
 // ── Invite / create user ──────────────────────────────────────────────────────
+// Next sequential employee ID code for a tenant (EMP-0001, EMP-0002, …)
+async function nextEmployeeId(tenantId) {
+  const users = await prisma.user.findMany({
+    where: { tenantId, employeeId: { startsWith: "EMP-" } },
+    select: { employeeId: true },
+  });
+  const max = users.reduce((m, u) => {
+    const n = parseInt((u.employeeId ?? "").replace("EMP-", ""), 10);
+    return Number.isNaN(n) ? m : Math.max(m, n);
+  }, 0);
+  return `EMP-${String(max + 1).padStart(4, "0")}`;
+}
+
+// ── Provision an employee ─────────────────────────────────────────────────────
+// The admin issues the employee ID; the account is created in "invited" status
+// with no password. The employee completes signup via /auth/employee-signup.
 export const inviteUser = handle(async (req) => {
-  const { email, password, firstName, lastName, roleId: rawRoleId, role: roleName, department, jobTitle, phone } = req.body;
+  const { email, firstName, lastName, employeeId: rawEmployeeId, roleId: rawRoleId, role: roleName, department, jobTitle, phone } = req.body;
+
+  if (!email || !firstName || !lastName) {
+    throw new Error("Email, first name and last name are required");
+  }
 
   // Resolve roleId — accept UUID directly or fall back to name lookup → default
   let resolvedRoleId = rawRoleId && rawRoleId.length === 36 ? rawRoleId : null;
@@ -75,13 +97,22 @@ export const inviteUser = handle(async (req) => {
   }
   if (!resolvedRoleId) throw new Error("No valid role found for this tenant");
 
-  const passwordHash = await bcrypt.hash(password || "ChangeMe123!", 10);
+  // Employee ID code — admin-issued, unique within the enterprise. Auto-assign if omitted.
+  const employeeId = (rawEmployeeId && String(rawEmployeeId).trim()) || (await nextEmployeeId(tid(req)));
+  const dupe = await prisma.user.findFirst({ where: { tenantId: tid(req), employeeId } });
+  if (dupe) throw new Error(`Employee ID "${employeeId}" is already in use.`);
+
   const user = await prisma.user.create({
-    data: { email, passwordHash, firstName, lastName, roleId: resolvedRoleId, tenantId: tid(req), department, jobTitle, phone },
+    // No password yet — the employee sets it when they complete signup.
+    data: {
+      email, firstName, lastName, employeeId,
+      status: "invited", isActive: true,
+      roleId: resolvedRoleId, tenantId: tid(req), department, jobTitle, phone,
+    },
     include: { role: true },
   });
   await prisma.auditLog.create({
-    data: { userId: req.user.userId, tenantId: tid(req), action: "create_user", resource: "user", resourceId: user.id, detail: `Invited user ${email}` },
+    data: { userId: req.user.userId, tenantId: tid(req), action: "create_user", resource: "user", resourceId: user.id, detail: `Provisioned employee ${employeeId} (${email})` },
   });
   return userShape(user);
 });
@@ -195,4 +226,36 @@ export const getWorkspaceStats = handle(async (req) => {
     }),
   ]);
   return { totalUsers, activeUsers, suspendedUsers: totalUsers - activeUsers, activeSessions, todayLogins };
+});
+
+// ── Organization (the enterprise account) — admin only ────────────────────────
+export const getOrganization = handle(async (req) => {
+  const tenantId = tid(req);
+  const [tenant, totalMembers, activeMembers, invitedMembers, admins] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: tenantId } }),
+    prisma.user.count({ where: { tenantId } }),
+    prisma.user.count({ where: { tenantId, status: "active", isActive: true } }),
+    prisma.user.count({ where: { tenantId, status: "invited" } }),
+    prisma.user.count({ where: { tenantId, role: { name: "enterprise_admin" } } }),
+  ]);
+  return {
+    id: tenant.id,
+    name: tenant.name,
+    slug: tenant.slug,
+    code: tenant.code,
+    plan: tenant.stripePlanId ? "Active subscription" : "Free",
+    createdAt: tenant.createdAt,
+    members: { total: totalMembers, active: activeMembers, invited: invitedMembers, admins },
+  };
+});
+
+export const updateOrganization = handle(async (req) => {
+  const tenantId = tid(req);
+  const { name } = req.body;
+  if (!name || !name.trim()) throw new Error("Organization name is required");
+  const tenant = await prisma.tenant.update({ where: { id: tenantId }, data: { name: name.trim() } });
+  await prisma.auditLog.create({
+    data: { userId: req.user.userId, tenantId, action: "update_organization", resource: "tenant", resourceId: tenantId, detail: `Renamed organization to ${tenant.name}` },
+  });
+  return { id: tenant.id, name: tenant.name, slug: tenant.slug, code: tenant.code };
 });
