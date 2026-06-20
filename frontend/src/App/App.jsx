@@ -43,6 +43,8 @@ const TeamPermissions     = lazy(() => import("../apps/account/TeamPermissions")
 const Billing             = lazy(() => import("../apps/account/Billing"));
 const AuditLogs           = lazy(() => import("../apps/account/AuditLogs"));
 const EnterpriseWorkspace = lazy(() => import("../apps/account/EnterpriseWorkspace"));
+const OrganizationProfile = lazy(() => import("../apps/account/OrganizationProfile"));
+const Members             = lazy(() => import("../apps/account/Members"));
 
 // Services
 const FinancialManagement             = lazy(() => import("../apps/services/FinancialManagement"));
@@ -73,6 +75,10 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
   const section = location.pathname.split("/")[1];
   const hideNavbar = ["network", "crm", "marketing", "analytics"].includes(section);
 
+  // Organization (enterprise account) views are restricted to admins.
+  const isAdmin = ["enterprise_admin", "system_admin"].includes(roleToUse) ||
+                  ["enterprise_admin", "system_admin"].includes(user?.role);
+
   return (
     <div className="flex h-screen w-screen bg-slate-50 dark:bg-slate-950">
       <SidebarInset user={user} />
@@ -96,17 +102,21 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/" element={<Navigate to="/home" replace />} />
                 <Route path="/home" element={<HomeView />} />
 
-                {/* Account */}
+                {/* Account — personal views (any user) */}
                 <Route path="/account" element={<Navigate to="/account/profile" replace />} />
                 <Route path="/account/profile"      element={<Profile />} />
                 <Route path="/account/security"     element={<Security />} />
                 <Route path="/account/api-keys"     element={<ApiKeys />} />
                 <Route path="/account/notifications" element={<Notifications />} />
-                <Route path="/account/team"         element={<TeamPermissions />} />
-                <Route path="/account/billing"      element={<Billing />} />
-                <Route path="/account/audit"         element={<AuditLogs />} />
-                <Route path="/account/workspace"     element={<EnterpriseWorkspace />} />
                 <Route path="/account/overview"     element={<AccountView />} />
+
+                {/* Account — organization views (enterprise admins only) */}
+                <Route path="/account/organization" element={isAdmin ? <OrganizationProfile /> : <Navigate to="/account/profile" replace />} />
+                <Route path="/account/members"      element={isAdmin ? <Members /> : <Navigate to="/account/profile" replace />} />
+                <Route path="/account/team"         element={isAdmin ? <TeamPermissions /> : <Navigate to="/account/profile" replace />} />
+                <Route path="/account/workspace"    element={isAdmin ? <EnterpriseWorkspace /> : <Navigate to="/account/profile" replace />} />
+                <Route path="/account/billing"      element={isAdmin ? <Billing /> : <Navigate to="/account/profile" replace />} />
+                <Route path="/account/audit"        element={isAdmin ? <AuditLogs /> : <Navigate to="/account/profile" replace />} />
 
                 {/* Analytics — cross-service launcher + config-driven solution pages */}
                 <Route path="/analytics" element={<AnalyticsSolutions />} />
