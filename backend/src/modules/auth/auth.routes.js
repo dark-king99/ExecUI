@@ -1,5 +1,5 @@
 import express from "express";
-import { registerEnterprise } from "./auth.controller.js";
+import { registerEnterprise, employeeSignup } from "./auth.controller.js";
 import { login } from "./login.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import prisma from "../../config/database.js";
@@ -11,6 +11,9 @@ router.post("/register-enterprise", registerEnterprise);
 
 // Alias so frontend /auth/signup works
 router.post("/signup", registerEnterprise);
+
+// Employee completes signup ("join enterprise") against an admin-issued ID
+router.post("/employee-signup", employeeSignup);
 
 // Login → returns { token, user }
 router.post("/login", login);
@@ -43,11 +46,16 @@ router.get("/me", authenticate, async (req, res) => {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      employeeId: user.employeeId,
+      status: user.status,
       tenantId: user.tenantId,
+      enterprise: user.tenant.name,
+      enterpriseCode: user.tenant.code,
       tenant: {
         id: user.tenant.id,
         name: user.tenant.name,
         slug: user.tenant.slug,
+        code: user.tenant.code,
       },
       role: user.role?.name ?? null,
     });
