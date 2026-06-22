@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useDataSync } from "../../hooks/useApi";
 import { useSidebar } from '../../components/SidebarContext';
 import {
   Megaphone,
@@ -397,6 +398,9 @@ export const MarketingSales = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Keep this page in sync app-wide (focus + cross-page mutations).
+  useDataSync(fetchData);
 
   const fetchData = async () => {
     try {
