@@ -432,7 +432,7 @@ export const StrategicPlanning = () => {
   }, []);
 
   // Keep this page in sync app-wide (focus + cross-page mutations).
-  useDataSync(fetchData);
+  useDataSync(() => fetchData());
 
   const fetchData = async () => {
     try {

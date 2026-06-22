@@ -292,7 +292,7 @@ export const Dashboard = () => {
   }, []);
 
   // Keep this page in sync app-wide (focus + cross-page mutations).
-  useDataSync(fetchDashboardStats);
+  useDataSync(() => fetchDashboardStats());
 
   const fetchDashboardStats = async () => {
     try {
