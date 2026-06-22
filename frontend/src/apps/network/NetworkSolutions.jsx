@@ -5,6 +5,7 @@ import { useApi } from "../../hooks/useApi";
 import { network } from "../../services/api";
 import { SOLUTIONS, colorOf } from "./solutions.config";
 import { MetricGrid, fmtNum } from "./components/net-ui";
+import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 
 function SolutionCard({ solution }) {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ function SolutionCard({ solution }) {
       className="group text-left bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
     >
       <div className="flex items-start justify-between mb-4">
-        <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${c.grad} flex items-center justify-center shadow-sm`}>
+        <div className={`h-11 w-11 rounded-xl bg-linear-to-br ${c.grad} flex items-center justify-center shadow-sm`}>
           <Icon size={20} className="text-white" />
         </div>
         <ArrowRight size={16} className="text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 group-hover:text-slate-400 transition" />
@@ -48,18 +49,57 @@ export default function NetworkSolutions() {
     { label: "Open Alerts", value: fmtNum((sum.warning ?? 0) + (sum.critical ?? 0)), icon: Bell, color: "amber" },
     { label: "Open Incidents", value: fmtNum(sum.openIncidents ?? 0), icon: AlertTriangle, color: "red" },
   ];
+  const employee = JSON.parse(localStorage.getItem('user') || 'null');
+  const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
 
   return (
     <div className="space-y-7">
-      <PageHeader
-        title="Network Ops"
-        subtitle="Monitor, map, and manage your entire network. Pick a solution to dive in."
-      />
+    <div className="w-full">
+      <div className="flex w-full items-start justify-between">
+         <div className="flex flex-col gap-1"> 
+            <h1 className={'text-2xl sm:text-3xl font-semibold dark:text-white text-slate-900'}> 
+              Network Ops
+        </h1>
+        <p className="text-sm font-body text-slate-400 dark:text-slate-500">Monitor, map, and manage your entire network. Pick a solution to dive in.
+        </p>
+       </div>
+          
+      <div className="flex items-center gap-4">
+          <Avatar className="h-14 w-14 shrink-0 border-2 border-orange-500/30">
+            <AvatarImage src={employee?.avatar_url} alt={employee?.name} />
+              <AvatarFallback className="font-heading text-xl text-orange-400 bg-slate-200">
+               {employee?.name?.split(' ').map((n) => n[0]).join('') || '?'}
+              </AvatarFallback>
+          </Avatar>
+                    
+          <div>
+             <div className="flex items-baseline gap-2 min-w-0 text-right pt-1 pr-40">
+                <span className={`text-2xl sm:text-3xl font-semibold tracking-tight font-heading dark:text-white text-slate-900`} >
+                {getGreeting()}
+                </span>
+              <h1
+                className="flex-1 min-w-0 text-2xl sm:text-3xl font-semibold truncate">
+                {employee?.name ?? '—'} 
+              </h1>
+             </div>
+          
+          <p className="text-sm text-slate-500 truncate">
+            {employee?.role} — {employee?.department}
+          </p>
+        </div>
+        </div>  
+      </div>
+    </div>
 
       <MetricGrid items={metrics} cols={4} loading={(l1 || l2) && !monitor && !servers} />
 
       <div>
-        <p className="px-1 pb-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">
+        <p className="px-1 pb-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
           Solutions
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
