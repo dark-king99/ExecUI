@@ -3,18 +3,15 @@ import { useApi } from "../../../../hooks/useApi";
 import { marketing } from "../../../../services/api";
 import { SolutionShell, MetricGrid, Section, Loading, Pill } from "../../components/mkt-ui";
 
+// Model catalog (the predictions themselves come from the CDP predictive layer).
 const MODELS = [
-  { name: "Churn Propensity", target: "Likelihood to cancel in 30d", accuracy: 91, key: "churnRisk", suffix: "%", tone: "amber" },
-  { name: "Upsell Likelihood", target: "Likelihood to upgrade plan", accuracy: 87, key: "upsellProbability", suffix: "%", tone: "emerald" },
-  { name: "Engagement Score", target: "Predicted 30d engagement", accuracy: 84, key: null, suffix: "", tone: "violet" },
+  { name: "Churn Propensity", target: "Likelihood to cancel in 30d", accuracy: null, key: "churnRisk", suffix: "%", tone: "amber" },
+  { name: "Upsell Likelihood", target: "Likelihood to upgrade plan", accuracy: null, key: "upsellProbability", suffix: "%", tone: "emerald" },
+  { name: "Engagement Score", target: "Predicted 30d engagement", accuracy: null, key: null, suffix: "", tone: "violet" },
 ];
 
-const SEGMENT_PREDICTIONS = [
-  { segment: "Enterprise Customers", churn: "Low", upsell: "High", action: "Offer annual upgrade" },
-  { segment: "Trial Users (day 7+)", churn: "Medium", upsell: "Medium", action: "Send activation nudge" },
-  { segment: "Dormant 30d", churn: "High", upsell: "Low", action: "Win-back campaign" },
-  { segment: "Power Users", churn: "Low", upsell: "High", action: "Invite to referral program" },
-];
+// Per-segment predictions require a trained model — none fabricated.
+const SEGMENT_PREDICTIONS = [];
 
 const RISK_VARIANT = { Low: "success", Medium: "warning", High: "danger" };
 
@@ -42,7 +39,7 @@ export default function Predictive() {
                 <div className="text-3xl font-bold text-slate-900 dark:text-white">{m.key && p[m.key] != null ? `${p[m.key]}${m.suffix}` : "—"}</div>
                 <div className="text-[11px] text-slate-400 mt-1">current population avg</div>
               </div>
-              <Pill color={m.tone === "amber" ? "amber" : m.tone === "emerald" ? "emerald" : "violet"}>{m.accuracy}% acc.</Pill>
+              <Pill color={m.tone === "amber" ? "amber" : m.tone === "emerald" ? "emerald" : "violet"}>{m.accuracy != null ? `${m.accuracy}% acc.` : "untrained"}</Pill>
             </div>
           </Section>
         ))}
@@ -59,6 +56,9 @@ export default function Predictive() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {SEGMENT_PREDICTIONS.length === 0 && (
+                <tr><td colSpan={4} className="py-10 text-center text-sm text-slate-400">No segment predictions yet — train a model to generate them.</td></tr>
+              )}
               {SEGMENT_PREDICTIONS.map((s) => (
                 <tr key={s.segment} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
                   <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{s.segment}</td>

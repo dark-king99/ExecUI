@@ -1,104 +1,8 @@
 import prisma from "../../config/database.js";
 
-// ── Lazy seed helpers ─────────────────────────────────────────────────────────
-// If the DB has no data yet for a tenant, auto-insert realistic demo rows.
-
-const SEED_CAMPAIGNS = [
-  { name: "Q2 Product Launch", objective: "Pipeline", channel: "email", status: "active", budget: 15000, spent: 9200, leads: 312, clicks: 2840, opens: 8100, conversions: 48, revenue: 72000, ctr: 5.2, openRate: 38.4, roi: 682 },
-  { name: "Brand Awareness Push", objective: "Brand Awareness", channel: "paid", status: "active", budget: 25000, spent: 18700, leads: 1240, clicks: 14200, opens: 0, conversions: 87, revenue: 43000, ctr: 3.8, openRate: null, roi: 130 },
-  { name: "Enterprise Newsletter", objective: "Retention", channel: "email", status: "active", budget: 3000, spent: 1200, leads: 89, clicks: 640, opens: 4200, conversions: 12, revenue: 18000, ctr: 6.1, openRate: 44.2, roi: 1400 },
-  { name: "LinkedIn Lead Gen", objective: "Lead Generation", channel: "social", status: "paused", budget: 8000, spent: 5600, leads: 204, clicks: 3100, opens: 0, conversions: 31, revenue: 31000, ctr: 2.9, openRate: null, roi: 454 },
-  { name: "Summer Promotion", objective: "Revenue", channel: "multi-channel", status: "completed", budget: 20000, spent: 19800, leads: 890, clicks: 9200, opens: 22000, conversions: 142, revenue: 284000, ctr: 4.4, openRate: 41.1, roi: 1334 },
-  { name: "Webinar Series", objective: "Demand Gen", channel: "content", status: "active", budget: 5000, spent: 2100, leads: 178, clicks: 1200, opens: 3400, conversions: 22, revenue: 33000, ctr: 7.2, openRate: 52.3, roi: 1471 },
-  { name: "Retargeting Campaign", objective: "Pipeline", channel: "paid", status: "draft", budget: 10000, spent: 0, leads: 0, clicks: 0, opens: 0, conversions: 0, revenue: 0, ctr: null, openRate: null, roi: null },
-  { name: "Customer Renewal Drive", objective: "Retention", channel: "email", status: "paused", budget: 4000, spent: 1800, leads: 56, clicks: 380, opens: 2100, conversions: 18, revenue: 54000, ctr: 5.8, openRate: 47.6, roi: 2900 },
-];
-
-const SEED_AUDIENCES = [
-  { name: "High-Intent Prospects", type: "behavioral", size: 4200, status: "active", description: "Visitors who viewed pricing page 2+ times in last 30 days" },
-  { name: "Enterprise Decision Makers", type: "firmographic", size: 1850, status: "active", description: "Directors and above at companies with 500+ employees" },
-  { name: "Churned Customers 90d", type: "behavioral", size: 720, status: "draft", description: "Customers who cancelled subscription in the last 90 days" },
-  { name: "Lookalike — Top 10% Revenue", type: "lookalike", size: 6100, status: "active", description: "Lookalike audience modelled on top revenue accounts" },
-  { name: "Mid-Market CTOs", type: "demographic", size: 2300, status: "active", description: "CTOs and VPs of Engineering at 50–500 employee companies" },
-  { name: "Product Trial Users", type: "intent", size: 890, status: "draft", description: "Users currently in active free trial" },
-];
-
-const SEED_EXPERIMENTS = [
-  {
-    name: "Homepage CTA Color", type: "a/b", status: "running", metric: "conversion_rate",
-    hypothesis: "A green CTA will outperform the default blue by at least 10%",
-    confidence: 72, lift: 8.4,
-    variants: [
-      { name: "Control (Blue CTA)", conversions: 148, visitors: 2240, rate: 6.6 },
-      { name: "Variant A (Green CTA)", conversions: 179, visitors: 2215, rate: 8.1 },
-    ],
-  },
-  {
-    name: "Email Subject Line Length", type: "a/b", status: "completed", metric: "click_rate",
-    hypothesis: "Shorter subject lines (<40 chars) will drive higher open and click rates",
-    confidence: 95, lift: 14.2, result: "winning-declared",
-    variants: [
-      { name: "Long subject (control)", conversions: 310, visitors: 8200, rate: 3.8 },
-      { name: "Short subject (<40 chars)", conversions: 394, visitors: 8100, rate: 4.9 },
-    ],
-  },
-  {
-    name: "Pricing Page Layout", type: "multivariate", status: "running", metric: "conversion_rate",
-    hypothesis: "Highlighting the Growth plan will increase upgrades from Starter",
-    confidence: 58, lift: 5.1,
-    variants: [
-      { name: "Original Layout", conversions: 42, visitors: 1100, rate: 3.8 },
-      { name: "Growth Highlighted", conversions: 51, visitors: 1085, rate: 4.7 },
-      { name: "Annual Toggle First", conversions: 38, visitors: 1092, rate: 3.5 },
-    ],
-  },
-  {
-    name: "Onboarding Flow Steps", type: "split", status: "completed", metric: "engagement",
-    hypothesis: "Reducing onboarding from 7 steps to 4 will improve 7-day activation",
-    confidence: 99, lift: 31.0, result: "winning-declared",
-    variants: [
-      { name: "7-step flow (control)", conversions: 180, visitors: 600, rate: 30.0 },
-      { name: "4-step flow", conversions: 235, visitors: 600, rate: 39.2 },
-    ],
-  },
-  {
-    name: "Ad Creative Format", type: "a/b", status: "draft", metric: "click_rate",
-    hypothesis: "Video thumbnails will outperform static images on paid social",
-    confidence: null, lift: null,
-    variants: [
-      { name: "Static image", conversions: 0, visitors: 0, rate: 0 },
-      { name: "Video thumbnail", conversions: 0, visitors: 0, rate: 0 },
-    ],
-  },
-];
-
-async function lazySeedCampaigns(tenantId) {
-  const count = await prisma.marketingCampaign.count({ where: { tenantId } });
-  if (count > 0) return;
-  const now = new Date();
-  await prisma.marketingCampaign.createMany({
-    data: SEED_CAMPAIGNS.map((c, i) => ({
-      ...c,
-      tenantId,
-      startDate: new Date(now.getTime() - (90 - i * 10) * 86400000),
-      endDate:   c.status === "completed" ? new Date(now.getTime() - i * 7 * 86400000) : null,
-    })),
-  });
-}
-
-async function lazySeedAudiences(tenantId) {
-  const count = await prisma.marketingAudience.count({ where: { tenantId } });
-  if (count > 0) return;
-  await prisma.marketingAudience.createMany({ data: SEED_AUDIENCES.map((a) => ({ ...a, tenantId })) });
-}
-
-async function lazySeedExperiments(tenantId) {
-  const count = await prisma.marketingExperiment.count({ where: { tenantId } });
-  if (count > 0) return;
-  await prisma.marketingExperiment.createMany({
-    data: SEED_EXPERIMENTS.map((e) => ({ ...e, tenantId, variants: e.variants })),
-  });
-}
+// Real-data-only service. No seeded/demo records, no fabricated metrics —
+// endpoints return the tenant's actual data (or empty) so the UI reflects
+// reality. Features without a backing table return empty results.
 
 const fmtCurrency = (v) => {
   if (!v && v !== 0) return null;
@@ -109,12 +13,9 @@ const fmtCurrency = (v) => {
 
 // ── Campaigns ─────────────────────────────────────────────────────────────────
 export const listCampaigns = async (tenantId, params = {}) => {
-  await lazySeedCampaigns(tenantId);
   const where = { tenantId };
   if (params.status && params.status !== "all") where.status = params.status;
-  const rows = await prisma.marketingCampaign.findMany({
-    where, orderBy: { createdAt: "desc" },
-  });
+  const rows = await prisma.marketingCampaign.findMany({ where, orderBy: { createdAt: "desc" } });
   return rows.map((c) => ({
     ...c,
     budgetFmt:  fmtCurrency(c.budget),
@@ -123,25 +24,22 @@ export const listCampaigns = async (tenantId, params = {}) => {
   }));
 };
 
-export const getCampaign = async (tenantId, id) => {
-  await lazySeedCampaigns(tenantId);
-  return prisma.marketingCampaign.findFirst({ where: { id, tenantId } });
-};
+export const getCampaign = async (tenantId, id) =>
+  prisma.marketingCampaign.findFirst({ where: { id, tenantId } });
 
-export const createCampaign = async (tenantId, data) => {
-  return prisma.marketingCampaign.create({
+export const createCampaign = async (tenantId, data) =>
+  prisma.marketingCampaign.create({
     data: {
       name:      data.name,
-      objective: data.objective  ?? "lead_generation",
-      channel:   data.channel    ?? "email",
+      objective: data.objective ?? "lead_generation",
+      channel:   data.channel   ?? "email",
       status:    "draft",
-      budget:    Number(data.budget)  || 0,
+      budget:    Number(data.budget) || 0,
       startDate: data.startDate ? new Date(data.startDate) : null,
       endDate:   data.endDate   ? new Date(data.endDate)   : null,
       tenantId,
     },
   });
-};
 
 export const updateCampaign = async (tenantId, id, data) => {
   const update = {};
@@ -164,7 +62,6 @@ export const pauseCampaign = async (tenantId, id) => {
 };
 
 export const getCampaignSummary = async (tenantId) => {
-  await lazySeedCampaigns(tenantId);
   const campaigns = await prisma.marketingCampaign.findMany({ where: { tenantId } });
   const totalRevenue = campaigns.reduce((s, c) => s + (c.revenue ?? 0), 0);
   const totalSpend   = campaigns.reduce((s, c) => s + (c.spent   ?? 0), 0);
@@ -174,7 +71,7 @@ export const getCampaignSummary = async (tenantId) => {
     paused:         campaigns.filter((c) => c.status === "paused").length,
     completed:      campaigns.filter((c) => c.status === "completed").length,
     activeJourneys: campaigns.filter((c) => c.status === "active").length,
-    liveContacts:   campaigns.filter((c) => c.status === "active").reduce((s, c) => s + c.leads, 0),
+    liveContacts:   campaigns.filter((c) => c.status === "active").reduce((s, c) => s + (c.leads ?? 0), 0),
     totalRevenue,   totalSpend,
     totalRevenueFmt: fmtCurrency(totalRevenue),
     totalSpendFmt:   fmtCurrency(totalSpend),
@@ -182,86 +79,36 @@ export const getCampaignSummary = async (tenantId) => {
   };
 };
 
-// ── Attribution ───────────────────────────────────────────────────────────────
-const ATTRIBUTION_CHANNELS = [
-  { channel: "Paid Search",     revenue: 312000, spend: 48000, roas: 6.5, conversions: 142, ctr: 4.2, color: "#6366f1" },
-  { channel: "Email Marketing", revenue: 228000, spend: 12000, roas: 19.0, conversions: 98, ctr: 5.8, color: "#22c55e" },
-  { channel: "Social (Paid)",   revenue: 174000, spend: 38000, roas: 4.6, conversions: 74, ctr: 2.9, color: "#f59e0b" },
-  { channel: "Organic Search",  revenue: 142000, spend: 8000,  roas: 17.8, conversions: 61, ctr: 6.1, color: "#3b82f6" },
-  { channel: "Content / Blog",  revenue: 98000,  spend: 14000, roas: 7.0,  conversions: 42, ctr: 7.4, color: "#ec4899" },
-  { channel: "Referral",        revenue: 76000,  spend: 4000,  roas: 19.0, conversions: 34, ctr: 9.2, color: "#14b8a6" },
-  { channel: "Events",          revenue: 54000,  spend: 22000, roas: 2.5,  conversions: 23, ctr: 3.1, color: "#f97316" },
-];
-
-export const getAttributionChannels = () => Promise.resolve(ATTRIBUTION_CHANNELS);
-
-export const getAttributionSummary = () => {
-  const totalRevenue = ATTRIBUTION_CHANNELS.reduce((s, c) => s + c.revenue, 0);
-  const totalSpend   = ATTRIBUTION_CHANNELS.reduce((s, c) => s + c.spend, 0);
-  return Promise.resolve({
-    totalRevenue, totalSpend,
-    roas: Math.round((totalRevenue / totalSpend) * 10) / 10,
-    avgLtv: 4200, cac: 380,
-    totalRevenueFmt: fmtCurrency(totalRevenue),
-    totalSpendFmt:   fmtCurrency(totalSpend),
-  });
-};
-
-export const getAttributionModels = () => Promise.resolve([
-  {
-    name: "Linear",
-    description: "Equal credit to each touchpoint",
-    channels: { "Paid Search": 25, "Email": 22, "Social": 18, "Organic": 15, "Content": 12, "Referral": 8 },
-  },
-  {
-    name: "Last Touch",
-    description: "Full credit to last touchpoint before conversion",
-    channels: { "Paid Search": 38, "Email": 28, "Social": 16, "Organic": 10, "Content": 6, "Referral": 2 },
-  },
-  {
-    name: "First Touch",
-    description: "Full credit to first touchpoint",
-    channels: { "Organic": 34, "Social": 24, "Paid Search": 20, "Content": 12, "Email": 8, "Referral": 2 },
-  },
-  {
-    name: "Time Decay",
-    description: "More credit to touchpoints closer to conversion",
-    channels: { "Email": 32, "Paid Search": 28, "Social": 20, "Organic": 12, "Content": 5, "Referral": 3 },
-  },
-]);
-
-export const getAttributionLtvCac = () => Promise.resolve({
-  ltv: 4200, cac: 380, ltvCacRatio: 11.1,
-  avgLtv: 4200,
-  bySegment: { Enterprise: 18400, "Mid-Market": 6200, SMB: 1800 },
-  cacByChannel: { "Paid Search": 420, "Email": 85, "Social": 310, "Organic": 180, "Content": 210 },
+// ── Attribution (no backing table → empty until a data source is connected) ───
+export const getAttributionChannels = () => Promise.resolve([]);
+export const getAttributionSummary  = () => Promise.resolve({
+  totalRevenue: 0, totalSpend: 0, roas: 0, avgLtv: null, cac: null,
+  totalRevenueFmt: null, totalSpendFmt: null,
 });
+export const getAttributionModels = () => Promise.resolve([]);
+export const getAttributionLtvCac = () => Promise.resolve({ ltv: null, cac: null, ltvCacRatio: null, bySegment: {}, cacByChannel: {} });
 
 // ── Audiences ─────────────────────────────────────────────────────────────────
 export const listAudiences = async (tenantId, params = {}) => {
-  await lazySeedAudiences(tenantId);
   const where = { tenantId };
   if (params.type && params.type !== "all") where.type = params.type;
   return prisma.marketingAudience.findMany({ where, orderBy: { createdAt: "desc" } });
 };
 
-export const getAudience = async (tenantId, id) => {
-  await lazySeedAudiences(tenantId);
-  return prisma.marketingAudience.findFirst({ where: { id, tenantId } });
-};
+export const getAudience = async (tenantId, id) =>
+  prisma.marketingAudience.findFirst({ where: { id, tenantId } });
 
-export const createAudience = async (tenantId, data) => {
-  return prisma.marketingAudience.create({
+export const createAudience = async (tenantId, data) =>
+  prisma.marketingAudience.create({
     data: {
       name:        data.name,
-      type:        data.type        ?? "behavioral",
+      type:        data.type ?? "behavioral",
       size:        Number(data.size) || 0,
       description: data.description ?? null,
       status:      "draft",
       tenantId,
     },
   });
-};
 
 export const activateAudience = async (tenantId, id) => {
   await prisma.marketingAudience.update({ where: { id }, data: { status: "active" } });
@@ -270,92 +117,61 @@ export const activateAudience = async (tenantId, id) => {
 
 export const createLookalikeAudience = async (tenantId, id) => {
   const source = await prisma.marketingAudience.findFirst({ where: { id, tenantId } });
-  const newAud = await prisma.marketingAudience.create({
+  return prisma.marketingAudience.create({
     data: {
       name:        `Lookalike — ${source?.name ?? "Audience"}`,
       type:        "lookalike",
-      size:        Math.round((source?.size ?? 1000) * 3.2),
+      size:        0,
       description: `Lookalike audience modelled on "${source?.name ?? "source"}"`,
       status:      "draft",
       tenantId,
     },
   });
-  return newAud;
 };
 
-export const getAudienceOverlap = async (tenantId, id) => {
-  return { overlap: Math.floor(Math.random() * 30) + 5, audienceId: id };
-};
+export const getAudienceOverlap = async (tenantId, id) => ({ overlap: null, audienceId: id });
 
-// ── Analytics ─────────────────────────────────────────────────────────────────
+// ── Analytics (real campaign data; no time-series table → empty trend) ─────────
 export const getMarketingAnalyticsSummary = async (tenantId) => {
-  const campaigns = await prisma.marketingCampaign.findMany({ where: { tenantId } });
-  if (campaigns.length === 0) await lazySeedCampaigns(tenantId);
-  const all = campaigns.length ? campaigns : await prisma.marketingCampaign.findMany({ where: { tenantId } });
-
+  const all = await prisma.marketingCampaign.findMany({ where: { tenantId } });
   const totalRevenue     = all.reduce((s, c) => s + (c.revenue ?? 0), 0);
   const totalSpend       = all.reduce((s, c) => s + (c.spent ?? 0), 0);
   const totalConversions = all.reduce((s, c) => s + (c.conversions ?? 0), 0);
   const active           = all.filter((c) => c.status === "active");
-
   return {
     totalRevenue, totalSpend,
     roas:             totalSpend > 0 ? Math.round((totalRevenue / totalSpend) * 10) / 10 : 0,
     totalConversions,
     activeJourneys:   active.length,
-    liveContacts:     active.reduce((s, c) => s + c.leads, 0),
+    liveContacts:     active.reduce((s, c) => s + (c.leads ?? 0), 0),
     totalRevenueFmt:  fmtCurrency(totalRevenue),
     totalSpendFmt:    fmtCurrency(totalSpend),
   };
 };
 
-export const getMarketingAnalyticsTrend = async (tenantId) => {
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
-  return months.map((m, i) => ({
-    month: m,
-    revenue:     18000 + i * 8000 + Math.floor(Math.random() * 5000),
-    spend:       6000  + i * 1500,
-    leads:       80    + i * 30,
-    conversions: 12    + i * 5,
-  }));
-};
-
-export const getMarketingChannelPerf = async (tenantId) => {
-  return ATTRIBUTION_CHANNELS.map((ch) => ({
-    channel:     ch.channel,
-    revenue:     ch.revenue,
-    spend:       ch.spend,
-    roas:        ch.roas,
-    conversions: ch.conversions,
-    ctr:         ch.ctr,
-  }));
-};
+export const getMarketingAnalyticsTrend = async () => Promise.resolve([]);
+export const getMarketingChannelPerf    = async () => Promise.resolve([]);
 
 // ── Experiments ───────────────────────────────────────────────────────────────
 export const listExperiments = async (tenantId, params = {}) => {
-  await lazySeedExperiments(tenantId);
   const where = { tenantId };
   if (params.status && params.status !== "all") where.status = params.status;
   const rows = await prisma.marketingExperiment.findMany({ where, orderBy: { createdAt: "desc" } });
-  return rows.map((e) => ({
-    ...e,
-    variants: Array.isArray(e.variants) ? e.variants : [],
-  }));
+  return rows.map((e) => ({ ...e, variants: Array.isArray(e.variants) ? e.variants : [] }));
 };
 
 export const getExperiment = async (tenantId, id) => {
-  await lazySeedExperiments(tenantId);
   const e = await prisma.marketingExperiment.findFirst({ where: { id, tenantId } });
   if (!e) return null;
   return { ...e, variants: Array.isArray(e.variants) ? e.variants : [] };
 };
 
-export const createExperiment = async (tenantId, data) => {
-  return prisma.marketingExperiment.create({
+export const createExperiment = async (tenantId, data) =>
+  prisma.marketingExperiment.create({
     data: {
       name:       data.name,
-      type:       data.type       ?? "a/b",
-      metric:     data.metric     ?? "conversion_rate",
+      type:       data.type   ?? "a/b",
+      metric:     data.metric ?? "conversion_rate",
       hypothesis: data.hypothesis ?? null,
       status:     "draft",
       variants:   [
@@ -365,7 +181,6 @@ export const createExperiment = async (tenantId, data) => {
       tenantId,
     },
   });
-};
 
 export const startExperiment = async (tenantId, id) => {
   await prisma.marketingExperiment.update({ where: { id }, data: { status: "running" } });
@@ -377,7 +192,7 @@ export const pauseExperiment = async (tenantId, id) => {
   return { paused: true };
 };
 
-// ── Profiles (CDP — derived from Contact model) ───────────────────────────────
+// ── Profiles (derived from real Contact records) ──────────────────────────────
 export const searchProfiles = async (tenantId, params = {}) => {
   const q = params.q ?? "";
   const contacts = await prisma.contact.findMany({
@@ -388,73 +203,47 @@ export const searchProfiles = async (tenantId, params = {}) => {
     take: 20,
     orderBy: { createdAt: "desc" },
   });
-  return contacts.map((c) => ({
-    id: c.id, name: c.name, email: c.email,
-    company: c.name.split(" ").slice(-1)[0] + " Corp",
-    score: Math.floor(Math.random() * 40) + 60,
-  }));
+  return contacts.map((c) => ({ id: c.id, name: c.name, email: c.email, company: null, score: null }));
 };
 
 export const getProfile = async (tenantId, id) => {
   const contact = await prisma.contact.findFirst({ where: { id, tenantId } });
   if (!contact) return null;
-
-  const opps = await prisma.crmOpportunity.findMany({
-    where: { tenantId, name: { contains: contact.name.split(" ")[0] } },
-    select: { name: true, value: true, stage: true, createdAt: true },
-    take: 5,
-  });
-
   return {
     id:           contact.id,
     name:         contact.name,
     email:        contact.email,
-    company:      `${contact.name.split(" ").slice(-1)[0]} Corp`,
-    score:        82,
-    lifecycleStage: "Customer",
+    company:      null,
+    score:        null,
+    lifecycleStage: null,
     firstSeen:    contact.createdAt,
-    lastSeen:     new Date(),
-    attributes: {
-      Industry:  "Technology",
-      "Company Size": "201–500",
-      Region:    "North America",
-      "Subscription Plan": "Enterprise",
-    },
-    consent: { email: true, sms: false, ads: true, analytics: true },
+    lastSeen:     contact.updatedAt ?? contact.createdAt,
+    attributes:   {},
+    consent:      {},
     identityGraph: {
       email:     contact.email,
       domain:    contact.email?.split("@")[1] ?? null,
       contactId: contact.id,
     },
-    timeline: [
-      { event: "Profile Created", date: contact.createdAt },
-      { event: "First Campaign Engaged", date: new Date(contact.createdAt.getTime() + 86400000 * 3) },
-      ...opps.map((o) => ({ event: `Opportunity: ${o.name}`, date: o.createdAt })),
-    ],
-    activations: [
-      { platform: "Google Ads",   status: "active",      synced: new Date() },
-      { platform: "LinkedIn Ads", status: "active",      synced: new Date() },
-      { platform: "Mailchimp",    status: "unsubscribed", synced: new Date() },
-    ],
+    timeline:     [{ event: "Profile Created", date: contact.createdAt }],
+    activations:  [],
   };
 };
 
-// ── Teams (backed by real User + CrmTask data) ────────────────────────────────
-const MARKETING_ROLES = ["content-writer", "designer", "analyst", "email-marketer", "admin", "manager"];
-
+// ── Teams (real User + CrmTask data) ──────────────────────────────────────────
 export const listTeamMembers = async (tenantId) => {
   const users = await prisma.user.findMany({
     where: { tenantId },
     include: { role: true },
     orderBy: { createdAt: "asc" },
   });
-  return users.map((u, i) => ({
+  return users.map((u) => ({
     id:         u.id,
     name:       `${u.firstName} ${u.lastName}`,
     email:      u.email,
-    role:       MARKETING_ROLES[i % MARKETING_ROLES.length],
-    department: u.department ?? "Marketing",
-    jobTitle:   u.jobTitle   ?? "Marketing Specialist",
+    role:       u.jobTitle ?? u.role?.name ?? null,
+    department: u.department ?? null,
+    jobTitle:   u.jobTitle ?? null,
     isActive:   u.isActive,
     avatar:     u.avatarUrl,
     joinedAt:   u.createdAt,
@@ -497,9 +286,7 @@ export const getTeamMetrics = async (tenantId) => {
   };
 };
 
-export const inviteTeamMember = async (tenantId, data) => {
-  return { invited: true, email: data.email, role: data.role };
-};
+export const inviteTeamMember = async (tenantId, data) => ({ invited: true, email: data.email, role: data.role });
 
 export const createTeamTask = async (tenantId, data) => {
   const firstUser = await prisma.user.findFirst({ where: { tenantId } });
@@ -509,88 +296,68 @@ export const createTeamTask = async (tenantId, data) => {
       task_type: "follow_up",
       status:    "pending",
       priority:  data.priority ?? "medium",
-      due_date:  data.dueDate  ? new Date(data.dueDate) : null,
+      due_date:  data.dueDate ? new Date(data.dueDate) : null,
       tenantId,
-      userId:    data.userId   ?? firstUser?.id ?? "",
+      userId:    data.userId ?? firstUser?.id ?? "",
     },
   });
 };
 
-// ── B2B ───────────────────────────────────────────────────────────────────────
+// ── B2B (real Contact / Campaign records; no fabricated firmographics) ─────────
 export const listB2BAccounts = async (tenantId, params = {}) => {
   const contacts = await prisma.contact.findMany({
     where: { tenantId },
     orderBy: { createdAt: "desc" },
     take: Number(params.limit) || 20,
   });
-  return contacts.map((c, i) => ({
-    id:       c.id,
-    name:     c.name,
-    email:    c.email,
-    industry: ["Technology", "Finance", "Healthcare", "Retail", "Manufacturing"][i % 5],
-    size:     ["1–10", "11–50", "51–200", "201–500", "500+"][i % 5],
-    stage:    ["Prospect", "MQL", "SQL", "Customer", "Champion"][i % 5],
-    score:    Math.floor(Math.random() * 40) + 60,
+  return contacts.map((c) => ({
+    id: c.id, name: c.name, email: c.email,
+    industry: null, size: null, stage: null, score: null,
   }));
 };
 
 export const getB2BAccount = async (tenantId, id) => {
   const c = await prisma.contact.findFirst({ where: { id, tenantId } });
   if (!c) return null;
-  return { id: c.id, name: c.name, email: c.email, industry: "Technology", size: "201–500", stage: "Customer", score: 82 };
+  return { id: c.id, name: c.name, email: c.email, industry: null, size: null, stage: null, score: null };
 };
 
 export const listB2BJourneys = async (tenantId) => {
-  await lazySeedCampaigns(tenantId);
   const campaigns = await prisma.marketingCampaign.findMany({
     where: { tenantId, status: { in: ["active", "completed"] } },
     take: 5,
   });
   return campaigns.map((c) => ({
-    id:      c.id,
-    name:    `${c.name} Journey`,
-    status:  c.status,
-    steps:   5,
-    enrolled: c.leads,
-    converted: c.conversions,
+    id:        c.id,
+    name:      `${c.name} Journey`,
+    status:    c.status,
+    steps:     null,
+    enrolled:  c.leads ?? 0,
+    converted: c.conversions ?? 0,
   }));
 };
 
 export const getB2BJourney = async (tenantId, id) => {
   const c = await prisma.marketingCampaign.findFirst({ where: { id, tenantId } });
   if (!c) return null;
-  return { id: c.id, name: `${c.name} Journey`, status: c.status, steps: 5, enrolled: c.leads, converted: c.conversions };
+  return { id: c.id, name: `${c.name} Journey`, status: c.status, steps: null, enrolled: c.leads ?? 0, converted: c.conversions ?? 0 };
 };
 
-export const createB2BJourney = async (tenantId, data) => {
-  return prisma.marketingCampaign.create({
-    data: {
-      name: data.name ?? "New Journey", objective: "demand_gen",
-      channel: "multi-channel", status: "draft",
-      tenantId,
-    },
+export const createB2BJourney = async (tenantId, data) =>
+  prisma.marketingCampaign.create({
+    data: { name: data.name ?? "New Journey", objective: "demand_gen", channel: "multi-channel", status: "draft", tenantId },
   });
-};
 
-// ── Content assets (static/computed) ─────────────────────────────────────────
-const DEMO_ASSETS = [
-  { id: "asset-1", name: "Q2 Campaign Hero Banner", type: "image", size: "1.2 MB", status: "approved", url: null, createdAt: new Date("2026-03-01") },
-  { id: "asset-2", name: "Product Demo Video", type: "video", size: "48 MB", status: "approved", url: null, createdAt: new Date("2026-02-15") },
-  { id: "asset-3", name: "Enterprise Datasheet PDF", type: "document", size: "820 KB", status: "approved", url: null, createdAt: new Date("2026-03-10") },
-  { id: "asset-4", name: "Social Ad Pack (10 variants)", type: "image", size: "4.8 MB", status: "draft", url: null, createdAt: new Date("2026-04-01") },
-  { id: "asset-5", name: "Webinar Recording — April", type: "video", size: "210 MB", status: "approved", url: null, createdAt: new Date("2026-04-20") },
-];
-
-export const listContentAssets  = () => Promise.resolve(DEMO_ASSETS);
-export const getContentAsset    = (tenantId, id) => Promise.resolve(DEMO_ASSETS.find((a) => a.id === id) ?? null);
+// ── Content assets (no backing table) ─────────────────────────────────────────
+export const listContentAssets  = () => Promise.resolve([]);
+export const getContentAsset    = () => Promise.resolve(null);
 export const uploadContentAsset = (tenantId, data) => Promise.resolve({ id: `asset-${Date.now()}`, ...data, status: "draft" });
 export const deleteContentAsset = () => Promise.resolve({ deleted: true });
 
-// ── Commerce (computed) ───────────────────────────────────────────────────────
+// ── Commerce (real closed-won opportunities) ──────────────────────────────────
 export const listOrders = async (tenantId) => {
   const opps = await prisma.crmOpportunity.findMany({
     where: { tenantId, stage: "closed_won" },
-    include: { owner: { select: { firstName: true, lastName: true } } },
     orderBy: { updatedAt: "desc" },
     take: 20,
   });
@@ -612,195 +379,118 @@ export const getCommerceMetrics = async (tenantId) => {
   const totalRevenue  = opps.reduce((s, o) => s + (o.value ?? 0), 0);
   const totalOrders   = opps.length;
   const avgOrderValue = totalOrders ? Math.round(totalRevenue / totalOrders) : 0;
-  return {
-    totalRevenue, totalOrders, avgOrderValue,
-    totalRevenueFmt: fmtCurrency(totalRevenue),
-    channelMatrix: [
-      { channel: "Direct",  revenue: Math.round(totalRevenue * 0.45), orders: Math.round(totalOrders * 0.45) },
-      { channel: "Partner", revenue: Math.round(totalRevenue * 0.30), orders: Math.round(totalOrders * 0.30) },
-      { channel: "Self-serve", revenue: Math.round(totalRevenue * 0.25), orders: Math.round(totalOrders * 0.25) },
-    ],
-  };
+  return { totalRevenue, totalOrders, avgOrderValue, totalRevenueFmt: fmtCurrency(totalRevenue), channelMatrix: [] };
 };
 
-// ── Personalization (static/computed) ─────────────────────────────────────────
-const DEMO_PERSONALIZATIONS = [
-  { id: "p-1", name: "Homepage Hero — Enterprise CTA", status: "active", variant: "B", lift: 14.2, impressions: 12400 },
-  { id: "p-2", name: "Pricing Page — Annual Toggle", status: "active", variant: "A", lift: 8.7, impressions: 6800 },
-  { id: "p-3", name: "Blog CTA — Demo Request", status: "paused", variant: "C", lift: 5.1, impressions: 3200 },
-  { id: "p-4", name: "Onboarding — Role Selector", status: "active", variant: "B", lift: 22.4, impressions: 4100 },
-];
-
-export const listPersonalization = () => Promise.resolve(DEMO_PERSONALIZATIONS);
+// ── Personalization (no backing table) ────────────────────────────────────────
+export const listPersonalization = () => Promise.resolve([]);
 
 export const getPersonalizationMetrics = async (tenantId) => {
   const contacts = await prisma.contact.count({ where: { tenantId } });
   return {
-    active: DEMO_PERSONALIZATIONS.filter((p) => p.status === "active").length,
-    variants: DEMO_PERSONALIZATIONS.length,
-    impressions: DEMO_PERSONALIZATIONS.reduce((s, p) => s + p.impressions, 0),
-    lift: 14.2,
-    estimatedReach: contacts * 12,
-    topLifecycleStage: "Customer",
-    lastVisitWindow: "7 days",
-    topIndustry: "Technology",
+    active: 0, variants: 0, impressions: 0, lift: null,
+    estimatedReach: contacts, topLifecycleStage: null, lastVisitWindow: null, topIndustry: null,
   };
 };
 
 export const createPersonalization = (tenantId, data) =>
   Promise.resolve({ id: `p-${Date.now()}`, ...data, status: "draft", lift: 0, impressions: 0 });
 
-// ── CDP (Customer Data Platform) ──────────────────────────────────────────────
-const CDP_SOURCES = [
-  { id: "src-1", name: "Salesforce CRM",     type: "crm",       status: "connected", records: 4820, lastSync: new Date(Date.now() - 3600000) },
-  { id: "src-2", name: "Google Analytics 4", type: "analytics",  status: "connected", records: 128400, lastSync: new Date(Date.now() - 1800000) },
-  { id: "src-3", name: "Mailchimp",          type: "email",      status: "connected", records: 12300, lastSync: new Date(Date.now() - 7200000) },
-  { id: "src-4", name: "Google Ads",         type: "ads",        status: "connected", records: 38200, lastSync: new Date(Date.now() - 5400000) },
-  { id: "src-5", name: "Shopify",            type: "ecommerce",  status: "connected", records: 6100, lastSync: new Date(Date.now() - 86400000) },
-  { id: "src-6", name: "LinkedIn Ads",       type: "ads",        status: "disconnected", records: 0, lastSync: null },
-  { id: "src-7", name: "Webhook / Events",   type: "webhook",    status: "connected", records: 284000, lastSync: new Date(Date.now() - 600000) },
-];
-
+// ── CDP (real counts only; sources require a connected integration) ───────────
 export const getCdpMetrics = async (tenantId) => {
-  const contacts = await prisma.contact.count({ where: { tenantId } });
-  const users    = await prisma.user.count({ where: { tenantId } });
+  const [contacts, sources] = await Promise.all([
+    prisma.contact.count({ where: { tenantId } }),
+    Promise.resolve(0),
+  ]);
   return {
-    totalProfiles:      contacts * 420 + 18000,
-    activeSources:      CDP_SOURCES.filter((s) => s.status === "connected").length,
-    totalSources:       CDP_SOURCES.length,
-    resolvedIdentities: contacts * 380 + 14200,
-    totalEvents:        284000 + contacts * 1200,
-    activeModels:       4,
-    activeSegments:     6,
-    audience:           contacts * 420 + 18000,
-    audienceDelta:      12.4,
-    confidence:         94,
-    latency:            180,
-    projectedLift:      18.2,
-    sqlPreview:         "SELECT user_id, SUM(revenue) AS ltv FROM events WHERE event_type = 'purchase' GROUP BY user_id HAVING ltv > 500",
-    predictiveLayer: { churnRisk: 8.4, upsellProbability: 22.1, nextBestAction: "Email re-engagement" },
+    totalProfiles:      contacts,
+    activeSources:      sources,
+    totalSources:       sources,
+    resolvedIdentities: contacts,
+    totalEvents:        0,
+    activeModels:       0,
+    activeSegments:     await prisma.marketingAudience.count({ where: { tenantId } }),
+    audience:           contacts,
+    audienceDelta:      null,
+    confidence:         null,
+    latency:            null,
+    projectedLift:      null,
+    sqlPreview:         null,
+    predictiveLayer:    { churnRisk: null, upsellProbability: null, nextBestAction: null },
   };
 };
 
-export const getCdpSources   = () => Promise.resolve(CDP_SOURCES);
-export const createCdpSource = (tenantId, data) =>
-  Promise.resolve({ id: `src-${Date.now()}`, ...data, status: "pending", records: 0, lastSync: null });
-export const createCdpSegment = (tenantId, data) =>
-  Promise.resolve({ id: `seg-${Date.now()}`, ...data, size: 0, status: "building" });
+export const getCdpSources    = () => Promise.resolve([]);
+export const createCdpSource  = (tenantId, data) => Promise.resolve({ id: `src-${Date.now()}`, ...data, status: "pending", records: 0, lastSync: null });
+export const createCdpSegment = (tenantId, data) => Promise.resolve({ id: `seg-${Date.now()}`, ...data, size: 0, status: "building" });
 
-// ── Flows (automation) ────────────────────────────────────────────────────────
-const DEMO_FLOW_STEPS = {
-  "flow-1": [
-    { id: "s1", type: "trigger", label: "User Signs Up",       config: "Entry trigger", icon: "Zap" },
-    { id: "s2", type: "email",   label: "Welcome Email",       config: "Subject + body", icon: "Mail" },
-    { id: "s3", type: "wait",    label: "Wait 2 Days",         config: "2 days",         icon: "Clock" },
-    { id: "s4", type: "email",   label: "Getting Started Tips",config: "Subject + body", icon: "Mail" },
-    { id: "s5", type: "condition",label: "Opened Email?",      config: "Check condition",icon: "GitBranch" },
-  ],
-  "flow-2": [
-    { id: "s1", type: "trigger",  label: "Trial Started",      config: "Entry trigger",  icon: "Zap" },
-    { id: "s2", type: "email",    label: "Trial Welcome",      config: "Subject + body", icon: "Mail" },
-    { id: "s3", type: "wait",     label: "Wait 3 Days",        config: "3 days",         icon: "Clock" },
-    { id: "s4", type: "email",    label: "Feature Highlight",  config: "Subject + body", icon: "Mail" },
-    { id: "s5", type: "wait",     label: "Wait 4 Days",        config: "4 days",         icon: "Clock" },
-    { id: "s6", type: "condition",label: "Used Key Feature?",  config: "Check condition",icon: "GitBranch" },
-    { id: "s7", type: "email",    label: "Upgrade Nudge",      config: "Subject + body", icon: "Mail" },
-  ],
-  "flow-3": [
-    { id: "s1", type: "trigger",  label: "Risk Score High",    config: "Entry trigger",  icon: "Zap" },
-    { id: "s2", type: "email",    label: "Check-In Email",     config: "Subject + body", icon: "Mail" },
-    { id: "s3", type: "wait",     label: "Wait 2 Days",        config: "2 days",         icon: "Clock" },
-    { id: "s4", type: "email",    label: "Offer Discount",     config: "Subject + body", icon: "Mail" },
-  ],
-  "flow-4": [
-    { id: "s1", type: "trigger", label: "Purchase Made",       config: "Entry trigger",  icon: "Zap" },
-    { id: "s2", type: "email",   label: "Upsell Offer",        config: "Subject + body", icon: "Mail" },
-    { id: "s3", type: "wait",    label: "Wait 7 Days",         config: "7 days",         icon: "Clock" },
-  ],
-  "flow-5": [
-    { id: "s1", type: "trigger", label: "30 Days Inactive",    config: "Entry trigger",  icon: "Zap" },
-    { id: "s2", type: "email",   label: "We Miss You",         config: "Subject + body", icon: "Mail" },
-    { id: "s3", type: "wait",    label: "Wait 5 Days",         config: "5 days",         icon: "Clock" },
-  ],
-};
+// ── Flows (no backing table) ──────────────────────────────────────────────────
+export const listFlows    = () => Promise.resolve([]);
+export const getFlow       = () => Promise.resolve(null);
+export const getFlowStats  = () => Promise.resolve({ entered: 0, converted: 0, active: 0, dropped: 0 });
+export const createFlow    = (tenantId, data) => Promise.resolve({ id: `flow-${Date.now()}`, ...data, status: "draft", enrolled: 0, converted: 0 });
+export const updateFlow    = (tenantId, id, data) => Promise.resolve({ id, ...data });
 
-const DEMO_FLOWS = [
-  { id: "flow-1", name: "Welcome Series",       status: "active", step_count: 5, enrolled: 1240, converted: 187, trigger: "signup" },
-  { id: "flow-2", name: "Trial Nurture",        status: "active", step_count: 7, enrolled: 342,  converted: 89,  trigger: "trial_start" },
-  { id: "flow-3", name: "Churn Prevention",     status: "active", step_count: 4, enrolled: 128,  converted: 34,  trigger: "risk_score" },
-  { id: "flow-4", name: "Post-Purchase Upsell", status: "paused", step_count: 3, enrolled: 0,    converted: 0,   trigger: "purchase" },
-  { id: "flow-5", name: "Re-engagement",        status: "draft",  step_count: 3, enrolled: 0,    converted: 0,   trigger: "inactivity_30d" },
-];
-
-export const listFlows = () => Promise.resolve(DEMO_FLOWS);
-export const getFlow   = (tenantId, id) => {
-  const flow = DEMO_FLOWS.find((f) => f.id === id);
-  if (!flow) return Promise.resolve(null);
-  return Promise.resolve({ ...flow, steps: DEMO_FLOW_STEPS[id] ?? [] });
-};
-export const getFlowStats = (tenantId, id) => {
-  const flow = DEMO_FLOWS.find((f) => f.id === id);
-  return Promise.resolve({
-    entered: flow?.enrolled ?? 0, converted: flow?.converted ?? 0,
-    active: flow?.enrolled ?? 0, dropped: Math.floor((flow?.enrolled ?? 0) * 0.15),
-  });
-};
-export const createFlow = (tenantId, data) =>
-  Promise.resolve({ id: `flow-${Date.now()}`, ...data, status: "draft", enrolled: 0, converted: 0 });
-export const updateFlow = (tenantId, id, data) =>
-  Promise.resolve({ id, ...data });
-
-// ── AI ────────────────────────────────────────────────────────────────────────
+// ── AI content generation (a functional generator, not stored data) ───────────
 export const generateAi = (tenantId, body = {}) => {
   const { mode = "content", prompt = "" } = body;
-  const topic = prompt.slice(0, 60) || "your campaign";
+  const topic = prompt.trim();
+  if (!topic) {
+    return Promise.resolve({
+      title: "Add a prompt to generate",
+      summary: "Describe your goal, audience, and channel and Einstein will draft content, a plan, and next steps.",
+      copy: "",
+      steps: [],
+    });
+  }
+  const short = topic.slice(0, 60);
   const responses = {
     content: {
-      title: `Content Brief: ${topic}`,
-      summary: `AI-generated content strategy focused on "${topic}". Targets mid-funnel engagement with value-driven messaging.`,
-      copy: `Unlock the power of [Your Product] — built for teams who demand results.\n\n✓ Increase efficiency by 40%\n✓ Cut manual work in half\n✓ Trusted by 500+ companies\n\nStart your free trial today.`,
+      title: `Content Brief: ${short}`,
+      summary: `AI-generated content strategy focused on "${short}". Targets mid-funnel engagement with value-driven messaging.`,
+      copy: `Unlock the power of your product — built for teams who demand results.\n\n✓ Increase efficiency\n✓ Cut manual work\n✓ Trusted by teams like yours\n\nStart your free trial today.`,
       steps: [
         "Define your primary audience persona and pain points",
         "Map content pieces to each funnel stage (TOFU / MOFU / BOFU)",
-        "A/B test headline and CTA variations across 3 formats",
-        "Measure engagement, scroll depth, and CTR after 72 hours",
+        "A/B test headline and CTA variations across formats",
+        "Measure engagement, scroll depth, and CTR",
         "Iterate copy based on click-through and conversion data",
       ],
     },
     campaign: {
-      title: `Campaign Plan: ${topic}`,
-      summary: `Multi-channel campaign spanning email, social, and paid ads for "${topic}". Estimated 6-week runway.`,
-      copy: `Phase 1 — Awareness (Week 1–2): Broad reach via paid social\nPhase 2 — Nurture (Week 3–4): Email drip + retargeting\nPhase 3 — Convert (Week 5–6): High-intent ads + sales outreach`,
+      title: `Campaign Plan: ${short}`,
+      summary: `Multi-channel campaign spanning email, social, and paid ads for "${short}".`,
+      copy: `Phase 1 — Awareness: Broad reach via paid social\nPhase 2 — Nurture: Email drip + retargeting\nPhase 3 — Convert: High-intent ads + sales outreach`,
       steps: [
         "Set SMART objectives: target MQLs, CPL, and revenue influenced",
         "Build segmented audience lists by persona and intent tier",
-        "Create ad creative in 3 formats: story, feed, and banner",
-        "Schedule 5-touch email drip sequence with dynamic personalisation",
-        "Monitor ROAS weekly; pause spend below 2× ROAS threshold",
+        "Create ad creative in multiple formats",
+        "Schedule a multi-touch email sequence with personalisation",
+        "Monitor ROAS weekly and reallocate spend to winners",
       ],
     },
     social: {
-      title: `Social Media Pack: ${topic}`,
-      summary: `Ready-to-use social content for LinkedIn, Instagram, and X targeting "${topic}".`,
-      copy: `🔷 LinkedIn: "Most teams spend 60% of their time on manual work. Ours doesn't."\n\n📸 Instagram: "5 signs your CRM is holding you back"\n\n𝕏 Thread: "Hot take: more features ≠ better software. Simplicity wins."`,
+      title: `Social Media Pack: ${short}`,
+      summary: `Ready-to-use social content targeting "${short}".`,
+      copy: `LinkedIn: Lead with a strong point of view.\nInstagram: Use a carousel to teach one idea.\nX: Post a concise, opinionated thread.`,
       steps: [
-        "Post LinkedIn thought leadership 3× per week (Tue / Thu / Sat)",
-        "Run Instagram carousel series over 2 weeks",
-        "Schedule X threads at peak hours: 9 AM or 5 PM in target timezone",
-        "Respond to all comments within 2 hours",
-        "Boost top-performing organic posts with $20–50/day paid budget",
+        "Post thought leadership a few times per week",
+        "Run a carousel series over two weeks",
+        "Schedule posts at peak hours for your timezone",
+        "Respond to comments quickly",
+        "Boost top-performing organic posts",
       ],
     },
     ads: {
-      title: `Ad Copy Suite: ${topic}`,
-      summary: `High-converting ad variations for Google, Meta, and LinkedIn targeting "${topic}".`,
-      copy: `Google: "Stop Losing Deals — Try [Product] Free"\nMeta: "Your competitors close 2× more deals. Find out why →"\nLinkedIn: "Join 500+ revenue teams. See ROI in 30 days."`,
+      title: `Ad Copy Suite: ${short}`,
+      summary: `High-converting ad variations targeting "${short}".`,
+      copy: `Headline A: Solve the core problem in five words.\nHeadline B: Lead with a quantified outcome.`,
       steps: [
-        "Run creative A/B test (2 headlines + 2 images) for minimum 7 days",
-        "Target: job title + company size + intent signals",
-        "Set bid strategy to Maximize Conversions with a target CPA cap",
-        "Install conversion pixel and verify event firing before launch",
-        "Pause ads at 3× target CPA; scale winners at 20% budget increments",
+        "Run a creative A/B test for at least 7 days",
+        "Target by job title, company size, and intent signals",
+        "Set a bid strategy with a target CPA cap",
+        "Install and verify the conversion pixel",
+        "Pause underperformers; scale winners gradually",
       ],
     },
   };
