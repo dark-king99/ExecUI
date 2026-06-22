@@ -33,7 +33,21 @@ export default function Profile() {
   const { mutate: saveProfile, loading: saving } = useMutation(
     (data) => account.profile.update(data),
     {
-      onSuccess: () => toast({ message: "Profile updated successfully", type: "success" }),
+      onSuccess: (updated) => {
+        toast({ message: "Profile updated successfully", type: "success" });
+        // Keep the locally-stored user in sync so the sidebar + greeting update.
+        try {
+          const u = JSON.parse(localStorage.getItem("user")) ?? {};
+          localStorage.setItem("user", JSON.stringify({
+            ...u,
+            firstName: updated.firstName,
+            lastName: updated.lastName,
+            phone: updated.phone,
+            department: updated.department,
+            jobTitle: updated.jobTitle,
+          }));
+        } catch { /* ignore */ }
+      },
       onError: (err) => toast({ message: err?.message ?? "Failed to save profile", type: "error" }),
     }
   );
@@ -107,39 +121,40 @@ export default function Profile() {
           </div>
 
           {[
-            { key: "name",     label: "Full Name" },
-            { key: "email",    label: "Email Address", type: "email" },
-            { key: "phone",    label: "Phone Number",  type: "tel" },
-            { key: "timezone", label: "Timezone" },
+            { key: "name",       label: "Full Name" },
+            { key: "email",      label: "Email Address", type: "email", readOnly: true, hint: "Your login email can't be changed here." },
+            { key: "phone",      label: "Phone Number",  type: "tel" },
+            { key: "department", label: "Department" },
+            { key: "jobTitle",   label: "Job Title" },
           ].map(f => (
             <div key={f.key}>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{f.label}</label>
               <input
                 type={f.type || "text"}
                 value={form[f.key] ?? ""}
-                onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                readOnly={f.readOnly}
+                onChange={f.readOnly ? undefined : (e => setForm(p => ({ ...p, [f.key]: e.target.value })))}
+                className={`w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${f.readOnly ? "bg-slate-50 dark:bg-slate-900 text-slate-400 cursor-not-allowed" : "bg-white dark:bg-slate-800"}`}
               />
+              {f.hint && <p className="mt-1 text-[11px] text-slate-400">{f.hint}</p>}
             </div>
           ))}
         </CardBody>
       </Card>
 
       <Card>
-        <CardHeader title="Organization" icon={Building2} />
+        <CardHeader title="Organization" icon={Building2} subtitle="Managed by your enterprise admin" />
         <CardBody className="space-y-4">
           {[
-            { key: "company", label: "Company Name" },
-            { key: "role",    label: "Your Role" },
+            { label: "Company",     value: form.enterprise ?? form.tenant?.name },
+            { label: "Your Role",   value: (form.role ?? "").replace(/_/g, " ") },
+            { label: "Employee ID", value: form.employeeId },
           ].map(f => (
-            <div key={f.key}>
+            <div key={f.label}>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{f.label}</label>
-              <input
-                type="text"
-                value={form[f.key] ?? ""}
-                onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+              <div className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 capitalize">
+                {f.value || "—"}
+              </div>
             </div>
           ))}
         </CardBody>
