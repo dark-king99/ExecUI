@@ -48,6 +48,8 @@ router.get("/me", authenticate, async (req, res) => {
       lastName: user.lastName,
       employeeId: user.employeeId,
       status: user.status,
+      department: user.department ?? null,
+      jobTitle: user.jobTitle ?? null,
       tenantId: user.tenantId,
       enterprise: user.tenant.name,
       enterpriseCode: user.tenant.code,

@@ -306,15 +306,8 @@ export const completeTask = async (tenantId, id) => {
   return { success: true };
 };
 
-// ── Sequences (static) ────────────────────────────────────────────────────────
-const STATIC_SEQUENCES = [
-  { id: "seq-1", name: "New Lead Outreach", steps: 5, active: true, enrolled: 12, description: "5-touch sequence for new inbound leads" },
-  { id: "seq-2", name: "Re-engagement Campaign", steps: 3, active: true, enrolled: 7, description: "Win back cold prospects after 30 days" },
-  { id: "seq-3", name: "Post-Demo Follow-up", steps: 4, active: false, enrolled: 0, description: "Automated follow-up after product demo" },
-  { id: "seq-4", name: "Contract Renewal", steps: 6, active: true, enrolled: 3, description: "60-day renewal sequence for expiring contracts" },
-];
-
-export const listSequences = () => Promise.resolve(STATIC_SEQUENCES);
+// ── Sequences (no backing table → empty until created) ────────────────────────
+export const listSequences = () => Promise.resolve([]);
 export const createSequence = (tenantId, data) =>
   Promise.resolve({ id: `seq-${Date.now()}`, ...data, active: true, enrolled: 0 });
 
@@ -476,7 +469,7 @@ export const aiChat = (tenantId, body = {}) => {
   return Promise.resolve({ reply });
 };
 
-export const aiSummaries = () => Promise.resolve({ summary: "Pipeline is healthy with strong activity in Proposal and Negotiation stages. 3 deals require immediate follow-up." });
+export const aiSummaries = () => Promise.resolve({ summary: null });
 export const aiAction    = () => Promise.resolve({ result: "Action logged successfully." });
 
 // ── Accounts ──────────────────────────────────────────────────────────────────
@@ -548,17 +541,9 @@ export const addAccountNote = async (tenantId, accountId, data) => {
   });
 };
 
-// ── Resolutions (static) ──────────────────────────────────────────────────────
-const STATIC_RESOLUTIONS = [
-  { id: "res-1", title: "Standard Refund Policy", votes: 24, status: "approved", category: "Billing" },
-  { id: "res-2", title: "SLA Compensation Guidelines", votes: 18, status: "approved", category: "Support" },
-  { id: "res-3", title: "Contract Termination Procedure", votes: 11, status: "under_review", category: "Legal" },
-  { id: "res-4", title: "Discount Approval Workflow", votes: 9, status: "approved", category: "Sales" },
-];
-
-export const listResolutions = () => Promise.resolve(STATIC_RESOLUTIONS);
-export const voteResolution  = (tenantId, id) =>
-  Promise.resolve({ id, success: true, votes: STATIC_RESOLUTIONS.find((r) => r.id === id)?.votes + 1 ?? 1 });
+// ── Resolutions (no backing table → empty until created) ──────────────────────
+export const listResolutions = () => Promise.resolve([]);
+export const voteResolution  = (tenantId, id) => Promise.resolve({ id, success: true });
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 export const getCrmAnalyticsSummary = async (tenantId) => {
@@ -638,11 +623,7 @@ export const getCrmAnalyticsWinLoss = async (tenantId) => {
   return {
     won: won.length, wonValue: won.reduce((s, o) => s + (o.value ?? 0), 0),
     lost: lost.length, lostValue: lost.reduce((s, o) => s + (o.value ?? 0), 0),
-    reasons: [
-      { reason: "Price", pct: 32 }, { reason: "Timing", pct: 24 },
-      { reason: "Competitor", pct: 21 }, { reason: "No Decision", pct: 14 },
-      { reason: "Missing Features", pct: 9 },
-    ],
+    reasons: [],
   };
 };
 
@@ -691,8 +672,9 @@ export const listRenewals = async (tenantId) => {
     orderBy: { updatedAt: "desc" },
   });
 
-  return opps.map((o, i) => {
-    const renewalMs = o.updatedAt.getTime() + (365 + i * 30) * 86400000;
+  // Renewal date derived from a standard 1-year term off the close date.
+  return opps.map((o) => {
+    const renewalMs = o.updatedAt.getTime() + 365 * 86400000;
     const renewalDate = new Date(renewalMs);
     const daysLeft = Math.round((renewalMs - Date.now()) / 86400000);
     return {
@@ -715,8 +697,8 @@ export const getRenewalsSummary = async (tenantId) => {
   const total = opps.length;
   const totalArr = opps.reduce((s, o) => s + (o.value ?? 0), 0);
   const now = Date.now();
-  const atRisk = opps.filter((o, i) => {
-    const renewalMs = o.updatedAt.getTime() + (365 + i * 30) * 86400000;
+  const atRisk = opps.filter((o) => {
+    const renewalMs = o.updatedAt.getTime() + 365 * 86400000;
     return (renewalMs - now) / 86400000 < 30;
   }).length;
   return { total, totalArr, totalArrFmt: fmtValue(totalArr), atRisk };
@@ -780,18 +762,9 @@ export const unlockCase = async (tenantId, id) => {
   return { success: true };
 };
 
-// ── Playbooks (static) ────────────────────────────────────────────────────────
-const STATIC_PLAYBOOKS = [
-  { id: "pb-1", name: "Enterprise Onboarding", steps: 8, category: "Onboarding", active: true, description: "Full onboarding workflow for enterprise accounts" },
-  { id: "pb-2", name: "SMB Quick Start", steps: 4, category: "Onboarding", active: true, description: "Streamlined onboarding for SMB customers" },
-  { id: "pb-3", name: "Expansion & Upsell", steps: 6, category: "Growth", active: true, description: "Identify and execute upsell opportunities" },
-  { id: "pb-4", name: "Churn Prevention", steps: 5, category: "Retention", active: true, description: "Early warning and intervention for at-risk accounts" },
-  { id: "pb-5", name: "Competitive Displacement", steps: 7, category: "Sales", active: false, description: "Win strategy when competing against key rivals" },
-  { id: "pb-6", name: "Executive Business Review", steps: 3, category: "Success", active: true, description: "Quarterly executive alignment and value review" },
-];
-
-export const listPlaybooks  = () => Promise.resolve(STATIC_PLAYBOOKS);
-export const getPlaybook    = (tenantId, id) => Promise.resolve(STATIC_PLAYBOOKS.find((p) => p.id === id) ?? null);
+// ── Playbooks (no backing table → empty until created) ────────────────────────
+export const listPlaybooks  = () => Promise.resolve([]);
+export const getPlaybook    = () => Promise.resolve(null);
 export const runPlaybook    = (tenantId, id) => Promise.resolve({ started: true, playbookId: id, startedAt: new Date().toISOString() });
 export const createPlaybook = (tenantId, data) =>
   Promise.resolve({ id: `pb-${Date.now()}`, ...data, active: true, steps: data.steps ?? 1 });
@@ -803,17 +776,15 @@ export const listPartners = async (tenantId) => {
     take: 10,
     orderBy: { createdAt: "desc" },
   });
-  return contacts.map((c, i) => ({
+  return contacts.map((c) => ({
     id: c.id, name: c.name, email: c.email,
-    type: i % 3 === 0 ? "Reseller" : i % 3 === 1 ? "Referral" : "Technology",
-    status: "active", tier: i < 3 ? "Gold" : i < 6 ? "Silver" : "Bronze",
-    revenue: (i + 1) * 25000,
+    type: null, status: "active", tier: null, revenue: null,
   }));
 };
 
 export const getPartner = async (tenantId, id) => {
   const c = await prisma.contact.findFirst({ where: { id, tenantId } });
-  return c ? { ...c, type: "Partner", status: "active", tier: "Gold" } : null;
+  return c ? { ...c, type: null, status: "active", tier: null } : null;
 };
 
 // ── Meetings (CrmFollowUp) ────────────────────────────────────────────────────
@@ -899,39 +870,12 @@ export const getRepsSummary = async (tenantId) => {
   };
 };
 
-// ── Integrations (static) ─────────────────────────────────────────────────────
-const STATIC_INTEGRATIONS = [
-  { id: "int-1", name: "Salesforce", status: "connected", type: "CRM", lastSync: new Date(Date.now() - 3600000).toISOString(), records: 1240 },
-  { id: "int-2", name: "HubSpot", status: "connected", type: "Marketing", lastSync: new Date(Date.now() - 7200000).toISOString(), records: 580 },
-  { id: "int-3", name: "Slack", status: "connected", type: "Messaging", lastSync: new Date(Date.now() - 1800000).toISOString(), records: 0 },
-  { id: "int-4", name: "Gmail", status: "connected", type: "Email", lastSync: new Date(Date.now() - 900000).toISOString(), records: 3200 },
-  { id: "int-5", name: "LinkedIn Sales Navigator", status: "disconnected", type: "Prospecting", lastSync: null, records: 0 },
-  { id: "int-6", name: "ZoomInfo", status: "disconnected", type: "Data Enrichment", lastSync: null, records: 0 },
-  { id: "int-7", name: "DocuSign", status: "connected", type: "eSignature", lastSync: new Date(Date.now() - 86400000).toISOString(), records: 45 },
-  { id: "int-8", name: "Stripe", status: "connected", type: "Billing", lastSync: new Date(Date.now() - 3600000).toISOString(), records: 890 },
-];
-
-export const listIntegrations = () => Promise.resolve(STATIC_INTEGRATIONS);
-
-export const getIntegrationsTimeline = () =>
-  Promise.resolve([
-    { type: "sync", message: "Salesforce sync completed (1240 records)", timestamp: new Date(Date.now() - 3600000).toISOString() },
-    { type: "sync", message: "HubSpot contact sync (580 records)", timestamp: new Date(Date.now() - 7200000).toISOString() },
-    { type: "alert", message: "LinkedIn disconnected — token expired", timestamp: new Date(Date.now() - 86400000).toISOString() },
-    { type: "sync", message: "Gmail email activity synced", timestamp: new Date(Date.now() - 900000).toISOString() },
-  ]);
-
-export const getLeadSources = () =>
-  Promise.resolve([
-    { source: "Inbound Web", count: 42, pct: 35 },
-    { source: "Outbound SDR", count: 28, pct: 23 },
-    { source: "Partner Referral", count: 22, pct: 18 },
-    { source: "Marketing Campaign", count: 18, pct: 15 },
-    { source: "Event / Conference", count: 11, pct: 9 },
-  ]);
-
-export const getSyncHealth  = () => Promise.resolve({ status: "healthy", connected: 6, total: 8, lastCheck: new Date().toISOString() });
-export const syncIntegrations = () => Promise.resolve({ synced: true, syncedAt: new Date().toISOString(), message: "All integrations synced successfully." });
+// ── Integrations (no backing table → empty until connected) ───────────────────
+export const listIntegrations        = () => Promise.resolve([]);
+export const getIntegrationsTimeline = () => Promise.resolve([]);
+export const getLeadSources          = () => Promise.resolve([]);
+export const getSyncHealth           = () => Promise.resolve({ status: "unknown", connected: 0, total: 0, lastCheck: new Date().toISOString() });
+export const syncIntegrations        = () => Promise.resolve({ synced: true, syncedAt: new Date().toISOString(), message: "No integrations connected." });
 
 // ── Database ──────────────────────────────────────────────────────────────────
 export const getDatabaseRecords = async (tenantId, params = {}) => {

@@ -79,35 +79,26 @@ const demoNextRenewal = () => {
   return d.toISOString().slice(0, 10);
 };
 
+// Default state when no Stripe subscription exists: no active plan, no history.
 const DEMO_BILLING = {
   customerId: null,
   plan: {
-    id: "enterprise",
-    name: "Enterprise",
-    monthlyCost: "$499",
+    id: null,
+    name: "No active plan",
+    monthlyCost: "$0",
     interval: "month",
-    status: "active",
-    features: planById("enterprise").features,
-    currentPeriodEnd: demoNextRenewal(),
+    status: "none",
+    features: [],
+    currentPeriodEnd: null,
   },
-  status: "active",
-  nextRenewal: demoNextRenewal(),
-  paymentMethod: { brand: "visa", last4: "4242", expiry: "12/27", type: "card" },
+  status: "none",
+  nextRenewal: null,
+  paymentMethod: null,
 };
 
-const DEMO_INVOICES = [
-  { id: "INV-2026-005", date: "May 1, 2026",  plan: "Enterprise", amount: "$499.00", status: "paid",  pdfUrl: null },
-  { id: "INV-2026-004", date: "Apr 1, 2026",  plan: "Enterprise", amount: "$499.00", status: "paid",  pdfUrl: null },
-  { id: "INV-2026-003", date: "Mar 1, 2026",  plan: "Enterprise", amount: "$499.00", status: "paid",  pdfUrl: null },
-  { id: "INV-2026-002", date: "Feb 1, 2026",  plan: "Growth",     amount: "$149.00", status: "paid",  pdfUrl: null },
-  { id: "INV-2026-001", date: "Jan 1, 2026",  plan: "Growth",     amount: "$149.00", status: "paid",  pdfUrl: null },
-  { id: "INV-2025-012", date: "Dec 1, 2025",  plan: "Starter",    amount: "$49.00",  status: "paid",  pdfUrl: null },
-];
+const DEMO_INVOICES = [];
 
-const DEMO_PAYMENT_METHODS = [
-  { id: "pm_demo_1", brand: "visa",       last4: "4242", expiry: "12/27", isDefault: true  },
-  { id: "pm_demo_2", brand: "mastercard", last4: "5555", expiry: "08/26", isDefault: false },
-];
+const DEMO_PAYMENT_METHODS = [];
 
 // ── Stripe helpers ────────────────────────────────────────────────────────────
 
