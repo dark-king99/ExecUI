@@ -39,21 +39,27 @@ export const getProfile = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { name, firstName: fName, lastName: lName, phone } = req.body;
+    const { name, firstName: fName, lastName: lName, phone, department, jobTitle } = req.body;
     let firstName = fName;
     let lastName = lName;
-    if (name && !fName && !lName) {
+    // The profile form edits a single "Full Name" field, so when it's provided
+    // it is the source of truth (it ships alongside the now-stale first/last).
+    if (name) {
       const parts = name.trim().split(/\s+/);
       firstName = parts[0] ?? '';
-      lastName = parts.slice(1).join(' ') || '';
+      lastName = parts.slice(1).join(' ');
     }
     const updateData = {};
     if (firstName) updateData.firstName = firstName;
     if (lastName !== undefined && lastName !== null) updateData.lastName = lastName;
     if (phone !== undefined) updateData.phone = phone || null;
+    if (department !== undefined) updateData.department = department || null;
+    if (jobTitle !== undefined) updateData.jobTitle = jobTitle || null;
+
     const user = await prisma.user.update({
       where: { id: uid(req) },
       data: updateData,
+      include: { role: true, tenant: true },
     });
     res.json({
       id: user.id,
@@ -62,6 +68,15 @@ export const updateProfile = async (req, res) => {
       lastName: user.lastName,
       name: `${user.firstName} ${user.lastName}`.trim(),
       phone: user.phone ?? null,
+      department: user.department ?? null,
+      jobTitle: user.jobTitle ?? null,
+      employeeId: user.employeeId ?? null,
+      role: user.role?.name ?? null,
+      tenantId: user.tenantId,
+      enterprise: user.tenant?.name ?? null,
+      enterpriseCode: user.tenant?.code ?? null,
+      tenant: { id: user.tenant.id, name: user.tenant.name, slug: user.tenant.slug },
+      createdAt: user.createdAt,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
