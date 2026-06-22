@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useDataSync } from "../../hooks/useApi";
 import { useSidebar } from '../../components/SidebarContext';
 import {
   TrendingUp,
@@ -289,6 +290,9 @@ export const Dashboard = () => {
   useEffect(() => {
     fetchDashboardStats();
   }, []);
+
+  // Keep this page in sync app-wide (focus + cross-page mutations).
+  useDataSync(fetchDashboardStats);
 
   const fetchDashboardStats = async () => {
     try {

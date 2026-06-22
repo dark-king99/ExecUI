@@ -4,12 +4,8 @@ import { useApi } from "../../../../hooks/useApi";
 import { marketing } from "../../../../services/api";
 import { SolutionShell, MetricGrid, Section, Loading } from "../../components/mkt-ui";
 
-const STRATEGIES = [
-  { id: "d1", name: "Next Best Offer", trigger: "On page load", action: "Show highest-affinity promotion", status: "active", served: "12.4k" },
-  { id: "d2", name: "Churn Save Banner", trigger: "Risk score > 70", action: "Surface retention offer", status: "active", served: "1.8k" },
-  { id: "d3", name: "Upsell Nudge", trigger: "Plan = Starter", action: "Recommend Growth plan", status: "active", served: "4.1k" },
-  { id: "d4", name: "Onboarding Assist", trigger: "Days since signup < 7", action: "Show guided setup CTA", status: "paused", served: "920" },
-];
+// Decisioning strategies require a connected decision engine — none fabricated.
+const STRATEGIES = [];
 
 export default function Decisions() {
   const { data: cdp, loading } = useApi(() => marketing.cdp.metrics(), [], { pollingInterval: 120000 });
@@ -31,8 +27,8 @@ export default function Decisions() {
           {loading && !cdp ? <Loading rows={2} /> : (
             <div className="rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 p-5 text-white">
               <div className="text-xs uppercase tracking-wide opacity-80">Einstein recommends</div>
-              <div className="text-lg font-bold mt-1">{p.nextBestAction ?? "Email re-engagement"}</div>
-              <div className="text-xs opacity-80 mt-2">Confidence {cdp?.confidence ?? 94}% · projected lift +{cdp?.projectedLift ?? 18}%</div>
+              <div className="text-lg font-bold mt-1">{p.nextBestAction ?? "—"}</div>
+              <div className="text-xs opacity-80 mt-2">{cdp?.confidence != null ? `Confidence ${cdp.confidence}%` : "Connect a model to generate recommendations"}</div>
             </div>
           )}
         </Section>
@@ -48,7 +44,9 @@ export default function Decisions() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {STRATEGIES.map((s) => (
+                {STRATEGIES.length === 0 ? (
+                  <tr><td colSpan={5} className="py-10 text-center text-sm text-slate-400">No decision strategies configured.</td></tr>
+                ) : STRATEGIES.map((s) => (
                   <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
                     <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{s.name}</td>
                     <td className="px-5 py-3 text-slate-500 text-xs">{s.trigger}</td>
