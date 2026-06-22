@@ -118,7 +118,7 @@ export default function HomeView() {
           {/* Kicker badge */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium text-slate-500 dark:text-slate-400 mb-6 shadow-sm">
             <Sparkles size={12} className="text-indigo-500" />
-            Euvis Softwares — Intelligent Cloud Platform
+            ExecUI Softwares — Intelligent Cloud Platform
           </div>
 
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
