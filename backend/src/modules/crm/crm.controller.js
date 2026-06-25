@@ -49,7 +49,7 @@ export const deleteCustomer  = handle(async (req, res) => { await svc.deleteCust
 // Deals
 export const listDeals       = handle((req) => svc.listDeals(tid(req), req.query));
 export const getDeal         = handle((req) => svc.getDeal(tid(req), req.params.id));
-export const createDeal      = handle((req) => svc.createDeal(tid(req), req.body));
+export const createDeal      = handle((req) => svc.createDeal(tid(req), { ...req.body, ownerId: req.body.ownerId ?? req.user.userId }));
 export const updateDeal      = handle((req) => svc.updateDeal(tid(req), req.params.id, req.body));
 export const getDealTimeline = handle((req) => svc.getDealTimeline(tid(req), req.params.id));
 export const getDealTasks    = handle((req) => svc.getDealTasks(tid(req), req.params.id));
@@ -60,7 +60,7 @@ export const getDealAudit    = handle((req) => svc.getDealAudit(tid(req), req.pa
 // Leads
 export const listLeads       = handle((req) => svc.listLeads(tid(req), req.query));
 export const getLead         = handle((req) => svc.getLead(tid(req), req.params.id));
-export const createLead      = handle((req) => svc.createLead(tid(req), req.body));
+export const createLead      = handle((req) => svc.createLead(tid(req), { ...req.body, ownerId: req.body.ownerId ?? req.user.userId }));
 export const updateLead      = handle((req) => svc.updateLead(tid(req), req.params.id, req.body));
 export const getLeadActivity = handle((req) => svc.getLeadActivity(tid(req), req.query));
 
@@ -108,7 +108,7 @@ export const getCrmAnalyticsWinLoss  = handle((req) => svc.getCrmAnalyticsWinLos
 // Opportunities
 export const getOpportunitiesSummary = handle((req) => svc.getOpportunitiesSummary(tid(req)));
 export const listOpportunities       = handle((req) => svc.listOpportunities(tid(req), req.query));
-export const createOpportunity       = handle((req) => svc.createOpportunity(tid(req), req.body));
+export const createOpportunity       = handle((req) => svc.createOpportunity(tid(req), { ...req.body, ownerId: req.body.ownerId ?? req.user.userId }));
 
 // Renewals
 export const listRenewals       = handle((req) => svc.listRenewals(tid(req), req.query));
