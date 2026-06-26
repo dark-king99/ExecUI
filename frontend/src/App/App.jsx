@@ -15,7 +15,6 @@ import Dashboard from "../apps/services/Dashboard";
 
 // ── Lazy-loaded mini-app route groups ─────────────────────────────────────────
 const HomeView            = lazy(() => import("../apps/HomeView"));
-const AccountView         = lazy(() => import("../apps/AccountView"));
 const NotFound            = lazy(() => import("../apps/NotFound"));
 
 // Network — solution-based architecture (Auvik model)
@@ -108,7 +107,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/account/security"     element={<Security />} />
                 <Route path="/account/api-keys"     element={<ApiKeys />} />
                 <Route path="/account/notifications" element={<Notifications />} />
-                <Route path="/account/overview"     element={<AccountView />} />
+                
 
                 {/* Account — organization views (enterprise admins only) */}
                 <Route path="/account/organization" element={isAdmin ? <OrganizationProfile /> : <Navigate to="/account/profile" replace />} />
