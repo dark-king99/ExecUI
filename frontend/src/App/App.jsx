@@ -107,7 +107,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/account/security"     element={<Security />} />
                 <Route path="/account/api-keys"     element={<ApiKeys />} />
                 <Route path="/account/notifications" element={<Notifications />} />
-                
+
 
                 {/* Account — organization views (enterprise admins only) */}
                 <Route path="/account/organization" element={isAdmin ? <OrganizationProfile /> : <Navigate to="/account/profile" replace />} />

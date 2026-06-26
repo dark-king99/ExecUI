@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useDataSync } from "../../hooks/useApi";
+import { useDataSync, useApi } from "../../hooks/useApi";
+import { account } from "../../services/api";
 import { useSidebar } from '../../components/SidebarContext';
 import {
   TrendingUp,
@@ -273,7 +274,20 @@ const QuickStats = ({ stats, isDarkMode }) => (
 export const Dashboard = () => {
   const { theme } = useSidebar();
   const isDarkMode = theme === 'dark';
-  const employee = JSON.parse(localStorage.getItem('user') || 'null');
+
+  // Identity comes from the shared profile query (same cache as the Greeting),
+  // so avatar/name/role edits in Profile propagate here automatically.
+  const { data: profile } = useApi(() => account.profile.get(), [], { cacheKey: "account:profile" });
+  const stored = JSON.parse(localStorage.getItem('user') || 'null') || {};
+  const displayName =
+    profile?.name ||
+    [stored.firstName, stored.lastName].filter(Boolean).join(' ').trim() ||
+    stored.name || stored.email || '—';
+  const displayRole = String(profile?.role ?? stored.role ?? '').replace(/_/g, ' ');
+  const displayDept = profile?.department ?? stored.department ?? '';
+  const avatarUrl = profile?.avatarUrl ?? stored.avatarUrl ?? stored.avatar_url;
+  const initials = displayName.split(' ').filter(Boolean).map((n) => n[0]).slice(0, 2).join('') || '?';
+
   const [overview, setOverview]       = useState(null);
   const [stats, setStats] = useState({
     financial: { total_income: 0, total_expenses: 0, net_profit: 0, transaction_count: 0 },
@@ -336,11 +350,11 @@ export const Dashboard = () => {
       >
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16 border-2 border-orange-500/30">
-            <AvatarImage src={employee?.avatar_url} alt={employee?.name} />
+            <AvatarImage src={avatarUrl} alt={displayName} />
             <AvatarFallback
               className="font-heading text-xl text-orange-400 bg-slate-200"
             >
-              {employee?.name?.split(' ').map((n) => n[0]).join('') || '?'}
+              {initials}
             </AvatarFallback>
           </Avatar>
           <div>
@@ -349,10 +363,10 @@ export const Dashboard = () => {
               className={`text-2xl sm:text-3xl font-semibold tracking-tight font-heading dark:text-white text-slate-900`}
               data-testid="employee-name"
             >
-              {employee?.name ?? '—'}
+              {displayName}
             </h1>
-            <p className="text-sm font-body text-slate-500">
-              {employee?.role} — {employee?.department}
+            <p className="text-sm font-body text-slate-500 capitalize">
+              {[displayRole, displayDept].filter(Boolean).join(' — ') || '—'}
             </p>
           </div>
         </div>
