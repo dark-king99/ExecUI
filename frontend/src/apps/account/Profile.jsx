@@ -10,15 +10,20 @@ export default function Profile() {
   const toast = useToast();
   const avatarInputRef = useRef(null);
   const [form, setForm] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState(null);
 
   function handleAvatarChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ message: "Image too large — pick one under 2 MB.", type: "error" });
+      e.target.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setAvatarPreview(ev.target.result);
-      toast({ message: "Avatar updated (preview only — save to apply).", type: "info" });
+      // Stage the image into the form so it persists on Save (and propagates app-wide).
+      setForm((p) => ({ ...p, avatarUrl: ev.target.result }));
+      toast({ message: "Avatar updated — click Save Changes to apply.", type: "info" });
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -42,9 +47,13 @@ export default function Profile() {
             ...u,
             firstName: updated.firstName,
             lastName: updated.lastName,
+            name: updated.name,
             phone: updated.phone,
             department: updated.department,
             jobTitle: updated.jobTitle,
+            role: updated.role ?? u.role,
+            avatarUrl: updated.avatarUrl,
+            avatar_url: updated.avatarUrl,
           }));
         } catch { /* ignore */ }
       },
@@ -99,8 +108,8 @@ export default function Profile() {
         <CardBody className="space-y-4">
           <div className="flex items-center gap-4 mb-4">
             <div className="relative">
-              {avatarPreview ? (
-                <img src={avatarPreview} alt="avatar" className="h-16 w-16 rounded-full object-cover" />
+              {form.avatarUrl ? (
+                <img src={form.avatarUrl} alt="avatar" className="h-16 w-16 rounded-full object-cover" />
               ) : (
                 <div className="h-16 w-16 rounded-full bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold">
                   {form.name?.[0] ?? "?"}
