@@ -26,6 +26,7 @@ export const getProfile = async (req, res) => {
       phone: user.phone ?? null,
       department: user.department ?? null,
       jobTitle: user.jobTitle ?? null,
+      avatarUrl: user.avatarUrl ?? null,
       employeeId: user.employeeId ?? null,
       role: user.role?.name ?? null,
       tenantId: user.tenantId,
@@ -39,7 +40,7 @@ export const getProfile = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { name, firstName: fName, lastName: lName, phone, department, jobTitle } = req.body;
+    const { name, firstName: fName, lastName: lName, phone, department, jobTitle, avatarUrl } = req.body;
     let firstName = fName;
     let lastName = lName;
     // The profile form edits a single "Full Name" field, so when it's provided
@@ -55,6 +56,7 @@ export const updateProfile = async (req, res) => {
     if (phone !== undefined) updateData.phone = phone || null;
     if (department !== undefined) updateData.department = department || null;
     if (jobTitle !== undefined) updateData.jobTitle = jobTitle || null;
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl || null;
 
     const user = await prisma.user.update({
       where: { id: uid(req) },
@@ -70,6 +72,7 @@ export const updateProfile = async (req, res) => {
       phone: user.phone ?? null,
       department: user.department ?? null,
       jobTitle: user.jobTitle ?? null,
+      avatarUrl: user.avatarUrl ?? null,
       employeeId: user.employeeId ?? null,
       role: user.role?.name ?? null,
       tenantId: user.tenantId,
