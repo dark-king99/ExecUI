@@ -43,7 +43,7 @@ export default function Navbar({ user, onLogout, roleToUse, effectiveRole, setEf
         <NavItem icon={Layers}   label="Services"  onClick={() => navigate("/services")} />
         <NavItem icon={Network}  label="Network"   onClick={() => navigate("/network")} />
         <NavItem icon={BarChart3} label="Analytics" onClick={() => navigate("/analytics")} />
-        <NavItem icon={BookOpen} label="Account"   onClick={() => navigate("/account")} />
+        <NavItem icon={BookOpen} label="Access"   onClick={() => navigate("/account/billing")} />
       </nav>
 
       {/* ── Right side ───────────────────────────────────────────────── */}
