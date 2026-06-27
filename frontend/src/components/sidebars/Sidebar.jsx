@@ -40,7 +40,7 @@ function NavBtn({ icon: Icon, label, path, current, collapsed }) {
 function SectionLabel({ label, collapsed }) {
   if (collapsed) return <div className="my-2 border-t border-slate-100 dark:border-slate-800/60" />;
   return (
-    <p className="px-2.5 pt-4 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-600 select-none">
+    <p className="px-2.5 pt-4 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-600 select-none">
       {label}
     </p>
   );
@@ -73,14 +73,14 @@ export default function Sidebar() {
         <div
           className={`flex items-center gap-2.5 flex-1 min-w-0 ${collapsed ? "justify-center" : ""}`}
         >
-          <div className="h-7 w-7 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0 shadow-sm shadow-indigo-600/25">
-            <Building2 size={14} className="text-white" />
+        {!collapsed && (
+          <div className="h-24 w-24 flex items-center justify-center shrink-0 ">
+            <img src="/public/ExecUI_20260627_141905_0000.png"
+                 alt="Executive UI Logo"
+                 className="h-26 w-26 object-contain"/>
           </div>
-          {!collapsed && (
-            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate leading-none">
-              ExecUI
-            </span>
           )}
+          
         </div>
         <button
           onClick={toggleCollapse}
