@@ -105,7 +105,7 @@ export default function NetworkSidebar() {
       <div className="flex items-center h-14 px-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
         <div className={`flex items-center gap-2.5 flex-1 min-w-0 ${collapsed ? "justify-center" : ""}`}>
           <div className="h-7 w-7 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0 shadow-sm shadow-emerald-600/25">
-            <Wifi size={14} className="text-white" />
+            <img src="/images.png" />
           </div>
           {!collapsed && (
             <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate leading-none">
@@ -149,7 +149,7 @@ export default function NetworkSidebar() {
         </button>
 
         {!collapsed && (
-          <p className="px-2.5 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-600 select-none">
+          <p className="px-2.5 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-600 select-none">
             Solutions
           </p>
         )}
