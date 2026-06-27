@@ -69,22 +69,23 @@ export default function Sidebar() {
       } shrink-0 flex flex-col h-full bg-white dark:bg-slate-950 border-r border-slate-100 dark:border-slate-800/80 transition-all duration-250 ease-in-out`}
     >
       {/* ── Logo row ──────────────────────────────────────────────────── */}
-      <div className="flex items-center h-14 px-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
-        <div
-          className={`flex items-center gap-2.5 flex-1 min-w-0 ${collapsed ? "justify-center" : ""}`}
-        >
+      <div
+        className={`flex items-center h-14 px-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0 ${
+          collapsed ? "justify-center" : ""
+        }`}
+      >
         {!collapsed && (
-          <div className="h-24 w-24 flex items-center justify-center shrink-0 ">
-            <img src="/public/ExecUI_20260627_141905_0000.png"
-                 alt="Executive UI Logo"
-                 className="h-26 w-26 object-contain"/>
-          </div>
-          )}
-          
-        </div>
+          // Transparent-ground wordmark: blends with the sidebar in both light and dark themes.
+          <img
+            src="/execui-logo.png"
+            alt="ExecUI"
+            draggable="false"
+            className="h-8 w-auto object-contain select-none"
+          />
+        )}
         <button
           onClick={toggleCollapse}
-          className="ml-auto p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+          className={`${collapsed ? "" : "ml-auto"} p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition`}
         >
           {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
         </button>
