@@ -15,6 +15,7 @@ import Dashboard from "../apps/services/Dashboard";
 
 // ── Lazy-loaded mini-app route groups ─────────────────────────────────────────
 const HomeView            = lazy(() => import("../apps/HomeView"));
+const ExecutiveOverview   = lazy(() => import("../apps/ExecutiveOverview"));
 const NotFound            = lazy(() => import("../apps/NotFound"));
 
 // Network — solution-based architecture (Auvik model)
@@ -70,9 +71,10 @@ function PageSuspense({ children }) {
 function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }) {
   const location = useLocation();
 
-  // Sections with their own sidebar that replace the top navbar
+  // Sections with their own sidebar that replace the top navbar.
+  // "home" is an immersive landing view that carries its own header/logo.
   const section = location.pathname.split("/")[1];
-  const hideNavbar = ["network", "crm", "marketing", "analytics"].includes(section);
+  const hideNavbar = ["home", "network", "crm", "marketing", "analytics"].includes(section);
 
   // Organization (enterprise account) views are restricted to admins.
   const isAdmin = ["enterprise_admin", "system_admin"].includes(roleToUse) ||
@@ -100,6 +102,9 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 {/* Default */}
                 <Route path="/" element={<Navigate to="/home" replace />} />
                 <Route path="/home" element={<HomeView />} />
+
+                {/* Executive Overview — entry to the main system */}
+                <Route path="/overview" element={<ExecutiveOverview />} />
 
                 {/* Account — personal views (any user) */}
                 <Route path="/account" element={<Navigate to="/account/profile" replace />} />
