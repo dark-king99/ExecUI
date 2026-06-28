@@ -1,13 +1,10 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { uploadImage } from "../../middleware/upload.middleware.js";
-import { requireRole } from "../../middleware/role.middleware.js";
 import * as c from "./account.controller.js";
 
 const router = express.Router();
 const auth = authenticate;
-// API keys are tenant-wide integration credentials — only enterprise admins manage them.
-const adminOnly = requireRole("enterprise_admin", "system_admin");
 
 // ── Profile ───────────────────────────────────────────────────────────────
 router.get("/profile",              auth, c.getProfile);
@@ -23,12 +20,6 @@ router.post("/security/mfa/disable",        auth, c.disableMfa);
 router.post("/security/mfa/verify",         auth, c.verifyMfa);
 router.get("/security/sessions",            auth, c.listSessions);
 router.delete("/security/sessions/:id",     auth, c.revokeSession);
-
-// ── API Keys (enterprise admins only) ──────────────────────────────────────
-router.get("/api-keys",             auth, adminOnly, c.listApiKeys);
-router.post("/api-keys",            auth, adminOnly, c.createApiKey);
-router.delete("/api-keys/:id",      auth, adminOnly, c.deleteApiKey);
-router.post("/api-keys/:id/rotate", auth, adminOnly, c.rotateApiKey);
 
 // ── Notifications ─────────────────────────────────────────────────────────
 router.get("/notifications/preferences",    auth, c.getNotificationPreferences);

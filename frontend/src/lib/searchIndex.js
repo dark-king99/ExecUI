@@ -31,7 +31,7 @@ const STATIC = [
   { label: "Profile",            path: "/account/profile",      section: null, keywords: "account profile avatar photo name" },
   { label: "Security",           path: "/account/security",     section: null, keywords: "account security password mfa sessions" },
   { label: "Notifications",      path: "/account/notifications",section: null, keywords: "account notifications alerts" },
-  { label: "API Keys",           path: "/account/api-keys",     section: null, keywords: "account api keys tokens" },
+  { label: "Integrations",       path: "/account/integrations", section: null, keywords: "integrations connections webhooks external api secrets outbound" },
   { label: "Organization",       path: "/account/organization", section: null, keywords: "organization enterprise company" },
   { label: "Members",            path: "/account/members",      section: null, keywords: "members team employees people" },
   { label: "Billing",            path: "/account/billing",      section: null, keywords: "billing plan subscription invoices" },
