@@ -685,3 +685,20 @@ model DeptMessage {
 
   @@index([tenantId, createdAt])
 }
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  prefix      String                       // shown for identification, e.g. exk_live_Xy7d…
+  hash        String    @unique            // sha256 of the full key (plaintext is never stored)
+  scopes      String[]  @default([])       // e.g. ["read","write"]
+  lastUsedAt  DateTime?
+  lastUsedIp  String?
+  createdById String?
+  revokedAt   DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId])
+}
