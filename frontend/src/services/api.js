@@ -480,6 +480,13 @@ export const network = {
   sync: () => post('/network/sync'),
 };
 
+// ── Executive Overview ────────────────────────────────────────────────────
+export const overview = {
+  dashboard:   ()     => get('/overview/dashboard'),
+  departments: ()     => get('/overview/departments'),
+  sendMessage: (data) => post('/overview/messages', data),
+};
+
 // ── Account ───────────────────────────────────────────────────────────────
 export const account = {
   profile: {
