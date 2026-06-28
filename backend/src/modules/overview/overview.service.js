@@ -1,5 +1,5 @@
 import prisma from "../../config/database.js";
-import { accessFor, DEPT_LABELS } from "../access/access.policy.js";
+import { accessFor, DEPT_LABELS, SECTIONS } from "../access/access.policy.js";
 
 const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
 const money = (n) => Math.round(n || 0);
@@ -213,28 +213,24 @@ export async function getDashboard(userId, tenantId) {
   });
   const access = accessFor({ role: user?.role?.name, department: user?.department });
 
-  // Only compute metrics for sections the user may access.
-  const want = new Set(access.sections);
+  // Each section/panel is resolved defensively: a single failing query yields
+  // safe defaults instead of blanking the whole dashboard.
+  const safe = (p, fallback) => p.catch((e) => { console.error("overview section failed:", e.message); return fallback; });
+
+  const want = new Set(access.privileged ? SECTIONS : access.sections);
   const [crm, marketing, network, services] = await Promise.all([
-    want.has("crm")       ? crmMetrics(tenantId)      : Promise.resolve(null),
-    want.has("marketing") ? marketingMetrics(tenantId): Promise.resolve(null),
-    want.has("network")   ? networkMetrics(tenantId)  : Promise.resolve(null),
-    want.has("services")  ? servicesMetrics(tenantId) : Promise.resolve(null),
+    want.has("crm")       ? safe(crmMetrics(tenantId), null)      : Promise.resolve(null),
+    want.has("marketing") ? safe(marketingMetrics(tenantId), null): Promise.resolve(null),
+    want.has("network")   ? safe(networkMetrics(tenantId), null)  : Promise.resolve(null),
+    want.has("services")  ? safe(servicesMetrics(tenantId), null) : Promise.resolve(null),
   ]);
-  // Executive needs cross-section numbers even though sections cover all.
   const m = { crm, marketing, network, services };
-  if (access.privileged) {
-    if (!m.crm) m.crm = await crmMetrics(tenantId);
-    if (!m.marketing) m.marketing = await marketingMetrics(tenantId);
-    if (!m.network) m.network = await networkMetrics(tenantId);
-    if (!m.services) m.services = await servicesMetrics(tenantId);
-  }
 
   const [activity, schedule, tasks, messages] = await Promise.all([
-    recentActivity(tenantId),
-    upcomingSchedule(tenantId),
-    taskWorkflow(tenantId),
-    deptMessages(tenantId, access.dept, access.privileged),
+    safe(recentActivity(tenantId), []),
+    safe(upcomingSchedule(tenantId), []),
+    safe(taskWorkflow(tenantId), { byStatus: { todo: 0, in_progress: 0, review: 0, done: 0 }, items: [] }),
+    safe(deptMessages(tenantId, access.dept, access.privileged), []),
   ]);
 
   return {
