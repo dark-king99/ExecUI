@@ -3,30 +3,63 @@ import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { useToast } from "../../components/ui/Toast";
 import { User, Building2, Save, Loader2, AlertCircle } from "lucide-react";
-import { useApi, useMutation } from "../../hooks/useApi";
+import { useApi, useMutation, invalidateQueries } from "../../hooks/useApi";
 import { account } from "../../services/api";
+
+// Keep the locally-cached user's avatar in sync so chrome (navbar/greeting) updates instantly.
+function syncLocalAvatar(avatarUrl) {
+  try {
+    const u = JSON.parse(localStorage.getItem("user")) ?? {};
+    localStorage.setItem("user", JSON.stringify({ ...u, avatarUrl, avatar_url: avatarUrl }));
+  } catch { /* ignore */ }
+}
 
 export default function Profile() {
   const toast = useToast();
   const avatarInputRef = useRef(null);
   const [form, setForm] = useState(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
 
-  function handleAvatarChange(e) {
+  async function handleAvatarChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ message: "Image too large — pick one under 2 MB.", type: "error" });
-      e.target.value = "";
+    e.target.value = "";
+    if (!file.type.startsWith("image/")) {
+      toast({ message: "Please choose an image file.", type: "error" });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      // Stage the image into the form so it persists on Save (and propagates app-wide).
-      setForm((p) => ({ ...p, avatarUrl: ev.target.result }));
-      toast({ message: "Avatar updated — click Save Changes to apply.", type: "info" });
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ message: "Image too large — pick one under 5 MB.", type: "error" });
+      return;
+    }
+    try {
+      setAvatarBusy(true);
+      // Upload to object storage; the server persists the URL and returns it.
+      const { avatarUrl } = await account.profile.avatar(file);
+      setForm((p) => ({ ...p, avatarUrl }));
+      syncLocalAvatar(avatarUrl);
+      invalidateQueries(); // refresh greeting / dashboard / overview avatars app-wide
+      toast({ message: "Avatar updated", type: "success" });
+    } catch (err) {
+      toast({ message: err?.message ?? "Avatar upload failed", type: "error" });
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function handleAvatarRemove() {
+    try {
+      setAvatarBusy(true);
+      await account.profile.removeAvatar();
+      setForm((p) => ({ ...p, avatarUrl: null }));
+      syncLocalAvatar(null);
+      invalidateQueries();
+      toast({ message: "Avatar removed", type: "success" });
+    } catch (err) {
+      toast({ message: err?.message ?? "Could not remove avatar", type: "error" });
+    } finally {
+      setAvatarBusy(false);
+    }
   }
 
   const { data: profile, loading, error } = useApi(() => account.profile.get(), []);
@@ -109,10 +142,15 @@ export default function Profile() {
           <div className="flex items-center gap-4 mb-4">
             <div className="relative">
               {form.avatarUrl ? (
-                <img src={form.avatarUrl} alt="avatar" className="h-16 w-16 rounded-full object-cover" />
+                <img src={form.avatarUrl} alt="avatar" className="h-16 w-16 rounded-full object-cover ring-2 ring-indigo-500/20" />
               ) : (
                 <div className="h-16 w-16 rounded-full bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold">
-                  {form.name?.[0] ?? "?"}
+                  {form.name?.trim()?.[0]?.toUpperCase() ?? "?"}
+                </div>
+              )}
+              {avatarBusy && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
+                  <Loader2 size={18} className="animate-spin text-white" />
                 </div>
               )}
             </div>
@@ -120,12 +158,25 @@ export default function Profile() {
               <p className="font-semibold text-slate-900 dark:text-white">{form.name}</p>
               <p className="text-sm text-slate-500">{form.role}</p>
               <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-              <button
-                onClick={() => avatarInputRef.current?.click()}
-                className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 hover:underline"
-              >
-                Change avatar
-              </button>
+              <div className="mt-1 flex items-center gap-3">
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarBusy}
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
+                >
+                  {form.avatarUrl ? "Change photo" : "Upload photo"}
+                </button>
+                {form.avatarUrl && (
+                  <button
+                    onClick={handleAvatarRemove}
+                    disabled={avatarBusy}
+                    className="text-xs text-slate-400 hover:text-red-500 hover:underline disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400">JPG, PNG or GIF · up to 5 MB</p>
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users, Megaphone, Network, BarChart3, Layers, ArrowRight, ArrowUpRight,
@@ -32,6 +32,28 @@ const timeAgo = (t) => {
 };
 const whenLabel = (t) => (t ? new Date(t).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
 
+// Animate a number from 0 to target on mount (respects reduced-motion).
+function useCountUp(target, duration = 900) {
+  const [val, setVal] = useState(0);
+  const ref = useRef(0);
+  useEffect(() => {
+    const end = Number(target) || 0;
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) { setVal(end); return; }
+    let raf, start;
+    const step = (t) => {
+      if (!start) start = t;
+      const p = Math.min(1, (t - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setVal(end * eased);
+      ref.current = end * eased;
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return val;
+}
+
 const solEntries = (sols) => sols.map((s) => ({ name: s.name, path: s.pages?.[0]?.path ?? s.basePath }));
 const SERVICES_SOLS = [
   { name: "Financial Management", path: "/services/financial" },
@@ -59,17 +81,18 @@ const SERVICE_ORDER = ["crm", "marketing", "network", "services", "analytics"];
 // ── 270° gauge ───────────────────────────────────────────────────────────────
 function Gauge({ value, label, status, color }) {
   const v = Math.max(0, Math.min(100, value ?? 0));
+  const animated = useCountUp(v, 1000);
   const R = 80, C = 2 * Math.PI * R, ARC = 0.75; // 270°
   const track = C * ARC;
-  const prog = track * (v / 100);
+  const prog = track * (animated / 100);
   return (
     <div className="relative flex flex-col items-center">
       <svg viewBox="0 0 200 200" className="h-52 w-52">
         <g transform="rotate(135 100 100)">
           <circle cx="100" cy="100" r={R} fill="none" stroke="currentColor" className="text-slate-200 dark:text-slate-800" strokeWidth="14" strokeLinecap="round" strokeDasharray={`${track} ${C}`} />
-          <circle cx="100" cy="100" r={R} fill="none" stroke={color} strokeWidth="14" strokeLinecap="round" strokeDasharray={`${prog} ${C}`} style={{ transition: "stroke-dasharray 900ms cubic-bezier(0.22,1,0.36,1)" }} />
+          <circle cx="100" cy="100" r={R} fill="none" stroke={color} strokeWidth="14" strokeLinecap="round" strokeDasharray={`${prog} ${C}`} />
         </g>
-        <text x="100" y="96" textAnchor="middle" className="fill-slate-900 dark:fill-white" style={{ fontSize: 46, fontWeight: 700 }}>{value == null ? "—" : v}</text>
+        <text x="100" y="96" textAnchor="middle" className="fill-slate-900 dark:fill-white" style={{ fontSize: 46, fontWeight: 700 }}>{value == null ? "—" : Math.round(animated)}</text>
         <text x="100" y="120" textAnchor="middle" className="fill-slate-400" style={{ fontSize: 11, letterSpacing: 1 }}>{status?.toUpperCase()}</text>
       </svg>
       <p className="-mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p>
@@ -77,9 +100,27 @@ function Gauge({ value, label, status, color }) {
   );
 }
 
-function Panel({ title, icon: Icon, children, action }) {
+function KpiCard({ kpi, delay }) {
+  const numeric = typeof kpi.value === "number";
+  const animated = useCountUp(numeric ? kpi.value : 0, 900);
+  const display = numeric ? fmt(Math.round(animated), kpi.unit) : fmt(kpi.value, kpi.unit);
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900/50">
+    <div
+      style={{ animationDelay: `${delay}ms` }}
+      className="animate-slide-up flex flex-col justify-center rounded-2xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/50"
+    >
+      <p className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{display}</p>
+      <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">{kpi.label}</p>
+    </div>
+  );
+}
+
+function Panel({ title, icon: Icon, children, action, delay = 0 }) {
+  return (
+    <div
+      style={{ animationDelay: `${delay}ms` }}
+      className="animate-fade-in flex flex-col rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900/50"
+    >
       <div className="mb-3 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
           {Icon && <Icon size={15} className="text-indigo-500" />}
@@ -144,7 +185,7 @@ export default function ExecutiveOverview() {
   return (
     <div className="mx-auto max-w-7xl space-y-5">
       {/* ── Header: greeting + identity ─────────────────────────────────── */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900/50 sm:flex-row sm:items-center sm:justify-between">
+      <div className="animate-slide-up flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900/50 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <Avatar className="h-14 w-14 border-2 border-indigo-500/30">
             <AvatarImage src={identity.avatarUrl} alt={identity.name} />
@@ -169,17 +210,14 @@ export default function ExecutiveOverview() {
 
       {/* ── Gauge + KPI band ────────────────────────────────────────────── */}
       <div className="grid gap-5 lg:grid-cols-3">
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900/50">
+        <div className="animate-slide-up flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900/50" style={{ animationDelay: "60ms" }}>
           <Gauge value={gauge.value} label={gauge.label} status={gauge.status} color={GAUGE_STROKE[accent]} />
         </div>
 
         <div className="lg:col-span-2">
           <div className="grid h-full grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {kpis.map((k) => (
-              <div key={k.key} className="flex flex-col justify-center rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/50">
-                <p className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{fmt(k.value, k.unit)}</p>
-                <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">{k.label}</p>
-              </div>
+            {kpis.map((k, i) => (
+              <KpiCard key={k.key} kpi={k} delay={i * 70} />
             ))}
           </div>
         </div>
@@ -189,12 +227,12 @@ export default function ExecutiveOverview() {
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">Your core services</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {services.map((key) => {
+          {services.map((key, i) => {
             const meta = SERVICE_META[key];
             const { label, value } = meta.metric(metrics, access);
             const Icon = meta.icon;
             return (
-              <div key={key} className={`flex flex-col overflow-hidden rounded-2xl ${ACCENT[meta.accent]} text-white shadow-sm`}>
+              <div key={key} style={{ animationDelay: `${i * 80}ms` }} className={`animate-slide-up flex flex-col overflow-hidden rounded-2xl ${ACCENT[meta.accent]} text-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg`}>
                 <button onClick={() => navigate(meta.path)} className="group p-5 text-left transition hover:bg-black/10">
                   <div className="flex items-start justify-between">
                     <div>
@@ -224,7 +262,7 @@ export default function ExecutiveOverview() {
 
       {/* ── Activity / Schedule / Tasks ─────────────────────────────────── */}
       <div className="grid gap-5 lg:grid-cols-3">
-        <Panel title="Recent Activity" icon={Activity}>
+        <Panel title="Recent Activity" icon={Activity} delay={60}>
           {activity.length === 0 ? (
             <Empty text="No recent activity" />
           ) : (
@@ -245,7 +283,7 @@ export default function ExecutiveOverview() {
           )}
         </Panel>
 
-        <Panel title="Upcoming & Meetings" icon={CalendarClock}>
+        <Panel title="Upcoming & Meetings" icon={CalendarClock} delay={140}>
           {schedule.length === 0 ? (
             <Empty text="Nothing scheduled" />
           ) : (
@@ -266,7 +304,7 @@ export default function ExecutiveOverview() {
           )}
         </Panel>
 
-        <Panel title="Task Workflow" icon={ListChecks} action={<span className="text-xs text-slate-400">{tasks.items.length} recent</span>}>
+        <Panel title="Task Workflow" icon={ListChecks} action={<span className="text-xs text-slate-400">{tasks.items.length} recent</span>} delay={220}>
           <div className="mb-3 grid grid-cols-4 gap-2">
             {TASK_COLS.map((c) => (
               <div key={c.key} className="rounded-lg bg-slate-50 p-2 text-center dark:bg-slate-800/50">

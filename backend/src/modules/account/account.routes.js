@@ -1,5 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
+import { uploadImage } from "../../middleware/upload.middleware.js";
 import * as c from "./account.controller.js";
 
 const router = express.Router();
@@ -8,7 +9,8 @@ const auth = authenticate;
 // ── Profile ───────────────────────────────────────────────────────────────
 router.get("/profile",              auth, c.getProfile);
 router.put("/profile",              auth, c.updateProfile);
-router.post("/profile/avatar",      auth, c.uploadAvatar);
+router.post("/profile/avatar",      auth, ...uploadImage, c.uploadAvatar);
+router.delete("/profile/avatar",    auth, c.removeAvatar);
 
 // ── Security ──────────────────────────────────────────────────────────────
 router.get("/security",                     auth, c.getSecurity);

@@ -74,6 +74,7 @@ export async function loginUser({ email, password, employeeId }, meta = {}) {
       enterpriseCode: user.tenant?.code ?? null,
       role: user.role.name,
       department: user.department ?? null,
+      avatarUrl: user.avatarUrl ?? null,
     },
   };
 }
