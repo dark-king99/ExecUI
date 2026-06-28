@@ -13,12 +13,16 @@ import assistantRoutes  from "../modules/assistant/assistant.routes.js";
 import servicesRoutes   from "../modules/services/services.routes.js";
 import viewsRoutes      from "../modules/views/views.routes.js";
 import overviewRoutes   from "../modules/overview/overview.routes.js";
+import integrationRoutes from "../modules/integration/integration.routes.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { requireModule } from "../middleware/access.middleware.js";
 
 const router = express.Router();
 
 router.get("/health", (_req, res) => res.json({ status: "ok" }));
+
+// External integration API — authenticated by API key (not JWT/session).
+router.use("/v1",         integrationRoutes);
 
 router.use("/auth",       authRoutes);
 router.use("/users",      userRoutes);
