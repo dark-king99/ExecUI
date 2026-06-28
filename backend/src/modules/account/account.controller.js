@@ -1,5 +1,6 @@
 import prisma from "../../config/database.js";
 import * as billing from "./billing.service.js";
+import * as storage from "../../lib/storage.js";
 
 const tid = (req) => req.user.tenantId;
 const uid = (req) => req.user.userId;
@@ -86,8 +87,30 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-export const uploadAvatar = (_req, res) =>
-  res.json({ avatarUrl: null });
+export const uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "No image uploaded" });
+    const url = storage.urlFor(req.file.filename);
+    const prev = await prisma.user.findUnique({ where: { id: uid(req) }, select: { avatarUrl: true } });
+    await prisma.user.update({ where: { id: uid(req) }, data: { avatarUrl: url } });
+    if (prev?.avatarUrl) storage.remove(prev.avatarUrl); // clean up the replaced object
+    res.json({ avatarUrl: url });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Clear the avatar (revert to initials) and remove the stored object.
+export const removeAvatar = async (req, res) => {
+  try {
+    const prev = await prisma.user.findUnique({ where: { id: uid(req) }, select: { avatarUrl: true } });
+    await prisma.user.update({ where: { id: uid(req) }, data: { avatarUrl: null } });
+    if (prev?.avatarUrl) storage.remove(prev.avatarUrl);
+    res.json({ avatarUrl: null });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
 // ── Security ──────────────────────────────────────────────────────────────
 export const getSecurity = (_req, res) =>
