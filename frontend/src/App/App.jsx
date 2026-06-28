@@ -72,13 +72,24 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
   const location = useLocation();
 
   // Sections with their own sidebar that replace the top navbar.
-  // "home" is an immersive landing view that carries its own header/logo.
   const section = location.pathname.split("/")[1];
-  const hideNavbar = ["home", "network", "crm", "marketing", "analytics"].includes(section);
+  const hideNavbar = ["network", "crm", "marketing", "analytics"].includes(section);
+
+  // Home is a full-screen immersive landing view — no app chrome at all
+  // (sidebar/navbar only belong to the main system).
+  const isHome = section === "home";
 
   // Organization (enterprise account) views are restricted to admins.
   const isAdmin = ["enterprise_admin", "system_admin"].includes(roleToUse) ||
                   ["enterprise_admin", "system_admin"].includes(user?.role);
+
+  if (isHome) {
+    return (
+      <PageSuspense>
+        <HomeView />
+      </PageSuspense>
+    );
+  }
 
   return (
     <div className="flex h-screen w-screen bg-slate-50 dark:bg-slate-950">
