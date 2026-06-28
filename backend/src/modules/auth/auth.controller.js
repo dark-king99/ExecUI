@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 
 const signToken = (user, roleName) =>
   jwt.sign(
-    { userId: user.id, tenantId: user.tenantId, role: roleName },
+    { userId: user.id, tenantId: user.tenantId, role: roleName, department: user.department ?? null },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES || "1d" }
   );

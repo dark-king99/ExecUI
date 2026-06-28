@@ -12,6 +12,7 @@ import { SkeletonCard } from "../components/ui/Skeleton";
 import ErrorBoundary from "../components/ErrorBoundary";
 import BotWidget from "../components/BotWidget";
 import Dashboard from "../apps/services/Dashboard";
+import { accessFor } from "../lib/access";
 
 // ── Lazy-loaded mini-app route groups ─────────────────────────────────────────
 const HomeView            = lazy(() => import("../apps/HomeView"));
@@ -83,6 +84,11 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
   const isAdmin = ["enterprise_admin", "system_admin"].includes(roleToUse) ||
                   ["enterprise_admin", "system_admin"].includes(user?.role);
 
+  // Department-based module access. Blocked sections redirect to the overview.
+  const access = accessFor(user);
+  const guard = (sec, element) =>
+    access.sections.includes(sec) ? element : <Navigate to="/overview" replace />;
+
   if (isHome) {
     return (
       <PageSuspense>
@@ -134,38 +140,38 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/account/audit"        element={isAdmin ? <AuditLogs /> : <Navigate to="/account/profile" replace />} />
 
                 {/* Analytics — cross-service launcher + config-driven solution pages */}
-                <Route path="/analytics" element={<AnalyticsSolutions />} />
+                <Route path="/analytics" element={guard("analytics", <AnalyticsSolutions />)} />
                 {ANALYTICS_ROUTES.map(({ path, Component }) => (
-                  <Route key={path} path={path} element={<Component />} />
+                  <Route key={path} path={path} element={guard("analytics", <Component />)} />
                 ))}
 
                 {/* Network — solution launcher + config-driven solution pages */}
-                <Route path="/network" element={<NetworkSolutions />} />
+                <Route path="/network" element={guard("network", <NetworkSolutions />)} />
                 {NETWORK_ROUTES.map(({ path, Component }) => (
-                  <Route key={path} path={path} element={<Component />} />
+                  <Route key={path} path={path} element={guard("network", <Component />)} />
                 ))}
 
                 {/* CRM — solution launcher + config-driven solution pages */}
-                <Route path="/crm" element={<CrmSolutions />} />
+                <Route path="/crm" element={guard("crm", <CrmSolutions />)} />
                 {CRM_ROUTES.map(({ path, Component }) => (
-                  <Route key={path} path={path} element={<Component />} />
+                  <Route key={path} path={path} element={guard("crm", <Component />)} />
                 ))}
 
                 {/* Marketing — solution launcher + config-driven solution pages */}
-                <Route path="/marketing" element={<MarketingSolutions />} />
+                <Route path="/marketing" element={guard("marketing", <MarketingSolutions />)} />
                 {MARKETING_ROUTES.map(({ path, Component }) => (
-                  <Route key={path} path={path} element={<Component />} />
+                  <Route key={path} path={path} element={guard("marketing", <Component />)} />
                 ))}
 
 
                 {/* Services */}
-                <Route path="/services" element={<Navigate to="/services/dashboard" replace />} />
-                <Route path="/services/dashboard"      element={<Dashboard />} />
-                <Route path="/services/financial"      element={<FinancialManagement />} />
-                <Route path="/services/operation"     element={<OperationsSystem />} />
-                <Route path="/services/strategic"     element={<StrategicPlanning />} />
-                <Route path="/services/marketing" element={<MarketingSales />} />
-                <Route path="/services/team"         element={<TeamProjectCoordination />} />
+                <Route path="/services" element={guard("services", <Navigate to="/services/dashboard" replace />)} />
+                <Route path="/services/dashboard"      element={guard("services", <Dashboard />)} />
+                <Route path="/services/financial"      element={guard("services", <FinancialManagement />)} />
+                <Route path="/services/operation"     element={guard("services", <OperationsSystem />)} />
+                <Route path="/services/strategic"     element={guard("services", <StrategicPlanning />)} />
+                <Route path="/services/marketing" element={guard("services", <MarketingSales />)} />
+                <Route path="/services/team"         element={guard("services", <TeamProjectCoordination />)} />
 
                 <Route path="/botwidget" element={<Navigate to="/botwidget/botmessage" replace />} />
 

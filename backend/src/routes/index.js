@@ -12,6 +12,9 @@ import accountRoutes    from "../modules/account/account.routes.js";
 import assistantRoutes  from "../modules/assistant/assistant.routes.js";
 import servicesRoutes   from "../modules/services/services.routes.js";
 import viewsRoutes      from "../modules/views/views.routes.js";
+import overviewRoutes   from "../modules/overview/overview.routes.js";
+import { authenticate } from "../middleware/auth.middleware.js";
+import { requireModule } from "../middleware/access.middleware.js";
 
 const router = express.Router();
 
@@ -20,14 +23,19 @@ router.get("/health", (_req, res) => res.json({ status: "ok" }));
 router.use("/auth",       authRoutes);
 router.use("/users",      userRoutes);
 router.use("/roles",      roleRoutes);
-router.use("/crm",        contactRoutes);
-router.use("/crm",        crmRoutes);
-router.use("/marketing",  marketingRoutes);
-router.use("/network",    networkRoutes);
-router.use("/analytics",  analyticsRoutes);
+router.use("/overview",   overviewRoutes);
+
+// ── Department-gated core modules ───────────────────────────────────────────
+// authenticate first so requireModule can read the caller's department.
+router.use("/crm",        authenticate, requireModule("crm"),       contactRoutes);
+router.use("/crm",        authenticate, requireModule("crm"),       crmRoutes);
+router.use("/marketing",  authenticate, requireModule("marketing"), marketingRoutes);
+router.use("/network",    authenticate, requireModule("network"),   networkRoutes);
+router.use("/analytics",  authenticate, requireModule("analytics"), analyticsRoutes);
+router.use("/services",   authenticate, requireModule("services"),  servicesRoutes);
+
 router.use("/account",    accountRoutes);
 router.use("/assistant",  assistantRoutes);
-router.use("/services",   servicesRoutes);
 router.use("/views",      viewsRoutes);
 
 export default router;
