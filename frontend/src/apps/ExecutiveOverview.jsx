@@ -101,7 +101,7 @@ const TASK_COLS = [
 
 export default function ExecutiveOverview() {
   const navigate = useNavigate();
-  const { data, loading, refetch } = useApi(() => overview.dashboard(), [], { cacheKey: "overview:dashboard" });
+  const { data, loading, error, refetch } = useApi(() => overview.dashboard(), [], { cacheKey: "overview:dashboard" });
   const { data: deptLabels } = useApi(() => overview.departments(), [], { cacheKey: "overview:departments" });
   const [draft, setDraft] = useState("");
   const [toDept, setToDept] = useState("all");
@@ -120,7 +120,20 @@ export default function ExecutiveOverview() {
       </div>
     );
   }
-  if (!data) return null;
+  if (!data) {
+    return (
+      <div className="mx-auto max-w-7xl">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900/50">
+          <Activity size={28} className="text-slate-300 dark:text-slate-600" />
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Couldn't load your overview</p>
+          <p className="max-w-md text-xs text-slate-400">{error || "Something went wrong while loading your dashboard."}</p>
+          <button onClick={() => refetch()} className="mt-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500">
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const { identity, access, gauge, kpis, metrics, activity, schedule, tasks, messages } = data;
   const accent = identity.deptKey === "sales" ? "orange" : identity.deptKey === "marketing" ? "violet"
