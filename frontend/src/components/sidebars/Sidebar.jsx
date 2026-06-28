@@ -4,6 +4,20 @@ import {
   Server, Home, Users, TrendingUp, BarChart3, UserLock, Building2,
   ChevronLeft, ChevronRight, Settings, Layers, Activity, LayoutDashboard
 } from "lucide-react";
+import { accessFor } from "../../lib/access";
+
+// Department-gated module nav (filtered by the signed-in employee's access).
+const MODULES = [
+  { section: "crm",       label: "CRM",       path: "/crm",       icon: Users },
+  { section: "marketing", label: "Marketing", path: "/marketing", icon: TrendingUp },
+  { section: "network",   label: "Network",   path: "/network",   icon: Server },
+  { section: "analytics", label: "Analytics", path: "/analytics", icon: BarChart3 },
+  { section: "services",  label: "Services",  path: "/services",  icon: Layers },
+];
+
+function currentUser() {
+  try { return JSON.parse(localStorage.getItem("user")) || {}; } catch { return {}; }
+}
 
 function NavBtn({ icon: Icon, label, path, current, collapsed }) {
   const navigate = useNavigate();
@@ -50,6 +64,7 @@ export default function Sidebar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const allowed = accessFor(currentUser()).sections;
 
   useEffect(() => {
     const saved = localStorage.getItem("sidebar-collapsed");
@@ -101,11 +116,9 @@ export default function Sidebar() {
 
         <SectionLabel label="Modules" collapsed={collapsed} />
 
-        <NavBtn icon={Users}      label="CRM"       path="/crm"       current={pathname} collapsed={collapsed} />
-        <NavBtn icon={TrendingUp} label="Marketing"  path="/marketing"  current={pathname} collapsed={collapsed} />
-        <NavBtn icon={Server}     label="Network"    path="/network"    current={pathname} collapsed={collapsed} />
-        <NavBtn icon={BarChart3}  label="Analytics"  path="/analytics"  current={pathname} collapsed={collapsed} />
-        <NavBtn icon={Layers}     label="Services"   path="/services"   current={pathname} collapsed={collapsed} />
+        {MODULES.filter((m) => allowed.includes(m.section)).map((m) => (
+          <NavBtn key={m.section} icon={m.icon} label={m.label} path={m.path} current={pathname} collapsed={collapsed} />
+        ))}
       </nav>
 
       {/* ── Bottom ────────────────────────────────────────────────────── */}

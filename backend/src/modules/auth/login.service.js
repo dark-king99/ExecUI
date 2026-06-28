@@ -29,7 +29,7 @@ export async function loginUser({ email, password, employeeId }, meta = {}) {
   if (!valid) throw invalid();
 
   const token = jwt.sign(
-    { userId: user.id, tenantId: user.tenantId, role: user.role.name },
+    { userId: user.id, tenantId: user.tenantId, role: user.role.name, department: user.department ?? null },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES || "1d" }
   );
@@ -73,6 +73,7 @@ export async function loginUser({ email, password, employeeId }, meta = {}) {
       enterprise: user.tenant?.name ?? null,
       enterpriseCode: user.tenant?.code ?? null,
       role: user.role.name,
+      department: user.department ?? null,
     },
   };
 }

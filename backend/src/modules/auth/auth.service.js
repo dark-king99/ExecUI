@@ -28,9 +28,10 @@ export async function login(email, password) {
   if (!valid) throw new ApiError(401, "Invalid credentials");
 
   const payload = {
-    userId:   user.id,
-    tenantId: user.tenantId,
-    role:     user.role.name
+    userId:     user.id,
+    tenantId:   user.tenantId,
+    role:       user.role.name,
+    department: user.department ?? null
   };
 
   const token = jwt.sign(payload, process.env.JWT_SECRET, {
