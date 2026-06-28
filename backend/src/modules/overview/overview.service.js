@@ -4,6 +4,15 @@ import { accessFor, DEPT_LABELS, SECTIONS } from "../access/access.policy.js";
 const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
 const money = (n) => Math.round(n || 0);
 
+// Zero-filled section shapes — used whenever a metric query fails or a section
+// isn't computed, so the dashboard degrades gracefully instead of erroring.
+const DEFAULT_METRICS = {
+  crm:       { openDeals: 0, pipelineValue: 0, wonValue: 0, clients: 0, winRate: 0 },
+  marketing: { activeCampaigns: 0, audiences: 0, conversions: 0, leads: 0, reach: 0, revenue: 0 },
+  network:   { devices: 0, devicesUp: 0, uptimePct: 0, openAlerts: 0, criticalAlerts: 0 },
+  services:  { revenue: 0, expenses: 0, netProfit: 0, margin: 0, activeProjects: 0, openTasks: 0, completedTasks: 0, taskCompletion: 0, sops: 0 },
+};
+
 function gaugeStatus(v) {
   if (v == null) return "No data";
   if (v >= 85) return "Excellent";
@@ -86,38 +95,38 @@ function buildKpis(deptKey, m) {
   switch (deptKey) {
     case "sales":
       return [
-        k("openDeals", "Open Deals", m.crm.openDeals),
-        k("pipeline", "Pipeline Value", m.crm.pipelineValue, "$"),
-        k("clients", "Active Clients", m.crm.clients),
-        k("winRate", "Win Rate", m.crm.winRate, "%"),
+        k("openDeals", "Open Deals", (m.crm?.openDeals ?? 0)),
+        k("pipeline", "Pipeline Value", (m.crm?.pipelineValue ?? 0), "$"),
+        k("clients", "Active Clients", (m.crm?.clients ?? 0)),
+        k("winRate", "Win Rate", (m.crm?.winRate ?? 0), "%"),
       ];
     case "marketing":
       return [
-        k("campaigns", "Active Campaigns", m.marketing.activeCampaigns),
-        k("audiences", "Audiences", m.marketing.audiences),
-        k("reach", "Audience Reach", m.marketing.reach),
-        k("conversions", "Conversions", m.marketing.conversions),
+        k("campaigns", "Active Campaigns", (m.marketing?.activeCampaigns ?? 0)),
+        k("audiences", "Audiences", (m.marketing?.audiences ?? 0)),
+        k("reach", "Audience Reach", (m.marketing?.reach ?? 0)),
+        k("conversions", "Conversions", (m.marketing?.conversions ?? 0)),
       ];
     case "it":
       return [
-        k("devices", "Managed Devices", m.network.devices),
-        k("uptime", "Uptime", m.network.uptimePct, "%"),
-        k("alerts", "Open Alerts", m.network.openAlerts),
-        k("critical", "Critical", m.network.criticalAlerts),
+        k("devices", "Managed Devices", (m.network?.devices ?? 0)),
+        k("uptime", "Uptime", (m.network?.uptimePct ?? 0), "%"),
+        k("alerts", "Open Alerts", (m.network?.openAlerts ?? 0)),
+        k("critical", "Critical", (m.network?.criticalAlerts ?? 0)),
       ];
     case "finance":
       return [
-        k("revenue", "Revenue", m.services.revenue, "$"),
-        k("expenses", "Expenses", m.services.expenses, "$"),
-        k("profit", "Net Profit", m.services.netProfit, "$"),
-        k("margin", "Margin", m.services.margin, "%"),
+        k("revenue", "Revenue", (m.services?.revenue ?? 0), "$"),
+        k("expenses", "Expenses", (m.services?.expenses ?? 0), "$"),
+        k("profit", "Net Profit", (m.services?.netProfit ?? 0), "$"),
+        k("margin", "Margin", (m.services?.margin ?? 0), "%"),
       ];
     case "operations":
       return [
-        k("projects", "Active Projects", m.services.activeProjects),
-        k("openTasks", "Open Tasks", m.services.openTasks),
-        k("uptime", "Network Uptime", m.network.uptimePct, "%"),
-        k("sops", "Active SOPs", m.services.sops),
+        k("projects", "Active Projects", (m.services?.activeProjects ?? 0)),
+        k("openTasks", "Open Tasks", (m.services?.openTasks ?? 0)),
+        k("uptime", "Network Uptime", (m.network?.uptimePct ?? 0), "%"),
+        k("sops", "Active SOPs", (m.services?.sops ?? 0)),
       ];
     default: // executive
       return [
@@ -134,11 +143,11 @@ function buildKpis(deptKey, m) {
 function buildGauge(deptKey, m) {
   let value = null, label = "Department Efficiency";
   switch (deptKey) {
-    case "sales":      value = m.crm.winRate;            label = "Sales Efficiency"; break;
-    case "marketing":  value = m.marketing.activeCampaigns > 0 ? Math.min(100, pct(m.marketing.conversions, Math.max(1, m.marketing.leads)) || m.marketing.activeCampaigns * 10) : 0; label = "Marketing Efficiency"; break;
-    case "it":         value = m.network.uptimePct;       label = "Network Health"; break;
-    case "finance":    value = m.services.margin;         label = "Financial Efficiency"; break;
-    case "operations": value = m.services.taskCompletion; label = "Operational Efficiency"; break;
+    case "sales":      value = (m.crm?.winRate ?? 0);            label = "Sales Efficiency"; break;
+    case "marketing":  value = (m.marketing?.activeCampaigns ?? 0) > 0 ? Math.min(100, pct((m.marketing?.conversions ?? 0), Math.max(1, (m.marketing?.leads ?? 0))) || (m.marketing?.activeCampaigns ?? 0) * 10) : 0; label = "Marketing Efficiency"; break;
+    case "it":         value = (m.network?.uptimePct ?? 0);       label = "Network Health"; break;
+    case "finance":    value = (m.services?.margin ?? 0);         label = "Financial Efficiency"; break;
+    case "operations": value = (m.services?.taskCompletion ?? 0); label = "Operational Efficiency"; break;
     default: {
       const parts = [m.crm?.winRate, m.network?.uptimePct, m.services?.taskCompletion, m.services?.margin].filter((x) => typeof x === "number");
       value = parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : 0;
@@ -214,15 +223,17 @@ export async function getDashboard(userId, tenantId) {
   const access = accessFor({ role: user?.role?.name, department: user?.department });
 
   // Each section/panel is resolved defensively: a single failing query yields
-  // safe defaults instead of blanking the whole dashboard.
+  // safe, zero-filled defaults so the dashboard NEVER 500s or blanks because
+  // of one bad query. Every section is always a valid object (never null), so
+  // downstream KPI/gauge builders can't trip over a missing section.
   const safe = (p, fallback) => p.catch((e) => { console.error("overview section failed:", e.message); return fallback; });
 
   const want = new Set(access.privileged ? SECTIONS : access.sections);
   const [crm, marketing, network, services] = await Promise.all([
-    want.has("crm")       ? safe(crmMetrics(tenantId), null)      : Promise.resolve(null),
-    want.has("marketing") ? safe(marketingMetrics(tenantId), null): Promise.resolve(null),
-    want.has("network")   ? safe(networkMetrics(tenantId), null)  : Promise.resolve(null),
-    want.has("services")  ? safe(servicesMetrics(tenantId), null) : Promise.resolve(null),
+    want.has("crm")       ? safe(crmMetrics(tenantId), DEFAULT_METRICS.crm)            : Promise.resolve(DEFAULT_METRICS.crm),
+    want.has("marketing") ? safe(marketingMetrics(tenantId), DEFAULT_METRICS.marketing): Promise.resolve(DEFAULT_METRICS.marketing),
+    want.has("network")   ? safe(networkMetrics(tenantId), DEFAULT_METRICS.network)    : Promise.resolve(DEFAULT_METRICS.network),
+    want.has("services")  ? safe(servicesMetrics(tenantId), DEFAULT_METRICS.services)  : Promise.resolve(DEFAULT_METRICS.services),
   ]);
   const m = { crm, marketing, network, services };
 
