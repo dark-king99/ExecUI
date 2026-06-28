@@ -67,8 +67,8 @@ function CursorGlow() {
   }, []);
   return (
     <>
-      <div ref={glow} className="pointer-events-none fixed left-0 top-0 z-[1] h-80 w-80 rounded-full bg-indigo-500/20 opacity-70 blur-[90px] dark:bg-indigo-400/20" />
-      <div ref={dot} className="pointer-events-none fixed left-0 top-0 z-[60] h-7 w-7 rounded-full border border-indigo-500/60 dark:border-white/50" />
+      <div ref={glow} className="pointer-events-none fixed left-0 top-0 z-1 h-80 w-80 rounded-full bg-indigo-500/20 opacity-70 blur-[90px] dark:bg-indigo-400/20" />
+      <div ref={dot} className="pointer-events-none fixed left-0 top-0 z-60 h-7 w-7 rounded-full border border-indigo-500/60 dark:border-white/50" />
     </>
   );
 }
@@ -150,7 +150,7 @@ export default function HomeView() {
     { label: "Overview",  to: "/overview" },
     { label: "Services",  to: "/services" },
     { label: "Analytics", to: "/analytics" },
-    { label: "Network",   to: "/network" },
+    { label: "Access",   to: "/account/billing" },
   ];
 
   const cardBase =
@@ -163,7 +163,7 @@ export default function HomeView() {
       {/* Background: spotlight beam + faint grid */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[640px]">
         <div className="absolute left-1/2 top-0 h-[460px] w-[900px] -translate-x-1/2 bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.16),transparent_62%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.10),transparent_60%)]" />
-        <div className="absolute inset-0 opacity-[0.5] [background-image:linear-gradient(to_right,rgb(99_102_241_/_0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgb(99_102_241_/_0.06)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)] dark:opacity-100 dark:[background-image:linear-gradient(to_right,rgb(255_255_255_/_0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgb(255_255_255_/_0.04)_1px,transparent_1px)]" />
+        <div className="absolute inset-0 opacity-[0.5] bg-[linear-gradient(to_right,rgb(99_102_241/0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgb(99_102_241/0.06)_1px,transparent_1px)] bg-size-[48px_48px] mask-[radial-gradient(ellipse_at_top,black,transparent_70%)] dark:opacity-100 dark:[background-image:linear-gradient(to_right,rgb(255_255_255_/_0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgb(255_255_255_/_0.04)_1px,transparent_1px)]" />
       </div>
 
       {/* ── Sticky header ─────────────────────────────────────────────────── */}
