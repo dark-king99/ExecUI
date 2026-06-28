@@ -1,6 +1,7 @@
 import prisma from "../../config/database.js";
 import * as billing from "./billing.service.js";
 import * as storage from "../../lib/storage.js";
+import * as apikeys from "../apikeys/apikeys.service.js";
 
 const tid = (req) => req.user.tenantId;
 const uid = (req) => req.user.userId;
@@ -127,11 +128,10 @@ export const listSessions  = (_req, res) => res.json([]);
 export const revokeSession = (_req, res) => res.status(204).end();
 
 // ── API Keys ──────────────────────────────────────────────────────────────
-export const listApiKeys   = (_req, res) => res.json([]);
-export const createApiKey  = (req, res) =>
-  res.status(201).json({ id: `key-${Date.now()}`, name: req.body?.name ?? "New Key", key: null });
-export const deleteApiKey  = (_req, res) => res.status(204).end();
-export const rotateApiKey  = (_req, res) => res.json({ rotated: true, key: null });
+export const listApiKeys   = handle((req) => apikeys.listKeys(tid(req)));
+export const createApiKey  = handle((req) => apikeys.createKey(tid(req), uid(req), req.body));
+export const deleteApiKey  = handle((req) => apikeys.revokeKey(tid(req), req.params.id));
+export const rotateApiKey  = handle((req) => apikeys.rotateKey(tid(req), req.params.id));
 
 // ── Notifications ─────────────────────────────────────────────────────────
 export const getNotificationPreferences = (_req, res) =>
