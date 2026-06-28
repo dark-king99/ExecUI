@@ -38,7 +38,7 @@ import { ANALYTICS_ROUTES } from "../apps/analytics/solutions.config";
 // Account
 const Profile             = lazy(() => import("../apps/account/Profile"));
 const Security            = lazy(() => import("../apps/account/Security"));
-const ApiKeys             = lazy(() => import("../apps/account/ApiKeys"));
+const Integrations        = lazy(() => import("../apps/account/Integrations"));
 const Notifications       = lazy(() => import("../apps/account/Notifications"));
 const TeamPermissions     = lazy(() => import("../apps/account/TeamPermissions"));
 const Billing             = lazy(() => import("../apps/account/Billing"));
@@ -127,7 +127,8 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/account" element={<Navigate to="/account/profile" replace />} />
                 <Route path="/account/profile"      element={<Profile />} />
                 <Route path="/account/security"     element={<Security />} />
-                <Route path="/account/api-keys"     element={<ApiKeys />} />
+                <Route path="/account/integrations" element={<Integrations />} />
+                <Route path="/account/api-keys"     element={<Navigate to="/account/integrations" replace />} />
                 <Route path="/account/notifications" element={<Notifications />} />
 
 

@@ -519,11 +519,13 @@ export const account = {
       revoke: (id) => del(`/account/security/sessions/${id}`),
     },
   },
-  apiKeys: {
-    list:   ()     => get('/account/api-keys'),
-    create: (data) => post('/account/api-keys', data),
-    delete: (id)   => del(`/account/api-keys/${id}`),
-    rotate: (id)   => post(`/account/api-keys/${id}/rotate`),
+  // Outbound integration secret store (ExecUI -> external services)
+  integrations: {
+    list:   ()        => get('/integrations'),
+    create: (data)    => post('/integrations', data),
+    update: (id, data) => patch(`/integrations/${id}`, data),
+    delete: (id)      => del(`/integrations/${id}`),
+    test:   (id)      => post(`/integrations/${id}/test`),
   },
   notifications: {
     preferences:       ()     => get('/account/notifications/preferences'),
