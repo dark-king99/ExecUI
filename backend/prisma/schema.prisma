@@ -686,19 +686,25 @@ model DeptMessage {
   @@index([tenantId, createdAt])
 }
 
-model ApiKey {
-  id          String    @id @default(uuid())
-  tenantId    String
-  name        String
-  prefix      String                       // shown for identification, e.g. exk_live_Xy7d…
-  hash        String    @unique            // sha256 of the full key (plaintext is never stored)
-  scopes      String[]  @default([])       // e.g. ["read","write"]
-  lastUsedAt  DateTime?
-  lastUsedIp  String?
-  createdById String?
-  revokedAt   DateTime?
-  expiresAt   DateTime?
-  createdAt   DateTime  @default(now())
+
+model IntegrationConnection {
+  id           String    @id @default(uuid())
+  tenantId     String
+  name         String
+  kind         String    @default("api")    // api | webhook | slack | custom
+  baseUrl      String
+  authType     String    @default("bearer") // bearer | header | none
+  authHeader   String?                       // header name when authType = header
+  secretCipher String?                       // AES-256-GCM ciphertext (never plaintext)
+  secretIv     String?
+  secretTag    String?
+  secretLast4  String?                       // last 4 chars, for display only
+  status       String    @default("active")  // active | disabled
+  lastUsedAt   DateTime?
+  lastStatus   String?                        // outcome of the last call/test
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([tenantId])
 }

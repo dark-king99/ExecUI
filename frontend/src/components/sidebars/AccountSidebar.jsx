@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
 
-  ArrowLeft, User, ShieldCheck, Key, Bell, Users,
+  ArrowLeft, User, ShieldCheck, Key, Bell, Users, Plug,
   CreditCard, FileText, ChevronLeft, ChevronRight, Building2, IdCard,
 
 } from "lucide-react";
@@ -11,13 +11,13 @@ const personalItems = [
   { id: "profile",       label: "Profile",       icon: User,        path: "/account/profile" },
   { id: "security",      label: "Security",      icon: ShieldCheck, path: "/account/security" },
   { id: "notifications", label: "Notifications", icon: Bell,        path: "/account/notifications" },
-  { id: "api-keys",      label: "API Keys",      icon: Key,         path: "/account/api-keys" },
 ];
 
 const orgItems = [
   { id: "organization", label: "Organization",        icon: Building2,   path: "/account/organization" },
   { id: "members",      label: "Members",             icon: Users,       path: "/account/members" },
   { id: "team",         label: "Roles & Permissions", icon: ShieldCheck, path: "/account/team" },
+  { id: "integrations", label: "Integrations",        icon: Plug,        path: "/account/integrations" },
   { id: "billing",      label: "Billing",             icon: CreditCard,  path: "/account/billing" },
   { id: "audit",        label: "Audit Logs",          icon: FileText,    path: "/account/audit" },
 ];
