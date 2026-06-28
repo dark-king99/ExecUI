@@ -26,7 +26,7 @@ export default function Navbar({ user, onLogout, roleToUse, effectiveRole, setEf
   const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "U";
 
   return (
-    <header className="h-14 shrink-0 bg-white dark:bg-slate-950/95 backdrop-blur-sm border-b border-slate-100 dark:border-slate-800/70 flex items-center px-5 gap-4">
+    <header className="h-14 shrink-0 bg-white dark:bg-slate-950/95 backdrop-blur-sm border-b border-slate-100 dark:border-slate-800/70 flex items-center px-5 gap-90">
 
       {/* ── Search ───────────────────────────────────────────────────── */}
       <div className="relative max-w-[220px] w-full">
