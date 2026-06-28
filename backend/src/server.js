@@ -6,6 +6,16 @@ dotenv.config();
 
 const PORT = process.env.PORT || 5555;
 
+// ── Keep the server alive ─────────────────────────────────────────────────────
+// A single bad request or stray rejection must never take the whole API down.
+// Log loudly, but stay up so every other route keeps serving.
+process.on("uncaughtException", (err) => {
+  console.error("⚠️  Uncaught exception (server staying up):", err);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("⚠️  Unhandled promise rejection (server staying up):", reason);
+});
+
 // ── Ensure PostgreSQL is running before accepting traffic ─────────────────────
 async function ensureDatabase(attempt = 1) {
   try {
