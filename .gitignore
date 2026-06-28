@@ -2,3 +2,4 @@ node_modules/
 
 # Uploaded assets (object storage) — never commit binaries
 backend/storage/
+backend/.env
