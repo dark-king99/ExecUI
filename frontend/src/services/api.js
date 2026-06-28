@@ -49,11 +49,14 @@ async function safeJson(response) {
 // ── Core request ──────────────────────────────────────────────────────────
 async function request(path, options = {}) {
   const token = getToken();
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers = {
-    'Content-Type': 'application/json',
+    // Let the browser set multipart boundaries for FormData uploads.
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
+  if (isFormData) delete headers['Content-Type'];
 
   let response;
   try {
@@ -501,6 +504,7 @@ export const account = {
         headers: {},           // let browser set multipart boundary
       });
     },
+    removeAvatar: () => request('/account/profile/avatar', { method: 'DELETE' }),
   },
   security: {
     get:            ()     => get('/account/security'),
