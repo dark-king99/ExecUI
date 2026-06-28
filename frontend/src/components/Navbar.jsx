@@ -1,10 +1,15 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Moon, Sun, Home, Layers, Network, BarChart3,
-  BookOpen, ChevronDown, LogOut, User2, Shield
+  BookOpen, ChevronDown, LogOut, User2, Shield, CornerDownLeft
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
+import { useApi } from "../hooks/useApi";
+import { account } from "../services/api";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
+import { accessFor } from "../lib/access";
+import { searchApp } from "../lib/searchIndex";
 
 function NavItem({ icon: Icon, label, onClick }) {
   return (
@@ -18,25 +23,95 @@ function NavItem({ icon: Icon, label, onClick }) {
   );
 }
 
+function NavSearch({ user }) {
+  const navigate = useNavigate();
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const boxRef = useRef(null);
+  const allowed = accessFor(user).sections;
+  const results = open ? searchApp(q, allowed) : [];
+
+  useEffect(() => { setActive(0); }, [q]);
+  useEffect(() => {
+    const onDocClick = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  const go = (r) => { if (!r) return; navigate(r.path); setQ(""); setOpen(false); };
+
+  const onKeyDown = (e) => {
+    if (!results.length) {
+      if (e.key === "Enter" && q.trim()) { setOpen(true); }
+      return;
+    }
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => (i + 1) % results.length); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => (i - 1 + results.length) % results.length); }
+    else if (e.key === "Enter") { e.preventDefault(); go(results[active]); }
+    else if (e.key === "Escape") { setOpen(false); }
+  };
+
+  return (
+    <div ref={boxRef} className="relative max-w-[240px] w-full">
+      <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      <input
+        type="text"
+        value={q}
+        placeholder="Search pages & modules…"
+        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={onKeyDown}
+        className="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-lg text-slate-700 dark:text-slate-300 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition"
+      />
+      {open && q.trim() && (
+        <div className="absolute left-0 top-full mt-2 w-[340px] max-w-[80vw] z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden animate-scale-in">
+          {results.length === 0 ? (
+            <p className="px-4 py-5 text-center text-sm text-slate-400">No matches for “{q}”</p>
+          ) : (
+            <ul className="max-h-80 overflow-y-auto py-1.5">
+              {results.map((r, i) => (
+                <li key={r.path + r.label}>
+                  <button
+                    onMouseEnter={() => setActive(i)}
+                    onClick={() => go(r)}
+                    className={`flex w-full items-center gap-3 px-3 py-2 text-left transition ${
+                      i === active ? "bg-indigo-50 dark:bg-indigo-500/10" : "hover:bg-slate-50 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                      <Search size={13} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-slate-800 dark:text-slate-100">{r.label}</span>
+                      <span className="block truncate text-xs text-slate-400">{r.group || r.path}</span>
+                    </span>
+                    {i === active && <CornerDownLeft size={13} className="shrink-0 text-slate-400" />}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Navbar({ user, onLogout, roleToUse, effectiveRole, setEffectiveRole }) {
   const [open, setOpen]   = useState(false);
   const { theme, toggleTheme } = useSidebar();
   const navigate = useNavigate();
 
+  const { data: profile } = useApi(() => account.profile.get(), [], { cacheKey: "account:profile" });
+  const avatarUrl = profile?.avatarUrl ?? user?.avatarUrl ?? null;
   const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "U";
 
   return (
     <header className="h-14 shrink-0 bg-white dark:bg-slate-950/95 backdrop-blur-sm border-b border-slate-100 dark:border-slate-800/70 flex items-center px-5 gap-90">
 
       {/* ── Search ───────────────────────────────────────────────────── */}
-      <div className="relative max-w-[220px] w-full">
-        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-        <input
-          type="text"
-          placeholder="Search…"
-          className="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-lg text-slate-700 dark:text-slate-300 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition"
-        />
-      </div>
+      <NavSearch user={user} />
 
       {/* ── Quick nav ────────────────────────────────────────────────── */}
       <nav className="flex items-center gap-0.5 ml-2">
@@ -67,9 +142,10 @@ export default function Navbar({ user, onLogout, roleToUse, effectiveRole, setEf
             onClick={() => setOpen((v) => !v)}
             className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition group"
           >
-            <div className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-semibold shadow-sm shrink-0">
-              {initials}
-            </div>
+            <Avatar className="w-7 h-7 shrink-0">
+              <AvatarImage src={avatarUrl} alt={initials} />
+              <AvatarFallback className="bg-indigo-600 text-white text-xs font-semibold">{initials}</AvatarFallback>
+            </Avatar>
             <div className="hidden sm:block text-left min-w-0 max-w-[120px]">
               <p className="text-xs font-medium text-slate-700 dark:text-slate-200 leading-none truncate">
                 {user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : user?.email || "User"}
@@ -90,9 +166,10 @@ export default function Navbar({ user, onLogout, roleToUse, effectiveRole, setEf
               <div className="absolute right-0 mt-2 w-64 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden animate-scale-in">
                 {/* User info */}
                 <div className="px-4 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-semibold shrink-0">
-                    {initials}
-                  </div>
+                  <Avatar className="w-9 h-9 shrink-0">
+                    <AvatarImage src={avatarUrl} alt={initials} />
+                    <AvatarFallback className="bg-indigo-600 text-white text-sm font-semibold">{initials}</AvatarFallback>
+                  </Avatar>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
                       {user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "User"}

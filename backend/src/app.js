@@ -6,18 +6,22 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import { errorHandler } from "./middleware/error.middleware.js";
 import routes from "./routes/index.js";
+import { STORAGE_ROOT } from "./lib/storage.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 
 app.use(cors());
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
 app.use(express.json());
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
+
+// ── Object storage (uploaded assets served from disk, not the DB) ─────────
+app.use("/api/uploads", express.static(STORAGE_ROOT, { maxAge: "7d", immutable: true }));
 
 // ── API routes ────────────────────────────────────────────────────────────
 app.use("/api", routes);
