@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Server, Home, Users, TrendingUp, BarChart3, UserLock, Building2,
-  ChevronLeft, ChevronRight, Settings, Layers, Activity
+  ChevronLeft, ChevronRight, Settings, Layers, Activity, LayoutDashboard
 } from "lucide-react";
 
 function NavBtn({ icon: Icon, label, path, current, collapsed }) {
@@ -95,8 +95,9 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
         <SectionLabel label="Overview" collapsed={collapsed} />
 
-        <NavBtn icon={Home}     label="Home"    path="/home"    current={pathname} collapsed={collapsed} />
-        <NavBtn icon={UserLock} label="Account" path="/account" current={pathname} collapsed={collapsed} />
+        <NavBtn icon={Home}            label="Home"               path="/home"     current={pathname} collapsed={collapsed} />
+        <NavBtn icon={LayoutDashboard} label="Executive Overview" path="/overview" current={pathname} collapsed={collapsed} />
+        <NavBtn icon={UserLock}        label="Account"            path="/account"  current={pathname} collapsed={collapsed} />
 
         <SectionLabel label="Modules" collapsed={collapsed} />
 
