@@ -2,4 +2,14 @@ node_modules/
 
 # Uploaded assets (object storage) — never commit binaries
 backend/storage/
+
 backend/.env
+
+
+# Local environment files — never commit secrets (use .env.example as the template)
+.env
+.env.*
+!.env.example
+
+backend/.env
+.env
