@@ -4,7 +4,10 @@
  * Base URL is configured via VITE_API_BASE_URL environment variable.
  */
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+// Default to "/api" even if the env var is missing, so requests still hit the
+// backend (vite proxies /api in dev; same-origin in prod) instead of falling
+// through to the SPA and returning index.html.
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 export const WS_URL = import.meta.env.VITE_WS_URL ?? '';
 
 // ── Token management ───────────────────────────────────────────────────────
@@ -33,17 +36,28 @@ function getToken() {
   }
 }
 
-// ── Safe JSON parser – never throws on non-JSON bodies ────────────────────
-async function safeJson(response) {
+// ── Body reader – tolerant of non-JSON bodies (never throws) ───────────────
+// Returns { json, isJson }. A non-JSON body (HTML error page, proxy page, etc.)
+// yields { json: null, isJson: false } rather than blowing up the caller.
+async function readBody(response) {
   const text = await response.text();
-  if (!text) return null;
+  if (!text) return { json: null, isJson: true };
   try {
-    return JSON.parse(text);
+    return { json: JSON.parse(text), isJson: true };
   } catch {
-    // Server returned HTML or plain text (e.g. a proxy error page).
-    // Surface a readable message instead of a raw JSON.parse crash.
-    throw new Error(`Non-JSON response (${response.status}): ${text.slice(0, 120)}`);
+    return { json: null, isJson: false };
   }
+}
+
+// Clean, human-readable message for responses we couldn't parse as JSON
+// (server down, proxy error, gateway timeout, HTML error page, …).
+function friendlyError(status) {
+  if (status === 0 || status >= 502) return "Can't reach the server — it may be offline or restarting. Please try again in a moment.";
+  if (status === 401) return "Your session has expired. Please sign in again.";
+  if (status === 403) return "You don't have access to that.";
+  if (status === 404) return "Not found.";
+  if (status >= 500) return "The server ran into an error. Please try again.";
+  return `Request failed (${status}).`;
 }
 
 // ── Core request ──────────────────────────────────────────────────────────
@@ -61,29 +75,34 @@ async function request(path, options = {}) {
   let response;
   try {
     response = await fetch(`${BASE_URL}${path}`, { ...options, headers });
-  } catch (networkErr) {
-    throw new Error(`Network error: ${networkErr.message}`);
+  } catch {
+    // Network-level failure (server unreachable, DNS, CORS, aborted).
+    throw new Error("Can't reach the server. Check your connection and try again.");
   }
 
+  if (response.status === 204) return null;
+
+  const { json, isJson } = await readBody(response);
+
   if (!response.ok) {
-    let message = `HTTP ${response.status}`;
-    try {
-      const body = await safeJson(response);
-      message = body?.message ?? body?.error ?? message;
-    } catch (parseErr) {
-      message = parseErr.message;
-    }
     // Auto-logout on invalid/expired token
     if (response.status === 401) {
       clearToken();
       localStorage.removeItem('user');
       window.dispatchEvent(new CustomEvent('auth:expired'));
     }
+    // Prefer the API's own message; otherwise a clean status-based message
+    // (never surface a raw HTML body).
+    const message = (isJson && (json?.message ?? json?.error)) || friendlyError(response.status);
     throw new Error(message);
   }
 
-  if (response.status === 204) return null;
-  return safeJson(response);
+  // 2xx but not JSON usually means the request didn't reach the API at all
+  // (e.g. it hit the SPA fallback and got index.html back).
+  if (!isJson) {
+    throw new Error("Unexpected response from the server. Please refresh and try again.");
+  }
+  return json;
 }
 
 const get    = (path, params) => {
