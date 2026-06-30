@@ -61,6 +61,7 @@ export const listAutomationJobs      = handle((req) => svc.listAutomationJobs(ti
 export const listAutomationTemplates = handle((req) => svc.listAutomationTemplates(tid(req)));
 export const runAutomationJob        = handle((req) => svc.runAutomationJob(tid(req), req.params.id));
 export const createAutomationJob     = handle((req) => svc.createAutomationJob(tid(req), req.body));
+export const deleteAutomationJob     = handle((req) => svc.deleteAutomationJob(tid(req), req.params.id));
 
 // Changes
 export const listChanges   = handle((req) => svc.listChanges(tid(req), req.query));

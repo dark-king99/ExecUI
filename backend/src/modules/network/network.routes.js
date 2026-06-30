@@ -56,6 +56,7 @@ router.get("/automation/jobs",           auth, c.listAutomationJobs);
 router.get("/automation/templates",      auth, c.listAutomationTemplates);
 router.post("/automation/jobs/:id/run",  auth, c.runAutomationJob);
 router.post("/automation/jobs",          auth, c.createAutomationJob);
+router.delete("/automation/jobs/:id",    auth, c.deleteAutomationJob);
 
 // ── Changes ───────────────────────────────────────────────────────────────────
 router.get("/changes",                  auth, c.listChanges);

@@ -1,1 +1,5 @@
+<<<<<<<< HEAD:frontend/dist/assets/wallet-CP4srDCl.js
 import{c as a}from"./index-0GBELeo9.js";const e=[["path",{d:"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1",key:"18etb6"}],["path",{d:"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4",key:"xoc0q4"}]],o=a("wallet",e);export{o as W};
+========
+import{c as a}from"./index-COGo6_iv.js";const e=[["path",{d:"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1",key:"18etb6"}],["path",{d:"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4",key:"xoc0q4"}]],o=a("wallet",e);export{o as W};
+>>>>>>>> 413eeef (Audit & fix: complete Network Automation; harden team-member create):frontend/dist/assets/wallet-Cu66TQBd.js
