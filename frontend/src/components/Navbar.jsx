@@ -10,6 +10,7 @@ import { account } from "../services/api";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { accessFor } from "../lib/access";
 import { searchApp } from "../lib/searchIndex";
+import NotificationBell from "./NotificationBell";
 
 function NavItem({ icon: Icon, label, onClick }) {
   return (
@@ -132,6 +133,9 @@ export default function Navbar({ user, onLogout, roleToUse, effectiveRole, setEf
         >
           {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
         </button>
+
+        {/* Notifications */}
+        <NotificationBell />
 
         {/* Divider */}
         <div className="w-px h-5 bg-slate-200 dark:bg-slate-800" />

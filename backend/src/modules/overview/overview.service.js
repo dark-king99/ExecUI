@@ -1,5 +1,6 @@
 import prisma from "../../config/database.js";
 import { accessFor, DEPT_LABELS, SECTIONS } from "../access/access.policy.js";
+import * as messaging from "../messaging/messaging.service.js";
 
 const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
 const money = (n) => Math.round(n || 0);
@@ -266,21 +267,10 @@ export async function getDashboard(userId, tenantId) {
   };
 }
 
+// Posting from the Executive Overview shares the messaging path so recipients
+// get in-app notifications (the message stays in the app — never emailed).
 export async function postMessage(userId, tenantId, { body, toDept }) {
-  const user = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
-  const access = accessFor({ role: user?.role?.name, department: user?.department });
-  if (!body || !String(body).trim()) throw new Error("Message body is required");
-  const msg = await prisma.deptMessage.create({
-    data: {
-      tenantId,
-      authorId: userId,
-      authorName: `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || user?.email || "Unknown",
-      fromDept: access.dept,
-      toDept: toDept && toDept !== "all" ? toDept : null,
-      body: String(body).trim(),
-    },
-  });
-  return { id: msg.id, authorName: msg.authorName, fromDept: msg.fromDept, toDept: msg.toDept, body: msg.body, time: msg.createdAt };
+  return messaging.sendDept(tenantId, userId, { body, toDept });
 }
 
 export const DEPARTMENTS = DEPT_LABELS;

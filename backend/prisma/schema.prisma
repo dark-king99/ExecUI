@@ -724,4 +724,48 @@ model NetworkAutomationJob {
   updatedAt   DateTime  @updatedAt
 
   @@index([tenantId])
+model Notification {
+  id        String    @id @default(uuid())
+  tenantId  String
+  userId    String                          // recipient
+  type      String    @default("message")   // message | dept_message | email | system
+  title     String
+  body      String?
+  link      String?
+  actorName String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([tenantId, userId, createdAt])
+}
+
+model DirectMessage {
+  id          String    @id @default(uuid())
+  tenantId    String
+  senderId    String
+  senderName  String
+  recipientId String
+  body        String
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId, senderId, recipientId, createdAt])
+  @@index([tenantId, recipientId, readAt])
+}
+
+model EmailLog {
+  id          String   @id @default(uuid())
+  tenantId    String
+  toEmail     String
+  fromEmail   String?
+  subject     String
+  status      String   @default("queued")  // sent | failed | skipped
+  provider    String   @default("resend")
+  providerId  String?
+  error       String?
+  context     String?                        // marketing:campaign | crm:contact | auth:invite ...
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, createdAt])
 }

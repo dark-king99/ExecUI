@@ -14,6 +14,9 @@ import servicesRoutes   from "../modules/services/services.routes.js";
 import viewsRoutes      from "../modules/views/views.routes.js";
 import overviewRoutes   from "../modules/overview/overview.routes.js";
 import integrationRoutes from "../modules/integrations/integrations.routes.js";
+import messagingRoutes  from "../modules/messaging/messaging.routes.js";
+import notificationRoutes from "../modules/notifications/notifications.routes.js";
+import emailRoutes      from "../modules/email/email.routes.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { requireModule } from "../middleware/access.middleware.js";
 
@@ -25,6 +28,9 @@ router.use("/auth",       authRoutes);
 router.use("/users",      userRoutes);
 router.use("/roles",      roleRoutes);
 router.use("/overview",   overviewRoutes);
+router.use("/messaging",  messagingRoutes);
+router.use("/notifications", notificationRoutes);
+router.use("/email",      emailRoutes);
 // Outbound integration secret store (ExecUI -> external services), admin-managed.
 router.use("/integrations", integrationRoutes);
 
