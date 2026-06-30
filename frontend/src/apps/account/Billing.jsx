@@ -1,45 +1,89 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import PageHeader from "../../components/ui/PageHeader";
-import { Card, CardBody, CardHeader, Stat } from "../../components/ui/Card";
+import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { useToast } from "../../components/ui/Toast";
-import { CreditCard, DollarSign, Calendar, Download, AlertCircle, Check, Zap, ExternalLink, RefreshCw } from "lucide-react";
+import {
+  CreditCard, AlertCircle, Check, Zap, Crown, Layers, Sparkles, Lock,
+  Users, TrendingUp, Server, BarChart3, Sliders,
+} from "lucide-react";
 import { useApi, useMutation } from "../../hooks/useApi";
 import { account } from "../../services/api";
 
-const PLAN_COLORS = {
-  starter:    { ring: "ring-slate-300 dark:ring-slate-700",   badge: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300" },
-  growth:     { ring: "ring-indigo-400 dark:ring-indigo-500", badge: "bg-indigo-600 text-white" },
-  enterprise: { ring: "ring-slate-300 dark:ring-slate-700",   badge: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300" },
+function currentUser() {
+  try { return JSON.parse(localStorage.getItem("user")) || {}; } catch { return {}; }
+}
+function isAdmin(u) {
+  return u?.role === "enterprise_admin" || u?.role === "system_admin";
+}
+
+const TIER_STYLE = {
+  standard:   { accent: "slate",   icon: Layers,   badge: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300" },
+  premium:    { accent: "indigo",  icon: Zap,      badge: "bg-indigo-600 text-white" },
+  enterprise: { accent: "violet",  icon: Sparkles, badge: "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300" },
+  executive:  { accent: "amber",   icon: Crown,    badge: "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300" },
 };
 
-function PlanCard({ plan, currentPlanId, onUpgrade, loading }) {
-  const isCurrent = plan.id === currentPlanId;
-  const color     = PLAN_COLORS[plan.id] ?? PLAN_COLORS.starter;
+const MODULE_META = {
+  crm:       { label: "CRM",       icon: Users },
+  marketing: { label: "Marketing", icon: TrendingUp },
+  services:  { label: "Services",  icon: Layers },
+  network:   { label: "Network",   icon: Server },
+  analytics: { label: "Analytics", icon: BarChart3 },
+};
+
+// Human-readable feature lines from a plan's entitlements.
+function planFeatures(plan) {
+  const ent = plan.entitlements ?? {};
+  const sol = ent.solutions ?? {};
+  const lines = [];
+  if (sol.crm?.length)       lines.push(`${sol.crm.length === 9 ? "Full" : sol.crm.length} CRM solution${sol.crm.length > 1 ? "s" : ""}`);
+  if (sol.marketing?.length) lines.push(`${sol.marketing.length === 7 ? "Full" : sol.marketing.length} Marketing solution${sol.marketing.length > 1 ? "s" : ""}`);
+  if (sol.services?.length)  lines.push(`${plan.id === "premium" ? "Core" : "Full"} Services suite`);
+  if (sol.network === "all") lines.push("Network Operations");
+  if (ent.analyticsSlices?.length) lines.push("Analytics for every active module");
+  return lines;
+}
+
+function PlanCard({ plan, current, onSelect, loading, canSelect }) {
+  const s = TIER_STYLE[plan.id] ?? TIER_STYLE.standard;
+  const Icon = s.icon;
+  const isCurrent = plan.id === current;
+  const features = planFeatures(plan);
 
   return (
     <div className={`relative flex flex-col rounded-2xl border-2 p-5 transition ${
-      plan.highlighted
+      isCurrent
+        ? "border-emerald-500 bg-emerald-50/60 dark:bg-emerald-900/15"
+        : plan.highlighted
         ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
         : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
     }`}>
-      {plan.highlighted && (
+      {plan.highlighted && !isCurrent && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <span className="bg-indigo-600 text-white text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1">
+          <span className="bg-indigo-600 text-white text-[11px] font-semibold px-3 py-1 rounded-full flex items-center gap-1">
             <Zap size={11} /> Most Popular
           </span>
         </div>
       )}
+      {isCurrent && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+          <span className="bg-emerald-600 text-white text-[11px] font-semibold px-3 py-1 rounded-full">Current Plan</span>
+        </div>
+      )}
 
-      <div className="mb-4">
-        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${color.badge}`}>{plan.name}</span>
-        <p className="mt-3 text-3xl font-bold text-slate-900 dark:text-white">{plan.monthlyCost}<span className="text-sm font-normal text-slate-500">/mo</span></p>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">or {plan.yearlyCost}/yr — save 2 months</p>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">{plan.description}</p>
+      <div className={`mb-4 ${plan.highlighted || isCurrent ? "mt-2" : ""}`}>
+        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${s.badge}`}>
+          <Icon size={12} /> {plan.name}
+        </span>
+        <p className="mt-3 text-3xl font-bold text-slate-900 dark:text-white">
+          ${plan.price.toLocaleString()}<span className="text-sm font-normal text-slate-500">/mo</span>
+        </p>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 min-h-[40px]">{plan.tagline}</p>
       </div>
 
       <ul className="space-y-1.5 flex-1 mb-5">
-        {plan.features?.map((f) => (
+        {features.map((f) => (
           <li key={f} className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300">
             <Check size={14} className="text-emerald-500 shrink-0 mt-0.5" /> {f}
           </li>
@@ -47,81 +91,176 @@ function PlanCard({ plan, currentPlanId, onUpgrade, loading }) {
       </ul>
 
       <button
-        onClick={() => !isCurrent && onUpgrade(plan.id)}
-        disabled={isCurrent || loading}
+        onClick={() => !isCurrent && canSelect && onSelect(plan.id)}
+        disabled={isCurrent || loading || !canSelect}
         className={`w-full py-2 rounded-lg text-sm font-medium transition ${
           isCurrent
             ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 cursor-default"
+            : !canSelect
+            ? "border border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed"
             : plan.highlighted
             ? "bg-indigo-600 hover:bg-indigo-700 text-white"
             : "border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400"
         }`}
       >
-        {isCurrent ? "Current Plan" : loading ? "Updating…" : plan.highlighted ? "Upgrade Now" : "Select Plan"}
+        {isCurrent ? "Active" : !canSelect ? "Admin only" : loading ? "Switching…" : "Choose plan"}
       </button>
     </div>
   );
 }
 
+function CustomBuilder({ custom, catalog, current, currentSolutions, onSelect, loading, canSelect }) {
+  const isCurrent = current === "custom";
+  const [selected, setSelected] = useState(() => new Set(isCurrent ? currentSolutions : []));
+
+  const toggle = (key) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const count = selected.size;
+  const price = count * custom.unitPrice;
+  const meetsMin = count >= custom.minUnits;
+
+  const Group = ({ title, icon: Icon, module, items }) => (
+    <div>
+      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
+        <Icon size={13} /> {title}
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+        {items.map((it) => {
+          const key = `${module}:${it.id}`;
+          const on = selected.has(key);
+          return (
+            <button
+              key={key}
+              onClick={() => toggle(key)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm text-left transition ${
+                on
+                  ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300"
+                  : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-300"
+              }`}
+            >
+              <span className={`h-4 w-4 rounded flex items-center justify-center shrink-0 ${
+                on ? "bg-indigo-600 text-white" : "border border-slate-300 dark:border-slate-600"
+              }`}>
+                {on && <Check size={11} />}
+              </span>
+              {it.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  return (
+    <Card>
+      <CardHeader
+        title={<span className="flex items-center gap-2"><Sliders size={15} /> Build a Custom plan</span>}
+        subtitle={`Pick from CRM & Marketing only · minimum ${custom.minUnits} solutions · $${custom.unitPrice} each`}
+      />
+      <CardBody className="space-y-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <Group title="CRM" icon={Users} module="crm" items={catalog.crm} />
+          <Group title="Marketing" icon={TrendingUp} module="marketing" items={catalog.marketing} />
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div className="text-sm">
+            <span className={`font-semibold ${meetsMin ? "text-slate-900 dark:text-white" : "text-amber-600 dark:text-amber-400"}`}>
+              {count} selected
+            </span>
+            <span className="text-slate-400"> / min {custom.minUnits}</span>
+            <span className="mx-2 text-slate-300 dark:text-slate-600">·</span>
+            <span className="font-semibold text-slate-900 dark:text-white">${price.toLocaleString()}/mo</span>
+          </div>
+          <button
+            onClick={() => onSelect("custom", [...selected])}
+            disabled={!meetsMin || loading || !canSelect}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+              !canSelect
+                ? "border border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed"
+                : meetsMin
+                ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
+            }`}
+          >
+            {!canSelect ? "Admin only" : loading ? "Saving…" : isCurrent ? "Update custom plan" : "Choose Custom"}
+          </button>
+        </div>
+        {!meetsMin && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+            <AlertCircle size={12} /> Select at least {custom.minUnits} solutions to activate a custom plan.
+          </p>
+        )}
+      </CardBody>
+    </Card>
+  );
+}
+
 export default function Billing() {
   const toast = useToast();
-  const [showPlans, setShowPlans] = useState(false);
+  const me = currentUser();
+  const admin = isAdmin(me);
 
   const { data: billingData, loading: billingLoading, error: billingError, refetch: refetchBilling } = useApi(
     () => account.billing.get(), [], { pollingInterval: 120000 }
   );
   const billing = billingData ?? null;
 
-  const { data: invoicesData, loading: invoicesLoading, error: invoicesError } = useApi(
-    () => account.billing.invoices(), [], { pollingInterval: 120000 }
+  const { data: catalogData } = useApi(() => account.billing.plans(), []);
+  const plans   = catalogData?.plans ?? [];
+  const custom  = catalogData?.custom ?? { id: "custom", unitPrice: 49, minUnits: 8 };
+  const catalog = catalogData?.catalog ?? { crm: [], marketing: [], services: [] };
+
+  const currentPlan = billing?.plan ?? "executive";
+  const currentSolutions = billing?.customSolutions ?? [];
+
+  const selectMut = useMutation(
+    ({ plan, customSolutions }) => account.billing.select({ plan, customSolutions }),
+    {
+      onSuccess: (data) => {
+        toast({ message: `Now on the ${data.planName} plan`, type: "success" });
+        // Keep local gating in sync immediately (no re-login required).
+        try {
+          const u = currentUser();
+          localStorage.setItem("user", JSON.stringify({
+            ...u, plan: data.plan, planSolutions: data.customSolutions ?? [],
+          }));
+        } catch { /* ignore */ }
+        refetchBilling();
+        // Refresh so sidebar/route gating recomputes from the new plan.
+        setTimeout(() => window.location.reload(), 600);
+      },
+      onError: (e) => toast({ message: e.message, type: "error" }),
+    }
   );
-  const invoices = invoicesData ?? [];
 
-  const { data: plansData } = useApi(() => account.billing.plans(), []);
-  const plans = plansData ?? [];
+  const handleSelect = (plan, customSolutions = []) => selectMut.mutate({ plan, customSolutions });
 
-  const { data: pmData } = useApi(() => account.billing.paymentMethods(), []);
-  const paymentMethods = pmData ?? [];
-
-  const upgradeMut = useMutation((planId) => account.billing.upgrade({ planId }), {
-    onSuccess: (data) => {
-      toast({ message: `Plan updated to ${data.plan ?? "new plan"}`, type: "success" });
-      setShowPlans(false);
-      refetchBilling();
-    },
-    onError: (e) => toast({ message: e.message, type: "error" }),
-  });
-
-  const portalMut = useMutation(() => account.billing.portal({}), {
-    onSuccess: (data) => {
-      if (data.url) {
-        window.open(data.url, "_blank");
-      } else {
-        toast({ message: "Stripe Customer Portal requires a live API key", type: "info" });
-      }
-    },
-    onError: (e) => toast({ message: e.message, type: "error" }),
-  });
-
-  const plan    = billing?.plan ?? {};
-  const payment = billing?.paymentMethod ?? paymentMethods?.[0] ?? {};
+  const activeEnt = billing?.entitlements ?? { sections: [], solutions: {}, analyticsSlices: [] };
+  const activeModules = useMemo(
+    () => (activeEnt.sections ?? []).filter((s) => MODULE_META[s]),
+    [activeEnt]
+  );
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Billing"
-        subtitle="Manage your subscription, payment method and invoices"
+        title="Billing & Plans"
+        subtitle="Choose the plan that fits your organization. Access scales with your plan."
         icon={CreditCard}
         iconColor="indigo"
         actions={
-          <button
-            onClick={() => portalMut.mutate()}
-            disabled={portalMut.loading}
-            className="flex items-center gap-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm px-4 py-2 rounded-lg hover:border-indigo-400 transition"
-          >
-            <ExternalLink size={14} />
-            {portalMut.loading ? "Opening…" : "Customer Portal"}
-          </button>
+          billing?.freeEarlyAccess && (
+            <span className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+              <Sparkles size={12} /> Free during early access
+            </span>
+          )
         }
       />
 
@@ -131,175 +270,78 @@ export default function Billing() {
         </div>
       )}
 
-      {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4">
-        <Stat label="Current Plan"  value={billingLoading ? "…" : (plan.name ?? "—")}         color="indigo" />
-        <Stat label="Monthly Cost"  value={billingLoading ? "…" : (plan.monthlyCost ?? "—")}  color="sky" />
-        <Stat label="Next Renewal"  value={billingLoading ? "…" : (billing?.nextRenewal ?? "—")} color="emerald" />
-      </div>
-
-      {/* Subscription card */}
-      <Card>
-        <CardHeader title="Subscription" />
-        <CardBody>
-          {billingLoading ? (
-            <div className="animate-pulse space-y-2">
-              <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
-              <div className="h-3 bg-slate-100 dark:bg-slate-700/60 rounded w-1/2" />
-            </div>
-          ) : plan.name ? (
-            <div className="p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 mb-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300">{plan.name}</p>
-                    <StatusBadge variant={billing?.status === "active" ? "success" : "warning"} label={billing?.status ?? "active"} dot />
-                  </div>
-                  {plan.features?.length > 0 && (
-                    <ul className="mt-2 space-y-1 text-xs text-indigo-600 dark:text-indigo-400">
-                      {plan.features.slice(0, 4).map((f) => (
-                        <li key={f} className="flex items-center gap-1.5">
-                          <Check size={10} className="text-indigo-500" /> {f}
-                        </li>
-                      ))}
-                      {plan.features.length > 4 && (
-                        <li className="text-indigo-400">+{plan.features.length - 4} more features</li>
-                      )}
-                    </ul>
-                  )}
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">{plan.monthlyCost}</p>
-                  <p className="text-xs text-indigo-500">/{plan.interval ?? "month"}</p>
-                  {billing?.nextRenewal && (
-                    <p className="text-xs text-indigo-400 mt-1">Renews {billing.nextRenewal}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-slate-500 py-4">No active subscription found.</p>
-          )}
-          <button
-            onClick={() => setShowPlans((s) => !s)}
-            className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
-          >
-            {showPlans ? "Hide plans ↑" : "Compare plans →"}
-          </button>
-        </CardBody>
-      </Card>
-
-      {/* Plans grid */}
-      {showPlans && plans.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Available Plans</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {plans.map((p) => (
-              <PlanCard
-                key={p.id}
-                plan={p}
-                currentPlanId={plan.id}
-                onUpgrade={(id) => upgradeMut.mutate(id)}
-                loading={upgradeMut.loading}
-              />
-            ))}
-          </div>
+      {!admin && (
+        <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-700 dark:text-amber-400 text-sm">
+          <Lock size={16} /> Only an enterprise admin can change the organization plan. You can view what's included below.
         </div>
       )}
 
-      {/* Payment methods */}
+      {/* Current plan summary */}
       <Card>
-        <CardHeader title="Payment Method" />
+        <CardHeader title="Your current plan" />
         <CardBody>
           {billingLoading ? (
-            <div className="animate-pulse h-14 bg-slate-100 dark:bg-slate-700 rounded-xl" />
-          ) : payment.last4 ? (
-            <div className="space-y-2">
-              {paymentMethods.length > 0 ? paymentMethods.map((pm) => (
-                <div key={pm.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-12 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 uppercase">
-                      {pm.brand?.slice(0, 4) ?? "CARD"}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900 dark:text-white">•••• •••• •••• {pm.last4}</p>
-                      {pm.expiry && <p className="text-xs text-slate-400">Expires {pm.expiry}</p>}
-                    </div>
-                  </div>
-                  {pm.isDefault && <StatusBadge label="Default" variant="success" dot />}
-                </div>
-              )) : (
-                <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-12 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 uppercase">
-                      {payment.brand?.slice(0, 4) ?? "CARD"}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900 dark:text-white">•••• •••• •••• {payment.last4}</p>
-                      {payment.expiry && <p className="text-xs text-slate-400">Expires {payment.expiry}</p>}
-                    </div>
-                  </div>
-                  <StatusBadge label="Default" variant="success" dot />
-                </div>
-              )}
-            </div>
+            <div className="animate-pulse h-16 bg-slate-100 dark:bg-slate-800 rounded-xl" />
           ) : (
-            <p className="text-sm text-slate-500">No payment method on file.</p>
-          )}
-          <button
-            onClick={() => portalMut.mutate()}
-            className="mt-3 text-sm text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
-          >
-            <RefreshCw size={12} /> Update payment method →
-          </button>
-        </CardBody>
-      </Card>
-
-      {/* Invoices */}
-      <Card>
-        <CardHeader title="Invoices" />
-        <CardBody className="space-y-2">
-          {invoicesError && (
-            <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
-              <AlertCircle size={16} /> {invoicesError}
-            </div>
-          )}
-
-          {invoicesLoading && invoices.length === 0 && (
-            <div className="space-y-2 animate-pulse">
-              {[1, 2, 3].map((i) => <div key={i} className="h-12 bg-slate-100 dark:bg-slate-700 rounded-xl" />)}
-            </div>
-          )}
-
-          {!invoicesLoading && !invoicesError && invoices.length === 0 && (
-            <p className="text-sm text-slate-500 text-center py-4">No invoices found.</p>
-          )}
-
-          {invoices.map((inv) => (
-            <div key={inv.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800">
+            <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-slate-900 dark:text-white">{inv.id}</p>
-                <p className="text-xs text-slate-400">{inv.date}{inv.plan ? ` · ${inv.plan}` : ""}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="font-semibold text-sm text-slate-900 dark:text-white">{inv.amount}</span>
-                <StatusBadge label={inv.status} variant={inv.status === "paid" ? "success" : inv.status === "open" ? "warning" : "neutral"} dot />
-                <button
-                  onClick={() => {
-                    if (inv.hostedUrl) window.open(inv.hostedUrl, "_blank");
-                    else if (inv.pdfUrl) window.open(inv.pdfUrl, "_blank");
-                    else toast({ message: `Invoice ${inv.id} — PDF available once connected to Stripe`, type: "info" });
-                  }}
-                  title="Download / View invoice"
-                  className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition"
-                >
-                  <Download size={14} />
-                </button>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-lg font-bold text-slate-900 dark:text-white">{billing?.planName ?? "—"}</p>
+                  <StatusBadge variant="success" label={billing?.status ?? "active"} dot />
+                </div>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  ${(billing?.price ?? 0).toLocaleString()}/month
+                  {billing?.freeEarlyAccess && <span className="text-emerald-600 dark:text-emerald-400"> · billed $0 during early access</span>}
+                </p>
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {activeModules.map((m) => {
+                    const M = MODULE_META[m];
+                    const Icon = M.icon;
+                    return (
+                      <span key={m} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        <Icon size={11} /> {M.label}
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          ))}
+          )}
         </CardBody>
       </Card>
+
+      {/* Plan tiers */}
+      <div>
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Available plans</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {plans.map((p) => (
+            <PlanCard
+              key={p.id}
+              plan={p}
+              current={currentPlan}
+              onSelect={handleSelect}
+              loading={selectMut.loading}
+              canSelect={admin}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Custom builder */}
+      <CustomBuilder
+        custom={custom}
+        catalog={catalog}
+        current={currentPlan}
+        currentSolutions={currentSolutions}
+        onSelect={handleSelect}
+        loading={selectMut.loading}
+        canSelect={admin}
+      />
+
+      <p className="text-xs text-slate-400 dark:text-slate-500 text-center">
+        All plans include analytics for the modules they unlock. Sign-up is free during early distribution; payment will be
+        collected once early access ends.
+      </p>
     </div>
   );
 }

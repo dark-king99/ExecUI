@@ -1,11 +1,80 @@
 import Stripe from "stripe";
 import prisma from "../../config/database.js";
+import {
+  PLANS as PLAN_TIERS, CUSTOM, DEFAULT_PLAN,
+  CRM_SOLUTIONS, MKT_SOLUTIONS, SERVICES_SOLUTIONS,
+  entitlementsFor, priceFor, planLabel,
+} from "../billing/plans.config.js";
 
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY?.trim() || null;
 const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY, { apiVersion: "2024-04-10" }) : null;
 
-// ── Plan catalogue ────────────────────────────────────────────────────────────
-export const PLANS = [
+// ── Plan catalogue + entitlements (new model) ────────────────────────────────
+const planSummary = (p) => ({
+  id: p.id, name: p.name, price: p.price, tagline: p.tagline, highlighted: !!p.highlighted,
+  crm: p.crm, marketing: p.marketing, services: p.services, network: p.network,
+  entitlements: entitlementsFor(p.id),
+});
+
+// What the Billing page renders: the 4 tiers, the custom config, and the
+// selectable solution catalog (CRM + Marketing only for custom).
+export const getPlanCatalog = () => Promise.resolve({
+  plans: PLAN_TIERS.map(planSummary),
+  custom: CUSTOM,
+  catalog: {
+    crm: CRM_SOLUTIONS, marketing: MKT_SOLUTIONS, services: SERVICES_SOLUTIONS,
+  },
+});
+
+// Current subscription state for a tenant.
+export const getBilling = async (tenantId) => {
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+  if (!tenant) throw new Error("Tenant not found");
+  const planId = tenant.plan || DEFAULT_PLAN;
+  const customSolutions = tenant.planSolutions || [];
+  return {
+    plan: planId,
+    planName: planLabel(planId),
+    price: priceFor(planId, customSolutions),
+    interval: "month",
+    customSolutions,
+    entitlements: entitlementsFor(planId, customSolutions),
+    status: "active",
+    // Billing is free during early distribution; payment is collected later.
+    freeEarlyAccess: true,
+  };
+};
+
+// Select a plan (or build a custom one). Free during early distribution.
+export const selectPlan = async (tenantId, { plan, customSolutions = [] }) => {
+  const valid = [...PLAN_TIERS.map((p) => p.id), "custom"];
+  if (!valid.includes(plan)) throw new Error("Unknown plan");
+
+  let solutions = [];
+  if (plan === "custom") {
+    // Custom is CRM + Marketing only; minimum 8 solutions.
+    const crmIds = CRM_SOLUTIONS.map((s) => `crm:${s.id}`);
+    const mktIds = MKT_SOLUTIONS.map((s) => `marketing:${s.id}`);
+    solutions = [...new Set(customSolutions)].filter((s) => crmIds.includes(s) || mktIds.includes(s));
+    if (solutions.length < CUSTOM.minUnits) {
+      throw new Error(`A custom plan needs at least ${CUSTOM.minUnits} solutions.`);
+    }
+  }
+
+  const tenant = await prisma.tenant.update({
+    where: { id: tenantId },
+    data: { plan, planSolutions: solutions, stripePlanId: plan },
+  });
+  return {
+    plan: tenant.plan, planName: planLabel(tenant.plan),
+    price: priceFor(tenant.plan, tenant.planSolutions),
+    customSolutions: tenant.planSolutions,
+    entitlements: entitlementsFor(tenant.plan, tenant.planSolutions),
+  };
+};
+
+// Legacy plan catalogue (kept for the old Stripe path/webhook code below).
+export const LEGACY_PLANS = [
   {
     id: "starter",
     name: "Starter",
@@ -69,7 +138,7 @@ export const PLANS = [
   },
 ];
 
-const planById = (id) => PLANS.find((p) => p.id === id) ?? PLANS[2];
+const planById = (id) => LEGACY_PLANS.find((p) => p.id === id) ?? LEGACY_PLANS[2];
 const fmtAmount = (cents) => `$${(cents / 100).toFixed(2)}`;
 
 // ── Demo data (used when no Stripe key is configured) ─────────────────────────
@@ -140,52 +209,6 @@ function fmtPaymentMethod(pm) {
 
 // ── Public service functions ──────────────────────────────────────────────────
 
-export const getPlans = () => Promise.resolve(PLANS.map(({ stripePriceIdMonthly, stripePriceIdYearly, ...p }) => p));
-
-export const getBilling = async (tenantId) => {
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  if (!tenant) throw new Error("Tenant not found");
-
-  if (!stripe) return DEMO_BILLING;
-
-  try {
-    const customerId = await ensureStripeCustomer(tenant);
-    const [subscriptions, paymentMethods] = await Promise.all([
-      stripe.subscriptions.list({ customer: customerId, limit: 1, status: "active", expand: ["data.default_payment_method"] }),
-      stripe.paymentMethods.list({ customer: customerId, type: "card", limit: 5 }),
-    ]);
-
-    const sub = subscriptions.data[0] ?? null;
-    const pm = sub?.default_payment_method ?? paymentMethods.data[0] ?? null;
-    const priceId = sub?.items?.data?.[0]?.price?.id ?? null;
-    const activePlan = PLANS.find((p) => p.stripePriceIdMonthly === priceId || p.stripePriceIdYearly === priceId) ?? PLANS[2];
-
-    return {
-      customerId,
-      plan: {
-        id: activePlan.id,
-        name: activePlan.name,
-        monthlyCost: activePlan.monthlyCost,
-        interval: sub?.items?.data?.[0]?.price?.recurring?.interval ?? "month",
-        status: sub?.status ?? "active",
-        features: activePlan.features,
-        currentPeriodEnd: sub ? new Date(sub.current_period_end * 1000).toISOString().slice(0, 10) : demoNextRenewal(),
-      },
-      status: sub?.status ?? "active",
-      nextRenewal: sub ? new Date(sub.current_period_end * 1000).toISOString().slice(0, 10) : demoNextRenewal(),
-      paymentMethod: pm ? {
-        brand: pm.card?.brand ?? "card",
-        last4: pm.card?.last4 ?? "????",
-        expiry: pm.card ? `${String(pm.card.exp_month).padStart(2, "0")}/${String(pm.card.exp_year).slice(-2)}` : null,
-        type: "card",
-      } : null,
-    };
-  } catch (err) {
-    console.error("Stripe getBilling error:", err.message);
-    return DEMO_BILLING;
-  }
-};
-
 export const getPaymentMethods = async (tenantId) => {
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
   if (!stripe || !tenant?.stripeCustomerId) return DEMO_PAYMENT_METHODS;
@@ -216,7 +239,7 @@ export const getInvoices = async (tenantId) => {
 
 export const upgradePlan = async (tenantId, data) => {
   const { planId, interval = "month" } = data;
-  const plan = PLANS.find((p) => p.id === planId);
+  const plan = LEGACY_PLANS.find((p) => p.id === planId);
   if (!plan) throw new Error("Unknown plan");
 
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
@@ -306,7 +329,7 @@ export const handleWebhook = async (payload, sig) => {
       const sub = event.data.object;
       const tenant = await prisma.tenant.findFirst({ where: { stripeCustomerId: sub.customer } });
       if (tenant) {
-        const planId = PLANS.find(
+        const planId = LEGACY_PLANS.find(
           (p) => p.stripePriceIdMonthly === sub.items?.data?.[0]?.price?.id || p.stripePriceIdYearly === sub.items?.data?.[0]?.price?.id
         )?.id ?? null;
         await prisma.tenant.update({
