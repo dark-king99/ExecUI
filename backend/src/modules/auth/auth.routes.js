@@ -60,6 +60,9 @@ router.get("/me", authenticate, async (req, res) => {
         code: user.tenant.code,
       },
       role: user.role?.name ?? null,
+      avatarUrl: user.avatarUrl ?? null,
+      plan: user.tenant?.plan ?? "executive",
+      planSolutions: user.tenant?.planSolutions ?? [],
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -3,7 +3,13 @@
  * backend/src/modules/access/access.policy.js). Single source of truth for
  * gating the sidebar and routes. The backend independently enforces the same
  * rules at the API layer.
+ *
+ * Effective access = the tenant's PLAN entitlements ∩ the employee's
+ * DEPARTMENT permissions. The plan caps what the whole org bought; the
+ * department caps what this employee may touch within that.
  */
+
+import { entitlementsFor } from "./plans";
 
 export const SECTIONS = ["crm", "marketing", "network", "services", "analytics"];
 
@@ -34,15 +40,36 @@ export function canonicalDept(raw) {
 }
 
 export function accessFor(user) {
+  // 1. Department permissions (what this employee may touch).
   const role = user?.role;
+  let base;
   if (role === "enterprise_admin" || role === "system_admin") {
-    return { dept: "executive", label: DEPT_LABELS.executive, privileged: true, ...MATRIX.executive };
+    base = { dept: "executive", label: DEPT_LABELS.executive, privileged: true, ...MATRIX.executive };
+  } else {
+    const dept = canonicalDept(user?.department);
+    base = { dept, label: DEPT_LABELS[dept], privileged: dept === "executive", ...MATRIX[dept] };
   }
-  const dept = canonicalDept(user?.department);
-  const privileged = dept === "executive";
-  return { dept, label: DEPT_LABELS[dept], privileged, ...MATRIX[dept] };
+
+  // 2. Plan entitlements (what the whole org bought). Effective = intersection.
+  const plan = user?.plan || "executive";
+  const ent = entitlementsFor(plan, user?.planSolutions || []);
+  // "analytics" is always available where the plan grants any analytics slice.
+  const planSections = new Set(ent.sections);
+  const sections = base.sections.filter((s) => planSections.has(s));
+  const slices = (base.slices || []).filter((sl) => ent.analyticsSlices.includes(sl));
+
+  return { ...base, plan, sections, slices, planEntitlements: ent };
 }
 
 export function canAccessSection(user, section) {
   return accessFor(user).sections.includes(section);
+}
+
+/** Effective access to a specific solution: plan grants it AND dept allows the module. */
+export function canAccessSolution(user, module, solutionId) {
+  const a = accessFor(user);
+  if (!a.sections.includes(module === "network" ? "network" : module)) return false;
+  const ent = a.planEntitlements;
+  if (module === "network") return ent.solutions.network === "all";
+  return (ent.solutions[module] || []).includes(solutionId);
 }
