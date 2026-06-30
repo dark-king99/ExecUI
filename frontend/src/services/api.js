@@ -503,6 +503,31 @@ export const network = {
   sync: () => post('/network/sync'),
 };
 
+// ── Notifications ─────────────────────────────────────────────────────────
+export const notifications = {
+  list:        (params) => get('/notifications', params),
+  unreadCount: ()       => get('/notifications/unread-count'),
+  markRead:    (id)     => post(`/notifications/${id}/read`),
+  markAllRead: ()       => post('/notifications/read-all'),
+};
+
+// ── Messaging (in-app: direct messages + department channel) ───────────────
+export const messaging = {
+  conversations: ()              => get('/messaging/conversations'),
+  directory:     ()              => get('/messaging/directory'),
+  dmThread:      (userId)        => get(`/messaging/dm/${userId}`),
+  sendDm:        (data)          => post('/messaging/dm', data),
+  deptThread:    ()              => get('/messaging/dept'),
+  sendDept:      (data)          => post('/messaging/dept', data),
+};
+
+// ── Email (Resend) ─────────────────────────────────────────────────────────
+export const email = {
+  status: ()      => get('/email/status'),
+  send:   (data)  => post('/email/send', data),
+  logs:   (params) => get('/email/logs', params),
+};
+
 // ── Executive Overview ────────────────────────────────────────────────────
 export const overview = {
   dashboard:   ()     => get('/overview/dashboard'),

@@ -1,5 +1,6 @@
 import prisma from "../../config/database.js";
 import bcrypt from "bcrypt";
+import { sendEmail } from "../../lib/email.js";
 
 const handle = (fn) => async (req, res) => {
   try { res.json(await fn(req)); }
@@ -114,6 +115,24 @@ export const inviteUser = handle(async (req) => {
   await prisma.auditLog.create({
     data: { userId: req.user.userId, tenantId: tid(req), action: "create_user", resource: "user", resourceId: user.id, detail: `Provisioned employee ${employeeId} (${email})` },
   });
+
+  // Send the invite email via Resend (no-op/skip if email isn't configured).
+  const tenant = await prisma.tenant.findUnique({ where: { id: tid(req) }, select: { name: true, code: true } });
+  sendEmail({
+    tenantId: tid(req), userId: req.user.userId, to: email, context: "auth:invite",
+    subject: `You've been invited to ${tenant?.name ?? "your enterprise"} on ExecUI`,
+    html: `<div style="font-family:system-ui,sans-serif;line-height:1.6">
+      <h2>Welcome to ${tenant?.name ?? "ExecUI"} 👋</h2>
+      <p>Hi ${firstName}, an admin has created your account. Complete sign-up with:</p>
+      <ul>
+        <li><b>Enterprise code:</b> ${tenant?.code ?? "(ask your admin)"}</li>
+        <li><b>Employee ID:</b> ${employeeId}</li>
+        <li><b>Email:</b> ${email}</li>
+      </ul>
+      <p>Choose “Join Enterprise” on the sign-in screen, enter these, and set your password.</p>
+    </div>`,
+  }).catch(() => {});
+
   return userShape(user);
 });
 
