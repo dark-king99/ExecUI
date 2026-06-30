@@ -439,6 +439,7 @@ export const network = {
     templates: ()       => get('/network/automation/templates'),
     run:       (id)     => post(`/network/automation/jobs/${id}/run`),
     create:    (data)   => post('/network/automation/jobs', data),
+    remove:    (id)     => del(`/network/automation/jobs/${id}`),
   },
   changes: {
     list:    (params) => get('/network/changes', params),
