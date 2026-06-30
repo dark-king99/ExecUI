@@ -78,6 +78,49 @@ html {
 .delay-150 { animation-delay: 150ms; }
 .delay-200 { animation-delay: 200ms; }
 .delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-700 { animation-delay: 700ms; }
+
+/* ─── Login / auth animations ─────────────────────────────────── */
+@keyframes aurora {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(8%, -6%) scale(1.12); }
+  66%      { transform: translate(-6%, 5%) scale(0.94); }
+}
+@keyframes aurora-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-7%, -7%) scale(1.18); }
+}
+@keyframes gradient-pan {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+.animate-aurora   { animation: aurora 18s ease-in-out infinite; }
+.animate-aurora-2 { animation: aurora-2 22s ease-in-out infinite; }
+.animate-gradient { background-size: 200% auto; animation: gradient-pan 6s ease infinite; }
+.animate-shake    { animation: shake 0.4s ease-in-out; }
+
+/* Auto-staggered slide-up for direct children (used by the auth form) */
+.stagger > * { animation: slide-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.stagger > *:nth-child(1) { animation-delay: 40ms; }
+.stagger > *:nth-child(2) { animation-delay: 90ms; }
+.stagger > *:nth-child(3) { animation-delay: 140ms; }
+.stagger > *:nth-child(4) { animation-delay: 190ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(6) { animation-delay: 290ms; }
+.stagger > *:nth-child(7) { animation-delay: 340ms; }
+.stagger > *:nth-child(8) { animation-delay: 390ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-aurora, .animate-aurora-2, .animate-gradient,
+  .animate-float, .animate-float-slow, .animate-float-slower { animation: none !important; }
+}
 
 /* ─── Focus ring (accessible, clean) ────────────────────────── */
 :focus-visible {
