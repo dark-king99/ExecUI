@@ -344,8 +344,8 @@ export async function createMember(tenantId, data) {
   return prisma.bizMember.create({
     data: {
       name:       data.name,
-      role:       data.role,
-      department: data.department,
+      role:       data.role ?? '',
+      department: data.department || 'General',
       email:      data.email ?? null,
       status:     data.status ?? 'active',
       skills:     data.skills ?? [],
