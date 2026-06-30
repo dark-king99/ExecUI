@@ -2,15 +2,16 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
 
-  ArrowLeft, User, ShieldCheck, Key, Bell, Users, Plug,
+  ArrowLeft, User, ShieldCheck, Key, Bell, Users, Plug, MessagesSquare,
   CreditCard, FileText, ChevronLeft, ChevronRight, Building2, IdCard,
 
 } from "lucide-react";
 
 const personalItems = [
-  { id: "profile",       label: "Profile",       icon: User,        path: "/account/profile" },
-  { id: "security",      label: "Security",      icon: ShieldCheck, path: "/account/security" },
-  { id: "notifications", label: "Notifications", icon: Bell,        path: "/account/notifications" },
+  { id: "profile",       label: "Profile",       icon: User,           path: "/account/profile" },
+  { id: "messaging",     label: "Messaging",     icon: MessagesSquare, path: "/account/messaging" },
+  { id: "security",      label: "Security",      icon: ShieldCheck,    path: "/account/security" },
+  { id: "notifications", label: "Notifications", icon: Bell,           path: "/account/notifications" },
 ];
 
 const orgItems = [
