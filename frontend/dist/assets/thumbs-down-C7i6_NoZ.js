@@ -1,0 +1,5 @@
+<<<<<<<< HEAD:frontend/dist/assets/thumbs-down-B7xlIcmk.js
+import{c as a}from"./index-Cgp-RozC.js";const o=[["path",{d:"M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z",key:"m61m77"}],["path",{d:"M17 14V2",key:"8ymqnk"}]],c=a("thumbs-down",o);export{c as T};
+========
+import{c as a}from"./index-CMSm9TG2.js";const o=[["path",{d:"M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z",key:"m61m77"}],["path",{d:"M17 14V2",key:"8ymqnk"}]],c=a("thumbs-down",o);export{c as T};
+>>>>>>>> 2a4d518 (Add richer animations to the login screen):frontend/dist/assets/thumbs-down-C7i6_NoZ.js
