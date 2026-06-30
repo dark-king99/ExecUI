@@ -586,6 +586,7 @@ export const account = {
   billing: {
     get:             ()          => get('/account/billing'),
     plans:           ()          => get('/account/billing/plans'),
+    select:          (data)      => post('/account/billing/select', data),
     upgrade:         (data)      => post('/account/billing/upgrade', data),
     paymentMethods:  ()          => get('/account/billing/payment-methods'),
     invoices:        ()          => get('/account/billing/invoices'),

@@ -5,6 +5,11 @@ import { useApi } from "../../hooks/useApi";
 import { marketing } from "../../services/api";
 import { SOLUTIONS, colorOf } from "./solutions.config";
 import { MetricGrid, fmtMoney, fmtNum } from "./components/mkt-ui";
+import { canAccessSolution } from "../../lib/access";
+
+function currentUser() {
+  try { return JSON.parse(localStorage.getItem("user")) || {}; } catch { return {}; }
+}
 
 function SolutionCard({ solution }) {
   const navigate = useNavigate();
@@ -59,7 +64,8 @@ export default function MarketingSolutions() {
           Solutions
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {SOLUTIONS.map((s) => <SolutionCard key={s.id} solution={s} />)}
+          {SOLUTIONS.filter((s) => canAccessSolution(currentUser(), "marketing", s.id))
+            .map((s) => <SolutionCard key={s.id} solution={s} />)}
         </div>
       </div>
     </div>
