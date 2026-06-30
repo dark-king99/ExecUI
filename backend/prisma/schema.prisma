@@ -22,6 +22,8 @@ model Tenant {
   stripeCustomerId  String?
   stripePlanId      String?
   stripeSubId       String?
+  plan              String   @default("executive")
+  planSolutions     String[] @default([])
 
   users            User[]
   roles            Role[]

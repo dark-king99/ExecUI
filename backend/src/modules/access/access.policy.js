@@ -54,3 +54,19 @@ export function canAccessSection(access, section) {
 export function canAccessSlice(access, slice) {
   return !!access && access.slices.includes(slice);
 }
+
+/**
+ * Narrow a department access descriptor by the tenant's plan entitlements.
+ * Effective access = department permissions ∩ plan entitlements.
+ */
+export function intersectWithPlan(access, planEntitlements) {
+  if (!access || !planEntitlements) return access;
+  const planSections = new Set(planEntitlements.sections || []);
+  const planSlices = new Set(planEntitlements.analyticsSlices || []);
+  return {
+    ...access,
+    sections: access.sections.filter((s) => planSections.has(s)),
+    slices: (access.slices || []).filter((sl) => planSlices.has(sl)),
+    plan: planEntitlements,
+  };
+}

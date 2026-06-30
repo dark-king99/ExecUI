@@ -1,5 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
+import { requireRole } from "../../middleware/role.middleware.js";
 import { uploadImage } from "../../middleware/upload.middleware.js";
 import * as c from "./account.controller.js";
 
@@ -35,6 +36,8 @@ router.get("/team/roles",            auth, c.listRoles);
 // ── Billing ───────────────────────────────────────────────────────────────
 router.get("/billing",                   auth, c.getBilling);
 router.get("/billing/plans",             auth, c.getPlans);
+// Selecting/changing the org plan is an admin action (it caps everyone's access).
+router.post("/billing/select",           auth, requireRole("enterprise_admin", "system_admin"), c.selectPlan);
 router.post("/billing/upgrade",          auth, c.upgradePlan);
 router.get("/billing/payment-methods",   auth, c.getPaymentMethods);
 router.get("/billing/invoices",          auth, c.getInvoices);
