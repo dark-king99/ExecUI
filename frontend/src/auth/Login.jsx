@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   ArrowRight, Building2, CheckCircle2, BarChart3, Network, Users,
-  Megaphone, AlertCircle, Loader2, Eye, EyeOff, Shield, Copy, KeyRound,
+  Megaphone, AlertCircle, Loader2, Eye, EyeOff, Shield, Copy, KeyRound, Sun, Moon,
 } from "lucide-react";
 import { auth, setToken } from "../services/api";
 
@@ -20,13 +20,78 @@ const MODES = [
   { id: "employee",   label: "Join Enterprise" },
 ];
 
+// ─── Theme (the auth screen runs outside the app's SidebarProvider) ───────────
+function useTheme() {
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem("theme") || "dark"; } catch { return "dark"; }
+  });
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    try { localStorage.setItem("theme", theme); } catch { /* ignore */ }
+  }, [theme]);
+  return [theme, () => setTheme((t) => (t === "dark" ? "light" : "dark"))];
+}
+
+// ─── Cursor-following glow + ring ─────────────────────────────────────────────
+function CursorGlow() {
+  const glow = useRef(null);
+  const ring = useRef(null);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia("(pointer: fine)").matches) return;
+    let mx = window.innerWidth / 2, my = window.innerHeight / 2;
+    let gx = mx, gy = my, rx = mx, ry = my, raf;
+    const onMove = (e) => { mx = e.clientX; my = e.clientY; };
+    window.addEventListener("pointermove", onMove);
+    const tick = () => {
+      gx += (mx - gx) * 0.10; gy += (my - gy) * 0.10;
+      rx += (mx - rx) * 0.30; ry += (my - ry) * 0.30;
+      if (glow.current) glow.current.style.transform = `translate3d(${gx}px,${gy}px,0) translate(-50%,-50%)`;
+      if (ring.current) ring.current.style.transform = `translate3d(${rx}px,${ry}px,0) translate(-50%,-50%)`;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("pointermove", onMove); };
+  }, []);
+  return (
+    <>
+      <div ref={glow} className="pointer-events-none fixed left-0 top-0 z-30 h-72 w-72 rounded-full bg-indigo-500/15 blur-[90px] dark:bg-indigo-400/15" />
+      <div ref={ring} className="pointer-events-none fixed left-0 top-0 z-[60] hidden h-7 w-7 rounded-full border border-indigo-400/50 lg:block dark:border-white/40" />
+    </>
+  );
+}
+
+// ─── Scroll-reveal wrapper (IntersectionObserver) ─────────────────────────────
+function Reveal({ children, className = "", delay = 0 }) {
+  const ref = useRef(null);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setShown(true); io.disconnect(); } },
+      { threshold: 0.1 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      style={{ transitionDelay: `${delay}ms`, transitionTimingFunction: "cubic-bezier(0.22,1,0.36,1)" }}
+      className={`transition-all duration-700 ${shown ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"} ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 function InputField({ label, type = "text", value, onChange, onKeyDown, placeholder, autoComplete, hint }) {
   const [show, setShow] = useState(false);
   const isPassword = type === "password";
   const resolvedType = isPassword ? (show ? "text" : "password") : type;
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">{label}</label>
+      <label className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">{label}</label>
       <div className="relative">
         <input
           type={resolvedType}
@@ -35,20 +100,21 @@ function InputField({ label, type = "text", value, onChange, onKeyDown, placehol
           onKeyDown={onKeyDown}
           placeholder={placeholder}
           autoComplete={autoComplete}
-          className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40 transition-all duration-150"
+          className="w-full bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-lg px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 transition-all duration-150"
         />
         {isPassword && (
-          <button type="button" tabIndex={-1} onClick={() => setShow((s) => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition">
+          <button type="button" tabIndex={-1} onClick={() => setShow((s) => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition">
             {show ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
         )}
       </div>
-      {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
+      {hint && <p className="text-[11px] text-slate-400 dark:text-slate-600">{hint}</p>}
     </div>
   );
 }
 
 export default function Login({ onLogin }) {
+  const [theme, toggleTheme] = useTheme();
   const [mode, setMode] = useState("signin");
 
   // shared form fields
@@ -64,6 +130,22 @@ export default function Login({ onLogin }) {
   const [apiError, setApiError] = useState(null);
   const [created, setCreated] = useState(null); // enterprise-created success state
   const [copied, setCopied] = useState(false);
+
+  // Pointer parallax for the background blobs.
+  const layers = useRef([]);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia("(pointer: fine)").matches) return;
+    let tx = 0, ty = 0, cx = 0, cy = 0, raf;
+    const onMove = (e) => { tx = e.clientX / window.innerWidth - 0.5; ty = e.clientY / window.innerHeight - 0.5; };
+    window.addEventListener("pointermove", onMove);
+    const tick = () => {
+      cx += (tx - cx) * 0.05; cy += (ty - cy) * 0.05;
+      layers.current.forEach((el, i) => { if (el) { const d = (i + 1) * 22; el.style.transform = `translate(${cx * d}px, ${cy * d}px)`; } });
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("pointermove", onMove); };
+  }, []);
 
   const finish = (response) => {
     setToken(response.token);
@@ -111,50 +193,74 @@ export default function Login({ onLogin }) {
   const activeIndex = MODES.findIndex((m) => m.id === mode);
 
   return (
-    <div className="min-h-screen w-full flex bg-slate-950">
+    <div className="relative min-h-screen w-full flex bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <CursorGlow />
+
+      {/* Theme toggle */}
+      <button
+        onClick={toggleTheme}
+        title={theme === "dark" ? "Switch to light" : "Switch to dark"}
+        className="fixed right-5 top-5 z-50 flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white/70 text-slate-500 backdrop-blur transition hover:text-slate-800 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-400 dark:hover:text-slate-100"
+      >
+        {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
+
       {/* ── LEFT: Brand panel ── */}
-      <div className="hidden lg:flex lg:w-[480px] xl:w-[520px] shrink-0 flex-col relative overflow-hidden bg-gradient-to-br from-indigo-950 via-slate-950 to-slate-950 border-r border-slate-800/60">
+      <div className="hidden lg:flex lg:w-[480px] xl:w-[520px] shrink-0 flex-col relative overflow-hidden border-r border-slate-200 bg-gradient-to-br from-indigo-50 via-white to-violet-50 dark:border-slate-800/60 dark:from-indigo-950 dark:via-slate-950 dark:to-slate-950">
+        {/* Aurora blobs (pointer-parallax wrappers + drift animation) */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-20 -left-20 h-72 w-72 rounded-full bg-indigo-600/20 blur-3xl animate-aurora" />
-          <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-violet-600/15 blur-3xl animate-aurora-2" />
-          <div className="absolute top-1/3 right-10 h-40 w-40 rounded-full bg-sky-500/10 blur-3xl animate-float-slow" />
+          <div ref={(el) => (layers.current[0] = el)} className="absolute -top-20 -left-20 will-change-transform">
+            <div className="h-72 w-72 rounded-full bg-indigo-400/25 blur-3xl animate-aurora dark:bg-indigo-600/20" />
+          </div>
+          <div ref={(el) => (layers.current[1] = el)} className="absolute bottom-0 right-0 will-change-transform">
+            <div className="h-80 w-80 rounded-full bg-violet-400/20 blur-3xl animate-aurora-2 dark:bg-violet-600/15" />
+          </div>
+          <div ref={(el) => (layers.current[2] = el)} className="absolute top-1/3 right-10 will-change-transform">
+            <div className="h-40 w-40 rounded-full bg-sky-400/15 blur-3xl animate-float-slow dark:bg-sky-500/10" />
+          </div>
+          {/* floating particles */}
+          <span className="absolute left-[20%] top-[28%] h-1.5 w-1.5 rounded-full bg-indigo-400/60 animate-float" />
+          <span className="absolute left-[70%] top-[20%] h-1 w-1 rounded-full bg-violet-400/60 animate-float-slow" />
+          <span className="absolute left-[40%] top-[64%] h-1.5 w-1.5 rounded-full bg-sky-400/50 animate-float-slower" />
+          <span className="absolute left-[80%] top-[72%] h-1 w-1 rounded-full bg-indigo-400/50 animate-float" />
         </div>
-        <div className="absolute inset-0 bg-dot-pattern opacity-50" />
+        <div className="absolute inset-0 bg-dot-pattern opacity-60" />
+
         <div className="relative z-10 flex flex-col h-full px-10 py-12">
           <div className="flex items-center gap-3 mb-14 animate-slide-up">
             <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30 animate-float-slower">
               <Building2 size={18} className="text-white" />
             </div>
             <div>
-              <p className="text-base font-semibold text-white leading-none">ExecUI</p>
-              <p className="text-[11px] text-indigo-300/70 mt-0.5">Enterprise Platform</p>
+              <p className="text-base font-semibold text-slate-900 dark:text-white leading-none">ExecUI</p>
+              <p className="text-[11px] text-indigo-500 dark:text-indigo-300/70 mt-0.5">Enterprise Platform</p>
             </div>
           </div>
           <div className="mb-10">
-            <h1 className="text-3xl xl:text-4xl font-semibold text-white leading-tight mb-4 animate-slide-up delay-75">
+            <h1 className="text-3xl xl:text-4xl font-semibold text-slate-900 dark:text-white leading-tight mb-4 animate-slide-up delay-75">
               Your enterprise<br />
-              <span className="bg-gradient-to-r from-indigo-300 via-white to-violet-300 bg-clip-text text-transparent animate-gradient">command center.</span>
+              <span className="bg-gradient-to-r from-indigo-600 via-violet-500 to-indigo-600 bg-clip-text text-transparent animate-gradient dark:from-indigo-300 dark:via-white dark:to-violet-300">command center.</span>
             </h1>
-            <p className="text-slate-400 text-sm leading-relaxed max-w-xs animate-slide-up delay-150">One organization, every team — CRM, marketing, network operations, and AI-powered analytics, together.</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed max-w-xs animate-slide-up delay-150">One organization, every team — CRM, marketing, network operations, and AI-powered analytics, together.</p>
           </div>
           <div className="flex flex-col gap-5 mb-auto">
             {features.map(({ icon: Icon, label, desc }, i) => (
               <div key={label} className="flex items-start gap-4 animate-slide-right" style={{ animationDelay: `${260 + i * 90}ms` }}>
-                <div className="h-9 w-9 rounded-lg bg-slate-800/80 border border-slate-700/50 flex items-center justify-center shrink-0 mt-0.5 transition-all duration-200 hover:border-indigo-500/50 hover:bg-indigo-500/10">
-                  <Icon size={16} className="text-indigo-400" />
+                <div className="h-9 w-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 mt-0.5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-md dark:bg-slate-800/80 dark:border-slate-700/50 dark:hover:border-indigo-500/50">
+                  <Icon size={16} className="text-indigo-500 dark:text-indigo-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-200 leading-none mb-1">{label}</p>
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200 leading-none mb-1">{label}</p>
                   <p className="text-xs text-slate-500">{desc}</p>
                 </div>
               </div>
             ))}
           </div>
-          <div className="mt-10 pt-8 border-t border-slate-800/60 animate-fade-in delay-700">
+          <div className="mt-10 pt-8 border-t border-slate-200 dark:border-slate-800/60 animate-fade-in delay-700">
             <div className="flex flex-wrap gap-2">
               {badges.map((b) => (
-                <span key={b} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/60 border border-slate-700/40 text-[11px] font-medium text-slate-400 transition-colors hover:text-slate-200 hover:border-indigo-500/40">
-                  <Shield size={10} className="text-indigo-400" />{b}
+                <span key={b} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-medium text-slate-500 transition-colors hover:border-indigo-400 hover:text-slate-700 dark:bg-slate-800/60 dark:border-slate-700/40 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:border-indigo-500/40">
+                  <Shield size={10} className="text-indigo-500 dark:text-indigo-400" />{b}
                 </span>
               ))}
             </div>
@@ -164,37 +270,39 @@ export default function Login({ onLogin }) {
 
       {/* ── RIGHT: Auth form ── */}
       <div className="flex-1 flex items-center justify-center px-6 py-12 overflow-y-auto">
-        <div className="w-full max-w-md animate-fade-in">
-          <div className="flex items-center gap-2.5 mb-8 lg:hidden animate-slide-up">
-            <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center"><Building2 size={16} className="text-white" /></div>
-            <span className="text-base font-semibold text-white">ExecUI</span>
+        <Reveal className="w-full max-w-md">
+          <div className="flex items-center justify-between mb-8 lg:hidden">
+            <div className="flex items-center gap-2.5 animate-slide-up">
+              <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center"><Building2 size={16} className="text-white" /></div>
+              <span className="text-base font-semibold text-slate-900 dark:text-white">ExecUI</span>
+            </div>
           </div>
 
           {created ? (
             /* ── Enterprise created success ── */
             <div className="animate-scale-in">
               <div className="h-12 w-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mb-5 animate-scale-in">
-                <CheckCircle2 size={24} className="text-emerald-400" />
+                <CheckCircle2 size={24} className="text-emerald-500 dark:text-emerald-400" />
               </div>
-              <h2 className="text-2xl font-semibold text-white mb-1 animate-slide-up delay-75">Enterprise created</h2>
+              <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-1 animate-slide-up delay-75">Enterprise created</h2>
               <p className="text-sm text-slate-500 mb-6 animate-slide-up delay-150">Save these — your team needs the enterprise code to join, and you'll sign in with your employee ID.</p>
 
-              <div className="rounded-xl border border-slate-700/60 bg-slate-800/40 divide-y divide-slate-700/50 mb-6 animate-slide-up delay-200">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 divide-y divide-slate-200 dark:divide-slate-700/50 mb-6 animate-slide-up delay-200">
                 <div className="flex items-center justify-between px-4 py-3">
                   <div>
                     <p className="text-[11px] uppercase tracking-wider text-slate-500">Enterprise Code</p>
-                    <p className="text-lg font-semibold text-white font-mono">{created.enterpriseCode}</p>
+                    <p className="text-lg font-semibold text-slate-900 dark:text-white font-mono">{created.enterpriseCode}</p>
                   </div>
                   <button
                     onClick={() => { navigator.clipboard?.writeText(created.enterpriseCode); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-700/50 transition"
+                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition"
                   >
-                    {copied ? <CheckCircle2 size={13} className="text-emerald-400" /> : <Copy size={13} />}{copied ? "Copied" : "Copy"}
+                    {copied ? <CheckCircle2 size={13} className="text-emerald-500" /> : <Copy size={13} />}{copied ? "Copied" : "Copy"}
                   </button>
                 </div>
                 <div className="px-4 py-3">
                   <p className="text-[11px] uppercase tracking-wider text-slate-500">Your Admin Employee ID</p>
-                  <p className="text-lg font-semibold text-white font-mono">{created.employeeId}</p>
+                  <p className="text-lg font-semibold text-slate-900 dark:text-white font-mono">{created.employeeId}</p>
                 </div>
               </div>
 
@@ -205,19 +313,19 @@ export default function Login({ onLogin }) {
           ) : (
             <>
               <div key={`head-${mode}`} className="mb-7 animate-slide-up">
-                <h2 className="text-2xl font-semibold text-white mb-1">{heading.title}</h2>
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-1">{heading.title}</h2>
                 <p className="text-sm text-slate-500">{heading.sub}</p>
               </div>
 
               {/* Mode tabs with a sliding indicator */}
-              <div className="relative grid grid-cols-3 bg-slate-800/50 rounded-xl p-1 mb-7 border border-slate-700/40">
+              <div className="relative grid grid-cols-3 bg-slate-100 dark:bg-slate-800/50 rounded-xl p-1 mb-7 border border-slate-200 dark:border-slate-700/40">
                 <span
                   className="absolute top-1 bottom-1 rounded-lg bg-indigo-600 shadow-sm shadow-indigo-900/40 transition-transform duration-300 ease-out"
                   style={{ left: "0.25rem", width: "calc((100% - 0.5rem) / 3)", transform: `translateX(${activeIndex * 100}%)` }}
                 />
                 {MODES.map((m) => (
                   <button key={m.id} type="button" onClick={() => switchMode(m.id)}
-                    className={`relative z-10 py-2 rounded-lg text-xs font-medium transition-colors duration-200 ${mode === m.id ? "text-white" : "text-slate-400 hover:text-slate-200"}`}>
+                    className={`relative z-10 py-2 rounded-lg text-xs font-medium transition-colors duration-200 ${mode === m.id ? "text-white" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}>
                     {m.label}
                   </button>
                 ))}
@@ -250,15 +358,14 @@ export default function Login({ onLogin }) {
                 </div>
 
                 {apiError && (
-                  <div className="flex items-start gap-2.5 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-400 animate-shake">
+                  <div className="flex items-start gap-2.5 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-sm text-red-600 dark:text-red-400 animate-shake">
                     <AlertCircle size={15} className="shrink-0 mt-0.5" /><span>{apiError}</span>
                   </div>
                 )}
 
                 <button type="button" onClick={handleSubmit} disabled={submitting}
                   className="group relative mt-1 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold transition-all duration-150 disabled:opacity-50 shadow-lg shadow-indigo-900/30 hover:-translate-y-0.5 overflow-hidden">
-                  {/* hover shine sweep */}
-                  <span className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-white/20 blur-md -translate-x-full transition-transform duration-700 ease-out group-hover:translate-x-[400%]" />
+                  <span className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-white/25 blur-md -translate-x-full transition-transform duration-700 ease-out group-hover:translate-x-[400%]" />
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : (
                     <>
                       {mode === "signin" ? "Sign in" : mode === "enterprise" ? "Create enterprise" : "Activate account"}
@@ -268,15 +375,15 @@ export default function Login({ onLogin }) {
                 </button>
               </div>
 
-              <div className="mt-6 flex items-center gap-2 text-xs text-slate-600">
-                <KeyRound size={12} className="text-slate-500" />
+              <div className="mt-6 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-600">
+                <KeyRound size={12} className="text-slate-400 dark:text-slate-500" />
                 {mode === "signin" && <span>Every account signs in with email + password + employee ID.</span>}
-                {mode === "enterprise" && <span>Already have an enterprise? <button onClick={() => switchMode("signin")} className="text-indigo-400 hover:text-indigo-300 font-medium">Sign in</button></span>}
+                {mode === "enterprise" && <span>Already have an enterprise? <button onClick={() => switchMode("signin")} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 font-medium">Sign in</button></span>}
                 {mode === "employee" && <span>Don't have an ID yet? Ask your admin to add you.</span>}
               </div>
             </>
           )}
-        </div>
+        </Reveal>
       </div>
     </div>
   );
