@@ -177,6 +177,9 @@ export default function ExecutiveOverview() {
   }
 
   const { identity, access, gauge, kpis, metrics, activity, schedule, tasks, messages } = data;
+  // Department Communication here is for enterprise admins only; the channel
+  // itself remains available to every employee in Account → Messaging.
+  const isAdmin = ["enterprise_admin", "system_admin"].includes(identity.role);
   const accent = identity.deptKey === "sales" ? "orange" : identity.deptKey === "marketing" ? "violet"
     : identity.deptKey === "it" ? "emerald" : identity.deptKey === "finance" ? "sky"
     : identity.deptKey === "operations" ? "indigo" : "indigo";
@@ -329,8 +332,10 @@ export default function ExecutiveOverview() {
         </Panel>
       </div>
 
-      {/* ── Inter-department communication ──────────────────────────────── */}
-      <Panel title="Department Communication" icon={MessagesSquare}>
+      {/* ── Inter-department communication (enterprise admins only) ──────── */}
+      {isAdmin && (
+      <Panel title="Department Communication" icon={MessagesSquare}
+        action={<button onClick={() => navigate("/account/messaging?c=dept")} className="text-xs font-medium text-indigo-500 hover:underline">Open in Messaging →</button>}>
         <form
           onSubmit={(e) => { e.preventDefault(); if (draft.trim()) sendMessage({ body: draft, toDept }); }}
           className="mb-4 flex flex-col gap-2 sm:flex-row"
@@ -374,6 +379,7 @@ export default function ExecutiveOverview() {
           </ul>
         )}
       </Panel>
+      )}
     </div>
   );
 }
