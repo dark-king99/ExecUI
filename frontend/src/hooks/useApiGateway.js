@@ -5,7 +5,7 @@
  */
 import { useState, useCallback } from 'react';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export const useApiGateway = () => {
   const [loading, setLoading] = useState(false);
@@ -18,8 +18,8 @@ export const useApiGateway = () => {
     try {
       let token = null;
       try {
-        const stored = localStorage.getItem('user');
-        if (stored) token = JSON.parse(stored)?.token ?? null;
+        // Same dedicated key the api.js service layer maintains.
+        token = localStorage.getItem('auth_token') || null;
       } catch { /* ignore */ }
 
       const response = await fetch(`${BASE_URL}/${servicePath}`, {

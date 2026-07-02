@@ -13,3 +13,6 @@ backend/.env
 
 backend/.env
 .env
+
+# Build output — built on deploy (cd frontend && npm run build), not tracked
+frontend/dist/

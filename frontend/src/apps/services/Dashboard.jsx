@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDataSync, useApi } from "../../hooks/useApi";
 import { account } from "../../services/api";
+import { useUser } from "../../context/UserContext";
 import { useSidebar } from '../../components/SidebarContext';
 import {
   TrendingUp,
@@ -278,7 +279,7 @@ export const Dashboard = () => {
   // Identity comes from the shared profile query (same cache as the Greeting),
   // so avatar/name/role edits in Profile propagate here automatically.
   const { data: profile } = useApi(() => account.profile.get(), [], { cacheKey: "account:profile" });
-  const stored = JSON.parse(localStorage.getItem('user') || 'null') || {};
+  const stored = useUser().user ?? {};
   const displayName =
     profile?.name ||
     [stored.firstName, stored.lastName].filter(Boolean).join(' ').trim() ||

@@ -3,6 +3,7 @@
  * Provides real, tenant-scoped data for the Marketing stream dashboard.
  */
 import prisma from "../../config/database.js";
+import { notify } from "../notifications/notifications.service.js";
 
 // ── Profile ───────────────────────────────────────────────────────────────────
 export async function getDashboardProfile(userId, tenantId) {
@@ -73,7 +74,7 @@ export async function listScheduleEvents(userId, tenantId) {
 }
 
 export async function createScheduleEvent(userId, tenantId, data) {
-  return prisma.marketingScheduleEvent.create({
+  const event = await prisma.marketingScheduleEvent.create({
     data: {
       title: data.title,
       event_type: data.event_type ?? "meeting",
@@ -84,6 +85,17 @@ export async function createScheduleEvent(userId, tenantId, data) {
       tenantId,
     },
   });
+  // Drop a confirmation in the owner's bell so scheduled meetings surface in
+  // the in-app notification feed (fire-and-forget).
+  notify({
+    tenantId,
+    userId,
+    type: "schedule",
+    title: `${event.event_type === "meeting" ? "Meeting" : "Event"} scheduled`,
+    body: `${event.title} · ${new Date(event.start_time).toLocaleString()}${event.location ? ` @ ${event.location}` : ""}`,
+    link: "/marketing",
+  }).catch(() => {});
+  return event;
 }
 
 export async function deleteScheduleEvent(id, userId, tenantId) {

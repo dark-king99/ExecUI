@@ -5,17 +5,11 @@ import { useToast } from "../../components/ui/Toast";
 import { User, Building2, Save, Loader2, AlertCircle } from "lucide-react";
 import { useApi, useMutation, invalidateQueries } from "../../hooks/useApi";
 import { account } from "../../services/api";
-
-// Keep the locally-cached user's avatar in sync so chrome (navbar/greeting) updates instantly.
-function syncLocalAvatar(avatarUrl) {
-  try {
-    const u = JSON.parse(localStorage.getItem("user")) ?? {};
-    localStorage.setItem("user", JSON.stringify({ ...u, avatarUrl, avatar_url: avatarUrl }));
-  } catch { /* ignore */ }
-}
+import { useUser } from "../../context/UserContext";
 
 export default function Profile() {
   const toast = useToast();
+  const { updateUser } = useUser();
   const avatarInputRef = useRef(null);
   const [form, setForm] = useState(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
@@ -37,7 +31,8 @@ export default function Profile() {
       // Upload to object storage; the server persists the URL and returns it.
       const { avatarUrl } = await account.profile.avatar(file);
       setForm((p) => ({ ...p, avatarUrl }));
-      syncLocalAvatar(avatarUrl);
+      // Chrome (navbar/greeting/sidebars) re-renders from the shared context.
+      updateUser({ avatarUrl, avatar_url: avatarUrl });
       invalidateQueries(); // refresh greeting / dashboard / overview avatars app-wide
       toast({ message: "Avatar updated", type: "success" });
     } catch (err) {
@@ -52,7 +47,7 @@ export default function Profile() {
       setAvatarBusy(true);
       await account.profile.removeAvatar();
       setForm((p) => ({ ...p, avatarUrl: null }));
-      syncLocalAvatar(null);
+      updateUser({ avatarUrl: null, avatar_url: null });
       invalidateQueries();
       toast({ message: "Avatar removed", type: "success" });
     } catch (err) {
@@ -73,22 +68,18 @@ export default function Profile() {
     {
       onSuccess: (updated) => {
         toast({ message: "Profile updated successfully", type: "success" });
-        // Keep the locally-stored user in sync so the sidebar + greeting update.
-        try {
-          const u = JSON.parse(localStorage.getItem("user")) ?? {};
-          localStorage.setItem("user", JSON.stringify({
-            ...u,
-            firstName: updated.firstName,
-            lastName: updated.lastName,
-            name: updated.name,
-            phone: updated.phone,
-            department: updated.department,
-            jobTitle: updated.jobTitle,
-            role: updated.role ?? u.role,
-            avatarUrl: updated.avatarUrl,
-            avatar_url: updated.avatarUrl,
-          }));
-        } catch { /* ignore */ }
+        // Patch the shared user so the sidebar + greeting update instantly.
+        updateUser({
+          firstName: updated.firstName,
+          lastName: updated.lastName,
+          name: updated.name,
+          phone: updated.phone,
+          department: updated.department,
+          jobTitle: updated.jobTitle,
+          ...(updated.role ? { role: updated.role } : {}),
+          avatarUrl: updated.avatarUrl,
+          avatar_url: updated.avatarUrl,
+        });
       },
       onError: (err) => toast({ message: err?.message ?? "Failed to save profile", type: "error" }),
     }
