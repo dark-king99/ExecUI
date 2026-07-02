@@ -61,6 +61,7 @@ export const getDealAudit    = handle((req) => svc.getDealAudit(tid(req), req.pa
 export const listLeads       = handle((req) => svc.listLeads(tid(req), req.query));
 export const getLead         = handle((req) => svc.getLead(tid(req), req.params.id));
 export const createLead      = handle((req) => svc.createLead(tid(req), { ...req.body, ownerId: req.body.ownerId ?? req.user.userId }));
+export const convertLead     = handle((req) => svc.convertLead(tid(req), req.params.id, uid(req)));
 export const updateLead      = handle((req) => svc.updateLead(tid(req), req.params.id, req.body));
 export const getLeadActivity = handle((req) => svc.getLeadActivity(tid(req), req.query));
 

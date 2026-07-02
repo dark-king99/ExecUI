@@ -267,6 +267,31 @@ export const updateLead = async (tenantId, id, data) => {
   return leadShape(o);
 };
 
+// Convert a lead into a pipeline opportunity: promote it out of the lead
+// stages into "qualification" and notify the owner. Cross-module workflow:
+// Leads inbox → Opportunities pipeline, with a bell notification.
+export const convertLead = async (tenantId, id, actorId = null) => {
+  const lead = await prisma.crmOpportunity.findFirst({ where: { id, tenantId }, include: oppInclude });
+  if (!lead) { const e = new Error("Lead not found"); e.status = 404; throw e; }
+  if (!["prospecting"].includes(lead.stage)) {
+    const e = new Error("This lead is already in the pipeline."); e.status = 400; throw e;
+  }
+  const opp = await prisma.crmOpportunity.update({
+    where: { id },
+    data: { stage: "qualification", probability: Math.max(lead.probability ?? 0, 40), status: "active" },
+    include: oppInclude,
+  });
+  if (opp.ownerId && opp.ownerId !== actorId) {
+    notify({
+      tenantId, userId: opp.ownerId, type: "task",
+      title: "Lead converted to opportunity",
+      body: `${opp.name} is now in your pipeline (Qualified).`,
+      link: "/crm/opportunities",
+    }).catch(() => {});
+  }
+  return { converted: true, opportunity: dealShape(opp) };
+};
+
 export const getLeadActivity = async (tenantId) => {
   const opps = await prisma.crmOpportunity.findMany({
     where: { tenantId },

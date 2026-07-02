@@ -1,6 +1,7 @@
 import prisma from "../../config/database.js";
 import { accessFor, DEPT_LABELS, SECTIONS } from "../access/access.policy.js";
 import * as messaging from "../messaging/messaging.service.js";
+import { sendEmail } from "../../lib/email.js";
 
 const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
 const money = (n) => Math.round(n || 0);
@@ -92,51 +93,54 @@ async function servicesMetrics(tenantId) {
 
 // ── Department dashboards (gauge + kpi band) ──────────────────────────────────
 function buildKpis(deptKey, m) {
-  const k = (key, label, value, unit = "", hint = "") => ({ key, label, value, unit, hint });
+  // Every KPI carries a link so the dashboard card drills down into the
+  // module view behind the number (the frontend hides links the user's
+  // access doesn't cover).
+  const k = (key, label, value, unit = "", link = null) => ({ key, label, value, unit, link });
   switch (deptKey) {
     case "sales":
       return [
-        k("openDeals", "Open Deals", (m.crm?.openDeals ?? 0)),
-        k("pipeline", "Pipeline Value", (m.crm?.pipelineValue ?? 0), "$"),
-        k("clients", "Active Clients", (m.crm?.clients ?? 0)),
-        k("winRate", "Win Rate", (m.crm?.winRate ?? 0), "%"),
+        k("openDeals", "Open Deals", (m.crm?.openDeals ?? 0), "", "/crm/opportunities"),
+        k("pipeline", "Pipeline Value", (m.crm?.pipelineValue ?? 0), "$", "/crm/opportunities"),
+        k("clients", "Active Clients", (m.crm?.clients ?? 0), "", "/crm/accounts"),
+        k("winRate", "Win Rate", (m.crm?.winRate ?? 0), "%", "/crm/analytics"),
       ];
     case "marketing":
       return [
-        k("campaigns", "Active Campaigns", (m.marketing?.activeCampaigns ?? 0)),
-        k("audiences", "Audiences", (m.marketing?.audiences ?? 0)),
-        k("reach", "Audience Reach", (m.marketing?.reach ?? 0)),
-        k("conversions", "Conversions", (m.marketing?.conversions ?? 0)),
+        k("campaigns", "Active Campaigns", (m.marketing?.activeCampaigns ?? 0), "", "/marketing/engagement"),
+        k("audiences", "Audiences", (m.marketing?.audiences ?? 0), "", "/marketing/account-engagement"),
+        k("reach", "Audience Reach", (m.marketing?.reach ?? 0), "", "/marketing/intelligence"),
+        k("conversions", "Conversions", (m.marketing?.conversions ?? 0), "", "/marketing/intelligence"),
       ];
     case "it":
       return [
-        k("devices", "Managed Devices", (m.network?.devices ?? 0)),
-        k("uptime", "Uptime", (m.network?.uptimePct ?? 0), "%"),
-        k("alerts", "Open Alerts", (m.network?.openAlerts ?? 0)),
-        k("critical", "Critical", (m.network?.criticalAlerts ?? 0)),
+        k("devices", "Managed Devices", (m.network?.devices ?? 0), "", "/network"),
+        k("uptime", "Uptime", (m.network?.uptimePct ?? 0), "%", "/network"),
+        k("alerts", "Open Alerts", (m.network?.openAlerts ?? 0), "", "/network"),
+        k("critical", "Critical", (m.network?.criticalAlerts ?? 0), "", "/network"),
       ];
     case "finance":
       return [
-        k("revenue", "Revenue", (m.services?.revenue ?? 0), "$"),
-        k("expenses", "Expenses", (m.services?.expenses ?? 0), "$"),
-        k("profit", "Net Profit", (m.services?.netProfit ?? 0), "$"),
-        k("margin", "Margin", (m.services?.margin ?? 0), "%"),
+        k("revenue", "Revenue", (m.services?.revenue ?? 0), "$", "/services/financial"),
+        k("expenses", "Expenses", (m.services?.expenses ?? 0), "$", "/services/financial"),
+        k("profit", "Net Profit", (m.services?.netProfit ?? 0), "$", "/services/financial"),
+        k("margin", "Margin", (m.services?.margin ?? 0), "%", "/services/financial"),
       ];
     case "operations":
       return [
-        k("projects", "Active Projects", (m.services?.activeProjects ?? 0)),
-        k("openTasks", "Open Tasks", (m.services?.openTasks ?? 0)),
-        k("uptime", "Network Uptime", (m.network?.uptimePct ?? 0), "%"),
-        k("sops", "Active SOPs", (m.services?.sops ?? 0)),
+        k("projects", "Active Projects", (m.services?.activeProjects ?? 0), "", "/services/team"),
+        k("openTasks", "Open Tasks", (m.services?.openTasks ?? 0), "", "/services/team"),
+        k("uptime", "Network Uptime", (m.network?.uptimePct ?? 0), "%", "/network"),
+        k("sops", "Active SOPs", (m.services?.sops ?? 0), "", "/services/operation"),
       ];
     default: // executive
       return [
-        k("revenue", "Revenue", m.services?.revenue ?? 0, "$"),
-        k("openDeals", "Open Deals", m.crm?.openDeals ?? 0),
-        k("campaigns", "Active Campaigns", m.marketing?.activeCampaigns ?? 0),
-        k("uptime", "Network Uptime", m.network?.uptimePct ?? 0, "%"),
-        k("clients", "Active Clients", m.crm?.clients ?? 0),
-        k("projects", "Active Projects", m.services?.activeProjects ?? 0),
+        k("revenue", "Revenue", m.services?.revenue ?? 0, "$", "/services/financial"),
+        k("openDeals", "Open Deals", m.crm?.openDeals ?? 0, "", "/crm/opportunities"),
+        k("campaigns", "Active Campaigns", m.marketing?.activeCampaigns ?? 0, "", "/marketing/engagement"),
+        k("uptime", "Network Uptime", m.network?.uptimePct ?? 0, "%", "/network"),
+        k("clients", "Active Clients", m.crm?.clients ?? 0, "", "/crm/accounts"),
+        k("projects", "Active Projects", m.services?.activeProjects ?? 0, "", "/services/team"),
       ];
   }
 }
@@ -271,6 +275,40 @@ export async function getDashboard(userId, tenantId) {
 // get in-app notifications (the message stays in the app — never emailed).
 export async function postMessage(userId, tenantId, { body, toDept }) {
   return messaging.sendDept(tenantId, userId, { body, toDept });
+}
+
+// Email the requester a snapshot of their own dashboard (Resend; recorded as
+// "skipped" in the EmailLog when no key is configured). Cross-module workflow:
+// Executive Overview KPIs → email.
+export async function emailReport(userId, tenantId) {
+  const [user, data] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { email: true, firstName: true } }),
+    getDashboard(userId, tenantId),
+  ]);
+  const fmt = (kpi) =>
+    kpi.unit === "$" ? `$${Number(kpi.value ?? 0).toLocaleString()}`
+    : kpi.unit === "%" ? `${kpi.value ?? 0}%`
+    : String(kpi.value ?? 0);
+
+  const rows = data.kpis.map((kpi) => `
+    <tr>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e8f0;color:#475569">${kpi.label}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;color:#0f172a">${fmt(kpi)}</td>
+    </tr>`).join("");
+
+  const today = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  return sendEmail({
+    tenantId, userId, to: user.email, context: "overview:report",
+    subject: `Your ${data.gauge.label} report — ${today}`,
+    html: `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto">
+      <h2 style="color:#0f172a">Executive Overview — ${today}</h2>
+      <p style="color:#475569">Hi ${user.firstName ?? ""}, here's the current snapshot for your scope
+        (${data.identity.department ?? "Enterprise"}).</p>
+      <p style="font-size:15px;color:#334155"><b>${data.gauge.label}:</b> ${data.gauge.value ?? "—"} · ${String(data.gauge.status ?? "").toUpperCase()}</p>
+      <table style="border-collapse:collapse;width:100%;background:#f8fafc;border-radius:8px">${rows}</table>
+      <p style="color:#94a3b8;font-size:12px;margin-top:16px">Sent from your ExecUI Executive Overview.</p>
+    </div>`,
+  });
 }
 
 export const DEPARTMENTS = DEPT_LABELS;

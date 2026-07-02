@@ -105,6 +105,11 @@ async function request(path, options = {}) {
   return json;
 }
 
+// SSE stream URL for live notifications (EventSource can't set headers,
+// so the JWT rides as a query parameter — verified server-side).
+export const notificationsStreamUrl = () =>
+  `${BASE_URL}/notifications/stream?token=${encodeURIComponent(localStorage.getItem(TOKEN_KEY) ?? '')}`;
+
 const get    = (path, params) => {
   const qs = params ? `?${new URLSearchParams(params)}` : '';
   return request(`${path}${qs}`);
@@ -203,6 +208,7 @@ export const crm = {
     get:      (id)     => get(`/crm/leads/${id}`),
     create:   (data)   => post('/crm/leads', data),
     update:   (id, d)  => put(`/crm/leads/${id}`, d),
+    convert:  (id)     => post(`/crm/leads/${id}/convert`, {}),
     activity: (params) => get('/crm/leads/activity', params),
   },
   tasks: {
@@ -533,6 +539,7 @@ export const overview = {
   dashboard:   ()     => get('/overview/dashboard'),
   departments: ()     => get('/overview/departments'),
   sendMessage: (data) => post('/overview/messages', data),
+  emailReport: ()     => post('/overview/report/email', {}),
 };
 
 // ── Account ───────────────────────────────────────────────────────────────
