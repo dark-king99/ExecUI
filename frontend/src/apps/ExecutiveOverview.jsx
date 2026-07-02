@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users, Megaphone, Network, BarChart3, Layers, ArrowRight, ArrowUpRight,
-  Activity, CalendarClock, ListChecks, MessagesSquare, Send, Lock, ShieldCheck, Clock,
+  Activity, CalendarClock, ListChecks, MessagesSquare, Send, Lock, ShieldCheck, Clock, Mail, Check,
 } from "lucide-react";
 import { useApi, useMutation } from "../hooks/useApi";
 import { overview } from "../services/api";
@@ -100,18 +100,27 @@ function Gauge({ value, label, status, color }) {
   );
 }
 
-function KpiCard({ kpi, delay }) {
+function KpiCard({ kpi, delay, onOpen }) {
   const numeric = typeof kpi.value === "number";
   const animated = useCountUp(numeric ? kpi.value : 0, 900);
   const display = numeric ? fmt(Math.round(animated), kpi.unit) : fmt(kpi.value, kpi.unit);
+  const clickable = !!kpi.link;
   return (
-    <div
+    <button
+      type="button"
+      disabled={!clickable}
+      onClick={() => clickable && onOpen(kpi.link)}
       style={{ animationDelay: `${delay}ms` }}
-      className="animate-slide-up flex flex-col justify-center rounded-2xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/50"
+      className={`group animate-slide-up relative flex flex-col justify-center rounded-2xl border border-slate-200 bg-white p-4 text-left transition dark:border-slate-800 dark:bg-slate-900/50 ${
+        clickable ? "cursor-pointer hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md dark:hover:border-indigo-700" : ""
+      }`}
     >
+      {clickable && (
+        <ArrowUpRight size={13} className="absolute right-3 top-3 text-slate-300 opacity-0 transition group-hover:opacity-100 dark:text-slate-600" />
+      )}
       <p className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{display}</p>
       <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">{kpi.label}</p>
-    </div>
+    </button>
   );
 }
 
@@ -150,6 +159,20 @@ export default function ExecutiveOverview() {
   const { mutate: sendMessage, loading: sending } = useMutation((d) => overview.sendMessage(d), {
     onSuccess: () => { setDraft(""); refetch(); },
   });
+
+  // "Email me this report" — sends the KPI snapshot via Resend.
+  const [reportState, setReportState] = useState("idle"); // idle | sending | sent | error
+  const emailReport = async () => {
+    setReportState("sending");
+    try {
+      const r = await overview.emailReport();
+      setReportState(r?.skipped ? "sent" : "sent");
+      setTimeout(() => setReportState("idle"), 4000);
+    } catch {
+      setReportState("error");
+      setTimeout(() => setReportState("idle"), 4000);
+    }
+  };
 
   if (loading && !data) {
     return (
@@ -204,6 +227,14 @@ export default function ExecutiveOverview() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={emailReport}
+            disabled={reportState === "sending"}
+            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-60 dark:border-slate-700 dark:text-slate-400 dark:hover:text-indigo-400"
+          >
+            {reportState === "sent" ? <Check size={13} className="text-emerald-500" /> : <Mail size={13} />}
+            {reportState === "sending" ? "Sending…" : reportState === "sent" ? "Report sent" : reportState === "error" ? "Failed — retry" : "Email report"}
+          </button>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">
             {access.privileged ? <ShieldCheck size={13} /> : <Lock size={13} />}
             {access.privileged ? "Full access" : `${identity.department} scope`}
@@ -220,7 +251,7 @@ export default function ExecutiveOverview() {
         <div className="lg:col-span-2">
           <div className="grid h-full grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {kpis.map((k, i) => (
-              <KpiCard key={k.key} kpi={k} delay={i * 70} />
+              <KpiCard key={k.key} kpi={k} delay={i * 70} onOpen={navigate} />
             ))}
           </div>
         </div>

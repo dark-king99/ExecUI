@@ -13,6 +13,7 @@ import { SkeletonCard } from "../components/ui/Skeleton";
 import ErrorBoundary from "../components/ErrorBoundary";
 import BotWidget from "../components/BotWidget";
 import CommandPalette from "../components/CommandPalette";
+import Breadcrumbs from "../components/Breadcrumbs";
 import Dashboard from "../apps/services/Dashboard";
 import { accessFor } from "../lib/access";
 
@@ -119,6 +120,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
         )}
 
         <main className="flex-1 overflow-y-auto p-6">
+          <Breadcrumbs />
           <ErrorBoundary>
             <PageSuspense>
               <Routes>
