@@ -5,6 +5,7 @@ import {
   ChevronLeft, ChevronRight, Settings, Layers, Activity, LayoutDashboard
 } from "lucide-react";
 import { accessFor } from "../../lib/access";
+import { useUser } from "../../context/UserContext";
 
 // Department-gated module nav (filtered by the signed-in employee's access).
 const MODULES = [
@@ -14,10 +15,6 @@ const MODULES = [
   { section: "analytics", label: "Analytics", path: "/analytics", icon: BarChart3 },
   { section: "services",  label: "Services",  path: "/services",  icon: Layers },
 ];
-
-function currentUser() {
-  try { return JSON.parse(localStorage.getItem("user")) || {}; } catch { return {}; }
-}
 
 function NavBtn({ icon: Icon, label, path, current, collapsed }) {
   const navigate = useNavigate();
@@ -64,7 +61,8 @@ export default function Sidebar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
-  const allowed = accessFor(currentUser()).sections;
+  const { user } = useUser();
+  const allowed = accessFor(user).sections;
 
   useEffect(() => {
     const saved = localStorage.getItem("sidebar-collapsed");

@@ -1,7 +1,36 @@
 import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "crypto";
+import { notify } from "../notifications/notifications.service.js";
 
 const prisma = new PrismaClient();
+
+// BizTask.assignee is a display name — resolve it to a tenant user and drop a
+// notification in their bell. Fire-and-forget: a notify failure never blocks
+// the task mutation itself.
+async function notifyAssignee(tenantId, task, actorId, action) {
+  try {
+    if (!task?.assignee) return;
+    const [first, ...rest] = String(task.assignee).trim().split(/\s+/);
+    const user = await prisma.user.findFirst({
+      where: {
+        tenantId,
+        firstName: { equals: first, mode: "insensitive" },
+        ...(rest.length ? { lastName: { equals: rest.join(" "), mode: "insensitive" } } : {}),
+      },
+    });
+    if (!user || user.id === actorId) return; // unknown name or self-assignment
+    const actor = actorId ? await prisma.user.findUnique({ where: { id: actorId } }) : null;
+    await notify({
+      tenantId,
+      userId: user.id,
+      type: "task",
+      title: action === "assigned" ? "New task assigned to you" : "A task of yours was updated",
+      body: `${task.title}${task.due_date ? ` · due ${task.due_date}` : ""}`,
+      link: "/services/team",
+      actorName: actor ? `${actor.firstName} ${actor.lastName}`.trim() : null,
+    });
+  } catch { /* never break the task flow over a notification */ }
+}
 
 // ── Seed data ─────────────────────────────────────────────────────────────────
 
@@ -416,8 +445,8 @@ export async function listTasks(tenantId) {
   return prisma.bizTask.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
 }
 
-export async function createTask(tenantId, data) {
-  return prisma.bizTask.create({
+export async function createTask(tenantId, data, actorId = null) {
+  const task = await prisma.bizTask.create({
     data: {
       title:       data.title,
       description: data.description ?? null,
@@ -429,9 +458,12 @@ export async function createTask(tenantId, data) {
       tenantId,
     },
   });
+  notifyAssignee(tenantId, task, actorId, "assigned");
+  return task;
 }
 
-export async function updateTask(tenantId, id, data) {
+export async function updateTask(tenantId, id, data, actorId = null) {
+  const before = await prisma.bizTask.findFirst({ where: { id, tenantId } });
   const updateData = {};
   if (data.title !== undefined)       updateData.title       = data.title;
   if (data.description !== undefined) updateData.description = data.description;
@@ -441,7 +473,12 @@ export async function updateTask(tenantId, id, data) {
   if (data.due_date !== undefined)    updateData.due_date    = data.due_date;
   const assignee = data.assignee ?? data.assigned_to;
   if (assignee !== undefined)         updateData.assignee    = assignee;
-  return prisma.bizTask.update({ where: { id }, data: updateData });
+  const task = await prisma.bizTask.update({ where: { id }, data: updateData });
+  // Notify on reassignment to a new person (not on every status touch).
+  if (assignee !== undefined && assignee && assignee !== before?.assignee) {
+    notifyAssignee(tenantId, task, actorId, "assigned");
+  }
+  return task;
 }
 
 export async function deleteTask(tenantId, id) {

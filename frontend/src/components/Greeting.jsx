@@ -1,5 +1,6 @@
 import { useApi } from "../hooks/useApi";
 import { account } from "../services/api";
+import { useUser } from "../context/UserContext";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 function partOfDay() {
@@ -29,9 +30,8 @@ const initialsOf = (name) =>
 export default function Greeting({ product, subtitle }) {
   const { data: profile } = useApi(() => account.profile.get(), [], { cacheKey: "account:profile" });
 
-  // Fall back to the locally-stored user so there's no flash before the fetch.
-  let stored = {};
-  try { stored = JSON.parse(localStorage.getItem("user")) ?? {}; } catch { stored = {}; }
+  // Fall back to the shared user context so there's no flash before the fetch.
+  const stored = useUser().user ?? {};
 
   const fullName = [profile?.firstName ?? stored.firstName, profile?.lastName ?? stored.lastName]
     .filter(Boolean).join(" ").trim() || profile?.name || stored.name || "";

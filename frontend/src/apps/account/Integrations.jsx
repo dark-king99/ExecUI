@@ -6,6 +6,7 @@ import { useToast } from "../../components/ui/Toast";
 import { Plug, Plus, Trash2, Loader2, AlertCircle, Lock, ShieldCheck, Zap, KeyRound } from "lucide-react";
 import { useApi, useMutation } from "../../hooks/useApi";
 import { account } from "../../services/api";
+import { useUser } from "../../context/UserContext";
 
 const KINDS = [
   { id: "api", label: "External API" },
@@ -20,13 +21,9 @@ const AUTH = [
 ];
 const blankForm = { name: "", kind: "api", baseUrl: "", authType: "bearer", authHeader: "X-API-Key", secret: "" };
 
-function currentUser() {
-  try { return JSON.parse(localStorage.getItem("user")) || {}; } catch { return {}; }
-}
-
 export default function Integrations() {
   const toast = useToast();
-  const isAdmin = ["enterprise_admin", "system_admin"].includes(currentUser().role);
+  const isAdmin = ["enterprise_admin", "system_admin"].includes(useUser().user?.role);
   const [form, setForm] = useState(null); // null = closed, object = add form
   const [testingId, setTestingId] = useState(null);
 

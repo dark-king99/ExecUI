@@ -53,7 +53,7 @@ export const createDeal      = handle((req) => svc.createDeal(tid(req), { ...req
 export const updateDeal      = handle((req) => svc.updateDeal(tid(req), req.params.id, req.body));
 export const getDealTimeline = handle((req) => svc.getDealTimeline(tid(req), req.params.id));
 export const getDealTasks    = handle((req) => svc.getDealTasks(tid(req), req.params.id));
-export const createDealTask  = handle((req) => svc.createDealTask(tid(req), req.params.id, req.body));
+export const createDealTask  = handle((req) => svc.createDealTask(tid(req), req.params.id, req.body, uid(req)));
 export const updateDealTask  = handle((req) => svc.updateDealTask(tid(req), req.params.dealId, req.params.taskId, req.body));
 export const getDealAudit    = handle((req) => svc.getDealAudit(tid(req), req.params.id));
 
@@ -66,7 +66,7 @@ export const getLeadActivity = handle((req) => svc.getLeadActivity(tid(req), req
 
 // Tasks
 export const listTasks       = handle((req) => svc.listTasks(tid(req), req.query));
-export const createTask      = handle((req) => svc.createTask(tid(req), req.body));
+export const createTask      = handle((req) => svc.createTask(tid(req), req.body, uid(req)));
 export const updateTask      = handle((req) => svc.updateTask(tid(req), req.params.id, req.body));
 export const completeTask    = handle((req) => svc.completeTask(tid(req), req.params.id));
 

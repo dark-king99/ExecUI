@@ -130,6 +130,8 @@ export default function Login({ onLogin }) {
   const [apiError, setApiError] = useState(null);
   const [created, setCreated] = useState(null); // enterprise-created success state
   const [copied, setCopied] = useState(false);
+  const [mfaStep, setMfaStep] = useState(false); // password OK, awaiting TOTP code
+  const [mfaCode, setMfaCode] = useState("");
 
   // Pointer parallax for the background blobs.
   const layers = useRef([]);
@@ -159,8 +161,14 @@ export default function Login({ onLogin }) {
         if (!email.trim() || !password.trim() || !employeeId.trim()) {
           return setApiError("Email, password and employee ID are required.");
         }
+        if (mfaStep && mfaCode.length !== 6) {
+          return setApiError("Enter the 6-digit code from your authenticator app.");
+        }
         setSubmitting(true);
-        finish(await auth.login({ email, password, employeeId }));
+        const res = await auth.login({ email, password, employeeId, ...(mfaStep ? { mfaCode } : {}) });
+        // Account has 2FA: credentials are valid, now ask for the TOTP code.
+        if (res.mfaRequired) { setMfaStep(true); return; }
+        finish(res);
       } else if (mode === "enterprise") {
         if (!company.trim() || !email.trim() || !password.trim()) {
           return setApiError("Company name, email and password are required.");
@@ -182,7 +190,7 @@ export default function Login({ onLogin }) {
     }
   };
 
-  const switchMode = (m) => { setMode(m); setApiError(null); };
+  const switchMode = (m) => { setMode(m); setApiError(null); setMfaStep(false); setMfaCode(""); };
   const handleKeyDown = (e) => { if (e.key === "Enter") handleSubmit(); };
 
   const heading = {
@@ -355,6 +363,18 @@ export default function Login({ onLogin }) {
                   )}
 
                   <InputField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={handleKeyDown} placeholder="••••••••" autoComplete={mode === "signin" ? "current-password" : "new-password"} />
+
+                  {mode === "signin" && mfaStep && (
+                    <InputField
+                      label="Two-factor code"
+                      value={mfaCode}
+                      onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onKeyDown={handleKeyDown}
+                      placeholder="123456"
+                      autoComplete="one-time-code"
+                      hint="Enter the 6-digit code from your authenticator app."
+                    />
+                  )}
                 </div>
 
                 {apiError && (
@@ -368,7 +388,7 @@ export default function Login({ onLogin }) {
                   <span className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-white/25 blur-md -translate-x-full transition-transform duration-700 ease-out group-hover:translate-x-[400%]" />
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : (
                     <>
-                      {mode === "signin" ? "Sign in" : mode === "enterprise" ? "Create enterprise" : "Activate account"}
+                      {mode === "signin" ? (mfaStep ? "Verify code" : "Sign in") : mode === "enterprise" ? "Create enterprise" : "Activate account"}
                       <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
                     </>
                   )}
