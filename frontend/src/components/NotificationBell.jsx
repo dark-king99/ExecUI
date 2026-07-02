@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Check, MessageSquare, Megaphone, Mail, Info } from "lucide-react";
 import { useApi } from "../hooks/useApi";
-import { notifications as notifApi } from "../services/api";
+import { notifications as notifApi, notificationsStreamUrl } from "../services/api";
 
 const timeAgo = (t) => {
   if (!t) return "";
@@ -17,9 +17,33 @@ const ICON = { message: MessageSquare, dept_message: Megaphone, email: Mail, sys
 export default function NotificationBell() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const { data: countData, refetch: refetchCount } = useApi(() => notifApi.unreadCount(), [], { pollingInterval: 30000, cacheKey: "notif:count" });
+  // SSE delivers instantly; polling stays only as a slow safety net.
+  const { data: countData, refetch: refetchCount } = useApi(() => notifApi.unreadCount(), [], { pollingInterval: 120000, cacheKey: "notif:count" });
   const { data: items, refetch: refetchList, loading } = useApi(() => notifApi.list({ limit: 15 }), [], { immediate: false });
   const count = countData?.count ?? 0;
+
+  // Live stream: refresh the badge (and the open feed) the moment a
+  // notification is created — no more 30-second wait.
+  const openRef = useRef(false);
+  openRef.current = open;
+  useEffect(() => {
+    let es;
+    let retry;
+    const connect = () => {
+      try { es = new EventSource(notificationsStreamUrl()); } catch { return; }
+      es.addEventListener("notification", () => {
+        refetchCount();
+        if (openRef.current) refetchList();
+      });
+      es.onerror = () => {
+        es.close();
+        // Reconnect with a delay; polling covers the gap meanwhile.
+        retry = setTimeout(connect, 15000);
+      };
+    };
+    connect();
+    return () => { es?.close(); clearTimeout(retry); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = () => setOpen((v) => { const n = !v; if (n) refetchList(); return n; });
   const onItem = async (n) => {

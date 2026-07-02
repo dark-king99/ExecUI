@@ -10,4 +10,5 @@ const handle = (fn) => async (req, res) => {
 
 export const getDashboard = handle((req) => svc.getDashboard(uid(req), tid(req)));
 export const postMessage  = handle((req) => svc.postMessage(uid(req), tid(req), req.body));
+export const emailReport  = handle((req) => svc.emailReport(uid(req), tid(req)));
 export const listDepartments = (_req, res) => res.json(svc.DEPARTMENTS);
