@@ -1,4 +1,5 @@
 import prisma from "../../config/database.js";
+import { publish, publishMany } from "../../lib/sse.js";
 
 const shape = (n) => ({
   id: n.id, type: n.type, title: n.title, body: n.body, link: n.link,
@@ -8,9 +9,11 @@ const shape = (n) => ({
 /** Create a notification for a single recipient (internal helper). */
 export async function notify({ tenantId, userId, type = "message", title, body, link, actorName }) {
   if (!userId) return null;
-  return prisma.notification.create({
+  const row = await prisma.notification.create({
     data: { tenantId, userId, type, title, body: body || null, link: link || null, actorName: actorName || null },
   });
+  publish(userId, "notification", shape(row)); // real-time bell update
+  return row;
 }
 
 /** Fan a notification out to many recipients. */
@@ -23,6 +26,7 @@ export async function notifyMany(userIds, payload) {
       title: payload.title, body: payload.body || null, link: payload.link || null, actorName: payload.actorName || null,
     })),
   });
+  publishMany(ids, "notification", { type: payload.type || "message", title: payload.title, body: payload.body ?? null, link: payload.link ?? null });
 }
 
 export async function list(tenantId, userId, { limit = 30, unreadOnly = false } = {}) {

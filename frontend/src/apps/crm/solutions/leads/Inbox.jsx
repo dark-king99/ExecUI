@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { UserPlus, Plus, Search, Target, Flame, CheckCircle2 } from "lucide-react";
+import { UserPlus, Plus, Search, Target, Flame, CheckCircle2, ArrowRightCircle } from "lucide-react";
 import StatusBadge from "../../../../components/ui/StatusBadge";
 import { useToast } from "../../../../components/ui/Toast";
 import { useApi, useMutation } from "../../../../hooks/useApi";
@@ -31,10 +31,17 @@ function NewLeadModal({ onClose, onCreated }) {
 }
 
 export default function Inbox() {
+  const toast = useToast();
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState("");
   const [stage, setStage] = useState("all");
   const { data: leads, loading, error, refetch } = useApi(() => crm.leads.list(), [], { pollingInterval: 60000 });
+
+  // Cross-module workflow: promote a lead into the Opportunities pipeline.
+  const { mutate: convert, loading: converting } = useMutation((id) => crm.leads.convert(id), {
+    onSuccess: (r) => { toast({ message: `${r.opportunity?.name ?? "Lead"} moved to the pipeline`, type: "success" }); refetch(); },
+    onError: (e) => toast({ message: e.message, type: "error" }),
+  });
 
   const all = leads ?? [];
   const filtered = useMemo(() => all.filter((l) => {
@@ -76,14 +83,14 @@ export default function Inbox() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800">
-                  {["Lead", "Source", "Score", "Value", "Owner", "Stage"].map((h) => (
-                    <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                  {["Lead", "Source", "Score", "Value", "Owner", "Stage", ""].map((h, i) => (
+                    <th key={i} className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="py-10 text-center text-sm text-slate-500">No leads found.</td></tr>
+                  <tr><td colSpan={7} className="py-10 text-center text-sm text-slate-500">No leads found.</td></tr>
                 ) : filtered.map((l) => (
                   <tr key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
                     <td className="px-5 py-3">
@@ -97,6 +104,18 @@ export default function Inbox() {
                     <td className="px-5 py-3 text-slate-700 dark:text-slate-300">{l.value}</td>
                     <td className="px-5 py-3 text-slate-500">{l.owner ?? "—"}</td>
                     <td className="px-5 py-3"><StatusBadge label={l.stage} variant={STAGE_VARIANT[l.stage] ?? "neutral"} /></td>
+                    <td className="px-5 py-3 text-right">
+                      {l.stage === "New" && (
+                        <button
+                          onClick={() => convert(l.id)}
+                          disabled={converting}
+                          title="Convert to opportunity"
+                          className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 disabled:opacity-50 transition"
+                        >
+                          <ArrowRightCircle size={13} /> Convert
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
