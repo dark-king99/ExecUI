@@ -6,10 +6,7 @@ import { crm } from "../../services/api";
 import { SOLUTIONS, colorOf } from "./solutions.config";
 import { MetricGrid, fmtNum } from "./components/crm-ui";
 import { canAccessSolution } from "../../lib/access";
-
-function currentUser() {
-  try { return JSON.parse(localStorage.getItem("user")) || {}; } catch { return {}; }
-}
+import { useUser } from "../../context/UserContext";
 
 function SolutionCard({ solution }) {
   const navigate = useNavigate();
@@ -41,6 +38,7 @@ function SolutionCard({ solution }) {
 }
 
 export default function CrmSolutions() {
+  const { user } = useUser();
   const { data: pipeline, loading: l1 } = useApi(() => crm.pipeline.summary(), [], { pollingInterval: 120000 });
   const { data: opps, loading: l2 } = useApi(() => crm.opportunities.summary(), [], { pollingInterval: 120000 });
   const { data: analytics } = useApi(() => crm.analytics.summary(), [], { pollingInterval: 120000 });
@@ -67,7 +65,7 @@ export default function CrmSolutions() {
           Solutions
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {SOLUTIONS.filter((s) => canAccessSolution(currentUser(), "crm", s.id))
+          {SOLUTIONS.filter((s) => canAccessSolution(user, "crm", s.id))
             .map((s) => <SolutionCard key={s.id} solution={s} />)}
         </div>
       </div>

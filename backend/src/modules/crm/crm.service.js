@@ -1,4 +1,23 @@
 import prisma from "../../config/database.js";
+import { notify } from "../notifications/notifications.service.js";
+
+// Bell notification for a task assigned to someone else. Fire-and-forget —
+// a notify failure never blocks the task itself.
+async function notifyTaskAssignee(tenantId, task, actorId) {
+  try {
+    if (!task?.userId || task.userId === actorId) return;
+    const actor = actorId ? await prisma.user.findUnique({ where: { id: actorId } }) : null;
+    await notify({
+      tenantId,
+      userId: task.userId,
+      type: "task",
+      title: "New CRM task assigned to you",
+      body: `${task.title}${task.due_date ? ` · due ${new Date(task.due_date).toLocaleDateString()}` : ""}`,
+      link: "/crm/activities",
+      actorName: actor ? `${actor.firstName} ${actor.lastName}`.trim() : null,
+    });
+  } catch { /* ignore */ }
+}
 
 // ── Stage helpers ─────────────────────────────────────────────────────────────
 const DEAL_STAGE_MAP = {
@@ -171,9 +190,9 @@ export const getDealTasks = async (tenantId, dealId) => {
   }));
 };
 
-export const createDealTask = async (tenantId, dealId, data) => {
+export const createDealTask = async (tenantId, dealId, data, actorId = null) => {
   const firstUser = await prisma.user.findFirst({ where: { tenantId } });
-  return prisma.crmTask.create({
+  const task = await prisma.crmTask.create({
     data: {
       title: data.title, task_type: data.task_type ?? "follow_up",
       status: "pending", priority: data.priority ?? "medium",
@@ -182,6 +201,8 @@ export const createDealTask = async (tenantId, dealId, data) => {
       tenantId, userId: data.userId ?? firstUser?.id ?? "",
     },
   });
+  notifyTaskAssignee(tenantId, task, actorId);
+  return task;
 };
 
 export const updateDealTask = async (tenantId, dealId, taskId, data) => {
@@ -277,11 +298,11 @@ export const listTasks = async (tenantId, params = {}) => {
   }));
 };
 
-export const createTask = async (tenantId, data) => {
+export const createTask = async (tenantId, data, actorId = null) => {
   const firstUser = data.userId
     ? null
     : await prisma.user.findFirst({ where: { tenantId } });
-  return prisma.crmTask.create({
+  const task = await prisma.crmTask.create({
     data: {
       title: data.title, task_type: data.task_type ?? "follow_up",
       status: data.status ?? "pending", priority: data.priority ?? "medium",
@@ -290,6 +311,8 @@ export const createTask = async (tenantId, data) => {
       tenantId, userId: data.userId ?? firstUser?.id ?? "",
     },
   });
+  notifyTaskAssignee(tenantId, task, actorId);
+  return task;
 };
 
 export const updateTask = async (tenantId, id, data) => {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useUser } from "../../context/UserContext";
 import {
 
   ArrowLeft, User, ShieldCheck, Key, Bell, Users, Plug, MessagesSquare,
@@ -23,9 +24,6 @@ const orgItems = [
   { id: "audit",        label: "Audit Logs",          icon: FileText,    path: "/account/audit" },
 ];
 
-function readUser() {
-  try { return JSON.parse(localStorage.getItem("user")) ?? {}; } catch { return {}; }
-}
 
 function NavBtn({ icon: Icon, label, path, current, collapsed, onNavigate }) {
   const active = current === path;
@@ -51,7 +49,7 @@ export default function AccountSidebar() {
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
-  const user = readUser();
+  const user = useUser().user ?? {};
   const isAdmin = ["enterprise_admin", "system_admin"].includes(user.role);
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email || "Account";
 
