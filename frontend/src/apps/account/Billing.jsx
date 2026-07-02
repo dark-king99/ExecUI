@@ -1,14 +1,20 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { useToast } from "../../components/ui/Toast";
 import {
   CreditCard, AlertCircle, Check, Zap, Crown, Layers, Sparkles, Lock,
-  Users, TrendingUp, Server, BarChart3, Sliders,
+  Users, TrendingUp, Server, BarChart3, Sliders, ExternalLink, Download, Receipt,
 } from "lucide-react";
 import { useApi, useMutation } from "../../hooks/useApi";
 import { account } from "../../services/api";
+
+const STATUS_VARIANT = {
+  active: "success", trialing: "success",
+  past_due: "warning", unpaid: "warning", incomplete: "warning",
+  canceled: "neutral", incomplete_expired: "neutral",
+};
 
 function currentUser() {
   try { return JSON.parse(localStorage.getItem("user")) || {}; } catch { return {}; }
@@ -219,13 +225,25 @@ export default function Billing() {
 
   const currentPlan = billing?.plan ?? "executive";
   const currentSolutions = billing?.customSolutions ?? [];
+  const billingEnabled = billing?.billingEnabled ?? false;
+
+  const { data: invoicesData } = useApi(
+    () => (billingEnabled ? account.billing.invoices() : Promise.resolve([])), [billingEnabled]
+  );
+  const invoices = invoicesData ?? [];
 
   const selectMut = useMutation(
     ({ plan, customSolutions }) => account.billing.select({ plan, customSolutions }),
     {
       onSuccess: (data) => {
+        // PAID mode: Stripe returns a Checkout URL — send the admin to pay.
+        if (data.requiresPayment && data.checkoutUrl) {
+          toast({ message: "Redirecting to secure checkout…", type: "info" });
+          window.location.href = data.checkoutUrl;
+          return;
+        }
+        // FREE mode: the plan is active immediately.
         toast({ message: `Now on the ${data.planName} plan`, type: "success" });
-        // Keep local gating in sync immediately (no re-login required).
         try {
           const u = currentUser();
           localStorage.setItem("user", JSON.stringify({
@@ -239,6 +257,29 @@ export default function Billing() {
       onError: (e) => toast({ message: e.message, type: "error" }),
     }
   );
+
+  const portalMut = useMutation(() => account.billing.portal({}), {
+    onSuccess: (data) => {
+      if (data.url) window.location.href = data.url;
+      else toast({ message: "The customer portal needs a live Stripe key.", type: "info" });
+    },
+    onError: (e) => toast({ message: e.message, type: "error" }),
+  });
+
+  // Handle the return trip from Stripe Checkout.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get("checkout");
+    if (!checkout) return;
+    if (checkout === "success") {
+      toast({ message: "Payment received — your plan is being activated.", type: "success" });
+      // The webhook applies the plan; refetch a moment later, then reload gating.
+      setTimeout(() => { refetchBilling(); window.location.reload(); }, 2500);
+    } else if (checkout === "cancelled") {
+      toast({ message: "Checkout cancelled — no changes were made.", type: "info" });
+    }
+    window.history.replaceState({}, "", "/account/billing");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelect = (plan, customSolutions = []) => selectMut.mutate({ plan, customSolutions });
 
@@ -256,11 +297,19 @@ export default function Billing() {
         icon={CreditCard}
         iconColor="indigo"
         actions={
-          billing?.freeEarlyAccess && (
+          billing?.freeEarlyAccess ? (
             <span className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
               <Sparkles size={12} /> Free during early access
             </span>
-          )
+          ) : (admin && billing?.subscription) ? (
+            <button
+              onClick={() => portalMut.mutate()}
+              disabled={portalMut.loading}
+              className="flex items-center gap-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm px-4 py-2 rounded-lg hover:border-indigo-400 transition"
+            >
+              <ExternalLink size={14} /> {portalMut.loading ? "Opening…" : "Manage subscription"}
+            </button>
+          ) : null
         }
       />
 
@@ -287,12 +336,26 @@ export default function Billing() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <p className="text-lg font-bold text-slate-900 dark:text-white">{billing?.planName ?? "—"}</p>
-                  <StatusBadge variant="success" label={billing?.status ?? "active"} dot />
+                  <StatusBadge
+                    variant={STATUS_VARIANT[billing?.status] ?? "success"}
+                    label={(billing?.status ?? "active").replace(/_/g, " ")}
+                    dot
+                  />
+                  {billing?.subscription?.cancelAtPeriodEnd && (
+                    <StatusBadge variant="warning" label="cancels at period end" />
+                  )}
                 </div>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   ${(billing?.price ?? 0).toLocaleString()}/month
                   {billing?.freeEarlyAccess && <span className="text-emerald-600 dark:text-emerald-400"> · billed $0 during early access</span>}
+                  {billing?.nextRenewal && <span> · renews {billing.nextRenewal}</span>}
                 </p>
+                {billing?.paymentMethod?.last4 && (
+                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
+                    <CreditCard size={12} /> {billing.paymentMethod.brand?.toUpperCase()} ···· {billing.paymentMethod.last4}
+                    {billing.paymentMethod.expiry && ` · exp ${billing.paymentMethod.expiry}`}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-1.5 mt-3">
                   {activeModules.map((m) => {
                     const M = MODULE_META[m];
@@ -338,9 +401,40 @@ export default function Billing() {
         canSelect={admin}
       />
 
+      {/* Invoices (paid mode only) */}
+      {billingEnabled && invoices.length > 0 && (
+        <Card>
+          <CardHeader title={<span className="flex items-center gap-2"><Receipt size={15} /> Invoices</span>} />
+          <CardBody className="space-y-2">
+            {invoices.map((inv) => (
+              <div key={inv.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800">
+                <div>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white">{inv.id}</p>
+                  <p className="text-xs text-slate-400">{inv.date}{inv.plan ? ` · ${inv.plan}` : ""}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-sm text-slate-900 dark:text-white">{inv.amount}</span>
+                  <StatusBadge label={inv.status} variant={inv.status === "paid" ? "success" : inv.status === "open" ? "warning" : "neutral"} dot />
+                  {(inv.hostedUrl || inv.pdfUrl) && (
+                    <button
+                      onClick={() => window.open(inv.hostedUrl || inv.pdfUrl, "_blank")}
+                      title="View invoice"
+                      className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition"
+                    >
+                      <Download size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </CardBody>
+        </Card>
+      )}
+
       <p className="text-xs text-slate-400 dark:text-slate-500 text-center">
-        All plans include analytics for the modules they unlock. Sign-up is free during early distribution; payment will be
-        collected once early access ends.
+        {billingEnabled
+          ? "All plans include analytics for the modules they unlock. Plans are billed monthly and can be changed or cancelled anytime."
+          : "All plans include analytics for the modules they unlock. Sign-up is free during early distribution; payment will be collected once early access ends."}
       </p>
     </div>
   );
