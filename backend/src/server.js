@@ -1,10 +1,27 @@
 import { execSync } from "child_process";
 import app from "./app.js";
 import prisma from "./config/database.js";
+import { log } from "./lib/logger.js";
 import dotenv from "dotenv";
 dotenv.config();
 
 const PORT = process.env.PORT || 5555;
+
+// ── Apply pending migrations on boot ──────────────────────────────────────────
+// Keeps the database schema in lockstep with the code on every start, so a
+// pulled commit can never run against a drifted database. Non-fatal: if the
+// prisma CLI is unavailable (e.g. offline), we log and boot anyway.
+function applyMigrations() {
+  try {
+    execSync("npx prisma migrate deploy", { stdio: "pipe", timeout: 60_000, env: process.env });
+    log.info("migrations_applied");
+  } catch (err) {
+    log.warn("migrations_skipped", {
+      hint: "run `npx prisma migrate deploy` manually",
+      error: String(err.stderr ?? err.message).slice(0, 300),
+    });
+  }
+}
 
 // ── Keep the server alive ─────────────────────────────────────────────────────
 // A single bad request or stray rejection must never take the whole API down.
@@ -38,6 +55,8 @@ async function ensureDatabase(attempt = 1) {
     }
   }
 }
+
+applyMigrations();
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

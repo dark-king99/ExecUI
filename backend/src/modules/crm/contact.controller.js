@@ -5,7 +5,7 @@ export const listContacts = async (req, res) => {
     const contacts = await listCustomers(req.user.tenantId);
     res.json(contacts);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(error.status ?? 500).json({ error: error.message });
   }
 };
 
@@ -14,6 +14,6 @@ export const createContact = async (req, res) => {
     const contact = await createCustomer(req.user.tenantId, req.body);
     res.status(201).json(contact);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(error.status ?? 500).json({ error: error.message });
   }
 };

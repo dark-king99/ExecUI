@@ -63,7 +63,7 @@ export const registerEnterprise = async (req, res) => {
     if (error.message?.includes("already exists")) {
       return res.status(409).json({ message: "An account with that email already exists." });
     }
-    res.status(500).json({ message: error.message });
+    res.status(error.status ?? 500).json({ message: error.message });
   }
 };
 
@@ -143,6 +143,6 @@ export const employeeSignup = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.status ?? 500).json({ message: error.message });
   }
 };

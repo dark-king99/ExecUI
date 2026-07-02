@@ -1,17 +1,47 @@
 import { z } from "zod";
 
-export const registerSchema = z.object({
-  body: z.object({
-    email: z.string().email(),
-    password: z.string().min(6),
-    name: z.string().optional(),
-    type: z.enum(["CLIENT", "CUSTOMER"])
-  })
-});
+// Shapes match the real auth endpoints (email + password + employee ID model).
 
 export const loginSchema = z.object({
-  body: z.object({
-    email: z.string().email(),
-    password: z.string().min(6)
-  })
+  email: z.string().email(),
+  password: z.string().min(1).max(200),
+  employeeId: z.string().min(1).max(50),
+  mfaCode: z.string().regex(/^\d{6}$/, "must be a 6-digit code").optional(),
+});
+
+export const enterpriseSignupSchema = z.object({
+  company: z.string().min(2).max(120),
+  email: z.string().email(),
+  password: z.string().min(8).max(200),
+  firstName: z.string().max(60).optional(),
+  lastName: z.string().max(60).optional(),
+});
+
+export const employeeSignupSchema = z.object({
+  enterpriseCode: z.string().min(4).max(20),
+  employeeId: z.string().min(1).max(50),
+  email: z.string().email(),
+  password: z.string().min(8).max(200),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(200),
+  newPassword: z.string().min(8).max(200),
+});
+
+export const selectPlanSchema = z.object({
+  plan: z.enum(["standard", "premium", "enterprise", "executive", "custom"]),
+  customSolutions: z.array(z.string().max(60)).max(30).optional(),
+});
+
+export const inviteSchema = z.object({
+  email: z.string().email(),
+  firstName: z.string().min(1).max(60),
+  lastName: z.string().min(1).max(60),
+  employeeId: z.string().max(50).optional(),
+  roleId: z.string().max(60).optional(),
+  role: z.string().max(60).optional(),
+  department: z.string().max(80).optional(),
+  jobTitle: z.string().max(120).optional(),
+  phone: z.string().max(40).optional(),
 });
