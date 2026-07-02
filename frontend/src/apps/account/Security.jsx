@@ -31,13 +31,40 @@ export default function Security() {
     }
   );
 
-  const { mutate: toggleMfa, loading: togglingMfa } = useMutation(
-    () => mfaEnabled ? account.security.mfa.disable() : account.security.mfa.enable(),
+  // TOTP enrollment: enable → server issues a secret → user confirms a code
+  // from their authenticator app → 2FA becomes active.
+  const [enrollment, setEnrollment] = useState(null); // { secret, otpauthUri }
+  const [mfaCode, setMfaCode] = useState("");
+
+  const { mutate: startEnroll, loading: startingEnroll } = useMutation(
+    () => account.security.mfa.enable(),
     {
-      onSuccess: () => { toast({ message: mfaEnabled ? "2FA disabled" : "2FA enabled", type: mfaEnabled ? "warning" : "success" }); refetchSec(); },
-      onError: (err) => toast({ message: err?.message ?? "Failed to update 2FA", type: "error" }),
+      onSuccess: (data) => setEnrollment({ secret: data.secret, otpauthUri: data.otpauthUri }),
+      onError: (err) => toast({ message: err?.message ?? "Could not start 2FA setup", type: "error" }),
     }
   );
+
+  const { mutate: verifyEnroll, loading: verifying } = useMutation(
+    () => account.security.mfa.verify({ code: mfaCode }),
+    {
+      onSuccess: () => {
+        toast({ message: "Two-factor authentication enabled", type: "success" });
+        setEnrollment(null); setMfaCode(""); refetchSec();
+      },
+      onError: (err) => toast({ message: err?.message ?? "Invalid code", type: "error" }),
+    }
+  );
+
+  const { mutate: disableMfa, loading: disablingMfa } = useMutation(
+    () => account.security.mfa.disable(),
+    {
+      onSuccess: () => { toast({ message: "2FA disabled", type: "warning" }); setEnrollment(null); refetchSec(); },
+      onError: (err) => toast({ message: err?.message ?? "Failed to disable 2FA", type: "error" }),
+    }
+  );
+
+  const togglingMfa = startingEnroll || disablingMfa;
+  const toggleMfa = () => (mfaEnabled ? disableMfa() : startEnroll());
 
   const { mutate: revokeSession } = useMutation(
     (id) => account.security.sessions.revoke(id),
@@ -113,6 +140,41 @@ export default function Security() {
               </button>
             </div>
           </div>
+
+          {enrollment && !mfaEnabled && (
+            <div className="mt-4 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-900/15 space-y-3">
+              <p className="text-sm font-medium text-slate-900 dark:text-white">Finish setting up your authenticator</p>
+              <ol className="text-xs text-slate-600 dark:text-slate-400 list-decimal ml-4 space-y-1">
+                <li>Open Google Authenticator, Authy or 1Password and add a new account.</li>
+                <li>Enter this setup key (or paste the otpauth link):</li>
+              </ol>
+              <div className="font-mono text-sm tracking-wider break-all bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 select-all">
+                {enrollment.secret}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="6-digit code"
+                  inputMode="numeric"
+                  className="w-36 px-3 py-2 text-sm font-mono tracking-widest border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <button
+                  onClick={() => verifyEnroll()}
+                  disabled={verifying || mfaCode.length !== 6}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm px-4 py-2 rounded-lg transition"
+                >
+                  {verifying && <Loader2 size={14} className="animate-spin" />} Verify & enable
+                </button>
+                <button
+                  onClick={() => { setEnrollment(null); setMfaCode(""); }}
+                  className="text-sm text-slate-500 hover:underline"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           {security?.sso !== undefined && (
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">

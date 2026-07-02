@@ -1,8 +1,9 @@
 import prisma from "../../config/database.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { verifyTotp } from "../../lib/totp.js";
 
-export async function loginUser({ email, password, employeeId }, meta = {}) {
+export async function loginUser({ email, password, employeeId, mfaCode }, meta = {}) {
   const user = await prisma.user.findUnique({
     where: { email },
     include: { tenant: true, role: true },
@@ -28,23 +29,36 @@ export async function loginUser({ email, password, employeeId }, meta = {}) {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) throw invalid();
 
+  // Two-factor: after the password checks out, require a TOTP code.
+  if (user.mfaEnabled) {
+    if (!mfaCode) return { mfaRequired: true };
+    if (!verifyTotp(user.mfaSecret, mfaCode)) {
+      throw new Error("Invalid two-factor code");
+    }
+  }
+
+  // Create the session first so its id can ride inside the JWT — this lets the
+  // Security page mark "current" and revoke the others.
+  const session = await prisma.userSession.create({
+    data: {
+      userId: user.id,
+      tenantId: user.tenantId,
+      ipAddress: meta.ipAddress ?? null,
+      userAgent: meta.userAgent ?? null,
+      isActive: true,
+    },
+  });
+
   const token = jwt.sign(
-    { userId: user.id, tenantId: user.tenantId, role: user.role.name, department: user.department ?? null },
+    {
+      userId: user.id, tenantId: user.tenantId, role: user.role.name,
+      department: user.department ?? null, sessionId: session.id,
+    },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES || "1d" }
   );
 
-  // Record session and update lastLoginAt in parallel
   await Promise.all([
-    prisma.userSession.create({
-      data: {
-        userId: user.id,
-        tenantId: user.tenantId,
-        ipAddress: meta.ipAddress ?? null,
-        userAgent: meta.userAgent ?? null,
-        isActive: true,
-      },
-    }),
     prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useApi, useMutation } from "../../hooks/useApi";
 import { account } from "../../services/api";
+import { useUser } from "../../context/UserContext";
 
 const STATUS_VARIANT = {
   active: "success", trialing: "success",
@@ -16,9 +17,6 @@ const STATUS_VARIANT = {
   canceled: "neutral", incomplete_expired: "neutral",
 };
 
-function currentUser() {
-  try { return JSON.parse(localStorage.getItem("user")) || {}; } catch { return {}; }
-}
 function isAdmin(u) {
   return u?.role === "enterprise_admin" || u?.role === "system_admin";
 }
@@ -210,7 +208,7 @@ function CustomBuilder({ custom, catalog, current, currentSolutions, onSelect, l
 
 export default function Billing() {
   const toast = useToast();
-  const me = currentUser();
+  const { user: me, updateUser } = useUser();
   const admin = isAdmin(me);
 
   const { data: billingData, loading: billingLoading, error: billingError, refetch: refetchBilling } = useApi(
@@ -242,17 +240,11 @@ export default function Billing() {
           window.location.href = data.checkoutUrl;
           return;
         }
-        // FREE mode: the plan is active immediately.
+        // FREE mode: the plan is active immediately. Patching the shared user
+        // context re-renders the sidebar and route guards — no reload needed.
         toast({ message: `Now on the ${data.planName} plan`, type: "success" });
-        try {
-          const u = currentUser();
-          localStorage.setItem("user", JSON.stringify({
-            ...u, plan: data.plan, planSolutions: data.customSolutions ?? [],
-          }));
-        } catch { /* ignore */ }
+        updateUser({ plan: data.plan, planSolutions: data.customSolutions ?? [] });
         refetchBilling();
-        // Refresh so sidebar/route gating recomputes from the new plan.
-        setTimeout(() => window.location.reload(), 600);
       },
       onError: (e) => toast({ message: e.message, type: "error" }),
     }
@@ -273,8 +265,14 @@ export default function Billing() {
     if (!checkout) return;
     if (checkout === "success") {
       toast({ message: "Payment received — your plan is being activated.", type: "success" });
-      // The webhook applies the plan; refetch a moment later, then reload gating.
-      setTimeout(() => { refetchBilling(); window.location.reload(); }, 2500);
+      // The webhook applies the plan; refetch a moment later and sync gating.
+      setTimeout(async () => {
+        refetchBilling();
+        try {
+          const b = await account.billing.get();
+          updateUser({ plan: b.plan, planSolutions: b.customSolutions ?? [] });
+        } catch { /* billing poll will catch up */ }
+      }, 2500);
     } else if (checkout === "cancelled") {
       toast({ message: "Checkout cancelled — no changes were made.", type: "info" });
     }

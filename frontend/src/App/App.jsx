@@ -2,6 +2,7 @@ import { useState, useEffect, Suspense, lazy } from "react";
 import { setToken, clearToken } from "../services/api";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useSidebar } from "../components/SidebarContext";
+import { UserProvider } from "../context/UserContext";
 import Login from "../auth/Login";
 import { SidebarProvider } from "../components/SidebarContext";
 import SidebarInset from "../components/SidebarInset";
@@ -243,17 +244,19 @@ export default function App() {
   if (!user) return <Login onLogin={setUser} />;
 
   return (
-    <ToastProvider>
-      <SidebarProvider>
-        <AppLayout
-          user={user}
-          setUser={setUser}
-          roleToUse={roleToUse}
-          effectiveRole={effectiveRole}
-          setEffectiveRole={setEffectiveRole}
-        />
-      </SidebarProvider>
-      <Toaster />
-    </ToastProvider>
+    <UserProvider user={user} setUser={setUser}>
+      <ToastProvider>
+        <SidebarProvider>
+          <AppLayout
+            user={user}
+            setUser={setUser}
+            roleToUse={roleToUse}
+            effectiveRole={effectiveRole}
+            setEffectiveRole={setEffectiveRole}
+          />
+        </SidebarProvider>
+        <Toaster />
+      </ToastProvider>
+    </UserProvider>
   );
 }
