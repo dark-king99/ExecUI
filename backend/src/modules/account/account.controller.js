@@ -1,6 +1,8 @@
+import bcrypt from "bcrypt";
 import prisma from "../../config/database.js";
 import * as billing from "./billing.service.js";
 import * as storage from "../../lib/storage.js";
+import { generateSecret, verifyTotp, otpauthUri } from "../../lib/totp.js";
 
 const tid = (req) => req.user.tenantId;
 const uid = (req) => req.user.userId;
@@ -113,18 +115,133 @@ export const removeAvatar = async (req, res) => {
 };
 
 // ── Security ──────────────────────────────────────────────────────────────
-export const getSecurity = (_req, res) =>
-  res.json({ mfaEnabled: false, lastPasswordChange: null, activeSessions: 1 });
+const audit = (req, action, detail) =>
+  prisma.auditLog.create({
+    data: { userId: uid(req), tenantId: tid(req), action, resource: "security", detail, ipAddress: req.ip ?? null },
+  }).catch(() => {});
 
-export const changePassword = (_req, res) =>
-  res.json({ success: true });
+export const getSecurity = async (req, res) => {
+  try {
+    const [user, activeSessions] = await Promise.all([
+      prisma.user.findUnique({ where: { id: uid(req) }, select: { mfaEnabled: true, passwordChangedAt: true } }),
+      prisma.userSession.count({ where: { userId: uid(req), isActive: true } }),
+    ]);
+    res.json({
+      mfa: { enabled: user?.mfaEnabled ?? false },
+      mfaEnabled: user?.mfaEnabled ?? false,
+      lastPasswordChange: user?.passwordChangedAt ?? null,
+      activeSessions,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
-export const enableMfa  = (_req, res) => res.json({ enabled: true, secret: null });
-export const disableMfa = (_req, res) => res.json({ disabled: true });
-export const verifyMfa  = (_req, res) => res.json({ verified: true });
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body ?? {};
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current and new password are required" });
+    }
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({ message: "New password must be at least 8 characters" });
+    }
+    const user = await prisma.user.findUnique({ where: { id: uid(req) } });
+    const ok = user?.passwordHash && await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!ok) return res.status(400).json({ message: "Current password is incorrect" });
 
-export const listSessions  = (_req, res) => res.json([]);
-export const revokeSession = (_req, res) => res.status(204).end();
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { id: uid(req) }, data: { passwordHash, passwordChangedAt: new Date() } });
+    await audit(req, "password_change", "Password changed");
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Start TOTP enrollment: issue a secret; MFA activates only after verifyMfa
+// confirms the user's authenticator produces valid codes.
+export const enableMfa = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: uid(req) }, select: { email: true, mfaEnabled: true } });
+    if (user?.mfaEnabled) return res.status(400).json({ message: "Two-factor auth is already enabled" });
+    const secret = generateSecret();
+    await prisma.user.update({ where: { id: uid(req) }, data: { mfaSecret: secret, mfaEnabled: false } });
+    res.json({ pending: true, secret, otpauthUri: otpauthUri(secret, { label: user?.email }) });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const verifyMfa = async (req, res) => {
+  try {
+    const { code } = req.body ?? {};
+    const user = await prisma.user.findUnique({ where: { id: uid(req) }, select: { mfaSecret: true } });
+    if (!user?.mfaSecret) return res.status(400).json({ message: "Start 2FA enrollment first" });
+    if (!verifyTotp(user.mfaSecret, code)) {
+      return res.status(400).json({ message: "Invalid code — check your authenticator app" });
+    }
+    await prisma.user.update({ where: { id: uid(req) }, data: { mfaEnabled: true } });
+    await audit(req, "mfa_enabled", "Two-factor authentication enabled");
+    res.json({ verified: true, enabled: true });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const disableMfa = async (req, res) => {
+  try {
+    await prisma.user.update({ where: { id: uid(req) }, data: { mfaEnabled: false, mfaSecret: null } });
+    await audit(req, "mfa_disabled", "Two-factor authentication disabled");
+    res.json({ disabled: true });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Short human label from a raw user-agent string.
+const deviceLabel = (ua = "") => {
+  const browser =
+    /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Chrome\//.test(ua) ? "Chrome" :
+    /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "Unknown browser";
+  const os =
+    /Windows/.test(ua) ? "Windows" : /Mac OS/.test(ua) ? "macOS" : /Android/.test(ua) ? "Android" :
+    /iPhone|iPad/.test(ua) ? "iOS" : /Linux/.test(ua) ? "Linux" : "Unknown OS";
+  return `${browser} on ${os}`;
+};
+
+export const listSessions = async (req, res) => {
+  try {
+    const sessions = await prisma.userSession.findMany({
+      where: { userId: uid(req), isActive: true },
+      orderBy: { startedAt: "desc" },
+      take: 20,
+    });
+    res.json(sessions.map((s) => ({
+      id: s.id,
+      device: deviceLabel(s.userAgent ?? ""),
+      location: s.ipAddress ?? "Unknown IP",
+      lastActive: new Date(s.startedAt).toLocaleString(),
+      current: s.id === req.user.sessionId,
+    })));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const revokeSession = async (req, res) => {
+  try {
+    // Scoped to the caller: you can only revoke your own sessions.
+    await prisma.userSession.updateMany({
+      where: { id: req.params.id, userId: uid(req) },
+      data: { isActive: false, endedAt: new Date() },
+    });
+    await audit(req, "session_revoked", `Session ${req.params.id} revoked`);
+    res.status(204).end();
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
 // ── Notifications ─────────────────────────────────────────────────────────
 export const getNotificationPreferences = (_req, res) =>
@@ -158,14 +275,8 @@ export const listTeamMembers = async (req, res) => {
   }
 };
 
-export const inviteTeamMember = (req, res) =>
-  res.status(201).json({ invited: true, email: req.body?.email });
-
-export const updateTeamMember = (_req, res) =>
-  res.json({ updated: true });
-
-export const removeTeamMember = (_req, res) =>
-  res.status(204).end();
+// Invite/update/remove are handled by the real users-module implementations
+// (see account.routes.js) — the old fake responses are gone.
 
 export const listRoles = async (req, res) => {
   try {

@@ -72,8 +72,8 @@ export const updateProject = handle((req) => svc.updateProject(tid(req), req.par
 export const deleteProject = handle(async (req) => { await svc.deleteProject(tid(req), req.params.id); });
 
 export const listTasks  = handle((req) => svc.listTasks(tid(req)));
-export const createTask = handle((req) => svc.createTask(tid(req), req.body));
-export const updateTask = handle((req) => svc.updateTask(tid(req), req.params.id, req.body));
+export const createTask = handle((req) => svc.createTask(tid(req), req.body, req.user.userId));
+export const updateTask = handle((req) => svc.updateTask(tid(req), req.params.id, req.body, req.user.userId));
 export const deleteTask = handle(async (req) => { await svc.deleteTask(tid(req), req.params.id); });
 
 // ── AI ────────────────────────────────────────────────────────────────────────

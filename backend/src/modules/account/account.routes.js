@@ -3,6 +3,7 @@ import { authenticate } from "../../middleware/auth.middleware.js";
 import { requireRole } from "../../middleware/role.middleware.js";
 import { uploadImage } from "../../middleware/upload.middleware.js";
 import * as c from "./account.controller.js";
+import { inviteUser, updateUser, deleteUser } from "../users/users.controller.js";
 
 const router = express.Router();
 const auth = authenticate;
@@ -27,10 +28,13 @@ router.get("/notifications/preferences",    auth, c.getNotificationPreferences);
 router.put("/notifications/preferences",    auth, c.updateNotificationPreferences);
 
 // ── Team ──────────────────────────────────────────────────────────────────
+// Mutations reuse the real users-module handlers (invite email, audit log,
+// employee-ID provisioning) and are admin-only.
+const adminOnly = requireRole("enterprise_admin", "system_admin");
 router.get("/team/members",          auth, c.listTeamMembers);
-router.post("/team/invite",          auth, c.inviteTeamMember);
-router.put("/team/members/:id",      auth, c.updateTeamMember);
-router.delete("/team/members/:id",   auth, c.removeTeamMember);
+router.post("/team/invite",          auth, adminOnly, inviteUser);
+router.put("/team/members/:id",      auth, adminOnly, updateUser);
+router.delete("/team/members/:id",   auth, adminOnly, deleteUser);
 router.get("/team/roles",            auth, c.listRoles);
 
 // ── Billing ───────────────────────────────────────────────────────────────

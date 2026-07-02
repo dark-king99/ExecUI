@@ -3,10 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Megaphone, ArrowLeft, LayoutGrid, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
 import { SOLUTIONS, colorOf } from "../../apps/marketing/solutions.config";
 import { canAccessSolution } from "../../lib/access";
-
-function currentUser() {
-  try { return JSON.parse(localStorage.getItem("user")) || {}; } catch { return {}; }
-}
+import { useUser } from "../../context/UserContext";
 
 function PageLink({ page, active, color, onNavigate }) {
   const Icon = page.icon;
@@ -87,6 +84,7 @@ function SolutionGroup({ solution, pathname, collapsed, onNavigate }) {
 export default function MarketingSidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { user } = useUser();
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -161,7 +159,7 @@ export default function MarketingSidebar() {
         {collapsed && <div className="my-1.5 border-t border-slate-100 dark:border-slate-800/60" />}
 
         <div className="space-y-0.5">
-          {SOLUTIONS.filter((s) => canAccessSolution(currentUser(), "marketing", s.id)).map((s) => (
+          {SOLUTIONS.filter((s) => canAccessSolution(user, "marketing", s.id)).map((s) => (
             <SolutionGroup key={s.id} solution={s} pathname={pathname} collapsed={collapsed} onNavigate={navigate} />
           ))}
         </div>
