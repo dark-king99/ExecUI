@@ -51,6 +51,7 @@ router.get("/leads",            auth, c.listLeads);
 router.get("/leads/:id",        auth, c.getLead);
 router.post("/leads",           auth, c.createLead);
 router.put("/leads/:id",        auth, c.updateLead);
+router.post("/leads/:id/convert", auth, c.convertLead);
 
 // ── Tasks ─────────────────────────────────────────────────────────────────
 router.get("/tasks",            auth, c.listTasks);
