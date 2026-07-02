@@ -5,7 +5,7 @@ const uid = (req) => req.user.userId;
 
 const handle = (fn) => async (req, res) => {
   try { res.json(await fn(req)); }
-  catch (err) { res.status(500).json({ message: err.message }); }
+  catch (err) { res.status(err.status ?? 500).json({ message: err.message }); }
 };
 
 export const getDashboard = handle((req) => svc.getDashboard(uid(req), tid(req)));

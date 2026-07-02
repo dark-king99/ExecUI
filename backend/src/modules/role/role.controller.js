@@ -23,7 +23,7 @@ export const addPermissionToRole = async (req, res) => {
     res.status(201).json(mapping);
 
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(error.status ?? 500).json({ error: error.message });
   }
 };
 
@@ -43,7 +43,7 @@ export const listRolePermissions = async (req, res) => {
     res.json(permissions);
 
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(error.status ?? 500).json({ error: error.message });
   }
 };
 
@@ -56,7 +56,7 @@ export const listRoles = async (req, res) => {
     res.json(roles);
 
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(error.status ?? 500).json({ error: error.message });
   }
 };
 
@@ -71,6 +71,6 @@ export const createTenantRole = async (req, res) => {
     res.status(201).json(role);
 
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(error.status ?? 500).json({ error: error.message });
   }
 };

@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import prisma from "../../config/database.js";
+import { ValidationError, NotFoundError } from "../../lib/errors.js";
 import {
   PLANS as PLAN_TIERS, CUSTOM, DEFAULT_PLAN,
   CRM_SOLUTIONS, MKT_SOLUTIONS, SERVICES_SOLUTIONS,
@@ -37,7 +38,7 @@ export const getPlanCatalog = () => Promise.resolve({
 // status, renewal date, and default card.
 export const getBilling = async (tenantId) => {
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  if (!tenant) throw new Error("Tenant not found");
+  if (!tenant) throw new NotFoundError("Tenant not found");
   const planId = tenant.plan || DEFAULT_PLAN;
   const customSolutions = tenant.planSolutions || [];
 
@@ -90,7 +91,7 @@ export const getBilling = async (tenantId) => {
 // Validate a plan request and resolve the (namespaced) custom solution list.
 function resolvePlan(plan, customSolutions = []) {
   const valid = [...PLAN_TIERS.map((p) => p.id), "custom"];
-  if (!valid.includes(plan)) throw new Error("Unknown plan");
+  if (!valid.includes(plan)) throw new ValidationError("Unknown plan");
   if (plan !== "custom") return { plan, solutions: [] };
 
   // Custom is CRM + Marketing only; minimum 8 solutions.
@@ -98,7 +99,7 @@ function resolvePlan(plan, customSolutions = []) {
   const mktIds = MKT_SOLUTIONS.map((s) => `marketing:${s.id}`);
   const solutions = [...new Set(customSolutions)].filter((s) => crmIds.includes(s) || mktIds.includes(s));
   if (solutions.length < CUSTOM.minUnits) {
-    throw new Error(`A custom plan needs at least ${CUSTOM.minUnits} solutions.`);
+    throw new ValidationError(`A custom plan needs at least ${CUSTOM.minUnits} solutions.`);
   }
   return { plan, solutions };
 }
@@ -159,7 +160,7 @@ export const selectPlan = async (tenantId, { plan, customSolutions = [] }) => {
   }
 
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  if (!tenant) throw new Error("Tenant not found");
+  if (!tenant) throw new NotFoundError("Tenant not found");
 
   const customerId = await ensureStripeCustomer(tenant);
   const metadata = { tenantId, plan, planSolutions: JSON.stringify(solutions) };
@@ -349,7 +350,7 @@ export const upgradePlan = async (tenantId, data) => {
   if (!plan) throw new Error("Unknown plan");
 
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  if (!tenant) throw new Error("Tenant not found");
+  if (!tenant) throw new NotFoundError("Tenant not found");
 
   if (!stripe) {
     await prisma.tenant.update({ where: { id: tenantId }, data: { stripePlanId: planId } });

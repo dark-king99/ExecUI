@@ -8,7 +8,7 @@ const handle = (fn) => async (req, res) => {
   try {
     res.json(await fn(req, res));
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 

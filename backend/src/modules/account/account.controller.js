@@ -9,7 +9,7 @@ const uid = (req) => req.user.userId;
 
 const handle = (fn) => async (req, res) => {
   try { res.json(await fn(req)); }
-  catch (err) { res.status(500).json({ message: err.message }); }
+  catch (err) { res.status(err.status ?? 500).json({ message: err.message }); }
 };
 
 // ── Profile ───────────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ export const getProfile = async (req, res) => {
       createdAt: user.createdAt,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 
@@ -85,7 +85,7 @@ export const updateProfile = async (req, res) => {
       createdAt: user.createdAt,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 
@@ -98,7 +98,7 @@ export const uploadAvatar = async (req, res) => {
     if (prev?.avatarUrl) storage.remove(prev.avatarUrl); // clean up the replaced object
     res.json({ avatarUrl: url });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 
@@ -110,7 +110,7 @@ export const removeAvatar = async (req, res) => {
     if (prev?.avatarUrl) storage.remove(prev.avatarUrl);
     res.json({ avatarUrl: null });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 
@@ -133,7 +133,7 @@ export const getSecurity = async (req, res) => {
       activeSessions,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 
@@ -155,7 +155,7 @@ export const changePassword = async (req, res) => {
     await audit(req, "password_change", "Password changed");
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 
@@ -169,7 +169,7 @@ export const enableMfa = async (req, res) => {
     await prisma.user.update({ where: { id: uid(req) }, data: { mfaSecret: secret, mfaEnabled: false } });
     res.json({ pending: true, secret, otpauthUri: otpauthUri(secret, { label: user?.email }) });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 
@@ -185,7 +185,7 @@ export const verifyMfa = async (req, res) => {
     await audit(req, "mfa_enabled", "Two-factor authentication enabled");
     res.json({ verified: true, enabled: true });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 
@@ -195,7 +195,7 @@ export const disableMfa = async (req, res) => {
     await audit(req, "mfa_disabled", "Two-factor authentication disabled");
     res.json({ disabled: true });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 
@@ -225,7 +225,7 @@ export const listSessions = async (req, res) => {
       current: s.id === req.user.sessionId,
     })));
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 
@@ -239,7 +239,7 @@ export const revokeSession = async (req, res) => {
     await audit(req, "session_revoked", `Session ${req.params.id} revoked`);
     res.status(204).end();
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 
@@ -271,7 +271,7 @@ export const listTeamMembers = async (req, res) => {
       }))
     );
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 
@@ -283,7 +283,7 @@ export const listRoles = async (req, res) => {
     const roles = await prisma.role.findMany({ where: { tenantId: tid(req) } });
     res.json(roles);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 

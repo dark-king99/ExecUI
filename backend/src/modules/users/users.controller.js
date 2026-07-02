@@ -1,10 +1,11 @@
+import { ValidationError, NotFoundError, ConflictError } from "../../lib/errors.js";
 import prisma from "../../config/database.js";
 import bcrypt from "bcrypt";
 import { sendEmail } from "../../lib/email.js";
 
 const handle = (fn) => async (req, res) => {
   try { res.json(await fn(req)); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(err.status ?? 500).json({ error: err.message }); }
 };
 
 const tid = (req) => req.user.tenantId;
@@ -45,7 +46,7 @@ export const getUser = handle(async (req) => {
     where: { id: req.params.id, tenantId: tid(req) },
     include: { role: true, sessions: { orderBy: { startedAt: "desc" }, take: 10 } },
   });
-  if (!user) throw new Error("User not found");
+  if (!user) throw new NotFoundError("User not found");
   return { ...userShape(user), sessions: user.sessions };
 });
 
@@ -80,7 +81,7 @@ export const inviteUser = handle(async (req) => {
   const { email, firstName, lastName, employeeId: rawEmployeeId, roleId: rawRoleId, role: roleName, department, jobTitle, phone } = req.body;
 
   if (!email || !firstName || !lastName) {
-    throw new Error("Email, first name and last name are required");
+    throw new ValidationError("Email, first name and last name are required");
   }
 
   // Resolve roleId — accept UUID directly or fall back to name lookup → default
@@ -101,7 +102,7 @@ export const inviteUser = handle(async (req) => {
   // Employee ID code — admin-issued, unique within the enterprise. Auto-assign if omitted.
   const employeeId = (rawEmployeeId && String(rawEmployeeId).trim()) || (await nextEmployeeId(tid(req)));
   const dupe = await prisma.user.findFirst({ where: { tenantId: tid(req), employeeId } });
-  if (dupe) throw new Error(`Employee ID "${employeeId}" is already in use.`);
+  if (dupe) throw new ConflictError(`Employee ID "${employeeId}" is already in use.`);
 
   const user = await prisma.user.create({
     // No password yet — the employee sets it when they complete signup.
@@ -153,8 +154,8 @@ export const updateUser = handle(async (req) => {
 // ── Suspend / activate user ───────────────────────────────────────────────────
 export const toggleUserStatus = handle(async (req) => {
   const existing = await prisma.user.findFirst({ where: { id: req.params.id, tenantId: tid(req) } });
-  if (!existing) throw new Error("User not found");
-  if (existing.id === req.user.userId) throw new Error("Cannot suspend your own account");
+  if (!existing) throw new NotFoundError("User not found");
+  if (existing.id === req.user.userId) throw new ValidationError("Cannot suspend your own account");
   const user = await prisma.user.update({
     where: { id: req.params.id },
     data: { isActive: !existing.isActive, updatedAt: new Date() },
@@ -175,9 +176,9 @@ export const toggleUserStatus = handle(async (req) => {
 
 // ── Delete user ───────────────────────────────────────────────────────────────
 export const deleteUser = handle(async (req) => {
-  if (req.params.id === req.user.userId) throw new Error("Cannot delete your own account");
+  if (req.params.id === req.user.userId) throw new ValidationError("Cannot delete your own account");
   const user = await prisma.user.findFirst({ where: { id: req.params.id, tenantId: tid(req) } });
-  if (!user) throw new Error("User not found");
+  if (!user) throw new NotFoundError("User not found");
   await prisma.user.delete({ where: { id: req.params.id } });
   await prisma.auditLog.create({
     data: { userId: req.user.userId, tenantId: tid(req), action: "delete_user", resource: "user", resourceId: req.params.id, detail: `Deleted user ${user.email}` },
