@@ -2,6 +2,9 @@ import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { requireRole } from "../../middleware/role.middleware.js";
 import { uploadImage } from "../../middleware/upload.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import { rateLimit } from "../../middleware/ratelimit.middleware.js";
+import { changePasswordSchema, selectPlanSchema, inviteSchema } from "../auth/auth.schema.js";
 import * as c from "./account.controller.js";
 import { inviteUser, updateUser, deleteUser } from "../users/users.controller.js";
 
@@ -16,7 +19,7 @@ router.delete("/profile/avatar",    auth, c.removeAvatar);
 
 // ── Security ──────────────────────────────────────────────────────────────
 router.get("/security",                     auth, c.getSecurity);
-router.post("/security/password",           auth, c.changePassword);
+router.post("/security/password",           auth, rateLimit({ windowMs: 60_000, max: 5 }), validate(changePasswordSchema), c.changePassword);
 router.post("/security/mfa/enable",         auth, c.enableMfa);
 router.post("/security/mfa/disable",        auth, c.disableMfa);
 router.post("/security/mfa/verify",         auth, c.verifyMfa);
@@ -32,7 +35,7 @@ router.put("/notifications/preferences",    auth, c.updateNotificationPreference
 // employee-ID provisioning) and are admin-only.
 const adminOnly = requireRole("enterprise_admin", "system_admin");
 router.get("/team/members",          auth, c.listTeamMembers);
-router.post("/team/invite",          auth, adminOnly, inviteUser);
+router.post("/team/invite",          auth, adminOnly, validate(inviteSchema), inviteUser);
 router.put("/team/members/:id",      auth, adminOnly, updateUser);
 router.delete("/team/members/:id",   auth, adminOnly, deleteUser);
 router.get("/team/roles",            auth, c.listRoles);
@@ -41,7 +44,7 @@ router.get("/team/roles",            auth, c.listRoles);
 router.get("/billing",                   auth, c.getBilling);
 router.get("/billing/plans",             auth, c.getPlans);
 // Selecting/changing the org plan is an admin action (it caps everyone's access).
-router.post("/billing/select",           auth, requireRole("enterprise_admin", "system_admin"), c.selectPlan);
+router.post("/billing/select",           auth, requireRole("enterprise_admin", "system_admin"), validate(selectPlanSchema), c.selectPlan);
 router.post("/billing/upgrade",          auth, c.upgradePlan);
 router.get("/billing/payment-methods",   auth, c.getPaymentMethods);
 router.get("/billing/invoices",          auth, c.getInvoices);

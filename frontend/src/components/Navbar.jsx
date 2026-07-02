@@ -63,8 +63,18 @@ function NavSearch({ user }) {
         onChange={(e) => { setQ(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
-        className="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-lg text-slate-700 dark:text-slate-300 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition"
+        className="w-full pl-8 pr-14 py-2 text-sm bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-lg text-slate-700 dark:text-slate-300 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition"
       />
+      {/* Hotkey hint — opens the full-screen command palette */}
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={() => window.dispatchEvent(new CustomEvent("cmdk:open"))}
+        title="Open command palette"
+        className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-indigo-500 hover:border-indigo-300 transition"
+      >
+        Ctrl K
+      </button>
       {open && q.trim() && (
         <div className="absolute left-0 top-full mt-2 w-[340px] max-w-[80vw] z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden animate-scale-in">
           {results.length === 0 ? (

@@ -2,21 +2,29 @@ import express from "express";
 import { registerEnterprise, employeeSignup } from "./auth.controller.js";
 import { login } from "./login.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import { authRateLimit, rateLimit } from "../../middleware/ratelimit.middleware.js";
+import { loginSchema, enterpriseSignupSchema, employeeSignupSchema } from "./auth.schema.js";
 import prisma from "../../config/database.js";
 
 const router = express.Router();
 
+// Signups are rarer than logins — a small per-IP budget stops mass account
+// creation without bothering a real admin onboarding a company.
+const signupLimit = rateLimit({ windowMs: 60_000, max: 5 });
+
 // Register a new enterprise tenant + admin user
-router.post("/register-enterprise", registerEnterprise);
+router.post("/register-enterprise", signupLimit, validate(enterpriseSignupSchema), registerEnterprise);
 
 // Alias so frontend /auth/signup works
-router.post("/signup", registerEnterprise);
+router.post("/signup", signupLimit, validate(enterpriseSignupSchema), registerEnterprise);
 
 // Employee completes signup ("join enterprise") against an admin-issued ID
-router.post("/employee-signup", employeeSignup);
+router.post("/employee-signup", signupLimit, validate(employeeSignupSchema), employeeSignup);
 
-// Login → returns { token, user }
-router.post("/login", login);
+// Login → returns { token, user }. Rate-limited per IP+email against
+// brute-force; shape-validated so bad payloads get a clear 400.
+router.post("/login", authRateLimit, validate(loginSchema), login);
 
 // Logout – stateless JWT; client drops the token
 router.post("/logout", (_req, res) => {
@@ -65,7 +73,7 @@ router.get("/me", authenticate, async (req, res) => {
       planSolutions: user.tenant?.planSolutions ?? [],
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 });
 

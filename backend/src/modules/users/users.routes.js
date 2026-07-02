@@ -1,6 +1,8 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { requireRole } from "../../middleware/role.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import { inviteSchema } from "../auth/auth.schema.js";
 import {
   listUsers, getUser, inviteUser, updateUser, deleteUser, toggleUserStatus,
   listSessions, listAuditLogs, getWorkspaceStats, listRoles,
@@ -25,7 +27,7 @@ router.get("/admin/workspace/audit",   ...admin, listAuditLogs);
 
 // User management (admin)
 router.get("/admin/users",          ...admin, listUsers);
-router.post("/admin/invite",        ...admin, inviteUser);
+router.post("/admin/invite",        ...admin, validate(inviteSchema), inviteUser);
 router.get("/admin/users/:id",      ...admin, getUser);
 router.put("/admin/users/:id",      ...admin, updateUser);
 router.delete("/admin/users/:id",   ...admin, deleteUser);
