@@ -727,6 +727,7 @@ model NetworkAutomationJob {
 
   @@index([tenantId])
 }
+
 model Notification {
   id        String    @id @default(uuid())
   tenantId  String

@@ -44,8 +44,9 @@ router.get("/billing/invoices",          auth, c.getInvoices);
 router.post("/billing/portal",           auth, c.createPortalSession);
 router.post("/billing/setup",            auth, c.createSetupSession);
 
-// Stripe webhook (raw body required — mounted before JSON parser in server.js)
-router.post("/billing/webhook", express.raw({ type: "application/json" }), c.stripeWebhook);
+// NOTE: the Stripe webhook (POST /api/account/billing/webhook) is registered
+// directly in app.js with a raw body parser, ahead of express.json(), because
+// signature verification needs the unparsed request body.
 
 // ── Audit logs ────────────────────────────────────────────────────────────
 router.get("/audit-logs", auth, c.listAuditLogs);

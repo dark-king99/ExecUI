@@ -7,6 +7,7 @@ import fs from "fs";
 import { errorHandler } from "./middleware/error.middleware.js";
 import routes from "./routes/index.js";
 import { STORAGE_ROOT } from "./lib/storage.js";
+import { stripeWebhook } from "./modules/account/account.controller.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -14,6 +15,11 @@ const app = express();
 
 app.use(cors());
 app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
+
+// Stripe webhook needs the RAW body for signature verification, so it must be
+// registered before the JSON body parser runs.
+app.post("/api/account/billing/webhook", express.raw({ type: "application/json" }), stripeWebhook);
+
 app.use(express.json());
 
 app.get("/health", (_req, res) => {
