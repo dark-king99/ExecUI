@@ -9,6 +9,12 @@ import {
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY?.trim() || null;
 const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY, { apiVersion: "2024-04-10" }) : null;
 
+// When Stripe is configured we run in PAID mode: choosing a plan sends the admin
+// through Stripe Checkout and the plan activates on the paid webhook. Without a
+// key we run in FREE early-access mode: choosing a plan activates immediately.
+const BILLING_ENABLED = !!stripe;
+const APP_URL = process.env.FRONTEND_URL?.replace(/\/$/, "") || "http://localhost:5173";
+
 // ── Plan catalogue + entitlements (new model) ────────────────────────────────
 const planSummary = (p) => ({
   id: p.id, name: p.name, price: p.price, tagline: p.tagline, highlighted: !!p.highlighted,
@@ -26,13 +32,16 @@ export const getPlanCatalog = () => Promise.resolve({
   },
 });
 
-// Current subscription state for a tenant.
+// Current subscription state for a tenant. When Stripe is live, we enrich the
+// tenant's plan (the source of truth for access) with the real subscription
+// status, renewal date, and default card.
 export const getBilling = async (tenantId) => {
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw new Error("Tenant not found");
   const planId = tenant.plan || DEFAULT_PLAN;
   const customSolutions = tenant.planSolutions || [];
-  return {
+
+  const base = {
     plan: planId,
     planName: planLabel(planId),
     price: priceFor(planId, customSolutions),
@@ -40,37 +49,134 @@ export const getBilling = async (tenantId) => {
     customSolutions,
     entitlements: entitlementsFor(planId, customSolutions),
     status: "active",
-    // Billing is free during early distribution; payment is collected later.
-    freeEarlyAccess: true,
+    // Free early-access only when Stripe isn't configured yet.
+    freeEarlyAccess: !BILLING_ENABLED,
+    billingEnabled: BILLING_ENABLED,
+    subscription: null,
+    paymentMethod: null,
+    nextRenewal: null,
   };
+
+  if (!stripe || !tenant.stripeCustomerId) return base;
+
+  try {
+    const subs = await stripe.subscriptions.list({
+      customer: tenant.stripeCustomerId, limit: 1, status: "all",
+      expand: ["data.default_payment_method"],
+    });
+    const sub = subs.data[0] ?? null;
+    if (!sub) return base;
+    const pm = sub.default_payment_method ?? null;
+    return {
+      ...base,
+      status: sub.status, // active | trialing | past_due | canceled | unpaid | incomplete
+      subscription: {
+        id: sub.id,
+        status: sub.status,
+        cancelAtPeriodEnd: sub.cancel_at_period_end,
+        currentPeriodEnd: sub.current_period_end
+          ? new Date(sub.current_period_end * 1000).toISOString().slice(0, 10) : null,
+      },
+      nextRenewal: sub.current_period_end
+        ? new Date(sub.current_period_end * 1000).toISOString().slice(0, 10) : null,
+      paymentMethod: pm ? fmtPaymentMethod(pm) : null,
+    };
+  } catch (err) {
+    console.error("Stripe getBilling error:", err.message);
+    return base;
+  }
 };
 
-// Select a plan (or build a custom one). Free during early distribution.
-export const selectPlan = async (tenantId, { plan, customSolutions = [] }) => {
+// Validate a plan request and resolve the (namespaced) custom solution list.
+function resolvePlan(plan, customSolutions = []) {
   const valid = [...PLAN_TIERS.map((p) => p.id), "custom"];
   if (!valid.includes(plan)) throw new Error("Unknown plan");
+  if (plan !== "custom") return { plan, solutions: [] };
 
-  let solutions = [];
-  if (plan === "custom") {
-    // Custom is CRM + Marketing only; minimum 8 solutions.
-    const crmIds = CRM_SOLUTIONS.map((s) => `crm:${s.id}`);
-    const mktIds = MKT_SOLUTIONS.map((s) => `marketing:${s.id}`);
-    solutions = [...new Set(customSolutions)].filter((s) => crmIds.includes(s) || mktIds.includes(s));
-    if (solutions.length < CUSTOM.minUnits) {
-      throw new Error(`A custom plan needs at least ${CUSTOM.minUnits} solutions.`);
-    }
+  // Custom is CRM + Marketing only; minimum 8 solutions.
+  const crmIds = CRM_SOLUTIONS.map((s) => `crm:${s.id}`);
+  const mktIds = MKT_SOLUTIONS.map((s) => `marketing:${s.id}`);
+  const solutions = [...new Set(customSolutions)].filter((s) => crmIds.includes(s) || mktIds.includes(s));
+  if (solutions.length < CUSTOM.minUnits) {
+    throw new Error(`A custom plan needs at least ${CUSTOM.minUnits} solutions.`);
   }
+  return { plan, solutions };
+}
 
+// Apply a plan to a tenant immediately (used in free mode and after payment).
+async function activatePlan(tenantId, plan, solutions, extra = {}) {
   const tenant = await prisma.tenant.update({
     where: { id: tenantId },
-    data: { plan, planSolutions: solutions, stripePlanId: plan },
+    data: { plan, planSolutions: solutions, stripePlanId: plan, ...extra },
   });
   return {
-    plan: tenant.plan, planName: planLabel(tenant.plan),
+    activated: true,
+    plan: tenant.plan,
+    planName: planLabel(tenant.plan),
     price: priceFor(tenant.plan, tenant.planSolutions),
     customSolutions: tenant.planSolutions,
     entitlements: entitlementsFor(tenant.plan, tenant.planSolutions),
   };
+}
+
+// Build a Stripe Checkout line item from the plan config using inline
+// price_data — no pre-created Stripe Prices/Products required.
+function buildLineItems(plan, solutions) {
+  if (plan === "custom") {
+    return [{
+      quantity: solutions.length,
+      price_data: {
+        currency: "usd",
+        unit_amount: CUSTOM.unitPrice * 100,
+        recurring: { interval: "month" },
+        product_data: { name: "ExecUI Custom Plan", description: `${solutions.length} solutions × $${CUSTOM.unitPrice}/mo` },
+      },
+    }];
+  }
+  const tier = PLAN_TIERS.find((p) => p.id === plan);
+  return [{
+    quantity: 1,
+    price_data: {
+      currency: "usd",
+      unit_amount: tier.price * 100,
+      recurring: { interval: "month" },
+      product_data: { name: `ExecUI ${tier.name}`, description: tier.tagline },
+    },
+  }];
+}
+
+/**
+ * Choose a plan.
+ *  - FREE mode (no Stripe key): activates immediately.
+ *  - PAID mode (Stripe configured): returns a Checkout URL; the plan is applied
+ *    once payment succeeds (checkout.session.completed webhook).
+ */
+export const selectPlan = async (tenantId, { plan, customSolutions = [] }) => {
+  const { solutions } = resolvePlan(plan, customSolutions);
+
+  if (!BILLING_ENABLED) {
+    return { ...(await activatePlan(tenantId, plan, solutions)), freeEarlyAccess: true };
+  }
+
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+  if (!tenant) throw new Error("Tenant not found");
+
+  const customerId = await ensureStripeCustomer(tenant);
+  const metadata = { tenantId, plan, planSolutions: JSON.stringify(solutions) };
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "subscription",
+    customer: customerId,
+    line_items: buildLineItems(plan, solutions),
+    metadata,
+    subscription_data: { metadata },
+    // Replace any existing subscription rather than stacking a second one.
+    allow_promotion_codes: true,
+    success_url: `${APP_URL}/account/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${APP_URL}/account/billing?checkout=cancelled`,
+  });
+
+  return { requiresPayment: true, checkoutUrl: session.url, plan, planName: planLabel(plan) };
 };
 
 // Legacy plan catalogue (kept for the old Stripe path/webhook code below).
@@ -324,18 +430,44 @@ export const handleWebhook = async (payload, sig) => {
   }
 
   switch (event.type) {
+    // Payment succeeded → activate the chosen plan from the session metadata.
+    case "checkout.session.completed": {
+      const session = event.data.object;
+      const md = session.metadata || {};
+      if (md.tenantId && md.plan) {
+        let solutions = [];
+        try { solutions = JSON.parse(md.planSolutions || "[]"); } catch { solutions = []; }
+        await activatePlan(md.tenantId, md.plan, solutions, {
+          stripeCustomerId: session.customer,
+          stripeSubId: session.subscription,
+        });
+        // Cancel any older subscriptions so the customer isn't billed twice.
+        if (session.customer && session.subscription) {
+          try {
+            const subs = await stripe.subscriptions.list({ customer: session.customer, status: "active", limit: 10 });
+            for (const s of subs.data) {
+              if (s.id !== session.subscription) await stripe.subscriptions.cancel(s.id);
+            }
+          } catch (err) {
+            console.error("Stripe cleanup of old subscriptions failed:", err.message);
+          }
+        }
+      }
+      break;
+    }
+
+    // Keep the stored subscription id in sync with Stripe's lifecycle.
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
       const sub = event.data.object;
       const tenant = await prisma.tenant.findFirst({ where: { stripeCustomerId: sub.customer } });
       if (tenant) {
-        const planId = LEGACY_PLANS.find(
-          (p) => p.stripePriceIdMonthly === sub.items?.data?.[0]?.price?.id || p.stripePriceIdYearly === sub.items?.data?.[0]?.price?.id
-        )?.id ?? null;
         await prisma.tenant.update({
           where: { id: tenant.id },
-          data: { stripePlanId: planId, stripeSubId: event.type === "customer.subscription.deleted" ? null : sub.id },
+          data: { stripeSubId: event.type === "customer.subscription.deleted" ? null : sub.id },
         });
+        // On a full cancellation the org keeps its selected plan tier (so access
+        // is unchanged) but has no live subscription; an admin can re-subscribe.
       }
       break;
     }
