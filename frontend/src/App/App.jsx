@@ -12,6 +12,7 @@ import { Toaster } from "../components/ui/sonner";
 import { SkeletonCard } from "../components/ui/Skeleton";
 import ErrorBoundary from "../components/ErrorBoundary";
 import BotWidget from "../components/BotWidget";
+import CommandPalette from "../components/CommandPalette";
 import Dashboard from "../apps/services/Dashboard";
 import { accessFor } from "../lib/access";
 
@@ -94,6 +95,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
   if (isHome) {
     return (
       <PageSuspense>
+        <CommandPalette />
         <HomeView />
       </PageSuspense>
     );
@@ -101,6 +103,8 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
 
   return (
     <div className="flex h-screen w-screen bg-slate-50 dark:bg-slate-950">
+      {/* Ctrl+K works everywhere — including module views without the navbar. */}
+      <CommandPalette />
       <SidebarInset user={user} />
 
       <div className="flex-1 flex flex-col min-w-0">

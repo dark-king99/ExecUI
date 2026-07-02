@@ -35,7 +35,7 @@ export const requirePermission = (permissionKey) => {
 
       next();
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      res.status(error.status ?? 500).json({ message: error.message });
     }
   };
 };
