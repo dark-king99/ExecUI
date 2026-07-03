@@ -19,18 +19,19 @@ backend services, July 2026). "Real" = tenant-scoped Prisma queries.
 | Integrations secret store | AES-256-GCM at rest |
 | Analytics module | rollups over the real CRM/network/services tables |
 
-## Canned / empty responses (honest stubs — decide: wire or remove)
+## Formerly canned — now wired (July 2026)
 
-| Endpoint(s) | Behavior today | Suggested path |
-|---|---|---|
-| CRM cadences (`listSequences`, create) | returns `[]` / echoes input | needs a `CrmSequence` model if the Cadences page should persist |
-| CRM Einstein AI (`aiSummaries`, `aiAction`, copilot reply) | canned strings | wire to the assistant module (`AI_BACKEND`) |
-| Partner board voting (`listResolutions`, `voteResolution`) | `[]` / fake success | needs a `Resolution` model |
-| Sales playbooks (`listPlaybooks`, `runPlaybook`, create) | `[]` / fake success | model or remove page |
-| CRM integrations timeline (`listIntegrations`, `getIntegrationsTimeline`) | `[]` | point at the real Account → Integrations connections |
-| Lead sources (`getLeadSources`) | `[]` | derive from lead `source` field once captured |
-| Account → notification **preferences** | static `{email:true,…}`, not persisted | small `NotificationPref` table (delivery itself is real) |
-| Security → SSO/SAML toggle | display-only | roadmap item; hide until built |
+| Endpoint(s) | Now |
+|---|---|
+| CRM cadences | persisted (`CrmSequence`), create + list from the Cadences page |
+| CRM Einstein AI | strategy questions answered with **live pipeline numbers**; data questions delegated to the assistant module (uses `AI_BACKEND` when a key is set); AI actions land on the audit trail |
+| Deal insights summary | composed from real deals (largest open deal, stalled count, win rate) |
+| Partner board voting | persisted (`CrmResolution` + one-ballot-per-user votes, 3-vote quorum auto-approves); starter resolutions seeded per tenant |
+| Sales playbooks | persisted (`CrmPlaybook`); run increments a counter + lastRunAt |
+| CRM integrations page | list/health from the real Account → Integrations connections; timeline from the email log + connection usage |
+| Lead sources | real `source` column on leads (picker in the New Lead form), grouped server-side |
+| Notification preferences | persisted per user (`NotificationPref`) with sane defaults |
+| Security → SSO/SAML toggle | hidden (backend no longer advertises it); genuine roadmap item |
 
 ## Graceful degradation (intentional, keyed on env)
 

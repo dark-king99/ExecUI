@@ -244,11 +244,35 @@ export const revokeSession = async (req, res) => {
 };
 
 // ── Notifications ─────────────────────────────────────────────────────────
-export const getNotificationPreferences = (_req, res) =>
-  res.json({ email: true, sms: false, inApp: true, digest: "daily" });
+// Preferences are persisted per user (defaults apply until first save).
+export const getNotificationPreferences = async (req, res) => {
+  try {
+    const pref = await prisma.notificationPref.findUnique({ where: { userId: uid(req) } });
+    res.json(pref ?? { email: true, sms: false, inApp: true, digest: "daily" });
+  } catch (err) {
+    res.status(err.status ?? 500).json({ message: err.message });
+  }
+};
 
-export const updateNotificationPreferences = (req, res) =>
-  res.json({ ...req.body, updated: true });
+export const updateNotificationPreferences = async (req, res) => {
+  try {
+    const { email, sms, inApp, digest } = req.body ?? {};
+    const data = {
+      ...(typeof email === "boolean" ? { email } : {}),
+      ...(typeof sms === "boolean" ? { sms } : {}),
+      ...(typeof inApp === "boolean" ? { inApp } : {}),
+      ...(["realtime", "daily", "weekly", "off"].includes(digest) ? { digest } : {}),
+    };
+    const pref = await prisma.notificationPref.upsert({
+      where: { userId: uid(req) },
+      create: { userId: uid(req), tenantId: tid(req), ...data },
+      update: data,
+    });
+    res.json({ ...pref, updated: true });
+  } catch (err) {
+    res.status(err.status ?? 500).json({ message: err.message });
+  }
+};
 
 // ── Team ──────────────────────────────────────────────────────────────────
 export const listTeamMembers = async (req, res) => {

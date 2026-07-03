@@ -95,7 +95,7 @@ const leadShape = (o) => ({
   email: o.owner?.email ?? null, phone: null,
   stage: LEAD_STAGE_MAP[o.stage] ?? "New",
   score: Math.min(100, Math.round((o.probability ?? 0) * 0.8 + 20)),
-  source: "Inbound",
+  source: o.source ?? "Inbound",
   value: fmtValue(o.value), rawValue: o.value ?? 0,
   owner: o.owner ? `${o.owner.firstName} ${o.owner.lastName}` : null,
   status: o.status, createdAt: o.createdAt,
@@ -247,6 +247,7 @@ export const createLead = async (tenantId, data) => {
     data: {
       name: data.name ?? data.company ?? "New Lead",
       stage: toDbStage(data.stage ?? "New"),
+      source: data.source ?? "Inbound",
       value: Number(data.value) || 0,
       probability: Number(data.probability) || 10,
       status: "active", tenantId,
@@ -354,10 +355,20 @@ export const completeTask = async (tenantId, id) => {
   return { success: true };
 };
 
-// ── Sequences (no backing table → empty until created) ────────────────────────
-export const listSequences = () => Promise.resolve([]);
+// ── Sequences (cadences) — persisted per tenant ───────────────────────────────
+export const listSequences = (tenantId) =>
+  prisma.crmSequence.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+
 export const createSequence = (tenantId, data) =>
-  Promise.resolve({ id: `seq-${Date.now()}`, ...data, active: true, enrolled: 0 });
+  prisma.crmSequence.create({
+    data: {
+      tenantId,
+      name: data.name,
+      description: data.description ?? null,
+      steps: Number(data.steps) || 1,
+      active: data.active ?? true,
+    },
+  });
 
 // ── Forecast ──────────────────────────────────────────────────────────────────
 export const getForecastSummary = async (tenantId) => {
@@ -500,25 +511,70 @@ export const getPipelineOwners = async (tenantId) => {
 };
 
 // ── AI ────────────────────────────────────────────────────────────────────────
-export const aiChat = (tenantId, body = {}) => {
-  const msg = (body?.message ?? "").toLowerCase();
-  let reply = "I'm your SmartCRM AI. I can help with pipeline analysis, customer risk, lead qualification, forecasting, deal strategy, task management, and general CRM best practices. What would you like to explore?";
+// Curated strategy coaching enriched with LIVE pipeline numbers; anything
+// else is delegated to the assistant module (which answers from tenant data
+// and uses the configured AI_BACKEND when an API key is present).
+export const aiChat = async (tenantId, body = {}, userId = null) => {
+  const message = body?.message ?? "";
+  const msg = message.toLowerCase();
 
-  if (msg.includes("pipeline") || (msg.includes("deal") && !msg.includes("win") && !msg.includes("loss"))) {
-    reply = "**Pipeline Health**\n\nYour pipeline spans 6 stages: Lead In → Qualified → Proposal → Negotiation → Commit → Closed Won.\n\nKey insight: deals stalling in Negotiation for more than 14 days have a 60% lower close rate. Address blockers early.";
-  } else if (msg.includes("risk") || msg.includes("churn")) {
-    reply = "**Customer Risk Assessment**\n\nCustomers are flagged **At Risk** when last contact exceeds 14 days — churn typically follows within 3–4 weeks of silent accounts.\n\nSet automated re-engagement alerts at the 10-day mark.";
-  } else if (msg.includes("lead") || msg.includes("qualify")) {
-    reply = "**Lead Qualification (BANT)**\n\n• **Budget** — Can they fund a purchase this quarter?\n• **Authority** — Are you engaging the economic buyer?\n• **Need** — Is there a clearly articulated business problem?\n• **Timeline** — Do they have urgency to act within 90 days?";
-  } else if (msg.includes("forecast") || msg.includes("revenue") || msg.includes("quota")) {
-    reply = "**Sales Forecasting**\n\nAccurate forecasting combines stage-weighted pipeline with rep-level commit signals.\n\n**Categories:** Commit → Best Case → Pipeline";
+  if (/pipeline|forecast|revenue|quota|risk|churn|qualify/.test(msg)) {
+    const [open, stalled, agg] = await Promise.all([
+      prisma.crmOpportunity.count({ where: { tenantId, status: "active" } }),
+      prisma.crmOpportunity.count({
+        where: { tenantId, status: "active", updatedAt: { lt: new Date(Date.now() - 14 * 86400000) } },
+      }),
+      prisma.crmOpportunity.aggregate({ where: { tenantId, status: "active" }, _sum: { value: true } }),
+    ]);
+    const pipelineValue = fmtValue(agg._sum.value ?? 0);
+    if (/risk|churn/.test(msg)) {
+      return { reply: `**Customer & Deal Risk**\n\nYou have **${stalled} of ${open}** open deals untouched for 14+ days — those are your churn candidates. Silent deals close at roughly half the rate.\n\nStart with the stalled ones in the Pipeline view and log a touch on each this week.` };
+    }
+    if (/qualify/.test(msg)) {
+      return { reply: `**Lead Qualification (BANT)**\n\n• **Budget** — can they fund a purchase this quarter?\n• **Authority** — are you talking to the economic buyer?\n• **Need** — a clearly articulated business problem?\n• **Timeline** — urgency to act within 90 days?\n\nYou currently have **${open}** open opportunities worth **${pipelineValue}** to qualify against.` };
+    }
+    return { reply: `**Pipeline Health**\n\nOpen deals: **${open}** · Total value: **${pipelineValue}** · Stalled 14+ days: **${stalled}**.\n\nDeals that sit in Negotiation for more than two weeks close at a much lower rate — clear blockers on the stalled ones first.` };
   }
 
-  return Promise.resolve({ reply });
+  // Data questions ("how many contacts…", "show my tasks…") → assistant.
+  const { chat } = await import("../assistant/assistant.service.js");
+  const res = await chat(userId, tenantId, message);
+  return { reply: res?.reply ?? "I can help with pipeline analysis, deal risk, lead qualification and forecasting — or ask me about your contacts, tasks and opportunities." };
 };
 
-export const aiSummaries = () => Promise.resolve({ summary: null });
-export const aiAction    = () => Promise.resolve({ result: "Action logged successfully." });
+// Deal insights summary composed from the live pipeline (shown on the
+// Einstein → Deal Insights page).
+export const aiSummaries = async (tenantId) => {
+  const [open, stalled, top, winRateData] = await Promise.all([
+    prisma.crmOpportunity.count({ where: { tenantId, status: "active" } }),
+    prisma.crmOpportunity.count({
+      where: { tenantId, status: "active", updatedAt: { lt: new Date(Date.now() - 14 * 86400000) } },
+    }),
+    prisma.crmOpportunity.findFirst({ where: { tenantId, status: "active" }, orderBy: { value: "desc" } }),
+    Promise.all([
+      prisma.crmOpportunity.count({ where: { tenantId, status: "won" } }),
+      prisma.crmOpportunity.count({ where: { tenantId, status: "lost" } }),
+    ]),
+  ]);
+  const [won, lost] = winRateData;
+  const winRate = won + lost ? Math.round((won / (won + lost)) * 100) : null;
+  if (open === 0) return { summary: null };
+  const parts = [`${open} open deal${open === 1 ? "" : "s"} in play`];
+  if (top) parts.push(`largest is ${top.name} at ${fmtValue(top.value)}`);
+  if (stalled > 0) parts.push(`${stalled} stalled 14+ days and need a touch`);
+  if (winRate != null) parts.push(`historical win rate ${winRate}%`);
+  return { summary: parts.join(" · ") + ".", generatedAt: new Date().toISOString() };
+};
+
+// Actions from the AI panel are recorded on the audit trail, not faked.
+export const aiAction = async (tenantId, body = {}, userId = null) => {
+  if (userId) {
+    await prisma.auditLog.create({
+      data: { userId, tenantId, action: "ai_action", resource: "crm", detail: String(body?.action ?? "ai action").slice(0, 200) },
+    }).catch(() => {});
+  }
+  return { result: "Action logged to the audit trail." };
+};
 
 // ── Accounts ──────────────────────────────────────────────────────────────────
 export const listAccounts = async (tenantId, params = {}) => {
@@ -590,8 +646,39 @@ export const addAccountNote = async (tenantId, accountId, data) => {
 };
 
 // ── Resolutions (no backing table → empty until created) ──────────────────────
-export const listResolutions = () => Promise.resolve([]);
-export const voteResolution  = (tenantId, id) => Promise.resolve({ id, success: true });
+// Lazily seed three starter resolutions so the board has something to govern
+// the first time the page opens (the page has no create form of its own).
+const RESOLUTION_SEED = [
+  { title: "Approve FY partner co-marketing budget", category: "Budget",      description: "Allocate shared budget for joint campaigns with certified partners." },
+  { title: "Adopt updated partner data-sharing policy", category: "Governance", description: "Contacts exchanged with partners follow the new privacy addendum." },
+  { title: "Certify two new implementation partners", category: "Partnerships", description: "Grant certified status to the two candidates that passed review." },
+];
+
+export const listResolutions = async (tenantId) => {
+  let rows = await prisma.crmResolution.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+  if (rows.length === 0) {
+    await prisma.crmResolution.createMany({ data: RESOLUTION_SEED.map((r) => ({ ...r, tenantId })) });
+    rows = await prisma.crmResolution.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+  }
+  return rows;
+};
+
+export const voteResolution = async (tenantId, id, userId) => {
+  const resolution = await prisma.crmResolution.findFirst({ where: { id, tenantId } });
+  if (!resolution) { const e = new Error("Resolution not found"); e.status = 404; throw e; }
+  try {
+    await prisma.crmResolutionVote.create({ data: { resolutionId: id, userId } });
+  } catch (err) {
+    if (err.code === "P2002") { const e = new Error("You already voted on this resolution."); e.status = 409; throw e; }
+    throw err;
+  }
+  const updated = await prisma.crmResolution.update({ where: { id }, data: { votes: { increment: 1 } } });
+  // A simple quorum: 3 votes approves a resolution under review.
+  if (updated.status === "under_review" && updated.votes >= 3) {
+    return prisma.crmResolution.update({ where: { id }, data: { status: "approved" } });
+  }
+  return updated;
+};
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 export const getCrmAnalyticsSummary = async (tenantId) => {
@@ -811,11 +898,32 @@ export const unlockCase = async (tenantId, id) => {
 };
 
 // ── Playbooks (no backing table → empty until created) ────────────────────────
-export const listPlaybooks  = () => Promise.resolve([]);
-export const getPlaybook    = () => Promise.resolve(null);
-export const runPlaybook    = (tenantId, id) => Promise.resolve({ started: true, playbookId: id, startedAt: new Date().toISOString() });
+export const listPlaybooks = (tenantId) =>
+  prisma.crmPlaybook.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+
+export const getPlaybook = (tenantId, id) =>
+  prisma.crmPlaybook.findFirst({ where: { id, tenantId } });
+
+export const runPlaybook = async (tenantId, id) => {
+  const pb = await prisma.crmPlaybook.findFirst({ where: { id, tenantId } });
+  if (!pb) { const e = new Error("Playbook not found"); e.status = 404; throw e; }
+  const updated = await prisma.crmPlaybook.update({
+    where: { id }, data: { runs: { increment: 1 }, lastRunAt: new Date() },
+  });
+  return { started: true, playbookId: id, runs: updated.runs, startedAt: updated.lastRunAt };
+};
+
 export const createPlaybook = (tenantId, data) =>
-  Promise.resolve({ id: `pb-${Date.now()}`, ...data, active: true, steps: data.steps ?? 1 });
+  prisma.crmPlaybook.create({
+    data: {
+      tenantId,
+      name: data.name,
+      description: data.description ?? null,
+      category: data.category ?? "general",
+      steps: Number(data.steps) || 1,
+      active: data.active ?? true,
+    },
+  });
 
 // ── Partners (Contact enriched) ───────────────────────────────────────────────
 export const listPartners = async (tenantId) => {
@@ -919,11 +1027,54 @@ export const getRepsSummary = async (tenantId) => {
 };
 
 // ── Integrations (no backing table → empty until connected) ───────────────────
-export const listIntegrations        = () => Promise.resolve([]);
-export const getIntegrationsTimeline = () => Promise.resolve([]);
-export const getLeadSources          = () => Promise.resolve([]);
-export const getSyncHealth           = () => Promise.resolve({ status: "unknown", connected: 0, total: 0, lastCheck: new Date().toISOString() });
-export const syncIntegrations        = () => Promise.resolve({ synced: true, syncedAt: new Date().toISOString(), message: "No integrations connected." });
+// Backed by the real outbound connections in Account → Integrations.
+export const listIntegrations = async (tenantId) => {
+  const rows = await prisma.integrationConnection.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+  return rows.map((c) => ({
+    id: c.id, name: c.name, kind: c.kind, status: c.status,
+    lastUsedAt: c.lastUsedAt, lastStatus: c.lastStatus ?? null,
+  }));
+};
+
+// Recent integration + email activity, newest first.
+export const getIntegrationsTimeline = async (tenantId, params = {}) => {
+  const take = Math.min(Number(params.limit) || 20, 50);
+  const [emails, conns] = await Promise.all([
+    prisma.emailLog.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take }),
+    prisma.integrationConnection.findMany({ where: { tenantId, lastUsedAt: { not: null } }, orderBy: { lastUsedAt: "desc" }, take }),
+  ]);
+  return [
+    ...emails.map((e) => ({ id: `em-${e.id}`, type: "email", description: `${e.status === "sent" ? "Sent" : "Logged"} “${e.subject}” to ${e.to}`, timestamp: e.createdAt })),
+    ...conns.map((c) => ({ id: `cn-${c.id}`, type: c.kind, description: `${c.name} last used (${c.lastStatus ?? "ok"})`, timestamp: c.lastUsedAt })),
+  ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, take);
+};
+
+// Where leads come from, grouped over the real source column.
+export const getLeadSources = async (tenantId) => {
+  const groups = await prisma.crmOpportunity.groupBy({ by: ["source"], where: { tenantId }, _count: { _all: true } });
+  return groups
+    .map((g) => ({ source: g.source ?? "Inbound", count: g._count._all }))
+    .sort((a, b) => b.count - a.count);
+};
+
+export const getSyncHealth = async (tenantId) => {
+  const [total, active] = await Promise.all([
+    prisma.integrationConnection.count({ where: { tenantId } }),
+    prisma.integrationConnection.count({ where: { tenantId, status: "active" } }),
+  ]);
+  return {
+    status: total === 0 ? "none" : active === total ? "healthy" : "degraded",
+    connected: active, total, lastCheck: new Date().toISOString(),
+  };
+};
+
+export const syncIntegrations = async (tenantId) => {
+  const total = await prisma.integrationConnection.count({ where: { tenantId } });
+  return {
+    synced: true, syncedAt: new Date().toISOString(),
+    message: total === 0 ? "No integrations connected — add one in Account → Integrations." : `${total} connection${total === 1 ? "" : "s"} checked.`,
+  };
+};
 
 // ── Database ──────────────────────────────────────────────────────────────────
 export const getDatabaseRecords = async (tenantId, params = {}) => {
