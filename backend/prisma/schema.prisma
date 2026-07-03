@@ -228,6 +228,7 @@ model CrmFollowUp {
 model CrmOpportunity {
   id          String   @id @default(uuid())
   name        String
+  source      String?  // Inbound | Outbound | Referral | Website | Event
   value       Float    @default(0)
   stage       String   @default("prospecting") // prospecting | qualification | proposal | negotiation | closed_won | closed_lost
   probability Int      @default(0)
@@ -801,4 +802,71 @@ model WebhookEvent {
   id        String   @id
   type      String
   createdAt DateTime @default(now())
+}
+
+// ── CRM: cadences, playbooks, board resolutions (formerly canned stubs) ──────
+model CrmSequence {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  steps       Int      @default(1)
+  enrolled    Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model CrmPlaybook {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  category    String    @default("general")
+  steps       Int       @default(1)
+  active      Boolean   @default(true)
+  runs        Int       @default(0)
+  lastRunAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId])
+}
+
+model CrmResolution {
+  id          String   @id @default(uuid())
+  tenantId    String
+  title       String
+  description String?
+  category    String   @default("Governance")
+  status      String   @default("under_review") // under_review | approved | rejected
+  votes       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  ballots CrmResolutionVote[]
+
+  @@index([tenantId])
+}
+
+// One ballot per user per resolution (the PK enforces it).
+model CrmResolutionVote {
+  resolutionId String
+  userId       String
+  createdAt    DateTime @default(now())
+
+  resolution CrmResolution @relation(fields: [resolutionId], references: [id], onDelete: Cascade)
+
+  @@id([resolutionId, userId])
+}
+
+// Per-user notification delivery preferences (the toggles in Account).
+model NotificationPref {
+  userId    String   @id
+  tenantId  String
+  email     Boolean  @default(true)
+  sms       Boolean  @default(false)
+  inApp     Boolean  @default(true)
+  digest    String   @default("daily") // realtime | daily | weekly | off
+  updatedAt DateTime @updatedAt
 }
