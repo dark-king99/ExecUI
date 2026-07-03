@@ -542,6 +542,21 @@ export const overview = {
   emailReport: ()     => post('/overview/report/email', {}),
 };
 
+// ── Attachments (generic, cross-module files) ─────────────────────────────
+export const attachments = {
+  list:   (entityType, entityId) => get(`/attachments/${entityType}/${entityId}`),
+  upload: (entityType, entityId, file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request(`/attachments/${entityType}/${entityId}`, {
+      method: 'POST',
+      body: form,
+      headers: {},           // let the browser set the multipart boundary
+    });
+  },
+  remove: (id) => del(`/attachments/${id}`),
+};
+
 // ── Account ───────────────────────────────────────────────────────────────
 export const account = {
   profile: {

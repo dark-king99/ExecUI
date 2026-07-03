@@ -317,6 +317,30 @@ export default function Billing() {
         </div>
       )}
 
+      {/* Dunning: a failed payment puts the subscription in past_due/unpaid —
+          surface it loudly with a one-click path to fix the card. */}
+      {["past_due", "unpaid", "incomplete"].includes(billing?.status) && (
+        <div className="flex flex-wrap items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-800 rounded-xl text-sm">
+          <AlertCircle size={18} className="text-red-600 dark:text-red-400 shrink-0" />
+          <div className="flex-1 min-w-[220px]">
+            <p className="font-semibold text-red-700 dark:text-red-300">There's a problem with your payment</p>
+            <p className="text-red-600/80 dark:text-red-400/80 text-xs mt-0.5">
+              Your last charge didn't go through. Update your payment method to keep the {billing?.planName} plan active —
+              otherwise the subscription will be cancelled and the plan drops to Standard at the end of the paid period.
+            </p>
+          </div>
+          {admin && (
+            <button
+              onClick={() => portalMut.mutate()}
+              disabled={portalMut.loading}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
+            >
+              {portalMut.loading ? "Opening…" : "Update payment method"}
+            </button>
+          )}
+        </div>
+      )}
+
       {!admin && (
         <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-700 dark:text-amber-400 text-sm">
           <Lock size={16} /> Only an enterprise admin can change the organization plan. You can view what's included below.

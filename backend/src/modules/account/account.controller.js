@@ -290,7 +290,7 @@ export const listRoles = async (req, res) => {
 // ── Billing ───────────────────────────────────────────────────────────────
 export const getBilling        = handle((req) => billing.getBilling(tid(req)));
 export const getPlans          = handle(()    => billing.getPlanCatalog());
-export const selectPlan        = handle((req) => billing.selectPlan(tid(req), req.body));
+export const selectPlan        = handle((req) => billing.selectPlan(tid(req), req.body, uid(req)));
 export const upgradePlan       = handle((req) => billing.upgradePlan(tid(req), req.body));
 export const getPaymentMethods = handle((req) => billing.getPaymentMethods(tid(req)));
 export const getInvoices       = handle((req) => billing.getInvoices(tid(req)));
