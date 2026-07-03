@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { GitBranch, Search, Clock, ListChecks, History, Plus } from "lucide-react";
+import { GitBranch, Search, Clock, ListChecks, History, Plus, Paperclip } from "lucide-react";
 import StatusBadge from "../../../../components/ui/StatusBadge";
 import { useToast } from "../../../../components/ui/Toast";
 import { useApi, useMutation } from "../../../../hooks/useApi";
 import { crm } from "../../../../services/api";
 import { SolutionShell, Section, Loading, Pill, fmtDate } from "../../components/crm-ui";
+import Attachments from "../../../../components/Attachments";
 
 const PRIORITY_VARIANT = { high: "danger", medium: "warning", low: "neutral" };
 
@@ -23,7 +24,7 @@ export default function DealRoom() {
 
   const all = deals ?? [];
   const deal = all.find((d) => d.id === selected);
-  const TABS = [{ id: "timeline", label: "Timeline", icon: Clock }, { id: "tasks", label: "Tasks", icon: ListChecks }, { id: "audit", label: "Audit", icon: History }];
+  const TABS = [{ id: "timeline", label: "Timeline", icon: Clock }, { id: "tasks", label: "Tasks", icon: ListChecks }, { id: "files", label: "Files", icon: Paperclip }, { id: "audit", label: "Audit", icon: History }];
 
   return (
     <SolutionShell solutionId="opportunities" title="Deal Room" subtitle="Everything about a single deal: timeline, tasks, and audit trail">
@@ -60,6 +61,8 @@ export default function DealRoom() {
                   );
                 })}
               </div>
+
+              {tab === "files" && <Attachments entityType="deal" entityId={selected} />}
 
               {tab === "timeline" && (
                 <div className="space-y-3">

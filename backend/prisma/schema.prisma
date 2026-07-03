@@ -776,3 +776,29 @@ model EmailLog {
 
   @@index([tenantId, createdAt])
 }
+
+// ── Attachments (generic, cross-module) ───────────────────────────────────────
+// Files live in object storage; only metadata + URL are persisted here.
+model Attachment {
+  id           String   @id @default(uuid())
+  tenantId     String
+  entityType   String   // deal | lead | task | project | campaign
+  entityId     String
+  fileName     String
+  mimeType     String?
+  size         Int      @default(0)
+  url          String
+  uploadedById String?
+  uploaderName String?
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId, entityType, entityId])
+}
+
+// Processed Stripe webhook event ids — makes webhook handling idempotent
+// (Stripe retries deliveries; each event must apply exactly once).
+model WebhookEvent {
+  id        String   @id
+  type      String
+  createdAt DateTime @default(now())
+}

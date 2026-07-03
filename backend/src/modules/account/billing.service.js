@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import prisma from "../../config/database.js";
 import { ValidationError, NotFoundError } from "../../lib/errors.js";
+import { notifyMany } from "../notifications/notifications.service.js";
 import {
   PLANS as PLAN_TIERS, CUSTOM, DEFAULT_PLAN,
   CRM_SOLUTIONS, MKT_SOLUTIONS, SERVICES_SOLUTIONS,
@@ -104,12 +105,43 @@ function resolvePlan(plan, customSolutions = []) {
   return { plan, solutions };
 }
 
+// Every plan change lands in the audit log. Webhook-driven changes have no
+// acting user, so they're attributed to a tenant admin with a "(Stripe)" note.
+async function auditPlanChange(tenantId, actorId, detail) {
+  try {
+    let userId = actorId;
+    if (!userId) {
+      const admin = await prisma.user.findFirst({
+        where: { tenantId, role: { name: "enterprise_admin" } }, select: { id: true },
+      });
+      userId = admin?.id;
+    }
+    if (!userId) return;
+    await prisma.auditLog.create({
+      data: { userId, tenantId, action: "billing_plan_change", resource: "billing", detail },
+    });
+  } catch { /* the audit trail must never break billing */ }
+}
+
+// Notify every tenant admin's bell (billing events concern admins only).
+async function notifyAdmins(tenantId, payload) {
+  try {
+    const admins = await prisma.user.findMany({
+      where: { tenantId, role: { name: { in: ["enterprise_admin", "system_admin"] } } },
+      select: { id: true },
+    });
+    await notifyMany(admins.map((a) => a.id), { tenantId, type: "system", link: "/account/billing", ...payload });
+  } catch { /* ignore */ }
+}
+
 // Apply a plan to a tenant immediately (used in free mode and after payment).
-async function activatePlan(tenantId, plan, solutions, extra = {}) {
+async function activatePlan(tenantId, plan, solutions, extra = {}, actorId = null) {
+  const before = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } });
   const tenant = await prisma.tenant.update({
     where: { id: tenantId },
     data: { plan, planSolutions: solutions, stripePlanId: plan, ...extra },
   });
+  auditPlanChange(tenantId, actorId, `Plan ${before?.plan ?? "?"} → ${plan}${actorId ? "" : " (Stripe)"}`);
   return {
     activated: true,
     plan: tenant.plan,
@@ -152,11 +184,11 @@ function buildLineItems(plan, solutions) {
  *  - PAID mode (Stripe configured): returns a Checkout URL; the plan is applied
  *    once payment succeeds (checkout.session.completed webhook).
  */
-export const selectPlan = async (tenantId, { plan, customSolutions = [] }) => {
+export const selectPlan = async (tenantId, { plan, customSolutions = [] }, actorId = null) => {
   const { solutions } = resolvePlan(plan, customSolutions);
 
   if (!BILLING_ENABLED) {
-    return { ...(await activatePlan(tenantId, plan, solutions)), freeEarlyAccess: true };
+    return { ...(await activatePlan(tenantId, plan, solutions, {}, actorId)), freeEarlyAccess: true };
   }
 
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
@@ -427,7 +459,18 @@ export const handleWebhook = async (payload, sig) => {
   try {
     event = stripe.webhooks.constructEvent(payload, sig, webhookSecret);
   } catch (err) {
-    throw new Error(`Webhook signature verification failed: ${err.message}`);
+    const e = new Error(`Webhook signature verification failed: ${err.message}`);
+    e.status = 400;
+    throw e;
+  }
+
+  // Idempotency: Stripe retries deliveries — record each event id and apply
+  // it exactly once (unique-PK insert doubles as the lock).
+  try {
+    await prisma.webhookEvent.create({ data: { id: event.id, type: event.type } });
+  } catch (err) {
+    if (err.code === "P2002") return { received: true, duplicate: true };
+    throw err;
   }
 
   switch (event.type) {
@@ -457,18 +500,34 @@ export const handleWebhook = async (payload, sig) => {
       break;
     }
 
-    // Keep the stored subscription id in sync with Stripe's lifecycle.
-    case "customer.subscription.updated":
+    // Payment trouble → warn the admins (the Billing page shows the banner).
+    case "customer.subscription.updated": {
+      const sub = event.data.object;
+      const tenant = await prisma.tenant.findFirst({ where: { stripeCustomerId: sub.customer } });
+      if (tenant) {
+        await prisma.tenant.update({ where: { id: tenant.id }, data: { stripeSubId: sub.id } });
+        if (["past_due", "unpaid"].includes(sub.status)) {
+          notifyAdmins(tenant.id, {
+            title: "Payment problem on your subscription",
+            body: "A payment failed. Update the card in Billing to keep your plan active.",
+          });
+        }
+      }
+      break;
+    }
+
+    // Full cancellation → downgrade to Standard once the paid period is over.
+    // (Stripe fires this at period end when cancel_at_period_end was set, so
+    // the org keeps what it paid for until then.)
     case "customer.subscription.deleted": {
       const sub = event.data.object;
       const tenant = await prisma.tenant.findFirst({ where: { stripeCustomerId: sub.customer } });
       if (tenant) {
-        await prisma.tenant.update({
-          where: { id: tenant.id },
-          data: { stripeSubId: event.type === "customer.subscription.deleted" ? null : sub.id },
+        await activatePlan(tenant.id, "standard", [], { stripeSubId: null });
+        notifyAdmins(tenant.id, {
+          title: "Subscription cancelled — plan set to Standard",
+          body: "Your paid period ended. Choose a plan in Billing to restore full access.",
         });
-        // On a full cancellation the org keeps its selected plan tier (so access
-        // is unchanged) but has no live subscription; an admin can re-subscribe.
       }
       break;
     }
