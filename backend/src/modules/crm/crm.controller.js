@@ -85,9 +85,9 @@ export const getPipelineSummary = handle((req) => svc.getPipelineSummary(tid(req
 export const getPipelineOwners  = handle((req) => svc.getPipelineOwners(tid(req)));
 
 // AI
-export const aiChat      = handle((req) => svc.aiChat(tid(req), req.body));
-export const aiSummaries = handle((req) => svc.aiSummaries(tid(req), req.body));
-export const aiAction    = handle((req) => svc.aiAction(tid(req), req.body));
+export const aiChat      = handle((req) => svc.aiChat(tid(req), req.body, uid(req)));
+export const aiSummaries = handle((req) => svc.aiSummaries(tid(req)));
+export const aiAction    = handle((req) => svc.aiAction(tid(req), req.body, uid(req)));
 
 // Accounts
 export const listAccounts       = handle((req) => svc.listAccounts(tid(req), req.query));
@@ -98,7 +98,7 @@ export const addAccountNote     = handle((req) => svc.addAccountNote(tid(req), r
 
 // Resolutions
 export const listResolutions = handle((req) => svc.listResolutions(tid(req)));
-export const voteResolution  = handle((req) => svc.voteResolution(tid(req), req.params.id, req.body));
+export const voteResolution  = handle((req) => svc.voteResolution(tid(req), req.params.id, uid(req)));
 
 // CRM Analytics
 export const getCrmAnalyticsSummary  = handle((req) => svc.getCrmAnalyticsSummary(tid(req)));

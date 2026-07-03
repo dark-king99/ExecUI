@@ -11,7 +11,7 @@ const STAGES = ["all", "New", "Contacted", "Qualified", "Demo Booked"];
 
 function NewLeadModal({ onClose, onCreated }) {
   const toast = useToast();
-  const [form, setForm] = useState({ name: "", value: "", stage: "New" });
+  const [form, setForm] = useState({ name: "", value: "", stage: "New", source: "Inbound" });
   const [err, setErr] = useState(null);
   const { mutate, loading } = useMutation((d) => crm.leads.create(d), {
     onSuccess: () => { toast({ message: "Lead created", type: "success" }); onCreated(); onClose(); },
@@ -25,6 +25,9 @@ function NewLeadModal({ onClose, onCreated }) {
       <div className="grid grid-cols-2 gap-3">
         <Field label="Stage"><SelectInput value={form.stage} onChange={(e) => setForm((p) => ({ ...p, stage: e.target.value }))}>{["New", "Contacted", "Qualified", "Demo Booked"].map((s) => <option key={s}>{s}</option>)}</SelectInput></Field>
         <Field label="Est. Value ($)"><TextInput type="number" value={form.value} onChange={(e) => setForm((p) => ({ ...p, value: e.target.value }))} placeholder="0" /></Field>
+        <div className="col-span-2">
+          <Field label="Source"><SelectInput value={form.source} onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))}>{["Inbound", "Outbound", "Referral", "Website", "Event"].map((s) => <option key={s}>{s}</option>)}</SelectInput></Field>
+        </div>
       </div>
     </Modal>
   );
