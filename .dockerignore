@@ -1,0 +1,15 @@
+# Keep build contexts small and secrets out of images.
+.git
+.github
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+backend/storage
+docs
+deploy
+*.md
+!README.md
+Dockerfile
+docker-compose.yml
