@@ -144,3 +144,42 @@ html {
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
+
+/* ── Motion FX layer (mesh "color video", marquee, shine) ───────────────── */
+@keyframes mesh-drift-1 {
+  0%   { transform: translate(-12%, -8%) scale(1)   rotate(0deg); }
+  33%  { transform: translate(14%, 10%)  scale(1.25) rotate(40deg); }
+  66%  { transform: translate(-6%, 16%)  scale(0.9)  rotate(-30deg); }
+  100% { transform: translate(-12%, -8%) scale(1)   rotate(0deg); }
+}
+@keyframes mesh-drift-2 {
+  0%   { transform: translate(10%, 12%)  scale(1.1); }
+  50%  { transform: translate(-14%, -10%) scale(0.85); }
+  100% { transform: translate(10%, 12%)  scale(1.1); }
+}
+@keyframes mesh-drift-3 {
+  0%   { transform: translate(0%, 0%)   scale(0.95) rotate(0deg); }
+  50%  { transform: translate(8%, -14%) scale(1.2)  rotate(60deg); }
+  100% { transform: translate(0%, 0%)   scale(0.95) rotate(0deg); }
+}
+@keyframes mesh-hue { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
+
+.mesh-blob   { position: absolute; border-radius: 9999px; filter: blur(70px); will-change: transform; }
+.mesh-hue    { animation: mesh-hue 24s linear infinite; }
+.mesh-1      { animation: mesh-drift-1 26s ease-in-out infinite; }
+.mesh-2      { animation: mesh-drift-2 22s ease-in-out infinite; }
+.mesh-3      { animation: mesh-drift-3 30s ease-in-out infinite; }
+
+@keyframes marquee-x { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.animate-marquee { animation: marquee-x var(--marquee-duration, 40s) linear infinite; }
+.marquee-mask    { mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent); }
+
+@keyframes text-sheen { to { background-position: 200% center; } }
+.text-sheen {
+  background-size: 200% auto;
+  animation: text-sheen 6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mesh-1, .mesh-2, .mesh-3, .mesh-hue, .animate-marquee, .text-sheen { animation: none !important; }
+}

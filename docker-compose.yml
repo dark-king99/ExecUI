@@ -1,0 +1,59 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ExecUI — production-parity stack (same three tiers as deployment.yaml)
+#
+#    docker compose up -d --build
+#    → app on http://localhost:8080 (nginx → SPA + /api → backend → postgres)
+#
+#  Configuration: create a `.env` next to this file (gitignored) with at least
+#    POSTGRES_PASSWORD=…      JWT_SECRET=…      SECRETS_KEY=…
+#  Optional: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, RESEND_API_KEY,
+#            RESEND_FROM, DEEPSEEK_API_KEY  (features degrade gracefully).
+# ═══════════════════════════════════════════════════════════════════════════════
+name: execui
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: execui
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d execui"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/execui?schema=public
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      JWT_EXPIRES: ${JWT_EXPIRES:-30d}
+      SECRETS_KEY: ${SECRETS_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      AI_BACKEND: ${AI_BACKEND:-fallback}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      # Avatars & attachments survive rebuilds (matches STORAGE_DIR in the image).
+      - uploads:/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${APP_PORT:-8080}:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  uploads:
