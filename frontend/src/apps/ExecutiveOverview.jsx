@@ -211,8 +211,14 @@ export default function ExecutiveOverview() {
   return (
     <div className="mx-auto max-w-7xl space-y-5">
       {/* ── Header: greeting + identity ─────────────────────────────────── */}
-      <div className="animate-slide-up flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900/50 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
+      <div className="animate-slide-up relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900/50 sm:flex-row sm:items-center sm:justify-between">
+        {/* Animated color-mesh wash — subtle, welcoming, pure CSS. */}
+        <div aria-hidden className="mesh-hue pointer-events-none absolute inset-0 overflow-hidden opacity-60">
+          <div className="mesh-blob mesh-1 left-[-10%] top-[-40%] h-[160%] w-[30%] bg-indigo-500/25" />
+          <div className="mesh-blob mesh-2 right-[-6%] top-[-30%] h-[150%] w-[28%] bg-fuchsia-500/20" />
+          <div className="mesh-blob mesh-3 left-[40%] top-[10%] h-[140%] w-[30%] bg-sky-400/20" />
+        </div>
+        <div className="relative flex items-center gap-4">
           <Avatar className="h-14 w-14 border-2 border-indigo-500/30">
             <AvatarImage src={identity.avatarUrl} alt={identity.name} />
             <AvatarFallback className="bg-indigo-100 text-lg font-semibold text-indigo-600 dark:bg-indigo-500/15">{initials(identity.name)}</AvatarFallback>
@@ -226,7 +232,7 @@ export default function ExecutiveOverview() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="relative flex items-center gap-2">
           <button
             onClick={emailReport}
             disabled={reportState === "sending"}
