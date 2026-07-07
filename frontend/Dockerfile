@@ -1,13 +1,13 @@
 # ── ExecUI Frontend ───────────────────────────────────────────────────────────
 
 # ── Stage 1: build the Vite / React bundle ────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
 # Install deps first (cached unless package*.json changes)
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --no-audit --no-fund
 
 # Copy source and build
 COPY . .
@@ -26,9 +26,12 @@ FROM nginx:1.27-alpine
 # Copy compiled assets from build stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Custom nginx config: SPA routing + /api proxy to backend service
+# Custom nginx config: SPA routing + /api proxy (incl. SSE) to the backend
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD wget -q -O /dev/null http://127.0.0.1:80/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

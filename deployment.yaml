@@ -1,0 +1,430 @@
+
+#  ExecUI  ·  Kubernetes Deployment
+#
+#  Resources (top-to-bottom):
+#    1. Namespace
+#    2. Secret          – DATABASE_URL, JWT/SECRETS keys, Stripe, Resend, AI
+#    3. ConfigMap       – non-sensitive runtime config
+#    4. PostgreSQL      – StatefulSet + Service (postgres-svc :5432) + PVC
+#    5. Uploads PVC     – object storage for avatars & attachments
+#    6. Backend         – Deployment + Service (ClusterIP :5555)
+#    7. Frontend        – Deployment + Service (ClusterIP :80)
+#    8. Ingress         – all traffic enters via the frontend; its nginx
+#                         proxies /api (incl. the SSE stream) to the backend
+#
+#  Before applying:
+#    • Replace every REPLACE_ME in the Secret (stringData → plain text values;
+#      generate keys with `openssl rand -hex 32`).
+#    • Replace image references with your registry paths. Build them with:
+#        docker build -t <registry>/execui-backend:TAG  backend/
+#        docker build -t <registry>/execui-frontend:TAG frontend/
+#    • Stripe webhook endpoint to register:
+#        POST https://<your-host>/api/account/billing/webhook
+#
+#  Apply:
+#    kubectl apply -f deployment.yaml
+#
+#  Notes that match how the app is built:
+#    • The backend applies pending Prisma migrations on start (both in its
+#      container CMD and again, non-fatally, inside the server) — no separate
+#      migration job is needed.
+#    • /health checks the database, so readiness == actually able to serve.
+#    • Real-time notifications use in-process SSE and the login rate limiter
+#      is in-memory, so the backend runs as a SINGLE replica. To scale it out,
+#      move the SSE registry + rate limiter to Redis first. The stateless
+#      frontend scales freely.
+
+# ── 1. Namespace ──────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: execui
+  labels:
+    app.kubernetes.io/name: execui
+
+---
+
+# ── 2. Secret ─────────────────────────────────────────────────────────────────
+# stringData takes plain text (Kubernetes encodes it) — replace before applying.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: execui-secrets
+  namespace: execui
+type: Opaque
+stringData:
+  # In-cluster Postgres (matches the StatefulSet below). Point elsewhere for
+  # a managed database and delete section 4.
+  DATABASE_URL: "postgresql://postgres:REPLACE_ME_DB_PASSWORD@postgres-svc:5432/execui?schema=public"
+  POSTGRES_PASSWORD: "REPLACE_ME_DB_PASSWORD"
+  # openssl rand -hex 32
+  JWT_SECRET: "REPLACE_ME_LONG_RANDOM"
+  # Dedicated AES-256 key for the outbound-integration secret store.
+  SECRETS_KEY: "REPLACE_ME_LONG_RANDOM"
+  # Stripe — leave empty to run in FREE early-access mode (no payments).
+  STRIPE_SECRET_KEY: ""
+  STRIPE_WEBHOOK_SECRET: ""
+  # Resend — leave empty and outbound email is logged as "skipped".
+  RESEND_API_KEY: ""
+  RESEND_FROM: ""
+  # AI assistant (optional)
+  DEEPSEEK_API_KEY: ""
+
+---
+
+# ── 3. ConfigMap ──────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: execui-config
+  namespace: execui
+data:
+  PORT: "5555"
+  NODE_ENV: "production"
+  JWT_EXPIRES: "30d"
+  LOG_LEVEL: "info"
+  # Object storage path inside the pod (backed by the uploads PVC).
+  STORAGE_DIR: "/data/uploads"
+  # Public URL of the app — used for Stripe Checkout return links.
+  FRONTEND_URL: "http://execui.example.com"
+  AI_BACKEND: "fallback"
+
+---
+
+# ── 4a. PostgreSQL StatefulSet ────────────────────────────────────────────────
+# Simple in-cluster Postgres 16. For production scale, prefer a managed
+# database and delete 4a/4b (keep DATABASE_URL pointing at it).
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: execui
+  labels:
+    app: postgres
+    app.kubernetes.io/name: execui
+    app.kubernetes.io/component: database
+spec:
+  serviceName: postgres-svc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - name: pg
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: execui
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: execui-secrets
+                  key: POSTGRES_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "execui"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+
+---
+
+# ── 4b. PostgreSQL Service ────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-svc
+  namespace: execui
+  labels:
+    app: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - name: pg
+      port: 5432
+      targetPort: 5432
+  clusterIP: None
+
+---
+
+# ── 5. Uploads PVC ────────────────────────────────────────────────────────────
+# Object storage for avatars and cross-module attachments (STORAGE_DIR).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: execui-uploads
+  namespace: execui
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 20Gi
+
+---
+
+# ── 6a. Backend Deployment ────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: execui
+  labels:
+    app: backend
+    app.kubernetes.io/name: execui
+    app.kubernetes.io/component: api
+spec:
+  # Single replica ON PURPOSE: the SSE notification hub and the login rate
+  # limiter are in-process, and the uploads volume is ReadWriteOnce.
+  # Scale out only after moving those to Redis / object storage.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  strategy:
+    # Recreate avoids two pods contending for the RWO uploads volume.
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          # Replace with your registry image, e.g. ghcr.io/your-org/execui-backend:1.0.0
+          image: execui/backend:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 5555
+
+          envFrom:
+            - configMapRef:
+                name: execui-config
+            - secretRef:
+                name: execui-secrets
+
+          volumeMounts:
+            - name: uploads
+              mountPath: /data/uploads
+
+          # The app serves /health only after Prisma migrations have applied
+          # and it can reach the database (it returns 503 otherwise).
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5555
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
+
+          # Liveness must NOT depend on the database — a DB blip shouldn't
+          # restart the API. TCP = the event loop is alive.
+          livenessProbe:
+            tcpSocket:
+              port: 5555
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false   # Prisma writes to /tmp at runtime
+            runAsNonRoot: true
+            runAsUser: 1000                 # "node" user in the image
+
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: execui-uploads
+
+---
+
+# ── 6b. Backend Service ───────────────────────────────────────────────────────
+# ClusterIP — only reachable inside the cluster (nginx proxies from frontend).
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: execui
+  labels:
+    app: backend
+spec:
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 5555
+      targetPort: 5555
+  type: ClusterIP
+
+---
+
+# ── 7a. Frontend Deployment ───────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: execui
+  labels:
+    app: frontend
+    app.kubernetes.io/name: execui
+    app.kubernetes.io/component: web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: frontend
+                topologyKey: kubernetes.io/hostname
+
+      containers:
+        - name: frontend
+          # Replace with your registry image, e.g. ghcr.io/your-org/execui-frontend:1.0.0
+          image: execui/frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 80
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false   # nginx writes pid/tmp files
+            runAsNonRoot: false             # nginx requires root to bind port 80
+
+---
+
+# ── 7b. Frontend Service ──────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: execui
+  labels:
+    app: frontend
+spec:
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+
+---
+
+# ── 8. Ingress ────────────────────────────────────────────────────────────────
+# Requires an Ingress controller (e.g. ingress-nginx) in your cluster.
+# All traffic enters via the frontend service; nginx inside the pod proxies
+# /api/* (and the SSE stream) to the backend ClusterIP service.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: execui-ingress
+  namespace: execui
+  annotations:
+    # Attachments API accepts files up to 100 MB.
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    # Long read timeout keeps the SSE notification stream open
+    # (the server heartbeats every 25s regardless).
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+spec:
+  # Uncomment and update for TLS / HTTPS:
+  # tls:
+  #   - hosts:
+  #       - execui.example.com
+  #     secretName: execui-tls
+  rules:
+    - # host: execui.example.com   ← uncomment and set your domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
