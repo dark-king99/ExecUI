@@ -8,6 +8,7 @@ import {
   Check, Zap, Crown, Bell,
 } from "lucide-react";
 import { MeshGradient, FadeUp, Stagger, Item, AnimatedNumber, TiltCard, Marquee } from "../components/motionfx";
+import Footer from "../components/Footer";
 import { PLANS, CUSTOM, CRM_SOLUTIONS, MKT_SOLUTIONS, SERVICES_SOLUTIONS } from "../lib/plans";
 import { SOLUTIONS as NET_SOLUTIONS } from "./network/solutions.config";
 import { SOLUTIONS as ANA_SOLUTIONS } from "./analytics/solutions.config";
@@ -734,6 +735,9 @@ export default function HomeView() {
           </div>
         </FadeUp>
       </div>
+
+      {/* ── Footer ────────────────────────────────────────────────────── */}
+      <Footer />
     </div>
   );
 }

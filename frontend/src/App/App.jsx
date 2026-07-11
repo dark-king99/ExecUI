@@ -19,6 +19,7 @@ import { accessFor } from "../lib/access";
 
 // ── Lazy-loaded mini-app route groups ─────────────────────────────────────────
 const HomeView            = lazy(() => import("../apps/HomeView"));
+const PrivacyPolicy       = lazy(() => import("../apps/PrivacyPolicy"));
 const ExecutiveOverview   = lazy(() => import("../apps/ExecutiveOverview"));
 const NotFound            = lazy(() => import("../apps/NotFound"));
 
@@ -80,9 +81,9 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
   const section = location.pathname.split("/")[1];
   const hideNavbar = ["network", "crm", "marketing", "analytics"].includes(section);
 
-  // Home is a full-screen immersive landing view — no app chrome at all
+  // Home + Privacy are full-screen marketing/legal views — no app chrome at all
   // (sidebar/navbar only belong to the main system).
-  const isHome = section === "home";
+  const isStandalone = section === "home" || section === "privacy";
 
   // Organization (enterprise account) views are restricted to admins.
   const isAdmin = ["enterprise_admin", "system_admin"].includes(roleToUse) ||
@@ -93,11 +94,14 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
   const guard = (sec, element) =>
     access.sections.includes(sec) ? element : <Navigate to="/overview" replace />;
 
-  if (isHome) {
+  if (isStandalone) {
     return (
       <PageSuspense>
         <CommandPalette />
-        <HomeView />
+        <Routes>
+          <Route path="/home" element={<HomeView />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+        </Routes>
       </PageSuspense>
     );
   }
@@ -127,6 +131,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 {/* Default */}
                 <Route path="/" element={<Navigate to="/home" replace />} />
                 <Route path="/home" element={<HomeView />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
 
                 {/* Executive Overview — entry to the main system */}
                 <Route path="/overview" element={<ExecutiveOverview />} />
