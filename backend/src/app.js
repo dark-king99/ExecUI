@@ -1,11 +1,16 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import compression from "compression";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import { errorHandler } from "./middleware/error.middleware.js";
 import { requestLogger } from "./lib/logger.js";
+import {
+  sanitizeInput, enforceJsonContentType, concurrencyLimiter, requestTimeout,
+} from "./middleware/hardening.middleware.js";
 import routes from "./routes/index.js";
 import { STORAGE_ROOT } from "./lib/storage.js";
 import { stripeWebhook } from "./modules/account/account.controller.js";
@@ -15,18 +20,57 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 
+// Correct client IPs behind a proxy/ingress so rate limiting keys on the real
+// address (Retry-After, per-IP budgets, audit logs).
+app.set("trust proxy", 1);
+app.disable("x-powered-by");
+
+// ── Speed ────────────────────────────────────────────────────────────────────
+app.use(compression());
+
+// ── Security headers ─────────────────────────────────────────────────────────
 app.use(cors());
-app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
+app.use(helmet({
+  contentSecurityPolicy: false,          // SPA is served same-origin
+  crossOriginResourcePolicy: false,      // uploaded assets are cross-origin-read
+  hsts: { maxAge: 15552000, includeSubDomains: true },
+}));
+
 app.use(requestLogger);
+
+// ── Overload protection (shed load before the event loop drowns) ─────────────
+app.use(concurrencyLimiter({ max: Number(process.env.MAX_INFLIGHT) || 250 }));
+app.use(requestTimeout({ ms: Number(process.env.REQUEST_TIMEOUT_MS) || 25_000 }));
+
+// Global per-IP rate limit — a coarse backstop; auth/write routes add stricter
+// limits of their own. Health checks are never limited.
+app.use(rateLimit({
+  windowMs: 60_000,
+  max: Number(process.env.RATE_LIMIT_PER_MIN) || 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === "/health" || req.path.startsWith("/health/"),
+  message: { message: "Too many requests — slow down and try again shortly.", status: 429 },
+}));
 
 // Stripe webhook needs the RAW body for signature verification, so it must be
 // registered before the JSON body parser runs.
 app.post("/api/account/billing/webhook", express.raw({ type: "application/json" }), stripeWebhook);
 
+// ── Body parsing + universal input hygiene ───────────────────────────────────
+app.use(enforceJsonContentType);
 app.use(express.json({ limit: "200kb" }));
+app.use(express.urlencoded({ extended: false, limit: "200kb" }));
+app.use(sanitizeInput);   // reject prototype-pollution / oversized payloads
 
-// Health actually checks the database — a 200 here means the API can serve.
-app.get("/health", async (_req, res) => {
+// ── Health checks ────────────────────────────────────────────────────────────
+// Liveness: is the process up? (No DB — a DB blip must not restart the pod.)
+const live = (_req, res) => res.json({ status: "ok", uptimeSec: Math.round(process.uptime()) });
+app.get("/health/live", live);
+app.get("/api/health/live", live);
+
+// Readiness / full health: can we actually serve? (DB reachable within 2s.)
+const ready = async (_req, res) => {
   const started = Date.now();
   try {
     await Promise.race([
@@ -37,7 +81,10 @@ app.get("/health", async (_req, res) => {
   } catch (err) {
     res.status(503).json({ status: "degraded", db: "down", error: err.message, uptimeSec: Math.round(process.uptime()) });
   }
-});
+};
+app.get("/health", ready);
+app.get("/health/ready", ready);
+app.get("/api/health", ready);
 
 // ── Object storage (uploaded assets served from disk, not the DB) ─────────
 app.use("/api/uploads", express.static(STORAGE_ROOT, { maxAge: "7d", immutable: true }));
