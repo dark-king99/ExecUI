@@ -43,8 +43,6 @@ metadata:
   labels:
     app.kubernetes.io/name: execui
 
----
-
 # ── 2. Secret ─────────────────────────────────────────────────────────────────
 # stringData takes plain text (Kubernetes encodes it) — replace before applying.
 apiVersion: v1
@@ -71,8 +69,6 @@ stringData:
   # AI assistant (optional)
   DEEPSEEK_API_KEY: ""
 
----
-
 # ── 3. ConfigMap ──────────────────────────────────────────────────────────────
 apiVersion: v1
 kind: ConfigMap
@@ -89,8 +85,6 @@ data:
   # Public URL of the app — used for Stripe Checkout return links.
   FRONTEND_URL: "http://execui.example.com"
   AI_BACKEND: "fallback"
-
----
 
 # ── 4a. PostgreSQL StatefulSet ────────────────────────────────────────────────
 # Simple in-cluster Postgres 16. For production scale, prefer a managed
@@ -160,7 +154,7 @@ spec:
           requests:
             storage: 10Gi
 
----
+
 
 # ── 4b. PostgreSQL Service ────────────────────────────────────────────────────
 apiVersion: v1
@@ -179,8 +173,6 @@ spec:
       targetPort: 5432
   clusterIP: None
 
----
-
 # ── 5. Uploads PVC ────────────────────────────────────────────────────────────
 # Object storage for avatars and cross-module attachments (STORAGE_DIR).
 apiVersion: v1
@@ -194,7 +186,7 @@ spec:
     requests:
       storage: 20Gi
 
----
+
 
 # ── 6a. Backend Deployment ────────────────────────────────────────────────────
 apiVersion: apps/v1
@@ -279,7 +271,6 @@ spec:
           persistentVolumeClaim:
             claimName: execui-uploads
 
----
 
 # ── 6b. Backend Service ───────────────────────────────────────────────────────
 # ClusterIP — only reachable inside the cluster (nginx proxies from frontend).
@@ -299,7 +290,6 @@ spec:
       targetPort: 5555
   type: ClusterIP
 
----
 
 # ── 7a. Frontend Deployment ───────────────────────────────────────────────────
 apiVersion: apps/v1
@@ -374,7 +364,7 @@ spec:
             readOnlyRootFilesystem: false   # nginx writes pid/tmp files
             runAsNonRoot: false             # nginx requires root to bind port 80
 
----
+
 
 # ── 7b. Frontend Service ──────────────────────────────────────────────────────
 apiVersion: v1
@@ -393,7 +383,6 @@ spec:
       targetPort: 80
   type: ClusterIP
 
----
 
 # ── 8. Ingress ────────────────────────────────────────────────────────────────
 # Requires an Ingress controller (e.g. ingress-nginx) in your cluster.
