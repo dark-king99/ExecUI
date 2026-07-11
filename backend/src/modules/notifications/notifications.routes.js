@@ -1,6 +1,7 @@
 import express from "express";
 import jwt from "jsonwebtoken";
 import { authenticate } from "../../middleware/auth.middleware.js";
+import { runWithTenant } from "../../lib/tenantContext.js";
 import * as svc from "./notifications.service.js";
 import { sseHandler } from "../../lib/sse.js";
 
@@ -8,8 +9,13 @@ import { sseHandler } from "../../lib/sse.js";
 // authenticates with the same JWT passed as a query parameter.
 function authenticateFromQuery(req, res, next) {
   try {
-    req.user = jwt.verify(String(req.query.token ?? ""), process.env.JWT_SECRET);
-    next();
+    const decoded = jwt.verify(String(req.query.token ?? ""), process.env.JWT_SECRET);
+    if (!decoded?.tenantId) return res.status(401).json({ message: "Unauthorized" });
+    req.user = decoded;
+    return runWithTenant(
+      { tenantId: decoded.tenantId, userId: decoded.userId, role: decoded.role },
+      () => next(),
+    );
   } catch {
     res.status(401).json({ message: "Unauthorized" });
   }
