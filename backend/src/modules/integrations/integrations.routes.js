@@ -1,6 +1,8 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { requireRole } from "../../middleware/role.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import { createIntegrationSchema, updateIntegrationSchema } from "./integrations.schema.js";
 import * as svc from "./integrations.service.js";
 
 const router = express.Router();
@@ -16,8 +18,8 @@ const handle = (fn) => async (req, res) => {
 };
 
 router.get("/",            auth, adminOnly, handle((req) => svc.list(tid(req))));
-router.post("/",           auth, adminOnly, handle((req) => svc.create(tid(req), uid(req), req.body)));
-router.patch("/:id",       auth, adminOnly, handle((req) => svc.update(tid(req), req.params.id, req.body)));
+router.post("/",           auth, adminOnly, validate(createIntegrationSchema), handle((req) => svc.create(tid(req), uid(req), req.body)));
+router.patch("/:id",       auth, adminOnly, validate(updateIntegrationSchema), handle((req) => svc.update(tid(req), req.params.id, req.body)));
 router.delete("/:id",      auth, adminOnly, handle((req) => svc.remove(tid(req), req.params.id)));
 router.post("/:id/test",   auth, adminOnly, handle((req) => svc.test(tid(req), req.params.id)));
 
