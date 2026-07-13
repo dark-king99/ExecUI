@@ -1,4 +1,5 @@
 import prisma from "../../config/database.js";
+import { assistText } from "../../lib/aiAssist.js";
 
 // Real-data-only service. No seeded/demo records, no fabricated metrics —
 // endpoints return the tenant's actual data (or empty) so the UI reflects
@@ -432,7 +433,7 @@ export const createFlow    = (tenantId, data) => Promise.resolve({ id: `flow-${D
 export const updateFlow    = (tenantId, id, data) => Promise.resolve({ id, ...data });
 
 // ── AI content generation (a functional generator, not stored data) ───────────
-export const generateAi = (tenantId, body = {}) => {
+export const generateAi = async (tenantId, body = {}) => {
   const { mode = "content", prompt = "" } = body;
   const topic = prompt.trim();
   if (!topic) {
@@ -494,5 +495,15 @@ export const generateAi = (tenantId, body = {}) => {
       ],
     },
   };
-  return Promise.resolve(responses[mode] ?? responses.content);
+  // Keep the title/summary/steps scaffold deterministic; let the model write the
+  // actual copy (real output when AI is on, the template when it's off/over quota).
+  const base = responses[mode] ?? responses.content;
+  const copy = await assistText({
+    tenantId,
+    system: "You are a senior marketing copywriter. Output publish-ready copy only — no preamble or explanation. Keep it under 130 words.",
+    user: `Format: ${mode}. Brief: "${topic}"`,
+    maxTokens: 260,
+    fallback: () => base.copy,
+  });
+  return { ...base, copy };
 };

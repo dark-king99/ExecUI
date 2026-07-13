@@ -10,6 +10,7 @@ import {
 import { useApi, useMutation } from "../../hooks/useApi";
 import { account } from "../../services/api";
 import { useUser } from "../../context/UserContext";
+import { aiLimitFor } from "../../lib/plans";
 
 const STATUS_VARIANT = {
   active: "success", trialing: "success",
@@ -46,6 +47,8 @@ function planFeatures(plan) {
   if (sol.services?.length)  lines.push(`${plan.id === "premium" ? "Core" : "Full"} Services suite`);
   if (sol.network === "all") lines.push("Network Operations");
   if (ent.analyticsSlices?.length) lines.push("Analytics for every active module");
+  const ai = plan.ai ?? aiLimitFor(plan.id);
+  if (ai) lines.push(`${ai.toLocaleString()} AI assists / month`);
   return lines;
 }
 
@@ -390,6 +393,33 @@ export default function Billing() {
                   })}
                 </div>
               </div>
+
+              {/* AI assist usage this month */}
+              {billing?.ai && (
+                <div className="w-full sm:w-64">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="inline-flex items-center gap-1.5 font-medium text-slate-600 dark:text-slate-300">
+                      <Sparkles size={12} className="text-indigo-500" /> AI assists this month
+                    </span>
+                    <span className="text-slate-400">
+                      {billing.ai.used.toLocaleString()} / {billing.ai.limit.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        billing.ai.remaining === 0 ? "bg-rose-500" : billing.ai.used / billing.ai.limit > 0.8 ? "bg-amber-500" : "bg-indigo-500"
+                      }`}
+                      style={{ width: `${Math.min(100, billing.ai.limit ? (billing.ai.used / billing.ai.limit) * 100 : 0)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    {billing.ai.configured
+                      ? `${billing.ai.remaining.toLocaleString()} left · resets ${billing.ai.period ? "monthly" : ""}`
+                      : "Included with your plan · resets monthly"}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </CardBody>

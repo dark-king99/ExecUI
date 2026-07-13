@@ -5,8 +5,9 @@ import { notifyMany } from "../notifications/notifications.service.js";
 import {
   PLANS as PLAN_TIERS, CUSTOM, DEFAULT_PLAN,
   CRM_SOLUTIONS, MKT_SOLUTIONS, SERVICES_SOLUTIONS,
-  entitlementsFor, priceFor, planLabel,
+  entitlementsFor, priceFor, planLabel, aiLimitFor,
 } from "../billing/plans.config.js";
+import { getUsage as getAiUsage } from "../../lib/aiQuota.js";
 
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY?.trim() || null;
 const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY, { apiVersion: "2024-04-10" }) : null;
@@ -21,6 +22,7 @@ const APP_URL = process.env.FRONTEND_URL?.replace(/\/$/, "") || "http://localhos
 const planSummary = (p) => ({
   id: p.id, name: p.name, price: p.price, tagline: p.tagline, highlighted: !!p.highlighted,
   crm: p.crm, marketing: p.marketing, services: p.services, network: p.network,
+  ai: aiLimitFor(p.id),
   entitlements: entitlementsFor(p.id),
 });
 
@@ -50,6 +52,7 @@ export const getBilling = async (tenantId) => {
     interval: "month",
     customSolutions,
     entitlements: entitlementsFor(planId, customSolutions),
+    ai: await getAiUsage(tenantId),
     status: "active",
     // Free early-access only when Stripe isn't configured yet.
     freeEarlyAccess: !BILLING_ENABLED,
