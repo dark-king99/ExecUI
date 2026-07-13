@@ -44,19 +44,33 @@ const CRM_STD = ["leads", "accounts", "opportunities", "forecasting", "activitie
 const MKT_STD = ["engagement", "account-engagement", "personalization", "intelligence"];
 const SVC_PREMIUM = ["financial", "operation", "strategic"];
 
+// Monthly AI-assist request allowance per plan (mirrors backend plans.config.js).
+export const AI_LIMITS = {
+  standard:   300,
+  premium:    1_500,
+  enterprise: 6_000,
+  executive:  30_000,
+  custom:     1_500,
+};
+
 export const PLANS = [
   { id: "standard",   name: "Standard",   price: 299,  tagline: "Core CRM & Marketing to get selling",
-    crm: CRM_STD, marketing: MKT_STD, services: [],          network: false },
+    crm: CRM_STD, marketing: MKT_STD, services: [],          network: false, ai: AI_LIMITS.standard },
   { id: "premium",    name: "Premium",    price: 799,  tagline: "Full CRM & Marketing + core Services", highlighted: true,
-    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_PREMIUM, network: false },
+    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_PREMIUM, network: false, ai: AI_LIMITS.premium },
   { id: "enterprise", name: "Enterprise", price: 1799, tagline: "Everything in Premium + full Services",
-    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_ALL,     network: false },
+    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_ALL,     network: false, ai: AI_LIMITS.enterprise },
   { id: "executive",  name: "Executive",  price: 5099, tagline: "The complete platform, including Network Ops",
-    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_ALL,     network: true },
+    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_ALL,     network: true,  ai: AI_LIMITS.executive },
 ];
 
-export const CUSTOM = { id: "custom", name: "Custom", unitPrice: 49, minUnits: 8 };
+export const CUSTOM = { id: "custom", name: "Custom", unitPrice: 49, minUnits: 8, ai: AI_LIMITS.custom };
 export const DEFAULT_PLAN = "executive";
+
+/** Monthly AI request allowance for a plan. */
+export function aiLimitFor(planId) {
+  return AI_LIMITS[planId] ?? AI_LIMITS[DEFAULT_PLAN] ?? 0;
+}
 
 const parseCustom = (customSolutions = []) => {
   const crm = [], marketing = [];
