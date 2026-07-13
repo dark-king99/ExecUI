@@ -66,8 +66,9 @@ stringData:
   # Resend — leave empty and outbound email is logged as "skipped".
   RESEND_API_KEY: ""
   RESEND_FROM: ""
-  # AI assistant (optional)
-  DEEPSEEK_API_KEY: ""
+  # AI assist (optional) — leave empty to run in deterministic mode ($0, no
+  # external API). Set to a Groq/DeepSeek/OpenRouter key to enable the live model.
+  AI_API_KEY: ""
 
 # ── 3. ConfigMap ──────────────────────────────────────────────────────────────
 apiVersion: v1
@@ -84,7 +85,15 @@ data:
   STORAGE_DIR: "/data/uploads"
   # Public URL of the app — used for Stripe Checkout return links.
   FRONTEND_URL: "http://execui.example.com"
-  AI_BACKEND: "fallback"
+  # AI assist — provider-agnostic, OpenAI-compatible. Defaults to Groq's free
+  # tier. Only used when AI_API_KEY (in the Secret above) is set; otherwise the
+  # app returns deterministic template responses at no cost. Per-plan monthly
+  # request allowances are enforced automatically (see plans.config.js).
+  AI_BASE_URL: "https://api.groq.com/openai/v1"
+  AI_MODEL: "llama-3.1-8b-instant"
+  AI_MAX_TOKENS: "320"
+  AI_MAX_INPUT_CHARS: "1200"
+  AI_MAX_HISTORY: "4"
 
 # ── 4a. PostgreSQL StatefulSet ────────────────────────────────────────────────
 # Simple in-cluster Postgres 16. For production scale, prefer a managed
