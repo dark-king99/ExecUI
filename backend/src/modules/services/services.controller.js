@@ -78,4 +78,4 @@ export const deleteTask = handle(async (req) => { await svc.deleteTask(tid(req),
 
 // ── AI ────────────────────────────────────────────────────────────────────────
 export const aiInsights  = handle((req) => svc.aiInsights(tid(req), req.body));
-export const generateSOP = handle((req) => svc.generateSOP(req.body));
+export const generateSOP = handle((req) => svc.generateSOP(tid(req), req.body));

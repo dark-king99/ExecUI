@@ -61,6 +61,22 @@ model Tenant {
   firewallRules           FirewallRule[]
   userSessions            UserSession[]
   auditLogs               AuditLog[]
+  aiUsages                AiUsage[]
+}
+
+// Per-tenant monthly AI-assist consumption. One row per (tenant, month); the
+// counter enforces the plan's AI allowance and resets naturally each period.
+model AiUsage {
+  id        String   @id @default(uuid())
+  tenantId  String
+  period    String   // calendar month, "YYYY-MM"
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, period])
+  @@index([tenantId])
 }
 
 model User {

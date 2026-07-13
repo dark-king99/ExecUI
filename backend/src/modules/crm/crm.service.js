@@ -1,5 +1,6 @@
 import prisma from "../../config/database.js";
 import { notify } from "../notifications/notifications.service.js";
+import { assistText } from "../../lib/aiAssist.js";
 
 // Bell notification for a task assigned to someone else. Fire-and-forget —
 // a notify failure never blocks the task itself.
@@ -511,9 +512,11 @@ export const getPipelineOwners = async (tenantId) => {
 };
 
 // ── AI ────────────────────────────────────────────────────────────────────────
-// Curated strategy coaching enriched with LIVE pipeline numbers; anything
-// else is delegated to the assistant module (which answers from tenant data
-// and uses the configured AI_BACKEND when an API key is present).
+// Strategy coaching enriched with LIVE pipeline numbers. When a live AI provider
+// is configured (lib/ai.js) and the tenant is within its plan's monthly AI
+// allowance, the answer is model-generated; otherwise it falls back to the
+// deterministic advisory below (free). Data-lookup questions are delegated to
+// the assistant module, which answers from tenant data without spending tokens.
 export const aiChat = async (tenantId, body = {}, userId = null) => {
   const message = body?.message ?? "";
   const msg = message.toLowerCase();
@@ -527,13 +530,25 @@ export const aiChat = async (tenantId, body = {}, userId = null) => {
       prisma.crmOpportunity.aggregate({ where: { tenantId, status: "active" }, _sum: { value: true } }),
     ]);
     const pipelineValue = fmtValue(agg._sum.value ?? 0);
-    if (/risk|churn/.test(msg)) {
-      return { reply: `**Customer & Deal Risk**\n\nYou have **${stalled} of ${open}** open deals untouched for 14+ days — those are your churn candidates. Silent deals close at roughly half the rate.\n\nStart with the stalled ones in the Pipeline view and log a touch on each this week.` };
-    }
-    if (/qualify/.test(msg)) {
-      return { reply: `**Lead Qualification (BANT)**\n\n• **Budget** — can they fund a purchase this quarter?\n• **Authority** — are you talking to the economic buyer?\n• **Need** — a clearly articulated business problem?\n• **Timeline** — urgency to act within 90 days?\n\nYou currently have **${open}** open opportunities worth **${pipelineValue}** to qualify against.` };
-    }
-    return { reply: `**Pipeline Health**\n\nOpen deals: **${open}** · Total value: **${pipelineValue}** · Stalled 14+ days: **${stalled}**.\n\nDeals that sit in Negotiation for more than two weeks close at a much lower rate — clear blockers on the stalled ones first.` };
+    // Deterministic advisory answers double as the fallback when AI is off or
+    // over quota — so this feature always works, at zero cost by default.
+    const fallback = () => {
+      if (/risk|churn/.test(msg)) {
+        return `**Customer & Deal Risk**\n\nYou have **${stalled} of ${open}** open deals untouched for 14+ days — those are your churn candidates. Silent deals close at roughly half the rate.\n\nStart with the stalled ones in the Pipeline view and log a touch on each this week.`;
+      }
+      if (/qualify/.test(msg)) {
+        return `**Lead Qualification (BANT)**\n\n• **Budget** — can they fund a purchase this quarter?\n• **Authority** — are you talking to the economic buyer?\n• **Need** — a clearly articulated business problem?\n• **Timeline** — urgency to act within 90 days?\n\nYou currently have **${open}** open opportunities worth **${pipelineValue}** to qualify against.`;
+      }
+      return `**Pipeline Health**\n\nOpen deals: **${open}** · Total value: **${pipelineValue}** · Stalled 14+ days: **${stalled}**.\n\nDeals that sit in Negotiation for more than two weeks close at a much lower rate — clear blockers on the stalled ones first.`;
+    };
+    // A compact, pre-computed context — never raw rows — keeps input tokens low.
+    const reply = await assistText({
+      tenantId,
+      system: "You are Einstein, a concise CRM sales advisor. Use the metrics provided. Answer in <120 words of markdown. Never invent numbers beyond those given.",
+      user: `Metrics — open deals: ${open}, stalled 14+ days: ${stalled}, open pipeline value: ${pipelineValue}.\n\nRep asked: "${message}"`,
+      fallback,
+    });
+    return { reply };
   }
 
   // Data questions ("how many contacts…", "show my tasks…") → assistant.
