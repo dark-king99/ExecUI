@@ -569,6 +569,9 @@ export default function HomeView() {
                             <Check size={12} className="text-emerald-500" /> Network Operations
                           </li>
                         )}
+                        <li className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+                          <Sparkles size={12} className="text-indigo-500" /> {(p.ai ?? 0).toLocaleString()} AI assists / month
+                        </li>
                       </ul>
                     </div>
                   </motion.button>

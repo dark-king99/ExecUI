@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "crypto";
 import { notify } from "../notifications/notifications.service.js";
+import { assistText } from "../../lib/aiAssist.js";
 
 const prisma = new PrismaClient();
 
@@ -498,28 +499,45 @@ export async function aiInsights(tenantId, { module: mod, context, query }) {
   const margin   = income > 0 ? ((income - expenses) / income * 100).toFixed(1) : 0;
   const atRisk   = goals.filter(g => g.status === "at_risk").map(g => g.title);
 
-  return {
-    insights: [
-      `Net margin is ${margin}% — ${parseFloat(margin) > 25 ? "healthy and above benchmark" : "below the 25% target; review expense categories"}.`,
-      projects.length > 0
-        ? `${projects.length} project${projects.length > 1 ? "s" : ""} in progress — avg completion ${Math.round(projects.reduce((s,p)=>s+p.progress,0)/projects.length)}%.`
-        : "No active projects currently tracked.",
-      atRisk.length > 0
-        ? `${atRisk.length} strategic goal${atRisk.length > 1 ? "s are" : " is"} at risk: ${atRisk.slice(0,2).join(", ")}.`
-        : "All tracked goals are on track.",
-    ],
-    recommendations: [
-      income > expenses
-        ? "Consider reinvesting net profit surplus into highest-ROI growth initiatives."
-        : "Prioritize expense reduction — payroll and operations are typically highest levers.",
-      "Review at-risk strategic goals weekly to identify blockers before they compound.",
-      "Ensure ISO 27001 and EMEA expansion milestones have clear owners and deadlines.",
-    ],
-  };
+  // Deterministic insight lines double as the AI fallback (free when AI is off).
+  const insights = [
+    `Net margin is ${margin}% — ${parseFloat(margin) > 25 ? "healthy and above benchmark" : "below the 25% target; review expense categories"}.`,
+    projects.length > 0
+      ? `${projects.length} project${projects.length > 1 ? "s" : ""} in progress — avg completion ${Math.round(projects.reduce((s,p)=>s+p.progress,0)/projects.length)}%.`
+      : "No active projects currently tracked.",
+    atRisk.length > 0
+      ? `${atRisk.length} strategic goal${atRisk.length > 1 ? "s are" : " is"} at risk: ${atRisk.slice(0,2).join(", ")}.`
+      : "All tracked goals are on track.",
+  ];
+  const recommendations = [
+    income > expenses
+      ? "Consider reinvesting net profit surplus into highest-ROI growth initiatives."
+      : "Prioritize expense reduction — payroll and operations are typically highest levers.",
+    "Review at-risk strategic goals weekly to identify blockers before they compound.",
+    "Ensure compliance and expansion milestones have clear owners and deadlines.",
+  ];
+
+  // When AI is live, turn the compact metrics into a tailored recommendation set.
+  const aiRecs = await assistText({
+    tenantId,
+    system: "You are a business operations analyst. Given the metrics, return 3 short, specific recommendations as plain lines separated by newlines. No numbering, no preamble.",
+    user: `Margin ${margin}%. Income ${income}, expenses ${expenses}. Active projects: ${projects.length}. At-risk goals: ${atRisk.length ? atRisk.slice(0,3).join(", ") : "none"}.${query ? ` Focus: ${String(query).slice(0,120)}` : ""}`,
+    maxTokens: 200,
+    fallback: () => recommendations.join("\n"),
+  });
+  const parsed = aiRecs.split("\n").map(s => s.replace(/^[-•\d.\s]+/, "").trim()).filter(Boolean);
+
+  return { insights, recommendations: parsed.length ? parsed.slice(0, 4) : recommendations };
 }
 
-export function generateSOP({ title, department }) {
-  return {
-    content: `# Standard Operating Procedure: ${title || "New SOP"}\n\n**Department:** ${department || "General"}\n**Version:** 1.0\n**Status:** Draft\n\n## Purpose\nThis SOP defines the repeatable, auditable steps to complete the **${title || "process"}** efficiently and in compliance with company standards.\n\n## Scope\nApplicable to all ${department || "relevant"} team members involved in this process.\n\n## Procedure\n\n1. **Preparation** — Gather required inputs, tools and approvals before starting.\n2. **Execution** — Follow each step sequentially; do not skip steps without documented justification.\n3. **Validation** — Verify outputs meet acceptance criteria defined in this SOP.\n4. **Documentation** — Record completion, exceptions and outcomes in the designated system.\n5. **Escalation** — For any deviation, notify the department lead within 2 business hours.\n\n## Metrics\n- Target completion time: TBD\n- Error rate threshold: < 2%\n- Review frequency: Quarterly\n\n## Review & Approval\nThis SOP should be reviewed every 90 days and updated to reflect process changes.`,
-  };
+export async function generateSOP(tenantId, { title, department }) {
+  const fallback = () => `# Standard Operating Procedure: ${title || "New SOP"}\n\n**Department:** ${department || "General"}\n**Version:** 1.0\n**Status:** Draft\n\n## Purpose\nThis SOP defines the repeatable, auditable steps to complete the **${title || "process"}** efficiently and in compliance with company standards.\n\n## Scope\nApplicable to all ${department || "relevant"} team members involved in this process.\n\n## Procedure\n\n1. **Preparation** — Gather required inputs, tools and approvals before starting.\n2. **Execution** — Follow each step sequentially; do not skip steps without documented justification.\n3. **Validation** — Verify outputs meet acceptance criteria defined in this SOP.\n4. **Documentation** — Record completion, exceptions and outcomes in the designated system.\n5. **Escalation** — For any deviation, notify the department lead within 2 business hours.\n\n## Metrics\n- Target completion time: TBD\n- Error rate threshold: < 2%\n- Review frequency: Quarterly\n\n## Review & Approval\nThis SOP should be reviewed every 90 days and updated to reflect process changes.`;
+  const content = await assistText({
+    tenantId,
+    system: "You write clear, professional Standard Operating Procedures in markdown, with Purpose, Scope, Procedure (numbered), Metrics, and Review sections. Output the SOP only.",
+    user: `SOP title: "${title || "New SOP"}". Department: "${department || "General"}".`,
+    maxTokens: 320,
+    fallback,
+  });
+  return { content };
 }
