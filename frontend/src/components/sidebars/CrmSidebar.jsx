@@ -127,7 +127,7 @@ export default function CrmSidebar() {
       {/* Back to main */}
       <div className="px-2 pt-2">
         <button
-          onClick={() => navigate("/home")}
+          onClick={() => navigate("/overview")}
           className={`flex items-center ${collapsed ? "justify-center" : "gap-2"} w-full px-2.5 py-2 rounded-lg text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/70 transition`}
         >
           <ArrowLeft size={13} />
