@@ -29,7 +29,10 @@ import { NETWORK_ROUTES } from "../apps/network/solutions.config";
 
 // CRM — solution-based architecture (Salesforce Sales Cloud model)
 const CrmSolutions        = lazy(() => import("../apps/crm/CrmSolutions"));
+const IndustryObjectPage  = lazy(() => import("../apps/crm/IndustryObjectPage"));
+const IndustrySetup       = lazy(() => import("../apps/crm/IndustrySetup"));
 import { CRM_ROUTES } from "../apps/crm/solutions.config";
+import { IndustryProvider } from "../context/IndustryContext";
 
 // Marketing — solution-based architecture (Salesforce Marketing Cloud model)
 const MarketingSolutions  = lazy(() => import("../apps/marketing/MarketingSolutions"));
@@ -171,6 +174,9 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 {CRM_ROUTES.map(({ path, Component }) => (
                   <Route key={path} path={path} element={guard("crm", <Component />)} />
                 ))}
+                {/* Industry modules — additive layer (core CRM routes above unchanged) */}
+                <Route path="/crm/industry-setup" element={guard("crm", <IndustrySetup />)} />
+                <Route path="/crm/i/:industryId/:objectType" element={guard("crm", <IndustryObjectPage />)} />
 
                 {/* Marketing — solution launcher + config-driven solution pages */}
                 <Route path="/marketing" element={guard("marketing", <MarketingSolutions />)} />
@@ -257,15 +263,17 @@ export default function App() {
   return (
     <UserProvider user={user} setUser={setUser}>
       <ToastProvider>
-        <SidebarProvider>
-          <AppLayout
-            user={user}
-            setUser={setUser}
-            roleToUse={roleToUse}
-            effectiveRole={effectiveRole}
-            setEffectiveRole={setEffectiveRole}
-          />
-        </SidebarProvider>
+        <IndustryProvider>
+          <SidebarProvider>
+            <AppLayout
+              user={user}
+              setUser={setUser}
+              roleToUse={roleToUse}
+              effectiveRole={effectiveRole}
+              setEffectiveRole={setEffectiveRole}
+            />
+          </SidebarProvider>
+        </IndustryProvider>
         <Toaster />
       </ToastProvider>
     </UserProvider>

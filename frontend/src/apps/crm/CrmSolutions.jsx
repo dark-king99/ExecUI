@@ -1,12 +1,13 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Briefcase, DollarSign, Target, TrendingUp } from "lucide-react";
+import { ArrowRight, Briefcase, DollarSign, Target, TrendingUp, Building, Settings2 } from "lucide-react";
 import Greeting from "../../components/Greeting";
 import { useApi } from "../../hooks/useApi";
 import { crm } from "../../services/api";
-import { SOLUTIONS, colorOf } from "./solutions.config";
+import { colorOf } from "./solutions.config";
 import { MetricGrid, fmtNum } from "./components/crm-ui";
 import { canAccessSolution } from "../../lib/access";
 import { useUser } from "../../context/UserContext";
+import { useCrmSolutions, useIndustry } from "../../context/IndustryContext";
 
 function SolutionCard({ solution }) {
   const navigate = useNavigate();
@@ -39,6 +40,9 @@ function SolutionCard({ solution }) {
 
 export default function CrmSolutions() {
   const { user } = useUser();
+  const navigate = useNavigate();
+  const solutions = useCrmSolutions();
+  const { industryId } = useIndustry();
   const { data: pipeline, loading: l1 } = useApi(() => crm.pipeline.summary(), [], { pollingInterval: 120000 });
   const { data: opps, loading: l2 } = useApi(() => crm.opportunities.summary(), [], { pollingInterval: 120000 });
   const { data: analytics } = useApi(() => crm.analytics.summary(), [], { pollingInterval: 120000 });
@@ -65,8 +69,29 @@ export default function CrmSolutions() {
           Solutions
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {SOLUTIONS.filter((s) => canAccessSolution(user, "crm", s.id))
+          {solutions
+            .filter((s) => s.isIndustry || canAccessSolution(user, "crm", s.id))
             .map((s) => <SolutionCard key={s.id} solution={s} />)}
+
+          {/* Industry setup entry */}
+          <button
+            onClick={() => navigate("/crm/industry-setup")}
+            className="group text-left bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-5 hover:border-orange-400 hover:shadow-md hover:-translate-y-0.5 transition-all"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <Building size={20} className="text-slate-500 dark:text-slate-400" />
+              </div>
+              <Settings2 size={16} className="text-slate-300 dark:text-slate-600 group-hover:text-slate-400 transition" />
+            </div>
+            <h3 className="font-semibold text-slate-900 dark:text-white">Industry</h3>
+            <p className="text-xs font-medium mt-0.5 text-slate-500 dark:text-slate-400">
+              {industryId && industryId !== "general" ? "Change your sector module" : "Add a sector module"}
+            </p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+              Unlock telecom, banking, FMCG, hotel and more — layered on top of your core CRM.
+            </p>
+          </button>
         </div>
       </div>
     </div>
