@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   ArrowRight, ArrowUpRight, Mail, Play, Sparkles, ChevronDown,
   MessageSquare, Table2, Send, Users, Megaphone, Network, BarChart3,
@@ -8,10 +8,88 @@ import {
   Check, Zap, Crown, Bell,
 } from "lucide-react";
 import { MeshGradient, FadeUp, Stagger, Item, AnimatedNumber, TiltCard, Marquee } from "../components/motionfx";
+import ExecUIBackground from "../components/ExecUIBackground";
 import Footer from "../components/Footer";
 import { PLANS, CUSTOM, CRM_SOLUTIONS, MKT_SOLUTIONS, SERVICES_SOLUTIONS } from "../lib/plans";
 import { SOLUTIONS as NET_SOLUTIONS } from "./network/solutions.config";
 import { SOLUTIONS as ANA_SOLUTIONS } from "./analytics/solutions.config";
+
+// ── Animated hero title ───────────────────────────────────────────────────────
+// Each letter drops in from above, one at a time; after a 10s hold the two
+// halves of each line fly off to opposite sides of the screen and fade. Loops.
+const TITLE_LINES = [
+  { text: "One Platform to Operate", className: "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-500 bg-clip-text text-transparent dark:from-white dark:via-white dark:to-slate-400" },
+  { text: "Your Entire Enterprise", className: "text-sheen bg-gradient-to-r from-cyan-500 via-fuchsia-500 to-blue-500 bg-clip-text text-transparent" },
+];
+
+function HeroTitle() {
+  const reduce = useReducedMotion();
+  const h1Class = "text-4xl font-bold leading-[1.04] tracking-tight sm:text-5xl lg:text-[4.25rem]";
+
+  // Respect reduced-motion: render the title statically.
+  if (reduce) {
+    return (
+      <h1 className={h1Class}>
+        {TITLE_LINES.map((l) => (
+          <span key={l.text} className="block pb-1"><span className={l.className}>{l.text}</span></span>
+        ))}
+      </h1>
+    );
+  }
+
+  // Timeline (seconds) — a single looped keyframe per letter keeps every letter
+  // in sync. Stagger is baked into each letter's keyframe `times`, so the drop-in
+  // and fly-out both cascade one letter at a time.
+  const stagger = 0.08, dropDur = 0.55, hold = 10, exitStagger = 0.05, exitDur = 0.8, endPad = 0.6;
+  const totalLetters = TITLE_LINES.reduce((n, l) => n + l.text.replace(/ /g, "").length, 0);
+  const dropInTotal = (totalLetters - 1) * stagger + dropDur;
+  const holdEnd = dropInTotal + hold;                                   // letters sit until here
+  const T = holdEnd + (totalLetters - 1) * exitStagger + exitDur + endPad;
+
+  let gi = -1; // global letter index (drop-in order, across both lines)
+  return (
+    <h1 className={h1Class} aria-label={TITLE_LINES.map((l) => l.text).join(" ")}>
+      {TITLE_LINES.map((line) => {
+        const chars = [...line.text];
+        const letterCount = line.text.replace(/ /g, "").length;
+        let local = -1; // per-line letter index (drives the left/right split)
+        return (
+          <span key={line.text} className="block pb-1" aria-hidden="true">
+            {chars.map((ch, ci) => {
+              if (ch === " ") return <span key={ci} className="inline-block">{" "}</span>;
+              gi += 1; local += 1;
+              const ds = gi * stagger;                    // this letter's drop start
+              const es = holdEnd + gi * exitStagger;      // this letter's exit start
+              const dir = local < letterCount / 2 ? -1 : 1; // left half → left, right half → right
+              const times = [0, ds / T, (ds + dropDur) / T, holdEnd / T, es / T, (es + exitDur) / T, 1];
+              return (
+                <motion.span
+                  key={ci}
+                  className={`inline-block will-change-transform ${line.className}`}
+                  animate={{
+                    y: ["-240%", "-240%", "0%", "0%", "0%", "0%", "0%"],
+                    x: ["0vw", "0vw", "0vw", "0vw", "0vw", `${dir * 75}vw`, `${dir * 75}vw`],
+                    opacity: [0, 0, 1, 1, 1, 0, 0],
+                  }}
+                  transition={{
+                    duration: T,
+                    times,
+                    // hold-above · drop (soft overshoot) · sit · sit · fly-out (accelerate) · off
+                    ease: ["linear", [0.34, 1.15, 0.5, 1], "linear", "linear", [0.5, 0, 0.75, 0], "linear"],
+                    repeat: Infinity,
+                    repeatType: "loop",
+                  }}
+                >
+                  {ch}
+                </motion.span>
+              );
+            })}
+          </span>
+        );
+      })}
+    </h1>
+  );
+}
 
 // ── Feature list (bento middle column) ────────────────────────────────────────
 const FEATURES = [
@@ -252,11 +330,13 @@ export default function HomeView() {
     <div className="relative min-h-screen w-full overflow-x-hidden bg-white text-slate-900 dark:bg-[#0a0a0c] dark:text-slate-100">
       <CursorGlow />
 
-      {/* Background: animated color wash + spotlight beam + faint grid */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[760px]">
-        <MeshGradient intensity={0.55} className="mask-[radial-gradient(ellipse_at_top,black,transparent_78%)]" />
-        <div className="absolute left-1/2 top-0 h-[460px] w-[900px] -translate-x-1/2 bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.16),transparent_62%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.10),transparent_60%)]" />
-        <div className="absolute inset-0 opacity-[0.5] bg-[linear-gradient(to_right,rgb(99_102_241/0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgb(99_102_241/0.06)_1px,transparent_1px)] bg-size-[48px_48px] mask-[radial-gradient(ellipse_at_top,black,transparent_70%)] dark:opacity-100 dark:[background-image:linear-gradient(to_right,rgb(255_255_255_/_0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgb(255_255_255_/_0.04)_1px,transparent_1px)]" />
+      {/* Background: ExecUI ambient animation (Flow · Orbit · Signal · Rise),
+          imported from the Claude Design project. Masked so it fades into the
+          page background below the hero. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[820px] mask-[radial-gradient(ellipse_at_top,black_35%,transparent_80%)]">
+        {/* Module-label chips are disabled here so they don't collide with the
+            hero copy; the ambient motion (blobs, streams, orbits, arc) carries it. */}
+        <ExecUIBackground showModules={false} />
       </div>
 
       {/* ── Sticky header ─────────────────────────────────────────────────── */}
@@ -295,30 +375,7 @@ export default function HomeView() {
       <div className="relative z-10 mx-auto max-w-7xl px-6 pb-24">
         {/* ── Hero ──────────────────────────────────────────────────────── */}
         <section className="mx-auto flex min-h-[82vh] max-w-4xl flex-col items-center justify-center text-center">
-          
-          <h1 className="text-4xl font-bold leading-[1.04] tracking-tight sm:text-5xl lg:text-[4.25rem]">
-            {["One Platform to Operate", "Your Entire Enterprise"].map((line, li) => (
-              <span key={line} className="block overflow-hidden pb-1">
-                <motion.span
-                  className="inline-block"
-                  initial={{ y: "110%" }}
-                  animate={{ y: 0 }}
-                  transition={{ duration: 0.9, delay: 0.15 + li * 0.12, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  {li === 1 ? (
-                    <span className="text-sheen bg-gradient-to-r from-cyan-500 via-fuchsia-500 to-blue-500 bg-clip-text text-transparent">
-                      {line}
-                    </span>
-                  ) : (
-                    <span className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-500 bg-clip-text text-transparent dark:from-white dark:via-white dark:to-slate-400">
-                      {line}
-                    </span>
-                  )}
-                </motion.span>
-                
-              </span>
-            ))}
-          </h1>
+          <HeroTitle />
 
           <motion.p
             initial={{ opacity: 0, y: 16 }}
