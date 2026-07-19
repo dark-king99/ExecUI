@@ -3,10 +3,11 @@ import { ArrowRight, Megaphone, DollarSign, Users, TrendingUp } from "lucide-rea
 import Greeting from "../../components/Greeting";
 import { useApi } from "../../hooks/useApi";
 import { marketing } from "../../services/api";
-import { SOLUTIONS, colorOf } from "./solutions.config";
+import { colorOf } from "./solutions.config";
 import { MetricGrid, fmtMoney, fmtNum } from "./components/mkt-ui";
 import { canAccessSolution } from "../../lib/access";
 import { useUser } from "../../context/UserContext";
+import { useMarketingSolutions } from "../../context/IndustryContext";
 
 function SolutionCard({ solution }) {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ function SolutionCard({ solution }) {
 
 export default function MarketingSolutions() {
   const { user } = useUser();
+  const solutions = useMarketingSolutions();
   const { data: campaignSummary, loading: l1 } = useApi(() => marketing.campaigns.summary(), [], { pollingInterval: 120000 });
   const { data: analytics, loading: l2 } = useApi(() => marketing.analytics.summary(), [], { pollingInterval: 120000 });
 
@@ -62,7 +64,7 @@ export default function MarketingSolutions() {
           Solutions
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {SOLUTIONS.filter((s) => canAccessSolution(user, "marketing", s.id))
+          {solutions.filter((s) => s.isIndustry || canAccessSolution(user, "marketing", s.id))
             .map((s) => <SolutionCard key={s.id} solution={s} />)}
         </div>
       </div>

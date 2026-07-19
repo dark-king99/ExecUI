@@ -7,7 +7,7 @@
  */
 import prisma from "../../../config/database.js";
 import { ValidationError, NotFoundError } from "../../../lib/errors.js";
-import { INDUSTRIES, GENERAL, isValidIndustry, objectMeta, objectTypesFor } from "./registry.js";
+import { INDUSTRIES, GENERAL, isValidIndustry, objectMeta, objectTypesFor, industryObjects } from "./registry.js";
 
 const shape = (r) => ({
   id: r.id,
@@ -45,12 +45,12 @@ export async function currentIndustryId(tenantId) {
   return tenant?.industry || GENERAL;
 }
 
-/** The full catalog (all industries + their object types) for the UI. */
+/** The full catalog (all industries + their object types, surface-tagged). */
 export function catalog() {
   return Object.entries(INDUSTRIES).map(([id, def]) => ({
     id,
     name: def.name,
-    objects: Object.values(def.objects),
+    objects: industryObjects(id),
   }));
 }
 

@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { Image as ImageIcon, Video, FileText, Plus, Trash2, FolderOpen, CheckCircle2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Image as ImageIcon, Video, FileText, Plus, Trash2, FolderOpen, CheckCircle2, Share2 } from "lucide-react";
 import StatusBadge from "../../../../components/ui/StatusBadge";
 import { useToast } from "../../../../components/ui/Toast";
 import { useApi, useMutation } from "../../../../hooks/useApi";
@@ -10,6 +11,7 @@ const TYPE_ICON = { image: ImageIcon, video: Video, document: FileText };
 const TYPE_COLOR = { image: "violet", video: "sky", document: "amber" };
 
 export default function ContentBuilder() {
+  const navigate = useNavigate();
   const toast = useToast();
   const [filter, setFilter] = useState("all");
   const [showModal, setShowModal] = useState(false);
@@ -68,7 +70,10 @@ export default function ContentBuilder() {
                   <div className={`h-10 w-10 rounded-lg flex items-center justify-center bg-slate-100 dark:bg-slate-800`}>
                     <Icon size={18} className="text-slate-500 dark:text-slate-400" />
                   </div>
-                  <button onClick={() => remove(a.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition"><Trash2 size={15} /></button>
+                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition">
+                    <button onClick={() => navigate("/marketing/social", { state: { content: a.name, mediaUrl: a.url, source: "engagement" } })} title="Send to Social" className="text-slate-300 hover:text-sky-500"><Share2 size={15} /></button>
+                    <button onClick={() => remove(a.id)} title="Delete" className="text-slate-300 hover:text-red-500"><Trash2 size={15} /></button>
+                  </div>
                 </div>
                 <h3 className="text-sm font-medium text-slate-900 dark:text-white leading-snug">{a.name}</h3>
                 <div className="flex items-center gap-2 mt-3">

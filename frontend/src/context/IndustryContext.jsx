@@ -7,7 +7,8 @@
  */
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { crm } from "../services/api";
-import { SOLUTIONS } from "../apps/crm/solutions.config";
+import { SOLUTIONS as CRM_SOLUTIONS } from "../apps/crm/solutions.config";
+import { SOLUTIONS as MKT_SOLUTIONS } from "../apps/marketing/solutions.config";
 import { industrySolutionFor } from "../apps/crm/industries.config";
 
 const IndustryContext = createContext(null);
@@ -42,12 +43,12 @@ export function IndustryProvider({ children }) {
 
   const value = useMemo(() => {
     const entry = catalog.find((c) => c.id === industryId) || null;
-    const industrySolution = industrySolutionFor(industryId, entry);
     return {
       industryId,
       catalog,
       currentEntry: entry,
-      industrySolution,
+      crmIndustrySolution: industrySolutionFor(industryId, entry, "crm"),
+      marketingIndustrySolution: industrySolutionFor(industryId, entry, "marketing"),
       loading,
       setIndustry,
       refresh: load,
@@ -59,16 +60,26 @@ export function IndustryProvider({ children }) {
 
 export function useIndustry() {
   return useContext(IndustryContext) ?? {
-    industryId: "general", catalog: [], currentEntry: null, industrySolution: null,
+    industryId: "general", catalog: [], currentEntry: null,
+    crmIndustrySolution: null, marketingIndustrySolution: null,
     loading: false, setIndustry: async () => {}, refresh: async () => {},
   };
 }
 
-/** Core CRM solutions + the tenant's industry solution (if any). */
+/** Core CRM solutions + the tenant's CRM industry solution (if any). */
 export function useCrmSolutions() {
-  const { industrySolution } = useIndustry();
+  const { crmIndustrySolution } = useIndustry();
   return useMemo(
-    () => (industrySolution ? [...SOLUTIONS, industrySolution] : SOLUTIONS),
-    [industrySolution]
+    () => (crmIndustrySolution ? [...CRM_SOLUTIONS, crmIndustrySolution] : CRM_SOLUTIONS),
+    [crmIndustrySolution]
+  );
+}
+
+/** Core Marketing solutions + the tenant's marketing industry solution (if any). */
+export function useMarketingSolutions() {
+  const { marketingIndustrySolution } = useIndustry();
+  return useMemo(
+    () => (marketingIndustrySolution ? [...MKT_SOLUTIONS, marketingIndustrySolution] : MKT_SOLUTIONS),
+    [marketingIndustrySolution]
   );
 }
