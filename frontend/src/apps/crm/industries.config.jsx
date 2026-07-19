@@ -5,6 +5,7 @@ import {
   ShieldAlert, Coins, Store, CalendarCheck, PartyPopper, MessageSquareWarning,
   Star, FileSignature, CalendarClock, FileText, ShoppingCart, MapPin, Tag,
   ClipboardList, BookOpen, Receipt, Users, FolderKanban, Package, Stamp,
+  Megaphone, Target, Gift, Bell,
 } from "lucide-react";
 
 /**
@@ -49,6 +50,13 @@ export const OBJECT_ICONS = {
   policyholder: Users, policy: FileText, quote: FileText,
   work_order: Factory, supplier: Truck, product: Package, maintenance: Wrench,
   constituent: Users, citizen_request: FileText, permit: Stamp, project: FolderKanban,
+  // marketing-surface objects
+  promo_campaign: Megaphone, subscriber_segment: Users, product_offer: Tag, cross_sell: Target,
+  trade_promo: Megaphone, retail_activation: Store, package_campaign: Gift, seasonal_offer: Tag,
+  listing_campaign: Megaphone, open_house: Home, health_campaign: Megaphone,
+  enrollment_campaign: Megaphone, open_day: CalendarCheck, fundraiser: Gift, awareness_campaign: Bell,
+  product_campaign: Megaphone, renewal_drive: Target, distributor_promo: Megaphone,
+  public_notice: Bell, awareness_drive: Megaphone,
 };
 
 // ── Field schemas (columns + form fields) ────────────────────────────────────
@@ -170,18 +178,20 @@ export const iconForObject = (objectType) => OBJECT_ICONS[objectType] ?? FileTex
 
 /**
  * Build a core-SOLUTIONS-shaped entry for the tenant's industry, from the
- * backend catalog entry ({ id, name, objects }). Consumed by the sidebar,
- * launcher and router.
+ * backend catalog entry ({ id, name, objects }), for a given surface
+ * ("crm" | "marketing"). Consumed by the sidebar, launcher and router.
  */
-export function industrySolutionFor(industryId, catalogEntry) {
-  const objects = catalogEntry?.objects ?? [];
+export function industrySolutionFor(industryId, catalogEntry, surface = "crm") {
+  const objects = (catalogEntry?.objects ?? []).filter((o) => (o.surface || "crm") === surface);
   if (!industryId || industryId === "general" || !objects.length) return null;
   const ui = INDUSTRY_UI[industryId] ?? { icon: FileText, color: "sky", tagline: "Industry module", description: "" };
+  const marketing = surface === "marketing";
   return {
-    id: `industry-${industryId}`,
+    id: `industry-${surface}-${industryId}`,
     industryId,
-    name: catalogEntry?.name || industryId,
-    tagline: ui.tagline,
+    surface,
+    name: marketing ? `${catalogEntry?.name || industryId} Marketing` : catalogEntry?.name || industryId,
+    tagline: marketing ? "Industry marketing modules" : ui.tagline,
     description: ui.description,
     icon: ui.icon,
     color: ui.color,
@@ -190,7 +200,7 @@ export function industrySolutionFor(industryId, catalogEntry) {
       id: o.id,
       label: o.name,
       icon: iconForObject(o.id),
-      path: `/crm/i/${industryId}/${o.id}`,
+      path: `/${surface}/i/${industryId}/${o.id}`,
       objectType: o.id,
       kind: o.kind,
       stages: o.stages ?? null,

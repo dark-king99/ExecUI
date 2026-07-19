@@ -319,6 +319,19 @@ export const crm = {
 
 // ── Marketing ─────────────────────────────────────────────────────────────
 export const marketing = {
+  social: {
+    platforms: ()               => get('/marketing/social/platforms'),
+    accounts:  ()               => get('/marketing/social/accounts'),
+    connect:   (data)           => post('/marketing/social/accounts', data),
+    disconnect:(id)             => del(`/marketing/social/accounts/${id}`),
+    posts:     (params)         => get('/marketing/social/posts', params),
+    createPost:(data)           => post('/marketing/social/posts', data),
+    updatePost:(id, data)       => patch(`/marketing/social/posts/${id}`, data),
+    deletePost:(id)             => del(`/marketing/social/posts/${id}`),
+    publish:   (id)             => post(`/marketing/social/posts/${id}/publish`),
+    improve:   (data)           => post('/marketing/social/improve', data),
+    analytics: ()               => get('/marketing/social/analytics'),
+  },
   campaigns: {
     list:    (params) => get('/marketing/campaigns', params),
     get:     (id)     => get(`/marketing/campaigns/${id}`),

@@ -131,6 +131,22 @@ export const SOLUTIONS = [
       { id: "audiences", label: "Audiences",  icon: Crosshair,       path: "/marketing/commerce/audiences", component: lazy(() => import("./solutions/commerce/Audiences")) },
     ],
   },
+  {
+    id: "social",
+    name: "Social",
+    short: "Social",
+    tagline: "Publish, schedule & grow social",
+    description:
+      "Push Einstein- and Content-Builder-generated content to Facebook, Instagram, WhatsApp, X, LinkedIn and more — schedule, publish, and grow engagement and following from one hub.",
+    icon: Share2,
+    color: "sky",
+    pages: [
+      { id: "composer",  label: "Composer",  icon: Sparkles,      path: "/marketing/social",           component: lazy(() => import("./solutions/social/Composer")) },
+      { id: "calendar",  label: "Calendar",  icon: CalendarClock, path: "/marketing/social/calendar",  component: lazy(() => import("./solutions/social/Calendar")) },
+      { id: "accounts",  label: "Accounts",  icon: Share2,        path: "/marketing/social/accounts",  component: lazy(() => import("./solutions/social/Accounts")) },
+      { id: "analytics", label: "Analytics", icon: BarChart3,     path: "/marketing/social/analytics", component: lazy(() => import("./solutions/social/Analytics")) },
+    ],
+  },
 ];
 
 /** Flat route table consumed by the router. */
