@@ -86,7 +86,6 @@ export default function AccountSidebar() {
             <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{fullName}</div>
             <div className="text-xs text-slate-400 truncate">{user.email}</div>
             <div className="flex items-center gap-3 mt-2 text-[11px]">
-              {user.employeeId && <span className="inline-flex items-center gap-1 text-slate-500"><IdCard size={11} />{user.employeeId}</span>}
               {user.enterprise && <span className="inline-flex items-center gap-1 text-slate-500 truncate"><Building2 size={11} />{user.enterprise}</span>}
             </div>
           </div>

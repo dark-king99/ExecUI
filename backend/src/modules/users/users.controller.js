@@ -1,6 +1,7 @@
 import { ValidationError, NotFoundError, ConflictError } from "../../lib/errors.js";
 import prisma from "../../config/database.js";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { sendEmail } from "../../lib/email.js";
 
 const handle = (fn) => async (req, res) => {
@@ -61,17 +62,26 @@ export const listRoles = handle(async (req) => {
 });
 
 // ── Invite / create user ──────────────────────────────────────────────────────
-// Next sequential employee ID code for a tenant (EMP-0001, EMP-0002, …)
+// Employee IDs are opaque 7-character codes (lowercase letters + digits) that
+// double as a login credential, so they're random rather than sequential and
+// are never displayed in the app outside the one-time issuance moment.
+const EMP_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
+export const EMP_ID_RE = /^[a-z0-9]{7}$/;
+
+function randomEmployeeId() {
+  let id = "";
+  for (let i = 0; i < 7; i++) id += EMP_ALPHABET[crypto.randomInt(EMP_ALPHABET.length)];
+  return id;
+}
+
+// A random, unused 7-char employee ID for a tenant.
 async function nextEmployeeId(tenantId) {
-  const users = await prisma.user.findMany({
-    where: { tenantId, employeeId: { startsWith: "EMP-" } },
-    select: { employeeId: true },
-  });
-  const max = users.reduce((m, u) => {
-    const n = parseInt((u.employeeId ?? "").replace("EMP-", ""), 10);
-    return Number.isNaN(n) ? m : Math.max(m, n);
-  }, 0);
-  return `EMP-${String(max + 1).padStart(4, "0")}`;
+  for (let i = 0; i < 25; i++) {
+    const id = randomEmployeeId();
+    const taken = await prisma.user.findFirst({ where: { tenantId, employeeId: id }, select: { id: true } });
+    if (!taken) return id;
+  }
+  return randomEmployeeId(); // 36^7 space — collisions here are effectively impossible
 }
 
 // ── Provision an employee ─────────────────────────────────────────────────────
@@ -99,8 +109,13 @@ export const inviteUser = handle(async (req) => {
   }
   if (!resolvedRoleId) throw new Error("No valid role found for this tenant");
 
-  // Employee ID code — admin-issued, unique within the enterprise. Auto-assign if omitted.
-  const employeeId = (rawEmployeeId && String(rawEmployeeId).trim()) || (await nextEmployeeId(tid(req)));
+  // Employee ID code — admin-issued, unique within the enterprise. Auto-assign if
+  // omitted; a supplied one must be exactly 7 letters/digits.
+  const provided = rawEmployeeId && String(rawEmployeeId).trim().toLowerCase();
+  if (provided && !EMP_ID_RE.test(provided)) {
+    throw new ValidationError("Employee ID must be 7 characters (letters and numbers).");
+  }
+  const employeeId = provided || (await nextEmployeeId(tid(req)));
   const dupe = await prisma.user.findFirst({ where: { tenantId: tid(req), employeeId } });
   if (dupe) throw new ConflictError(`Employee ID "${employeeId}" is already in use.`);
 

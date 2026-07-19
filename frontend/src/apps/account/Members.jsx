@@ -50,7 +50,7 @@ function AddMemberModal({ roles, onClose, onCreated }) {
             </div>
             <div><label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Work email *</label><input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="name@company.com" className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Employee ID</label><input value={form.employeeId} onChange={(e) => set("employeeId", e.target.value)} placeholder="Auto (EMP-0002)" className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+              <div><label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Employee ID</label><input value={form.employeeId} onChange={(e) => set("employeeId", e.target.value)} placeholder="Auto-generated" className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
               <div><label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Role</label>
                 <select value={form.role} onChange={(e) => set("role", e.target.value)} className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                   {(roles ?? [{ name: "employee" }]).map((r) => <option key={r.id ?? r.name} value={r.name}>{r.name.replace("_", " ")}</option>)}
@@ -78,7 +78,7 @@ export default function Members() {
   const { mutate: remove } = useMutation((id) => enterprise.users.delete(id), { onSuccess: () => { toast({ message: "Member removed", type: "success" }); refetch(); }, onError: (e) => toast({ message: e?.message ?? "Failed", type: "error" }) });
 
   const all = members ?? [];
-  const filtered = useMemo(() => all.filter((u) => !search || u.fullName?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()) || u.employeeId?.toLowerCase?.().includes(search.toLowerCase())), [all, search]);
+  const filtered = useMemo(() => all.filter((u) => !search || u.fullName?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())), [all, search]);
 
   const memberStatus = (u) => {
     if (u.status === "invited") return { label: "Invited", variant: "warning" };
@@ -117,14 +117,14 @@ export default function Members() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800">
-                  {["Employee", "Employee ID", "Role", "Status", "Actions"].map((h) => (
+                  {["Employee", "Role", "Status", "Actions"].map((h) => (
                     <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={5} className="py-10 text-center text-sm text-slate-500">No members found.</td></tr>
+                  <tr><td colSpan={4} className="py-10 text-center text-sm text-slate-500">No members found.</td></tr>
                 ) : filtered.map((u) => {
                   const st = memberStatus(u);
                   return (
@@ -133,7 +133,6 @@ export default function Members() {
                         <div className="font-medium text-slate-900 dark:text-white">{u.fullName}</div>
                         <div className="text-xs text-slate-400">{u.email}</div>
                       </td>
-                      <td className="px-5 py-3"><span className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-600 dark:text-slate-300"><IdCard size={13} className="text-slate-400" />{u.employeeId ?? "—"}</span></td>
                       <td className="px-5 py-3 capitalize text-slate-600 dark:text-slate-300">{u.role?.name?.replace("_", " ") ?? "—"}</td>
                       <td className="px-5 py-3"><StatusBadge label={st.label} variant={st.variant} dot /></td>
                       <td className="px-5 py-3">

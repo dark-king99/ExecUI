@@ -358,7 +358,7 @@ export default function Login({ onLogin }) {
                   <InputField label="Work email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={handleKeyDown} placeholder="name@company.com" autoComplete="email" />
 
                   {(mode === "signin" || mode === "employee") && (
-                    <InputField label="Employee ID" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} onKeyDown={handleKeyDown} placeholder="EMP-0001"
+                    <InputField label="Employee ID" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} onKeyDown={handleKeyDown} placeholder="Your Employee ID"
                       hint={mode === "employee" ? "The ID your admin assigned you." : undefined} />
                   )}
 
