@@ -3,6 +3,7 @@ import {
   Map, MapPinned, Boxes, Server, Bell, AlertTriangle,
   Activity, Users, Network, Radar, Gauge, HeartPulse, TrendingUp,
   GitBranch, Bot, Settings, ShieldAlert, ShieldCheck, Lock, Library,
+  Wifi, Router, Globe,
 } from "lucide-react";
 
 /**
@@ -13,7 +14,20 @@ import {
  * launcher, and the per-solution tab chrome. The first page of each solution is
  * its root path.
  */
+// A page/solution with no `profile` shows in both modes. `profile: "datacenter"`
+// hides it in the small-office view; `profile: "office"` shows it only there.
 export const SOLUTIONS = [
+  {
+    id: "connectivity",
+    name: "Connectivity",
+    tagline: "Internet, ISP links & data usage",
+    description: "Monitor every internet/WAN link — bandwidth, status and monthly data usage — the backbone of an office network with no servers.",
+    icon: Wifi,
+    color: "sky",
+    pages: [
+      { id: "internet", label: "Internet Links", icon: Globe,  path: "/network/connectivity",        component: lazy(() => import("./solutions/connectivity/Internet")) },
+    ],
+  },
   {
     id: "map",
     name: "Network Map",
@@ -35,7 +49,7 @@ export const SOLUTIONS = [
     color: "sky",
     pages: [
       { id: "devices", label: "Devices", icon: Boxes,  path: "/network/inventory",         component: lazy(() => import("./solutions/inventory/Devices")) },
-      { id: "servers", label: "Servers", icon: Server, path: "/network/inventory/servers", component: lazy(() => import("./solutions/inventory/Servers")) },
+      { id: "servers", label: "Servers", icon: Server, path: "/network/inventory/servers", component: lazy(() => import("./solutions/inventory/Servers")), profile: "datacenter" },
     ],
   },
   {
@@ -73,8 +87,8 @@ export const SOLUTIONS = [
     color: "emerald",
     pages: [
       { id: "monitor",  label: "Monitor",        icon: Gauge,     path: "/network/performance",          component: lazy(() => import("./solutions/performance/Monitor")) },
-      { id: "health",   label: "Service Health", icon: HeartPulse, path: "/network/performance/health",  component: lazy(() => import("./solutions/performance/ServiceHealth")) },
-      { id: "capacity", label: "Capacity",       icon: TrendingUp, path: "/network/performance/capacity", component: lazy(() => import("./solutions/performance/Capacity")) },
+      { id: "health",   label: "Service Health", icon: HeartPulse, path: "/network/performance/health",  component: lazy(() => import("./solutions/performance/ServiceHealth")), profile: "datacenter" },
+      { id: "capacity", label: "Capacity",       icon: TrendingUp, path: "/network/performance/capacity", component: lazy(() => import("./solutions/performance/Capacity")), profile: "datacenter" },
     ],
   },
   {
@@ -85,8 +99,8 @@ export const SOLUTIONS = [
     icon: GitBranch,
     color: "amber",
     pages: [
-      { id: "changes",    label: "Changes",    icon: GitBranch, path: "/network/config",            component: lazy(() => import("./solutions/config/Changes")) },
-      { id: "automation", label: "Automation", icon: Bot,       path: "/network/config/automation", component: lazy(() => import("./solutions/config/Automation")) },
+      { id: "changes",    label: "Changes",    icon: GitBranch, path: "/network/config",            component: lazy(() => import("./solutions/config/Changes")), profile: "datacenter" },
+      { id: "automation", label: "Automation", icon: Bot,       path: "/network/config/automation", component: lazy(() => import("./solutions/config/Automation")), profile: "datacenter" },
       { id: "settings",   label: "Settings",   icon: Settings,  path: "/network/config/settings",   component: lazy(() => import("./solutions/config/Settings")) },
     ],
   },
@@ -116,10 +130,23 @@ export const SOLUTIONS = [
   },
 ];
 
-/** Flat route table consumed by the router. */
+/** Flat route table consumed by the router (all pages; visibility is UI-only). */
 export const NETWORK_ROUTES = SOLUTIONS.flatMap((s) =>
   s.pages.map((p) => ({ path: p.path, Component: p.component }))
 );
+
+const pageInProfile = (page, profile) => !page.profile || page.profile === profile;
+
+/**
+ * Solutions visible for a given network profile ("office" | "datacenter").
+ * Pages tagged for the other profile are dropped; solutions left with no
+ * visible pages are hidden entirely.
+ */
+export function solutionsForProfile(profile = "office") {
+  return SOLUTIONS
+    .map((s) => ({ ...s, pages: s.pages.filter((p) => pageInProfile(p, profile)) }))
+    .filter((s) => s.pages.length > 0);
+}
 
 /** Find the solution that owns a given pathname (most specific root wins). */
 export function getSolutionByPath(pathname) {

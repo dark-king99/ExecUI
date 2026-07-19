@@ -25,7 +25,9 @@ const NotFound            = lazy(() => import("../apps/NotFound"));
 
 // Network — solution-based architecture (Auvik model)
 const NetworkSolutions    = lazy(() => import("../apps/network/NetworkSolutions"));
+const NetworkSetup        = lazy(() => import("../apps/network/NetworkSetup"));
 import { NETWORK_ROUTES } from "../apps/network/solutions.config";
+import { NetworkProvider } from "../context/NetworkContext";
 
 // CRM — solution-based architecture (Salesforce Sales Cloud model)
 const CrmSolutions        = lazy(() => import("../apps/crm/CrmSolutions"));
@@ -165,6 +167,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
 
                 {/* Network — solution launcher + config-driven solution pages */}
                 <Route path="/network" element={guard("network", <NetworkSolutions />)} />
+                <Route path="/network/profile-setup" element={guard("network", <NetworkSetup />)} />
                 {NETWORK_ROUTES.map(({ path, Component }) => (
                   <Route key={path} path={path} element={guard("network", <Component />)} />
                 ))}
@@ -266,15 +269,17 @@ export default function App() {
     <UserProvider user={user} setUser={setUser}>
       <ToastProvider>
         <IndustryProvider>
-          <SidebarProvider>
-            <AppLayout
-              user={user}
-              setUser={setUser}
-              roleToUse={roleToUse}
-              effectiveRole={effectiveRole}
-              setEffectiveRole={setEffectiveRole}
-            />
-          </SidebarProvider>
+          <NetworkProvider>
+            <SidebarProvider>
+              <AppLayout
+                user={user}
+                setUser={setUser}
+                roleToUse={roleToUse}
+                effectiveRole={effectiveRole}
+                setEffectiveRole={setEffectiveRole}
+              />
+            </SidebarProvider>
+          </NetworkProvider>
         </IndustryProvider>
         <Toaster />
       </ToastProvider>

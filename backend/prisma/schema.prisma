@@ -27,6 +27,9 @@ model Tenant {
   // Selected industry vertical. "general" ⇒ core CRM only (unchanged behavior);
   // any other value additively unlocks that industry's modules.
   industry          String   @default("general")
+  // Network Management scale. "office" ⇒ small-office view (internet + routers +
+  // devices, no datacenter clutter); "datacenter" ⇒ the full enterprise view.
+  networkProfile    String   @default("office")
 
   users            User[]
   roles            Role[]
@@ -68,6 +71,34 @@ model Tenant {
   industryRecords         IndustryRecord[]
   socialAccounts          SocialAccount[]
   socialPosts             SocialPost[]
+  networkConnections      NetworkConnection[]
+}
+
+// An internet/WAN connection — the backbone of a small office's network. Lets a
+// company with no servers still monitor its ISP links, bandwidth and data usage.
+model NetworkConnection {
+  id            String   @id @default(uuid())
+  tenantId      String
+  name          String                       // "Primary Fiber"
+  provider      String?                       // ISP, e.g. "Orange Liberia"
+  linkType      String   @default("fiber")    // fiber | dsl | lte | fixed_wireless | satellite | other
+  role          String   @default("primary")  // primary | backup
+  downMbps      Float?                         // plan download speed
+  upMbps        Float?                         // plan upload speed
+  ipAddress     String?                        // public / WAN IP
+  gateway       String?                        // router / gateway IP
+  status        String   @default("up")        // up | down | degraded
+  monthlyUsageGb Float   @default(0)
+  dataCapGb     Float?                          // null = unlimited
+  monthlyCost   Float?
+  currency      String   @default("LRD")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 // A connected business social account (Facebook page, Instagram, WhatsApp
