@@ -1,9 +1,26 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import * as c from "./crm.controller.js";
+<<<<<<< HEAD
+=======
+import industryRouter from "./industries/industry.routes.js";
+>>>>>>> c1158262580c276452387e64907295563fdbd3fc
 
 const router = express.Router();
 const auth = authenticate; // shorthand
+
+<<<<<<< HEAD
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+router.get("/dashboard/profile",             auth, c.getDashboardProfile);
+router.get("/dashboard/overview",            auth, c.getDashboardOverview);
+
+router.get("/dashboard/tasks",               auth, c.listDashboardTasks);
+router.post("/dashboard/tasks",              auth, c.createDashboardTask);
+router.patch("/dashboard/tasks/:id",         auth, c.updateDashboardTask);
+
+=======
+// ── Industry modules (additive layer — core CRM routes below are unchanged) ──
+router.use("/industry", industryRouter);
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 router.get("/dashboard/profile",             auth, c.getDashboardProfile);
@@ -13,6 +30,7 @@ router.get("/dashboard/tasks",               auth, c.listDashboardTasks);
 router.post("/dashboard/tasks",              auth, c.createDashboardTask);
 router.patch("/dashboard/tasks/:id",         auth, c.updateDashboardTask);
 
+>>>>>>> c1158262580c276452387e64907295563fdbd3fc
 router.get("/dashboard/tickets",             auth, c.listDashboardTickets);
 router.post("/dashboard/tickets",            auth, c.createDashboardTicket);
 router.patch("/dashboard/tickets/:id",       auth, c.updateDashboardTicket);
