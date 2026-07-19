@@ -183,6 +183,8 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 {MARKETING_ROUTES.map(({ path, Component }) => (
                   <Route key={path} path={path} element={guard("marketing", <Component />)} />
                 ))}
+                {/* Marketing industry modules — additive layer, same engine as CRM */}
+                <Route path="/marketing/i/:industryId/:objectType" element={guard("marketing", <IndustryObjectPage />)} />
 
 
                 {/* Services */}

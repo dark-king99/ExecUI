@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import { useParams, NavLink } from "react-router-dom";
+import { useParams, NavLink, useLocation } from "react-router-dom";
 import { Plus, Trash2, Search, Pencil } from "lucide-react";
 import { crm } from "../../services/api";
 import { useApi } from "../../hooks/useApi";
 import { useToast } from "../../components/ui/Toast";
 import { useIndustry } from "../../context/IndustryContext";
-import { schemaFor } from "./industries.config";
+import { schemaFor, industrySolutionFor } from "./industries.config";
 import { colorOf } from "./solutions.config";
 import {
   Modal, Field, TextInput, SelectInput, PrimaryBtn, GhostBtn, Pill, Loading, ErrorNote, fmtNum, fmtDate,
@@ -180,8 +180,13 @@ function ListTable({ records, columns, onOpen }) {
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function IndustryObjectPage() {
   const { industryId, objectType } = useParams();
-  const { industrySolution, currentEntry, loading: indLoading } = useIndustry();
+  const { pathname } = useLocation();
+  const { currentEntry, loading: indLoading } = useIndustry();
   const toast = useToast();
+
+  // The same page serves both the CRM and Marketing surfaces.
+  const surface = pathname.startsWith("/marketing") ? "marketing" : "crm";
+  const industrySolution = industrySolutionFor(industryId, currentEntry, surface);
 
   const obj = currentEntry?.objects?.find((o) => o.id === objectType) ?? null;
   const kind = obj?.kind ?? "list";

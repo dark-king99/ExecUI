@@ -66,6 +66,59 @@ model Tenant {
   auditLogs               AuditLog[]
   aiUsages                AiUsage[]
   industryRecords         IndustryRecord[]
+  socialAccounts          SocialAccount[]
+  socialPosts             SocialPost[]
+}
+
+// A connected business social account (Facebook page, Instagram, WhatsApp
+// Business, X, LinkedIn, TikTok…). Access tokens are encrypted at rest; when no
+// real provider is configured the account is a managed placeholder (see
+// lib/social.js) so the workflow is fully usable without live API keys.
+model SocialAccount {
+  id           String   @id @default(uuid())
+  tenantId     String
+  platform     String   // facebook | instagram | whatsapp | x | linkedin | tiktok | youtube
+  handle       String
+  displayName  String?
+  status       String   @default("connected") // connected | disconnected | error
+  followers    Int      @default(0)
+  tokenCipher  String?
+  tokenIv      String?
+  tokenTag     String?
+  connectedById String?
+  meta         Json     @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, platform, handle])
+  @@index([tenantId, platform])
+}
+
+// A social post/campaign item, publishable to one or more platforms. Content
+// often originates from Einstein (AI) or the Engagement Content Builder.
+model SocialPost {
+  id           String   @id @default(uuid())
+  tenantId     String
+  content      String
+  mediaUrl     String?
+  platforms    String[] @default([])
+  status       String   @default("draft") // draft | scheduled | publishing | published | failed
+  source       String   @default("manual") // manual | einstein | engagement
+  scheduledAt  DateTime?
+  publishedAt  DateTime?
+  authorId     String?
+  authorName   String?
+  results      Json     @default("{}")  // per-platform outcome
+  metrics      Json     @default("{}")  // per-platform reach/likes/comments/shares
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, scheduledAt])
 }
 
 // Generic industry-object store — the additive "custom object" engine that

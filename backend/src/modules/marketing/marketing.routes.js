@@ -1,9 +1,13 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import * as c from "./marketing.controller.js";
+import socialRouter from "./social/social.routes.js";
 
 const router = express.Router();
 const auth = authenticate;
+
+// ── Social media marketing (additive — core marketing routes below unchanged) ─
+router.use("/social", socialRouter);
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 router.get("/dashboard/profile",           auth, c.getDashboardProfile);

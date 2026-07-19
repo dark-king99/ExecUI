@@ -123,17 +123,68 @@ export const INDUSTRIES = {
   },
 };
 
+// ── Marketing-surface objects (shown in the Marketing section, per industry) ──
+// The core CRM objects above stay on the "crm" surface; these are additive
+// marketing modules tailored to each vertical.
+export const MARKETING_OBJECTS = {
+  telecom: {
+    promo_campaign:     pipe("promo_campaign", "Promo Campaigns", ["draft", "live", "paused", "ended"]),
+    subscriber_segment: list("subscriber_segment", "Subscriber Segments"),
+  },
+  banking: {
+    product_offer: list("product_offer", "Product Offers"),
+    cross_sell:    pipe("cross_sell", "Cross-sell Pipeline", ["identified", "contacted", "interested", "converted", "lost"]),
+  },
+  fmcg: {
+    trade_promo:       pipe("trade_promo", "Trade Promotions", ["planned", "active", "completed"]),
+    retail_activation: list("retail_activation", "Retail Activations"),
+  },
+  hotel: {
+    package_campaign: pipe("package_campaign", "Package Campaigns", ["draft", "live", "ended"]),
+    seasonal_offer:   list("seasonal_offer", "Seasonal Offers"),
+  },
+  realestate: {
+    listing_campaign: pipe("listing_campaign", "Listing Campaigns", ["draft", "live", "closed"]),
+    open_house:       list("open_house", "Open Houses"),
+  },
+  healthcare: { health_campaign: list("health_campaign", "Health Campaigns") },
+  education: {
+    enrollment_campaign: pipe("enrollment_campaign", "Enrollment Campaigns", ["draft", "live", "ended"]),
+    open_day:            list("open_day", "Open Days"),
+  },
+  ngo: {
+    fundraiser:         pipe("fundraiser", "Fundraisers", ["planned", "live", "closed"]),
+    awareness_campaign: list("awareness_campaign", "Awareness Campaigns"),
+  },
+  insurance: {
+    product_campaign: list("product_campaign", "Product Campaigns"),
+    renewal_drive:    pipe("renewal_drive", "Renewal Drives", ["planned", "active", "completed"]),
+  },
+  manufacturing: { distributor_promo: list("distributor_promo", "Distributor Promotions") },
+  government: {
+    public_notice:   list("public_notice", "Public Notices"),
+    awareness_drive: pipe("awareness_drive", "Awareness Drives", ["planned", "live", "ended"]),
+  },
+};
+
 export const GENERAL = "general";
 export const INDUSTRY_IDS = Object.keys(INDUSTRIES);
 
 export const isValidIndustry = (id) => id === GENERAL || INDUSTRY_IDS.includes(id);
 
-/** Metadata for one object type within an industry, or null if unknown. */
+/** Metadata for one object type within an industry (either surface), or null. */
 export function objectMeta(industry, objectType) {
-  return INDUSTRIES[industry]?.objects?.[objectType] ?? null;
+  return INDUSTRIES[industry]?.objects?.[objectType] ?? MARKETING_OBJECTS[industry]?.[objectType] ?? null;
 }
 
-/** All valid object type ids for an industry. */
+/** All valid object type ids for an industry (both surfaces). */
 export function objectTypesFor(industry) {
-  return Object.keys(INDUSTRIES[industry]?.objects ?? {});
+  return [...Object.keys(INDUSTRIES[industry]?.objects ?? {}), ...Object.keys(MARKETING_OBJECTS[industry] ?? {})];
+}
+
+/** Merged object list with a `surface` tag ("crm" | "marketing") for the UI. */
+export function industryObjects(industry) {
+  const crm = Object.values(INDUSTRIES[industry]?.objects ?? {}).map((o) => ({ ...o, surface: "crm" }));
+  const mkt = Object.values(MARKETING_OBJECTS[industry] ?? {}).map((o) => ({ ...o, surface: "marketing" }));
+  return [...crm, ...mkt];
 }
