@@ -295,21 +295,9 @@ export default function HomeView() {
       <div className="relative z-10 mx-auto max-w-7xl px-6 pb-24">
         {/* ── Hero ──────────────────────────────────────────────────────── */}
         <section className="mx-auto flex min-h-[82vh] max-w-4xl flex-col items-center justify-center text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-slate-300"
-          >
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-500 opacity-75" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-indigo-500" />
-            </span>
-            The enterprise operating system
-          </motion.div>
-
-          <h1 className="text-4xl font-bold italic leading-[1.04] tracking-tight sm:text-5xl lg:text-[4.25rem]">
-            {["One Platform to Run", "Your Entire Enterprise"].map((line, li) => (
+          
+          <h1 className="text-4xl font-bold leading-[1.04] tracking-tight sm:text-5xl lg:text-[4.25rem]">
+            {["One Platform to Operate", "Your Entire Enterprise"].map((line, li) => (
               <span key={line} className="block overflow-hidden pb-1">
                 <motion.span
                   className="inline-block"
@@ -318,7 +306,7 @@ export default function HomeView() {
                   transition={{ duration: 0.9, delay: 0.15 + li * 0.12, ease: [0.22, 1, 0.36, 1] }}
                 >
                   {li === 1 ? (
-                    <span className="text-sheen bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-indigo-500 bg-clip-text text-transparent">
+                    <span className="text-sheen bg-gradient-to-r from-cyan-500 via-fuchsia-500 to-blue-500 bg-clip-text text-transparent">
                       {line}
                     </span>
                   ) : (
@@ -327,6 +315,7 @@ export default function HomeView() {
                     </span>
                   )}
                 </motion.span>
+                
               </span>
             ))}
           </h1>
