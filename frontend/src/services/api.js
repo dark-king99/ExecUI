@@ -304,6 +304,8 @@ export const crm = {
     list:   ()         => get('/crm/teams'),
     create: (data)     => post('/crm/teams', data),
   },
+
+
   // Industry modules (additive vertical layer)
   industry: {
     get:      ()               => get('/crm/industry'),
@@ -315,6 +317,7 @@ export const crm = {
     update:   (id, data)       => patch(`/crm/industry/records/${id}`, data),
     remove:   (id)             => del(`/crm/industry/records/${id}`),
   },
+
 };
 
 // ── Marketing ─────────────────────────────────────────────────────────────

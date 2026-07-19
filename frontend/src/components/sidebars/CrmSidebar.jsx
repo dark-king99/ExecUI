@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { SOLUTIONS, colorOf } from "../../apps/crm/solutions.config";
 import { Users, ArrowLeft, LayoutGrid, ChevronDown, ChevronRight, ChevronLeft, Building } from "lucide-react";
-import { colorOf } from "../../apps/crm/solutions.config";
+
 import { canAccessSolution } from "../../lib/access";
 import { useUser } from "../../context/UserContext";
 import { useCrmSolutions } from "../../context/IndustryContext";
@@ -86,7 +87,10 @@ export default function CrmSidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { user } = useUser();
+
+
   const solutions = useCrmSolutions();
+
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -161,6 +165,12 @@ export default function CrmSidebar() {
         {collapsed && <div className="my-1.5 border-t border-slate-100 dark:border-slate-800/60" />}
 
         <div className="space-y-0.5">
+         <div>
+          {SOLUTIONS.filter((s) => canAccessSolution(user, "crm", s.id)).map((s) => (
+            <SolutionGroup key={s.id} solution={s} pathname={pathname} collapsed={collapsed} onNavigate={navigate} />
+          ))}
+        </div>
+
           {solutions
             .filter((s) => s.isIndustry || canAccessSolution(user, "crm", s.id))
             .map((s) => (

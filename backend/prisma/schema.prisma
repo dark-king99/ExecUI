@@ -24,6 +24,7 @@ model Tenant {
   stripeSubId       String?
   plan              String   @default("executive")
   planSolutions     String[] @default([])
+
   // Selected industry vertical. "general" ⇒ core CRM only (unchanged behavior);
   // any other value additively unlocks that industry's modules.
   industry          String   @default("general")
@@ -177,6 +178,7 @@ model IndustryRecord {
 
   @@index([tenantId, industry, objectType])
   @@index([tenantId, objectType, stage])
+
 }
 
 // Per-tenant monthly AI-assist consumption. One row per (tenant, month); the

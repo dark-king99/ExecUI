@@ -1,10 +1,22 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import * as c from "./crm.controller.js";
+
 import industryRouter from "./industries/industry.routes.js";
+
 
 const router = express.Router();
 const auth = authenticate; // shorthand
+
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+router.get("/dashboard/profile",             auth, c.getDashboardProfile);
+router.get("/dashboard/overview",            auth, c.getDashboardOverview);
+
+router.get("/dashboard/tasks",               auth, c.listDashboardTasks);
+router.post("/dashboard/tasks",              auth, c.createDashboardTask);
+router.patch("/dashboard/tasks/:id",         auth, c.updateDashboardTask);
+
 
 // ── Industry modules (additive layer — core CRM routes below are unchanged) ──
 router.use("/industry", industryRouter);
@@ -16,6 +28,7 @@ router.get("/dashboard/overview",            auth, c.getDashboardOverview);
 router.get("/dashboard/tasks",               auth, c.listDashboardTasks);
 router.post("/dashboard/tasks",              auth, c.createDashboardTask);
 router.patch("/dashboard/tasks/:id",         auth, c.updateDashboardTask);
+
 
 router.get("/dashboard/tickets",             auth, c.listDashboardTickets);
 router.post("/dashboard/tickets",            auth, c.createDashboardTicket);

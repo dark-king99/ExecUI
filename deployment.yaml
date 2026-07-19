@@ -1,4 +1,8 @@
+<<<<<<< HEAD
+
+=======
 # ═══════════════════════════════════════════════════════════════════════════════
+>>>>>>> c1158262580c276452387e64907295563fdbd3fc
 #  ExecUI  ·  Kubernetes Deployment
 #
 #  Resources (top-to-bottom):
@@ -33,7 +37,10 @@
 #      is in-memory, so the backend runs as a SINGLE replica. To scale it out,
 #      move the SSE registry + rate limiter to Redis first. The stateless
 #      frontend scales freely.
+<<<<<<< HEAD
+=======
 # ═══════════════════════════════════════════════════════════════════════════════
+>>>>>>> c1158262580c276452387e64907295563fdbd3fc
 
 # ── 1. Namespace ──────────────────────────────────────────────────────────────
 apiVersion: v1
