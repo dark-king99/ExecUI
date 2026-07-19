@@ -8,6 +8,7 @@ import {
   Check, Zap, Crown, Bell,
 } from "lucide-react";
 import { MeshGradient, FadeUp, Stagger, Item, AnimatedNumber, TiltCard, Marquee } from "../components/motionfx";
+import ExecUIBackground from "../components/ExecUIBackground";
 import Footer from "../components/Footer";
 import { PLANS, CUSTOM, CRM_SOLUTIONS, MKT_SOLUTIONS, SERVICES_SOLUTIONS } from "../lib/plans";
 import { SOLUTIONS as NET_SOLUTIONS } from "./network/solutions.config";
@@ -329,11 +330,13 @@ export default function HomeView() {
     <div className="relative min-h-screen w-full overflow-x-hidden bg-white text-slate-900 dark:bg-[#0a0a0c] dark:text-slate-100">
       <CursorGlow />
 
-      {/* Background: animated color wash + spotlight beam + faint grid */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[760px]">
-        <MeshGradient intensity={0.55} className="mask-[radial-gradient(ellipse_at_top,black,transparent_78%)]" />
-        <div className="absolute left-1/2 top-0 h-[460px] w-[900px] -translate-x-1/2 bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.16),transparent_62%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.10),transparent_60%)]" />
-        <div className="absolute inset-0 opacity-[0.5] bg-[linear-gradient(to_right,rgb(99_102_241/0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgb(99_102_241/0.06)_1px,transparent_1px)] bg-size-[48px_48px] mask-[radial-gradient(ellipse_at_top,black,transparent_70%)] dark:opacity-100 dark:[background-image:linear-gradient(to_right,rgb(255_255_255_/_0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgb(255_255_255_/_0.04)_1px,transparent_1px)]" />
+      {/* Background: ExecUI ambient animation (Flow · Orbit · Signal · Rise),
+          imported from the Claude Design project. Masked so it fades into the
+          page background below the hero. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[820px] mask-[radial-gradient(ellipse_at_top,black_35%,transparent_80%)]">
+        {/* Module-label chips are disabled here so they don't collide with the
+            hero copy; the ambient motion (blobs, streams, orbits, arc) carries it. */}
+        <ExecUIBackground showModules={false} />
       </div>
 
       {/* ── Sticky header ─────────────────────────────────────────────────── */}
