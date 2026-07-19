@@ -7,6 +7,7 @@ import {
   CRM_SOLUTIONS, MKT_SOLUTIONS, SERVICES_SOLUTIONS,
   entitlementsFor, priceFor, planLabel, aiLimitFor,
 } from "../billing/plans.config.js";
+import { INDUSTRIES } from "../crm/industries/registry.js";
 import { getUsage as getAiUsage } from "../../lib/aiQuota.js";
 
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY?.trim() || null;
@@ -22,17 +23,22 @@ const APP_URL = process.env.FRONTEND_URL?.replace(/\/$/, "") || "http://localhos
 const planSummary = (p) => ({
   id: p.id, name: p.name, price: p.price, tagline: p.tagline, highlighted: !!p.highlighted,
   crm: p.crm, marketing: p.marketing, services: p.services, network: p.network,
+  industry: !!p.industry, networkDatacenterPrice: p.networkDatacenterPrice ?? null,
   ai: aiLimitFor(p.id),
   entitlements: entitlementsFor(p.id),
 });
 
-// What the Billing page renders: the 4 tiers, the custom config, and the
-// selectable solution catalog (CRM + Marketing only for custom).
+// Industries a Custom plan can bolt on (mirrors the industry registry).
+const INDUSTRY_OPTIONS = Object.entries(INDUSTRIES).map(([id, def]) => ({ id, name: def.name }));
+
+// What the Billing page renders: the 4 tiers, the custom config, the selectable
+// solution catalog (CRM + Marketing only for custom), and industry options.
 export const getPlanCatalog = () => Promise.resolve({
   plans: PLAN_TIERS.map(planSummary),
   custom: CUSTOM,
   catalog: {
     crm: CRM_SOLUTIONS, marketing: MKT_SOLUTIONS, services: SERVICES_SOLUTIONS,
+    industries: INDUSTRY_OPTIONS,
   },
 });
 
@@ -45,12 +51,15 @@ export const getBilling = async (tenantId) => {
   const planId = tenant.plan || DEFAULT_PLAN;
   const customSolutions = tenant.planSolutions || [];
 
+  const priceOpts = { networkProfile: tenant.networkProfile, industry: tenant.industry };
   const base = {
     plan: planId,
     planName: planLabel(planId),
-    price: priceFor(planId, customSolutions),
+    price: priceFor(planId, customSolutions, priceOpts),
     interval: "month",
     customSolutions,
+    industry: tenant.industry || "general",
+    networkProfile: tenant.networkProfile || "office",
     entitlements: entitlementsFor(planId, customSolutions),
     ai: await getAiUsage(tenantId),
     status: "active",
@@ -149,8 +158,9 @@ async function activatePlan(tenantId, plan, solutions, extra = {}, actorId = nul
     activated: true,
     plan: tenant.plan,
     planName: planLabel(tenant.plan),
-    price: priceFor(tenant.plan, tenant.planSolutions),
+    price: priceFor(tenant.plan, tenant.planSolutions, { networkProfile: tenant.networkProfile, industry: tenant.industry }),
     customSolutions: tenant.planSolutions,
+    industry: tenant.industry || "general",
     entitlements: entitlementsFor(tenant.plan, tenant.planSolutions),
   };
 }
@@ -187,18 +197,22 @@ function buildLineItems(plan, solutions) {
  *  - PAID mode (Stripe configured): returns a Checkout URL; the plan is applied
  *    once payment succeeds (checkout.session.completed webhook).
  */
-export const selectPlan = async (tenantId, { plan, customSolutions = [] }, actorId = null) => {
+export const selectPlan = async (tenantId, { plan, customSolutions = [], industry }, actorId = null) => {
   const { solutions } = resolvePlan(plan, customSolutions);
+  // A chosen industry (e.g. the Custom plan's add-on) is applied to the tenant.
+  const extra = industry != null ? { industry: String(industry) } : {};
 
   if (!BILLING_ENABLED) {
-    return { ...(await activatePlan(tenantId, plan, solutions, {}, actorId)), freeEarlyAccess: true };
+    return { ...(await activatePlan(tenantId, plan, solutions, extra, actorId)), freeEarlyAccess: true };
   }
 
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw new NotFoundError("Tenant not found");
+  // Apply the industry choice immediately (access layer); billing follows on the webhook.
+  if (industry != null) await prisma.tenant.update({ where: { id: tenantId }, data: { industry: String(industry) } });
 
   const customerId = await ensureStripeCustomer(tenant);
-  const metadata = { tenantId, plan, planSolutions: JSON.stringify(solutions) };
+  const metadata = { tenantId, plan, planSolutions: JSON.stringify(solutions), industry: industry ?? "" };
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",

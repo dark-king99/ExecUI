@@ -5,7 +5,7 @@ import StatusBadge from "../../components/ui/StatusBadge";
 import { useToast } from "../../components/ui/Toast";
 import {
   CreditCard, AlertCircle, Check, Zap, Crown, Layers, Sparkles, Lock,
-  Users, TrendingUp, Server, BarChart3, Sliders, ExternalLink, Download, Receipt,
+  Users, TrendingUp, Server, BarChart3, Sliders, ExternalLink, Download, Receipt, Building2,
 } from "lucide-react";
 import { useApi, useMutation } from "../../hooks/useApi";
 import { account } from "../../services/api";
@@ -46,6 +46,7 @@ function planFeatures(plan) {
   if (sol.marketing?.length) lines.push(`${sol.marketing.length === 7 ? "Full" : sol.marketing.length} Marketing solution${sol.marketing.length > 1 ? "s" : ""}`);
   if (sol.services?.length)  lines.push(`${plan.id === "premium" ? "Core" : "Full"} Services suite`);
   if (sol.network === "all") lines.push("Network Operations");
+  if (plan.industry) lines.push("Industry customization");
   if (ent.analyticsSlices?.length) lines.push("Analytics for every active module");
   const ai = plan.ai ?? aiLimitFor(plan.id);
   if (ai) lines.push(`${ai.toLocaleString()} AI assists / month`);
@@ -86,6 +87,11 @@ function PlanCard({ plan, current, onSelect, loading, canSelect }) {
         <p className="mt-3 text-3xl font-bold text-slate-900 dark:text-white">
           ${plan.price.toLocaleString()}<span className="text-sm font-normal text-slate-500">/mo</span>
         </p>
+        {plan.networkDatacenterPrice && (
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+            ${plan.networkDatacenterPrice.toLocaleString()}/mo with Enterprise (datacenter) network
+          </p>
+        )}
         <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 min-h-[40px]">{plan.tagline}</p>
       </div>
 
@@ -116,9 +122,10 @@ function PlanCard({ plan, current, onSelect, loading, canSelect }) {
   );
 }
 
-function CustomBuilder({ custom, catalog, current, currentSolutions, onSelect, loading, canSelect }) {
+function CustomBuilder({ custom, catalog, current, currentSolutions, currentIndustry, onSelect, loading, canSelect }) {
   const isCurrent = current === "custom";
   const [selected, setSelected] = useState(() => new Set(isCurrent ? currentSolutions : []));
+  const [industry, setIndustry] = useState(isCurrent ? (currentIndustry && currentIndustry !== "general" ? currentIndustry : "") : "");
 
   const toggle = (key) => {
     setSelected((prev) => {
@@ -128,8 +135,10 @@ function CustomBuilder({ custom, catalog, current, currentSolutions, onSelect, l
     });
   };
 
+  const industries = catalog.industries ?? [];
   const count = selected.size;
-  const price = count * custom.unitPrice;
+  const industryAddon = industry ? custom.industryPrice : 0;
+  const price = count * custom.unitPrice + industryAddon;
   const meetsMin = count >= custom.minUnits;
 
   const Group = ({ title, icon: Icon, module, items }) => (
@@ -168,12 +177,28 @@ function CustomBuilder({ custom, catalog, current, currentSolutions, onSelect, l
     <Card>
       <CardHeader
         title={<span className="flex items-center gap-2"><Sliders size={15} /> Build a Custom plan</span>}
-        subtitle={`Pick from CRM & Marketing only · minimum ${custom.minUnits} solutions · $${custom.unitPrice} each`}
+        subtitle={`Pick from CRM & Marketing only · minimum ${custom.minUnits} solutions · $${custom.unitPrice} each · optional industry +$${custom.industryPrice}`}
       />
       <CardBody className="space-y-5">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <Group title="CRM" icon={Users} module="crm" items={catalog.crm} />
           <Group title="Marketing" icon={TrendingUp} module="marketing" items={catalog.marketing} />
+        </div>
+
+        {/* Industry customization add-on */}
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
+            <Building2 size={13} /> Industry customization
+            <span className="ml-1 normal-case font-normal text-slate-400">optional · +${custom.industryPrice}/mo</span>
+          </p>
+          <select
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
+            className="w-full sm:w-80 text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">No industry customization</option>
+            {industries.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+          </select>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
@@ -182,11 +207,12 @@ function CustomBuilder({ custom, catalog, current, currentSolutions, onSelect, l
               {count} selected
             </span>
             <span className="text-slate-400"> / min {custom.minUnits}</span>
+            {industry && <><span className="mx-2 text-slate-300 dark:text-slate-600">·</span><span className="text-slate-500">+ industry</span></>}
             <span className="mx-2 text-slate-300 dark:text-slate-600">·</span>
             <span className="font-semibold text-slate-900 dark:text-white">${price.toLocaleString()}/mo</span>
           </div>
           <button
-            onClick={() => onSelect("custom", [...selected])}
+            onClick={() => onSelect("custom", [...selected], industry || "general")}
             disabled={!meetsMin || loading || !canSelect}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
               !canSelect
@@ -221,11 +247,12 @@ export default function Billing() {
 
   const { data: catalogData } = useApi(() => account.billing.plans(), []);
   const plans   = catalogData?.plans ?? [];
-  const custom  = catalogData?.custom ?? { id: "custom", unitPrice: 49, minUnits: 8 };
-  const catalog = catalogData?.catalog ?? { crm: [], marketing: [], services: [] };
+  const custom  = catalogData?.custom ?? { id: "custom", unitPrice: 49, minUnits: 8, industryPrice: 100 };
+  const catalog = catalogData?.catalog ?? { crm: [], marketing: [], services: [], industries: [] };
 
   const currentPlan = billing?.plan ?? "executive";
   const currentSolutions = billing?.customSolutions ?? [];
+  const currentIndustry = billing?.industry ?? "general";
   const billingEnabled = billing?.billingEnabled ?? false;
 
   const { data: invoicesData } = useApi(
@@ -234,7 +261,7 @@ export default function Billing() {
   const invoices = invoicesData ?? [];
 
   const selectMut = useMutation(
-    ({ plan, customSolutions }) => account.billing.select({ plan, customSolutions }),
+    ({ plan, customSolutions, industry }) => account.billing.select({ plan, customSolutions, industry }),
     {
       onSuccess: (data) => {
         // PAID mode: Stripe returns a Checkout URL — send the admin to pay.
@@ -282,7 +309,7 @@ export default function Billing() {
     window.history.replaceState({}, "", "/account/billing");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSelect = (plan, customSolutions = []) => selectMut.mutate({ plan, customSolutions });
+  const handleSelect = (plan, customSolutions = [], industry) => selectMut.mutate({ plan, customSolutions, industry });
 
   const activeEnt = billing?.entitlements ?? { sections: [], solutions: {}, analyticsSlices: [] };
   const activeModules = useMemo(
@@ -448,6 +475,7 @@ export default function Billing() {
         catalog={catalog}
         current={currentPlan}
         currentSolutions={currentSolutions}
+        currentIndustry={currentIndustry}
         onSelect={handleSelect}
         loading={selectMut.loading}
         canSelect={admin}

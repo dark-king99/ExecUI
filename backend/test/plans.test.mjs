@@ -8,7 +8,24 @@ import {
 
 test("four tiers exist with the agreed prices", () => {
   const prices = Object.fromEntries(PLANS.map((p) => [p.id, p.price]));
-  assert.deepEqual(prices, { standard: 299, premium: 799, enterprise: 1799, executive: 5099 });
+  assert.deepEqual(prices, { standard: 399, premium: 999, enterprise: 1999, executive: 5099 });
+});
+
+test("every tier includes industry customization", () => {
+  for (const p of PLANS) assert.equal(p.industry, true, `${p.id} should include industry`);
+});
+
+test("executive costs more with the datacenter network profile", () => {
+  assert.equal(priceFor("executive"), 5099);
+  assert.equal(priceFor("executive", [], { networkProfile: "office" }), 5099);
+  assert.equal(priceFor("executive", [], { networkProfile: "datacenter" }), 5599);
+});
+
+test("custom plan adds $100 for an industry customization", () => {
+  const picks = ["crm:leads", "crm:accounts", "marketing:engagement"];
+  assert.equal(priceFor("custom", picks), 3 * 49);
+  assert.equal(priceFor("custom", picks, { industry: "telecom" }), 3 * 49 + 100);
+  assert.equal(priceFor("custom", picks, { industry: "general" }), 3 * 49); // "none" = no surcharge
 });
 
 test("standard = half CRM + important marketing, no services, no network", () => {

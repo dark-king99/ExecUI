@@ -54,17 +54,18 @@ export const AI_LIMITS = {
 };
 
 export const PLANS = [
-  { id: "standard",   name: "Standard",   price: 299,  tagline: "Core CRM & Marketing to get selling",
-    crm: CRM_STD, marketing: MKT_STD, services: [],          network: false, ai: AI_LIMITS.standard },
-  { id: "premium",    name: "Premium",    price: 799,  tagline: "Full CRM & Marketing + core Services", highlighted: true,
-    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_PREMIUM, network: false, ai: AI_LIMITS.premium },
-  { id: "enterprise", name: "Enterprise", price: 1799, tagline: "Everything in Premium + full Services",
-    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_ALL,     network: false, ai: AI_LIMITS.enterprise },
-  { id: "executive",  name: "Executive",  price: 5099, tagline: "The complete platform, including Network Ops",
-    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_ALL,     network: true,  ai: AI_LIMITS.executive },
+  { id: "standard",   name: "Standard",   price: 399,  tagline: "Core CRM & Marketing to get selling",
+    crm: CRM_STD, marketing: MKT_STD, services: [],          network: false, industry: true, ai: AI_LIMITS.standard },
+  { id: "premium",    name: "Premium",    price: 999,  tagline: "Full CRM & Marketing + core Services", highlighted: true,
+    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_PREMIUM, network: false, industry: true, ai: AI_LIMITS.premium },
+  { id: "enterprise", name: "Enterprise", price: 1999, tagline: "Everything in Premium + full Services",
+    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_ALL,     network: false, industry: true, ai: AI_LIMITS.enterprise },
+  { id: "executive",  name: "Executive",  price: 5099, networkDatacenterPrice: 5599,
+    tagline: "The complete platform, including Network Ops",
+    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_ALL,     network: true,  industry: true, ai: AI_LIMITS.executive },
 ];
 
-export const CUSTOM = { id: "custom", name: "Custom", unitPrice: 49, minUnits: 8, ai: AI_LIMITS.custom };
+export const CUSTOM = { id: "custom", name: "Custom", unitPrice: 49, minUnits: 8, industryPrice: 100, ai: AI_LIMITS.custom };
 export const DEFAULT_PLAN = "executive";
 
 /** Monthly AI request allowance for a plan. */
@@ -105,9 +106,16 @@ export function entitlementsFor(planId, customSolutions = []) {
   return build(p);
 }
 
-export function priceFor(planId, customSolutions = []) {
-  if (planId === "custom") return CUSTOM.unitPrice * (customSolutions?.length || 0);
-  return PLANS.find((x) => x.id === planId)?.price ?? 0;
+export function priceFor(planId, customSolutions = [], opts = {}) {
+  if (planId === "custom") {
+    const units = (customSolutions || []).filter((s) => s.startsWith("crm:") || s.startsWith("marketing:")).length;
+    const industryAddon = opts.industry && opts.industry !== "general" ? CUSTOM.industryPrice : 0;
+    return CUSTOM.unitPrice * units + industryAddon;
+  }
+  const p = PLANS.find((x) => x.id === planId);
+  if (!p) return 0;
+  if (planId === "executive" && opts.networkProfile === "datacenter" && p.networkDatacenterPrice) return p.networkDatacenterPrice;
+  return p.price;
 }
 
 export function planLabel(planId) {
