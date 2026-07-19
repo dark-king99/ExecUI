@@ -1,9 +1,13 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import * as c from "./network.controller.js";
+import connectivityRouter from "./connectivity/connectivity.routes.js";
 
 const router = express.Router();
 const auth = authenticate;
+
+// ── Connectivity + profile (small-office layer — routes below unchanged) ──────
+router.use("/", connectivityRouter);
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 router.get("/dashboard/overview",      auth, c.getDashboardOverview);

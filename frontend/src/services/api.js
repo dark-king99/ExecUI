@@ -429,6 +429,20 @@ export const marketing = {
 
 // ── Network ───────────────────────────────────────────────────────────────
 export const network = {
+  // Small-office layer: scale profile + internet/WAN connections
+  profile:  {
+    get: ()          => get('/network/profile'),
+    set: (profile)   => put('/network/profile', { profile }),
+  },
+  connectivity: {
+    summary: ()      => get('/network/connectivity/summary'),
+  },
+  connections: {
+    list:   ()       => get('/network/connections'),
+    create: (data)   => post('/network/connections', data),
+    update: (id, d)  => patch(`/network/connections/${id}`, d),
+    remove: (id)     => del(`/network/connections/${id}`),
+  },
   devices: {
     list:   (params) => get('/network/devices', params),
     get:    (id)     => get(`/network/devices/${id}`),
