@@ -1,14 +1,7 @@
 import { useNavigate } from "react-router-dom";
-<<<<<<< HEAD
-import { ArrowRight, Briefcase, DollarSign, Target, TrendingUp } from "lucide-react";
-import Greeting from "../../components/Greeting";
-import { useApi } from "../../hooks/useApi";
-import { crm } from "../../services/api";
-import { SOLUTIONS, colorOf } from "./solutions.config";
-import { MetricGrid, fmtNum } from "./components/crm-ui";
-import { canAccessSolution } from "../../lib/access";
-import { useUser } from "../../context/UserContext";
-=======
+
+
+import { SOLUTIONS } from "./solutions.config";
 import { ArrowRight, Briefcase, DollarSign, Target, TrendingUp, Building, Settings2 } from "lucide-react";
 import Greeting from "../../components/Greeting";
 import { useApi } from "../../hooks/useApi";
@@ -18,7 +11,7 @@ import { MetricGrid, fmtNum } from "./components/crm-ui";
 import { canAccessSolution } from "../../lib/access";
 import { useUser } from "../../context/UserContext";
 import { useCrmSolutions, useIndustry } from "../../context/IndustryContext";
->>>>>>> c1158262580c276452387e64907295563fdbd3fc
+
 
 function SolutionCard({ solution }) {
   const navigate = useNavigate();
@@ -51,12 +44,11 @@ function SolutionCard({ solution }) {
 
 export default function CrmSolutions() {
   const { user } = useUser();
-<<<<<<< HEAD
-=======
+
   const navigate = useNavigate();
   const solutions = useCrmSolutions();
   const { industryId } = useIndustry();
->>>>>>> c1158262580c276452387e64907295563fdbd3fc
+
   const { data: pipeline, loading: l1 } = useApi(() => crm.pipeline.summary(), [], { pollingInterval: 120000 });
   const { data: opps, loading: l2 } = useApi(() => crm.opportunities.summary(), [], { pollingInterval: 120000 });
   const { data: analytics } = useApi(() => crm.analytics.summary(), [], { pollingInterval: 120000 });
@@ -83,10 +75,10 @@ export default function CrmSolutions() {
           Solutions
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-<<<<<<< HEAD
+
           {SOLUTIONS.filter((s) => canAccessSolution(user, "crm", s.id))
             .map((s) => <SolutionCard key={s.id} solution={s} />)}
-=======
+
           {solutions
             .filter((s) => s.isIndustry || canAccessSolution(user, "crm", s.id))
             .map((s) => <SolutionCard key={s.id} solution={s} />)}
@@ -110,7 +102,7 @@ export default function CrmSolutions() {
               Unlock telecom, banking, FMCG, hotel and more — layered on top of your core CRM.
             </p>
           </button>
->>>>>>> c1158262580c276452387e64907295563fdbd3fc
+
         </div>
       </div>
     </div>

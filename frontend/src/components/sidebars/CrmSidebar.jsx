@@ -1,17 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-<<<<<<< HEAD
-import { Users, ArrowLeft, LayoutGrid, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
 import { SOLUTIONS, colorOf } from "../../apps/crm/solutions.config";
-import { canAccessSolution } from "../../lib/access";
-import { useUser } from "../../context/UserContext";
-=======
 import { Users, ArrowLeft, LayoutGrid, ChevronDown, ChevronRight, ChevronLeft, Building } from "lucide-react";
-import { colorOf } from "../../apps/crm/solutions.config";
+
 import { canAccessSolution } from "../../lib/access";
 import { useUser } from "../../context/UserContext";
 import { useCrmSolutions } from "../../context/IndustryContext";
->>>>>>> c1158262580c276452387e64907295563fdbd3fc
 
 function PageLink({ page, active, color, onNavigate }) {
   const Icon = page.icon;
@@ -93,10 +87,10 @@ export default function CrmSidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { user } = useUser();
-<<<<<<< HEAD
-=======
+
+
   const solutions = useCrmSolutions();
->>>>>>> c1158262580c276452387e64907295563fdbd3fc
+
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -171,12 +165,12 @@ export default function CrmSidebar() {
         {collapsed && <div className="my-1.5 border-t border-slate-100 dark:border-slate-800/60" />}
 
         <div className="space-y-0.5">
-<<<<<<< HEAD
+         <div>
           {SOLUTIONS.filter((s) => canAccessSolution(user, "crm", s.id)).map((s) => (
             <SolutionGroup key={s.id} solution={s} pathname={pathname} collapsed={collapsed} onNavigate={navigate} />
           ))}
         </div>
-=======
+
           {solutions
             .filter((s) => s.isIndustry || canAccessSolution(user, "crm", s.id))
             .map((s) => (
@@ -203,7 +197,6 @@ export default function CrmSidebar() {
           <Building size={15} className={pathname === "/crm/industry-setup" ? "text-orange-500 dark:text-orange-400" : "text-slate-400 dark:text-slate-500"} />
           {!collapsed && "Industry"}
         </button>
->>>>>>> c1158262580c276452387e64907295563fdbd3fc
       </nav>
     </aside>
   );
