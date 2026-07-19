@@ -24,6 +24,9 @@ model Tenant {
   stripeSubId       String?
   plan              String   @default("executive")
   planSolutions     String[] @default([])
+  // Selected industry vertical. "general" ⇒ core CRM only (unchanged behavior);
+  // any other value additively unlocks that industry's modules.
+  industry          String   @default("general")
 
   users            User[]
   roles            Role[]
@@ -62,6 +65,34 @@ model Tenant {
   userSessions            UserSession[]
   auditLogs               AuditLog[]
   aiUsages                AiUsage[]
+  industryRecords         IndustryRecord[]
+}
+
+// Generic industry-object store — the additive "custom object" engine that
+// powers every industry vertical WITHOUT adding a table per industry and
+// WITHOUT touching any core CRM model. Each row is one industry record
+// (a telecom subscriber, a bank loan application, a hotel reservation, …),
+// its shape defined by the industry registry (industries/registry.js).
+model IndustryRecord {
+  id         String   @id @default(uuid())
+  tenantId   String
+  industry   String   // e.g. "telecom", "banking"
+  objectType String   // e.g. "subscriber", "loan_application"
+  name       String                       // human label for the record
+  stage      String?                      // pipeline stage (for pipeline objects)
+  status     String   @default("active")
+  amount     Float?                        // primary numeric (balance, loan value…)
+  currency   String   @default("LRD")      // local currency by default
+  ownerId    String?                       // assigned user
+  ownerName  String?
+  data       Json     @default("{}")       // all industry-specific fields
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, industry, objectType])
+  @@index([tenantId, objectType, stage])
 }
 
 // Per-tenant monthly AI-assist consumption. One row per (tenant, month); the

@@ -1,9 +1,13 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import * as c from "./crm.controller.js";
+import industryRouter from "./industries/industry.routes.js";
 
 const router = express.Router();
 const auth = authenticate; // shorthand
+
+// ── Industry modules (additive layer — core CRM routes below are unchanged) ──
+router.use("/industry", industryRouter);
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 router.get("/dashboard/profile",             auth, c.getDashboardProfile);
