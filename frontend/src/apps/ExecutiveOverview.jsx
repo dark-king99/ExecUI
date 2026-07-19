@@ -228,7 +228,6 @@ export default function ExecutiveOverview() {
             <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
               <span className="capitalize">{(identity.role || "").replace(/_/g, " ")}</span>
               {identity.department && <> · {identity.department} dept</>}
-              {identity.employeeId && <> · {identity.employeeId}</>}
             </p>
           </div>
         </div>

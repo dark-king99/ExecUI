@@ -199,7 +199,6 @@ export default function Profile() {
           {[
             { label: "Company",     value: form.enterprise ?? form.tenant?.name },
             { label: "Your Role",   value: (form.role ?? "").replace(/_/g, " ") },
-            { label: "Employee ID", value: form.employeeId },
           ].map(f => (
             <div key={f.label}>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{f.label}</label>

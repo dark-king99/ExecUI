@@ -32,6 +32,7 @@ export const changePasswordSchema = z.object({
 export const selectPlanSchema = z.object({
   plan: z.enum(["standard", "premium", "enterprise", "executive", "custom"]),
   customSolutions: z.array(z.string().max(60)).max(30).optional(),
+  industry: z.string().max(40).optional(),
 });
 
 export const inviteSchema = z.object({

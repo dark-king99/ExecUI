@@ -1,5 +1,10 @@
 import prisma from "../../config/database.js";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
+
+// Opaque 7-character employee ID (lowercase letters + digits) — see users.controller.
+const EMP_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
+const genEmployeeId = () => Array.from({ length: 7 }, () => EMP_ALPHABET[crypto.randomInt(EMP_ALPHABET.length)]).join("");
 
 // Generate a short, human-friendly, unique enterprise join code, e.g. "ACME-9F3K".
 function randomSuffix(len = 4) {
@@ -102,14 +107,14 @@ export async function bootstrapEnterprise({
       throw new Error("User already exists with this email");
     }
 
-    // The founding enterprise admin gets the first employee ID code.
+    // The founding enterprise admin gets a random 7-char employee ID code.
     const adminUser = await tx.user.create({
       data: {
         email,
         passwordHash,
         firstName,
         lastName,
-        employeeId: "ADM-001",
+        employeeId: genEmployeeId(),
         status: "active",
         tenantId: tenant.id,
         roleId: adminRole.id
