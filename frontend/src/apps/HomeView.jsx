@@ -20,7 +20,7 @@ import { SOLUTIONS as ANA_SOLUTIONS } from "./analytics/solutions.config";
 // halves of each line fly off to opposite sides of the screen and fade. Loops.
 const TITLE_LINES = [
   { text: "One Platform to Operate", className: "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-500 bg-clip-text text-transparent dark:from-white dark:via-white dark:to-slate-400" },
-  { text: "Your Entire Enterprise", className: "text-sheen bg-gradient-to-r from-cyan-500 via-fuchsia-500 to-blue-500 bg-clip-text text-transparent" },
+  { text: "Your Entire Enterprise", className: "text-sheen bg-gradient-to-r from-cyan-500 via-teal-500 to-crystal-teal-500 bg-clip-text text-transparent" },
 ];
 
 function HeroTitle() {
