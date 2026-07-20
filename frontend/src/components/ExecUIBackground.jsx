@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 /**
- * ExecUI ambient background — ported from the Claude Design project
+ * ExecUI ambient background — ported from the design project
  * "Enterprise Software Background Animation" (ExecUI Background.dc.html).
  *
  * Four looping scenes (Flow · Orbit · Signal · Rise, 30s total): drifting color
