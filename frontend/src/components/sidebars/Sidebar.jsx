@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { accessFor } from "../../lib/access";
 import { useUser } from "../../context/UserContext";
+import AnimatedLogo from "../AnimatedLogo";
 
 // Department-gated module nav (filtered by the signed-in employee's access).
 const MODULES = [
@@ -88,13 +89,8 @@ export default function Sidebar() {
         }`}
       >
         {!collapsed && (
-          // Transparent-ground wordmark: blends with the sidebar in both light and dark themes.
-          <img
-            src="/execui-logo.png"
-            alt="ExecUI"
-            draggable="false"
-            className="h-8 w-auto object-contain select-none"
-          />
+          // Transparent-ground wordmark, animated with a light sweep.
+          <AnimatedLogo className="h-8" />
         )}
         <button
           onClick={toggleCollapse}

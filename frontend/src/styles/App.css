@@ -73,6 +73,19 @@ html {
 .animate-slide-right  { animation: slide-right 0.3s ease-out both; }
 .animate-scale-in     { animation: scale-in  0.25s ease-out both; }
 
+/* ─── Animated app logo ──────────────────────────────────────── */
+/* A light sweep confined to the logo silhouette: the logo PNG is the mask on
+   the sweep element, and a bright diagonal gradient scrolls across it (via
+   background-position, so the mask itself stays put). Plus a gentle idle float. */
+@keyframes logo-sheen {
+  0%   { background-position: 160% 0; }
+  55%  { background-position: -160% 0; }
+  100% { background-position: -160% 0; }
+}
+@keyframes logo-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+.animate-logo-sheen  { animation: logo-sheen 4.5s ease-in-out 1s infinite; }
+.animate-logo-float  { animation: logo-float 6s ease-in-out infinite; }
+
 /* ─── Staggered animation delays ─────────────────────────────── */
 .delay-75  { animation-delay: 75ms; }
 .delay-150 { animation-delay: 150ms; }
@@ -119,7 +132,8 @@ html {
 
 @media (prefers-reduced-motion: reduce) {
   .animate-aurora, .animate-aurora-2, .animate-gradient,
-  .animate-float, .animate-float-slow, .animate-float-slower { animation: none !important; }
+  .animate-float, .animate-float-slow, .animate-float-slower,
+  .animate-logo-sheen, .animate-logo-float { animation: none !important; }
 }
 
 /* ─── Focus ring (accessible, clean) ────────────────────────── */
