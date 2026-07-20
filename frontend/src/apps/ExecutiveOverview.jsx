@@ -5,6 +5,7 @@ import {
   Activity, CalendarClock, ListChecks, MessagesSquare, Send, Lock, ShieldCheck, Clock, Mail, Check,
 } from "lucide-react";
 import { useApi, useMutation } from "../hooks/useApi";
+import { useToast } from "../components/ui/Toast";
 import { overview } from "../services/api";
 import { Avatar, AvatarImage, AvatarFallback } from "../components/ui/avatar";
 import { SOLUTIONS as MKT } from "./marketing/solutions.config";
@@ -156,20 +157,27 @@ export default function ExecutiveOverview() {
   const [draft, setDraft] = useState("");
   const [toDept, setToDept] = useState("all");
 
+  const toast = useToast();
   const { mutate: sendMessage, loading: sending } = useMutation((d) => overview.sendMessage(d), {
     onSuccess: () => { setDraft(""); refetch(); },
   });
 
-  // "Email me this report" — sends the KPI snapshot via Resend.
+  // "Email me this report" — sends the KPI snapshot to the signed-in user's own
+  // address (and always to their in-app inbox, so it works without a mail key).
   const [reportState, setReportState] = useState("idle"); // idle | sending | sent | error
   const emailReport = async () => {
     setReportState("sending");
     try {
       const r = await overview.emailReport();
-      setReportState(r?.skipped ? "sent" : "sent");
+      setReportState("sent");
+      toast(r?.emailed
+        ? { message: `Report emailed to you (${r.to}).`, type: "success" }
+        : { message: "Email isn't set up on this server — the report was saved to your notifications inbox instead.", type: "info" });
+      refetch();
       setTimeout(() => setReportState("idle"), 4000);
     } catch {
       setReportState("error");
+      toast({ message: "Couldn't generate the report — please try again.", type: "error" });
       setTimeout(() => setReportState("idle"), 4000);
     }
   };
@@ -235,6 +243,7 @@ export default function ExecutiveOverview() {
           <button
             onClick={emailReport}
             disabled={reportState === "sending"}
+            title="Email this KPI snapshot to your own address (also delivered to your notifications inbox)"
             className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-60 dark:border-slate-700 dark:text-slate-400 dark:hover:text-indigo-400"
           >
             {reportState === "sent" ? <Check size={13} className="text-emerald-500" /> : <Mail size={13} />}

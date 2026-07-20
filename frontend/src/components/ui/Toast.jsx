@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useMemo } from "react";
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from "lucide-react";
 
 const ToastContext = createContext(null);
@@ -13,8 +13,8 @@ const icons = {
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
-  const toast = useCallback(({ message, type = "info", duration = 3500 }) => {
-    const id = Date.now();
+  const push = useCallback(({ message, type = "info", duration = 3500 }) => {
+    const id = Date.now() + Math.random();
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), duration);
   }, []);
@@ -22,6 +22,17 @@ export function ToastProvider({ children }) {
   const dismiss = useCallback((id) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
+
+  // The context value is callable — toast({ message, type }) — AND exposes
+  // shorthand methods — toast.success("…") / .error / .warning / .info — so both
+  // call styles used across the app work against a single toast system.
+  const toast = useMemo(() => {
+    const fn = (opts) => push(typeof opts === "string" ? { message: opts } : opts);
+    for (const t of ["success", "error", "warning", "info"]) {
+      fn[t] = (message, opts = {}) => push({ message, type: t, ...opts });
+    }
+    return fn;
+  }, [push]);
 
   return (
     <ToastContext.Provider value={toast}>

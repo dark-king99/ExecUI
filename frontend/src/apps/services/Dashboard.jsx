@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDataSync, useApi } from "../../hooks/useApi";
 import { account } from "../../services/api";
 import { useUser } from "../../context/UserContext";
@@ -275,6 +276,7 @@ const QuickStats = ({ stats, isDarkMode }) => (
 export const Dashboard = () => {
   const { theme } = useSidebar();
   const isDarkMode = theme === 'dark';
+  const navigate = useNavigate();
 
   // Identity comes from the shared profile query (same cache as the Greeting),
   // so avatar/name/role edits in Profile propagate here automatically.
@@ -347,7 +349,7 @@ export const Dashboard = () => {
     <div data-testid="dashboard-view" className="space-y-6">
       {/* Header */}
       <header
-        className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b mb-8 border-slate-200"
+        className={`animate-slide-up flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b mb-8 ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}
       >
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16 border-2 border-orange-500/30">
@@ -359,9 +361,9 @@ export const Dashboard = () => {
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className={`text-sm font-body text-slate-400' : 'text-slate-500`}>{getGreeting()}</p>
+            <p className={`text-sm font-body ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{getGreeting()}</p>
             <h1
-              className={`text-2xl sm:text-3xl font-semibold tracking-tight font-heading dark:text-white text-slate-900`}
+              className={`text-2xl sm:text-3xl font-semibold tracking-tight font-heading ${isDarkMode ? 'text-white' : 'text-slate-900'}`}
               data-testid="employee-name"
             >
               {displayName}
@@ -372,50 +374,37 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* Quick Stats Pills */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div
-            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border border-slate-500 bg-white shadow-sm'}`}
-            data-testid="stat-campaigns"
-          >
-            <Megaphone className="w-4 h-4 text-orange-400" />
-            <span className={`font-medium font-body dark:text-white text-slate-900`}>
-              {overview?.Management_live ?? 0}
-            </span>
-            <span className={`text-sm font-body text-slate-500' : 'text-slate-500`}>Management Live</span>
-          </div>
-          <div
-            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border border-slate-600 bg-white shadow-sm`}
-            data-testid="stat-leads"
-          >
-            <Users className="w-4 h-4 text-emerald-400" />
-            <span className={`font-medium font-body text-slate-50' : 'text-slate-900`}>
-              {overview?.active_reports ?? 0}
-            </span>
-            <span className={`text-sm font-body text-slate-500' : 'text-slate-500`}>Active Reports </span>
-          </div>
-          <div
-            className={`stat-pill flex items-center gap-2 px-4 py-2 rounded-full border bg-white border-slate-200 shadow-sm'}`}
-            data-testid="stat-emails"
-          >
-            <Send className="w-4 h-4 text-sky-400" />
-            <span className={`font-medium font-body dark:text-white text-slate-900`}>
-              {(overview?.emails_sent ?? 0).toLocaleString()}
-            </span>
-            <span className={`text-sm font-body text-slate-500`}>Emails Inbox</span>
-          </div>
+        {/* Quick stats — real numbers, click to drill into the module. */}
+        <div className="stagger flex flex-wrap items-center gap-3">
+          {[
+            { icon: Activity, tint: 'text-orange-400', value: stats.projects.active,       label: 'Live Projects', to: '/services/team',      testid: 'stat-projects' },
+            { icon: Target,   tint: 'text-violet-400', value: stats.strategic.goals_count,  label: 'Active Goals',  to: '/services/strategic', testid: 'stat-goals' },
+            { icon: Users,    tint: 'text-emerald-400',value: stats.clients.active,         label: 'Active Clients',to: '/services/marketing', testid: 'stat-clients' },
+          ].map((p) => (
+            <button
+              key={p.label}
+              onClick={() => navigate(p.to)}
+              data-testid={p.testid}
+              title={`View ${p.label}`}
+              className={`stat-pill animate-slide-up flex items-center gap-2 px-4 py-2 rounded-full border shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                isDarkMode ? 'bg-slate-900/60 border-slate-700 hover:border-slate-600' : 'bg-white border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <p.icon className={`w-4 h-4 ${p.tint}`} />
+              <span className={`font-medium font-body ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{p.value ?? 0}</span>
+              <span className={`text-sm font-body ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{p.label}</span>
+            </button>
+          ))}
         </div>
       </header>
 
       {/* Main Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="animate-slide-up grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" style={{ animationDelay: '80ms' }}>
         <StatCard
           title="Total Revenue"
           value={`$${stats.financial.total_income.toLocaleString()}`}
           subtitle="All time income"
           icon={DollarSign}
-          trend="up"
-          trendValue="+12.5%"
           accentColor="bg-emerald-500/10 text-emerald-500"
           isDarkMode={isDarkMode}
         />
@@ -424,8 +413,6 @@ export const Dashboard = () => {
           value={`$${stats.financial.net_profit.toLocaleString()}`}
           subtitle="After expenses"
           icon={TrendingUp}
-          trend={stats.financial.net_profit >= 0 ? 'up' : 'down'}
-          trendValue={stats.financial.net_profit >= 0 ? '+8.2%' : '-3.1%'}
           accentColor="bg-indigo-500/10 text-indigo-500"
           isDarkMode={isDarkMode}
         />
@@ -448,7 +435,7 @@ export const Dashboard = () => {
       </div>
 
       {/* Secondary Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="animate-slide-up grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ animationDelay: '160ms' }}>
         <RecentActivity 
           transactions={stats.recent_transactions} 
           isDarkMode={isDarkMode} 
