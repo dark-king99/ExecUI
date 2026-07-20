@@ -4,6 +4,7 @@ import {
   Megaphone, AlertCircle, Loader2, Eye, EyeOff, Shield, Copy, KeyRound, Sun, Moon,
 } from "lucide-react";
 import { auth, setToken } from "../services/api";
+import ExecUIBackground from "../components/ExecUIBackground";
 
 // ─── Brand panel data ────────────────────────────────────────────────────────
 const features = [
@@ -201,8 +202,13 @@ export default function Login({ onLogin }) {
   const activeIndex = MODES.findIndex((m) => m.id === mode);
 
   return (
-    <div className="relative min-h-screen w-full flex bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="relative isolate min-h-screen w-full flex bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <CursorGlow />
+
+      {/* Shared ExecUI ambient animation behind the whole sign-in screen. */}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <ExecUIBackground showModules={false} />
+      </div>
 
       {/* Theme toggle */}
       <button
@@ -213,27 +219,8 @@ export default function Login({ onLogin }) {
         {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
       </button>
 
-      {/* ── LEFT: Brand panel ── */}
-      <div className="hidden lg:flex lg:w-[480px] xl:w-[520px] shrink-0 flex-col relative overflow-hidden border-r border-slate-200 bg-gradient-to-br from-indigo-50 via-white to-violet-50 dark:border-slate-800/60 dark:from-indigo-950 dark:via-slate-950 dark:to-slate-950">
-        {/* Aurora blobs (pointer-parallax wrappers + drift animation) */}
-        <div className="pointer-events-none absolute inset-0">
-          <div ref={(el) => (layers.current[0] = el)} className="absolute -top-20 -left-20 will-change-transform">
-            <div className="h-72 w-72 rounded-full bg-indigo-400/25 blur-3xl animate-aurora dark:bg-indigo-600/20" />
-          </div>
-          <div ref={(el) => (layers.current[1] = el)} className="absolute bottom-0 right-0 will-change-transform">
-            <div className="h-80 w-80 rounded-full bg-violet-400/20 blur-3xl animate-aurora-2 dark:bg-violet-600/15" />
-          </div>
-          <div ref={(el) => (layers.current[2] = el)} className="absolute top-1/3 right-10 will-change-transform">
-            <div className="h-40 w-40 rounded-full bg-sky-400/15 blur-3xl animate-float-slow dark:bg-sky-500/10" />
-          </div>
-          {/* floating particles */}
-          <span className="absolute left-[20%] top-[28%] h-1.5 w-1.5 rounded-full bg-indigo-400/60 animate-float" />
-          <span className="absolute left-[70%] top-[20%] h-1 w-1 rounded-full bg-violet-400/60 animate-float-slow" />
-          <span className="absolute left-[40%] top-[64%] h-1.5 w-1.5 rounded-full bg-sky-400/50 animate-float-slower" />
-          <span className="absolute left-[80%] top-[72%] h-1 w-1 rounded-full bg-indigo-400/50 animate-float" />
-        </div>
-        <div className="absolute inset-0 bg-dot-pattern opacity-60" />
-
+      {/* ── LEFT: Brand panel (transparent — the shared ambient shows through) ── */}
+      <div className="hidden lg:flex lg:w-[480px] xl:w-[520px] shrink-0 flex-col relative z-10 overflow-hidden border-r border-slate-200/60 dark:border-slate-800/60">
         <div className="relative z-10 flex flex-col h-full px-10 py-12">
           <div className="flex items-center gap-3 mb-14 animate-slide-up">
             <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30 animate-float-slower">
@@ -277,7 +264,7 @@ export default function Login({ onLogin }) {
       </div>
 
       {/* ── RIGHT: Auth form ── */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12 overflow-y-auto">
+      <div className="relative z-10 flex-1 flex items-center justify-center px-6 py-12 overflow-y-auto">
         <Reveal className="w-full max-w-md">
           <div className="flex items-center justify-between mb-8 lg:hidden">
             <div className="flex items-center gap-2.5 animate-slide-up">

@@ -327,15 +327,12 @@ export default function HomeView() {
     "rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.03] dark:shadow-none";
 
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden bg-white text-slate-900 dark:bg-[#0a0a0c] dark:text-slate-100">
+    <div className="relative isolate min-h-screen w-full overflow-x-hidden bg-white text-slate-900 dark:bg-[#0a0a0c] dark:text-slate-100">
       <CursorGlow />
 
-      {/* Background: ExecUI ambient animation (Flow · Orbit · Signal · Rise),
-          imported from the Claude Design project. Masked so it fades into the
-          page background below the hero. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[820px] mask-[radial-gradient(ellipse_at_top,black_35%,transparent_80%)]">
-        {/* Module-label chips are disabled here so they don't collide with the
-            hero copy; the ambient motion (blobs, streams, orbits, arc) carries it. */}
+      {/* Page-wide ambient animation (Flow · Orbit · Signal · Rise) fixed behind
+          all content. Chips are off so the module labels don't fight the copy. */}
+      <div className="pointer-events-none fixed inset-0 z-0">
         <ExecUIBackground showModules={false} />
       </div>
 
@@ -786,7 +783,9 @@ export default function HomeView() {
       </div>
 
       {/* ── Footer ────────────────────────────────────────────────────── */}
-      <Footer />
+      <div className="relative z-10">
+        <Footer />
+      </div>
     </div>
   );
 }
