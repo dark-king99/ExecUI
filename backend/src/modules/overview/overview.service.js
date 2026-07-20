@@ -2,6 +2,7 @@ import prisma from "../../config/database.js";
 import { accessFor, DEPT_LABELS, SECTIONS } from "../access/access.policy.js";
 import * as messaging from "../messaging/messaging.service.js";
 import { sendEmail } from "../../lib/email.js";
+import { notify } from "../notifications/notifications.service.js";
 
 const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
 const money = (n) => Math.round(n || 0);
@@ -297,7 +298,7 @@ export async function emailReport(userId, tenantId) {
     </tr>`).join("");
 
   const today = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-  return sendEmail({
+  const result = await sendEmail({
     tenantId, userId, to: user.email, context: "overview:report",
     subject: `Your ${data.gauge.label} report — ${today}`,
     html: `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto">
@@ -309,6 +310,18 @@ export async function emailReport(userId, tenantId) {
       <p style="color:#94a3b8;font-size:12px;margin-top:16px">Sent from your ExecUI Executive Overview.</p>
     </div>`,
   });
+
+  // Always deliver a real in-app copy to the requester's bell, so "email report"
+  // is a genuine operation even when no mail provider is configured.
+  const topKpis = data.kpis.slice(0, 3).map((k) => `${k.label}: ${fmt(k)}`).join(" · ");
+  await notify({
+    tenantId, userId, type: "system", actorName: "ExecUI",
+    title: `${data.gauge.label} report — ${today}`,
+    body: `${data.gauge.label}: ${data.gauge.value ?? "—"}${topKpis ? " · " + topKpis : ""}`,
+    link: "/overview",
+  }).catch(() => {});
+
+  return { emailed: !!result.sent, skipped: !!result.skipped, notified: true, to: user.email };
 }
 
 export const DEPARTMENTS = DEPT_LABELS;
