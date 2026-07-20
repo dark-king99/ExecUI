@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { auth, setToken } from "../services/api";
 import ExecUIBackground from "../components/ExecUIBackground";
+import AnimatedLogo from "../components/AnimatedLogo";
 
 // ─── Brand panel data ────────────────────────────────────────────────────────
 const features = [
@@ -222,14 +223,9 @@ export default function Login({ onLogin }) {
       {/* ── LEFT: Brand panel (transparent — the shared ambient shows through) ── */}
       <div className="hidden lg:flex lg:w-[480px] xl:w-[520px] shrink-0 flex-col relative z-10 overflow-hidden border-r border-slate-200/60 dark:border-slate-800/60">
         <div className="relative z-10 flex flex-col h-full px-10 py-12">
-          <div className="flex items-center gap-3 mb-14 animate-slide-up">
-            <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30 animate-float-slower">
-              <Building2 size={18} className="text-white" />
-            </div>
-            <div>
-              <p className="text-base font-semibold text-slate-900 dark:text-white leading-none">ExecUI</p>
-              <p className="text-[11px] text-indigo-500 dark:text-indigo-300/70 mt-0.5">Enterprise Platform</p>
-            </div>
+          <div className="mb-14 animate-slide-up">
+            <AnimatedLogo className="h-10" float />
+            <p className="text-[11px] text-indigo-500 dark:text-indigo-300/70 mt-2 ml-1 tracking-wide">Enterprise Platform</p>
           </div>
           <div className="mb-10">
             <h1 className="text-3xl xl:text-4xl font-semibold text-slate-900 dark:text-white leading-tight mb-4 animate-slide-up delay-75">
@@ -267,10 +263,7 @@ export default function Login({ onLogin }) {
       <div className="relative z-10 flex-1 flex items-center justify-center px-6 py-12 overflow-y-auto">
         <Reveal className="w-full max-w-md">
           <div className="flex items-center justify-between mb-8 lg:hidden">
-            <div className="flex items-center gap-2.5 animate-slide-up">
-              <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center"><Building2 size={16} className="text-white" /></div>
-              <span className="text-base font-semibold text-slate-900 dark:text-white">ExecUI</span>
-            </div>
+            <AnimatedLogo className="h-8" />
           </div>
 
           {created ? (

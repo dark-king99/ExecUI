@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { MeshGradient, FadeUp, Stagger, Item, AnimatedNumber, TiltCard, Marquee } from "../components/motionfx";
 import ExecUIBackground from "../components/ExecUIBackground";
+import AnimatedLogo from "../components/AnimatedLogo";
 import Footer from "../components/Footer";
 import { PLANS, CUSTOM, CRM_SOLUTIONS, MKT_SOLUTIONS, SERVICES_SOLUTIONS } from "../lib/plans";
 import { SOLUTIONS as NET_SOLUTIONS } from "./network/solutions.config";
@@ -346,7 +347,7 @@ export default function HomeView() {
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
           <button onClick={() => navigate("/home")} className="flex items-center transition-transform hover:scale-[1.03]">
-            <img src="/execui-logo.png" alt="ExecUI" className="h-8 w-auto object-contain dark:brightness-100" draggable="false" />
+            <AnimatedLogo className="h-8" />
           </button>
           <nav className="hidden items-center gap-1 md:flex">
             {navLinks.map((l) => (
