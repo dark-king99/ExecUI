@@ -53,11 +53,17 @@ function planFeatures(plan) {
   return lines;
 }
 
-function PlanCard({ plan, current, onSelect, loading, canSelect }) {
+function PlanCard({ plan, current, currentNetworkProfile = "office", onSelect, loading, canSelect, networkProfile = "office", onNetworkProfileChange }) {
   const s = TIER_STYLE[plan.id] ?? TIER_STYLE.standard;
   const Icon = s.icon;
-  const isCurrent = plan.id === current;
   const features = planFeatures(plan);
+  // Plans with network (Executive) carry a tier toggle: the network profile is a
+  // property of the plan, chosen here rather than inside Network Management.
+  const hasNetworkTiers = !!plan.networkDatacenterPrice;
+  const price = hasNetworkTiers && networkProfile === "datacenter" ? plan.networkDatacenterPrice : plan.price;
+  const isCurrentPlan = plan.id === current;
+  // "Current" only when the tier also matches, so switching Executive's tier is a real change.
+  const isCurrent = isCurrentPlan && (!hasNetworkTiers || networkProfile === currentNetworkProfile);
 
   return (
     <div className={`relative flex flex-col rounded-2xl border-2 p-5 transition ${
@@ -85,12 +91,29 @@ function PlanCard({ plan, current, onSelect, loading, canSelect }) {
           <Icon size={12} /> {plan.name}
         </span>
         <p className="mt-3 text-3xl font-bold text-slate-900 dark:text-white">
-          ${plan.price.toLocaleString()}<span className="text-sm font-normal text-slate-500">/mo</span>
+          ${price.toLocaleString()}<span className="text-sm font-normal text-slate-500">/mo</span>
         </p>
-        {plan.networkDatacenterPrice && (
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            ${plan.networkDatacenterPrice.toLocaleString()}/mo with Enterprise (datacenter) network
-          </p>
+        {hasNetworkTiers && (
+          <div className="mt-2">
+            <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5">
+              {[["office", "Small office"], ["datacenter", "Enterprise"]].map(([v, label]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => onNetworkProfileChange?.(v)}
+                  disabled={!canSelect}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition ${
+                    networkProfile === v
+                      ? "bg-amber-500 text-white"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  } ${!canSelect ? "cursor-not-allowed" : ""}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">Network tier</p>
+          </div>
         )}
         <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 min-h-[40px]">{plan.tagline}</p>
       </div>
@@ -104,7 +127,7 @@ function PlanCard({ plan, current, onSelect, loading, canSelect }) {
       </ul>
 
       <button
-        onClick={() => !isCurrent && canSelect && onSelect(plan.id)}
+        onClick={() => !isCurrent && canSelect && onSelect(plan.id, [], undefined, hasNetworkTiers ? networkProfile : undefined)}
         disabled={isCurrent || loading || !canSelect}
         className={`w-full py-2 rounded-lg text-sm font-medium transition ${
           isCurrent
@@ -116,7 +139,7 @@ function PlanCard({ plan, current, onSelect, loading, canSelect }) {
             : "border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400"
         }`}
       >
-        {isCurrent ? "Active" : !canSelect ? "Admin only" : loading ? "Switching…" : "Choose plan"}
+        {isCurrent ? "Active" : !canSelect ? "Admin only" : loading ? "Switching…" : (isCurrentPlan && hasNetworkTiers) ? "Switch tier" : "Choose plan"}
       </button>
     </div>
   );
@@ -253,7 +276,13 @@ export default function Billing() {
   const currentPlan = billing?.plan ?? "executive";
   const currentSolutions = billing?.customSolutions ?? [];
   const currentIndustry = billing?.industry ?? "general";
+  const currentNetworkProfile = billing?.networkProfile ?? "office";
   const billingEnabled = billing?.billingEnabled ?? false;
+
+  // Executive's network tier (office | datacenter) — mirrors the current plan,
+  // and is the ONLY place it's chosen (Network Management just reflects it).
+  const [networkProfile, setNetworkProfile] = useState("office");
+  useEffect(() => { setNetworkProfile(currentNetworkProfile); }, [currentNetworkProfile]);
 
   const { data: invoicesData } = useApi(
     () => (billingEnabled ? account.billing.invoices() : Promise.resolve([])), [billingEnabled]
@@ -261,7 +290,7 @@ export default function Billing() {
   const invoices = invoicesData ?? [];
 
   const selectMut = useMutation(
-    ({ plan, customSolutions, industry }) => account.billing.select({ plan, customSolutions, industry }),
+    ({ plan, customSolutions, industry, networkProfile }) => account.billing.select({ plan, customSolutions, industry, networkProfile }),
     {
       onSuccess: (data) => {
         // PAID mode: Stripe returns a Checkout URL — send the admin to pay.
@@ -275,6 +304,8 @@ export default function Billing() {
         toast({ message: `Now on the ${data.planName} plan`, type: "success" });
         updateUser({ plan: data.plan, planSolutions: data.customSolutions ?? [] });
         refetchBilling();
+        // Tell the Network module its plan-derived profile may have changed.
+        window.dispatchEvent(new Event("network:profile-changed"));
       },
       onError: (e) => toast({ message: e.message, type: "error" }),
     }
@@ -309,7 +340,8 @@ export default function Billing() {
     window.history.replaceState({}, "", "/account/billing");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSelect = (plan, customSolutions = [], industry) => selectMut.mutate({ plan, customSolutions, industry });
+  const handleSelect = (plan, customSolutions = [], industry, netProfile) =>
+    selectMut.mutate({ plan, customSolutions, industry, networkProfile: netProfile });
 
   const activeEnt = billing?.entitlements ?? { sections: [], solutions: {}, analyticsSlices: [] };
   const activeModules = useMemo(
@@ -461,6 +493,9 @@ export default function Billing() {
               key={p.id}
               plan={p}
               current={currentPlan}
+              currentNetworkProfile={currentNetworkProfile}
+              networkProfile={networkProfile}
+              onNetworkProfileChange={setNetworkProfile}
               onSelect={handleSelect}
               loading={selectMut.loading}
               canSelect={admin}

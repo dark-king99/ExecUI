@@ -162,21 +162,6 @@ export default function NetworkSidebar() {
             <SolutionGroup key={s.id} solution={s} pathname={pathname} collapsed={collapsed} onNavigate={navigate} />
           ))}
         </div>
-
-        {!collapsed && (
-          <p className="px-2.5 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-600 select-none">Configure</p>
-        )}
-        {collapsed && <div className="my-1.5 border-t border-slate-100 dark:border-slate-800/60" />}
-        <button
-          onClick={() => navigate("/network/profile-setup")}
-          title={collapsed ? "Network profile" : undefined}
-          className={`relative flex items-center ${collapsed ? "justify-center" : "gap-2.5"} w-full px-2.5 py-2 rounded-lg text-sm font-medium transition ${
-            pathname === "/network/profile-setup" ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/70"
-          }`}
-        >
-          <SlidersHorizontal size={15} className={pathname === "/network/profile-setup" ? "text-emerald-500" : "text-slate-400 dark:text-slate-500"} />
-          {!collapsed && "Network profile"}
-        </button>
       </nav>
     </aside>
   );

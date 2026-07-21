@@ -33,6 +33,8 @@ export const selectPlanSchema = z.object({
   plan: z.enum(["standard", "premium", "enterprise", "executive", "custom"]),
   customSolutions: z.array(z.string().max(60)).max(30).optional(),
   industry: z.string().max(40).optional(),
+  // Executive's network tier — "office" (base) or "datacenter" (enterprise price).
+  networkProfile: z.enum(["office", "datacenter"]).optional(),
 });
 
 export const inviteSchema = z.object({
