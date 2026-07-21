@@ -197,10 +197,17 @@ function buildLineItems(plan, solutions) {
  *  - PAID mode (Stripe configured): returns a Checkout URL; the plan is applied
  *    once payment succeeds (checkout.session.completed webhook).
  */
-export const selectPlan = async (tenantId, { plan, customSolutions = [], industry }, actorId = null) => {
+export const selectPlan = async (tenantId, { plan, customSolutions = [], industry, networkProfile }, actorId = null) => {
   const { solutions } = resolvePlan(plan, customSolutions);
   // A chosen industry (e.g. the Custom plan's add-on) is applied to the tenant.
   const extra = industry != null ? { industry: String(industry) } : {};
+
+  // The network profile is a property of the plan: only Executive has network,
+  // and its tier (office vs enterprise/datacenter) is chosen here — not from the
+  // Network module. Any non-network plan is normalised back to "office".
+  const planDef = PLAN_TIERS.find((p) => p.id === plan);
+  if (planDef?.network) extra.networkProfile = networkProfile === "datacenter" ? "datacenter" : "office";
+  else extra.networkProfile = "office";
 
   if (!BILLING_ENABLED) {
     return { ...(await activatePlan(tenantId, plan, solutions, extra, actorId)), freeEarlyAccess: true };
@@ -208,11 +215,11 @@ export const selectPlan = async (tenantId, { plan, customSolutions = [], industr
 
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw new NotFoundError("Tenant not found");
-  // Apply the industry choice immediately (access layer); billing follows on the webhook.
-  if (industry != null) await prisma.tenant.update({ where: { id: tenantId }, data: { industry: String(industry) } });
+  // Apply the industry + network-tier choices immediately (access layer); billing follows on the webhook.
+  await prisma.tenant.update({ where: { id: tenantId }, data: { ...(industry != null ? { industry: String(industry) } : {}), networkProfile: extra.networkProfile } });
 
   const customerId = await ensureStripeCustomer(tenant);
-  const metadata = { tenantId, plan, planSolutions: JSON.stringify(solutions), industry: industry ?? "" };
+  const metadata = { tenantId, plan, planSolutions: JSON.stringify(solutions), industry: industry ?? "", networkProfile: extra.networkProfile };
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",

@@ -76,19 +76,16 @@ export default function NetworkSolutions() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {solutions.map((s) => <SolutionCard key={s.id} solution={s} />)}
 
-          {/* Profile setup */}
-          <button
-            onClick={() => navigate("/network/profile-setup")}
-            className="group text-left bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-5 hover:border-emerald-400 hover:shadow-md hover:-translate-y-0.5 transition-all"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center"><Settings2 size={20} className="text-slate-500 dark:text-slate-400" /></div>
-              <ArrowRight size={16} className="text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 transition" />
-            </div>
-            <h3 className="font-semibold text-slate-900 dark:text-white">Network profile</h3>
-            <p className="text-xs font-medium mt-0.5 text-slate-500 dark:text-slate-400">{isOffice ? "Small office mode" : "Enterprise mode"}</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">Switch between a small-office (internet + routers) and full enterprise (servers + datacenter) view.</p>
-          </button>
+          {/* Network tier — read-only; it follows the organization's plan. */}
+          <div className="text-left bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+            <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4"><Settings2 size={20} className="text-slate-500 dark:text-slate-400" /></div>
+            <h3 className="font-semibold text-slate-900 dark:text-white">Network tier</h3>
+            <p className="text-xs font-medium mt-0.5 text-emerald-600 dark:text-emerald-400">{isOffice ? "Small office" : "Enterprise"} · set by your plan</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+              Your network scope follows your subscription.{" "}
+              <button onClick={() => navigate("/account/billing")} className="text-emerald-600 dark:text-emerald-400 font-medium hover:underline">Manage plan →</button>
+            </p>
+          </div>
         </div>
       </div>
     </div>
