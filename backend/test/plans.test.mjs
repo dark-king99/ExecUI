@@ -31,7 +31,7 @@ test("custom plan adds $100 for an industry customization", () => {
 test("standard = half CRM + important marketing, no services, no network", () => {
   const e = entitlementsFor("standard");
   assert.equal(e.solutions.crm.length, 5);
-  assert.equal(e.solutions.marketing.length, 4);
+  assert.equal(e.solutions.marketing.length, 5);
   assert.deepEqual(e.solutions.services, []);
   assert.notEqual(e.solutions.network, "all");
   assert.ok(!e.sections.includes("network"));

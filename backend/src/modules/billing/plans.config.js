@@ -26,6 +26,7 @@ export const MKT_SOLUTIONS = [
   { id: "intelligence",       name: "Intelligence" },
   { id: "einstein",           name: "Einstein (Marketing AI)" },
   { id: "commerce",           name: "Commerce" },
+  { id: "social",             name: "Social" },
 ];
 export const SERVICES_SOLUTIONS = [
   { id: "financial", name: "Financial Management" },
@@ -42,7 +43,7 @@ const SVC_ALL = ids(SERVICES_SOLUTIONS);
 
 // "Important half" for the Standard plan.
 const CRM_STD = ["leads", "accounts", "opportunities", "forecasting", "activities"];
-const MKT_STD = ["engagement", "account-engagement", "personalization", "intelligence"];
+const MKT_STD = ["engagement", "account-engagement", "personalization", "intelligence", "social"];
 // Premium ships the core services; Enterprise/Executive ship all of them.
 const SVC_PREMIUM = ["financial", "operation", "strategic"];
 
