@@ -30,4 +30,16 @@ router.post("/posts/:id/publish", authenticate, handle((req) => svc.publishPost(
 router.post("/improve",         authenticate, handle((req) => svc.improveCaption(tid(req), req.body)));
 router.get("/analytics",        authenticate, handle((req) => svc.analytics(tid(req))));
 
+// Engagement Inbox — grow engagement by replying to comments / mentions / DMs
+router.get("/engagements",              authenticate, handle((req) => svc.listEngagements(tid(req), req.query)));
+router.get("/engagements/stats",        authenticate, handle((req) => svc.engagementStats(tid(req))));
+router.post("/engagements/sync",        authenticate, handle((req) => svc.syncEngagements(tid(req))));
+router.post("/engagements/:id/reply",   authenticate, handle((req) => svc.replyEngagement(tid(req), req.params.id, req.body?.text)));
+router.post("/engagements/:id/archive", authenticate, handle((req) => svc.archiveEngagement(tid(req), req.params.id)));
+router.post("/engagements/:id/draft",   authenticate, handle((req) => svc.draftReply(tid(req), req.params.id)));
+
+// Following growth
+router.get("/growth",           authenticate, handle((req) => svc.growth(tid(req))));
+router.post("/hashtags",        authenticate, handle((req) => svc.suggestHashtags(tid(req), req.body)));
+
 export default router;

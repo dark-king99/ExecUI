@@ -81,3 +81,25 @@ async function publishReal(platform, account, post) {
   if (!token) throw new Error(`${platform} not authorized`);
   throw new Error(`${platform} live publishing not implemented — add the API call in lib/social.js`);
 }
+
+/**
+ * Reply to an incoming engagement (comment / mention / DM). Simulated unless the
+ * platform's API is configured — the same honest pattern as publishing.
+ */
+export async function replyToPlatform(platform, account, engagement, text) {
+  const at = new Date().toISOString();
+  if (!platformConfigured(platform)) {
+    log.info("social_reply_simulated", { platform, engagementId: engagement?.id });
+    return { ok: true, mode: "simulated", ref: `sim_${Math.random().toString(36).slice(2, 10)}`, at };
+  }
+  try {
+    // Wire each platform's real reply endpoint here (comment reply / DM send),
+    // mirroring publishReal(). Left guarded until credentials + endpoints exist.
+    const token = accountToken(account) || process.env[PLATFORMS.find((p) => p.id === platform)?.env];
+    if (!token) throw new Error(`${platform} not authorized`);
+    throw new Error(`${platform} live replies not implemented — add the API call in lib/social.js`);
+  } catch (err) {
+    log.warn("social_reply_error", { platform, error: err.message });
+    return { ok: false, mode: "live", error: err.message, at };
+  }
+}

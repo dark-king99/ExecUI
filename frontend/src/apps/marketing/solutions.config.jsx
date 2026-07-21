@@ -7,6 +7,7 @@ import {
   BarChart3, LineChart, Crosshair, FileBarChart,
   Bot, FlaskConical, Lightbulb,
   ShoppingCart, Package, Megaphone,
+  Inbox, TrendingUp,
 } from "lucide-react";
 
 /**
@@ -143,6 +144,8 @@ export const SOLUTIONS = [
     pages: [
       { id: "composer",  label: "Composer",  icon: Sparkles,      path: "/marketing/social",           component: lazy(() => import("./solutions/social/Composer")) },
       { id: "calendar",  label: "Calendar",  icon: CalendarClock, path: "/marketing/social/calendar",  component: lazy(() => import("./solutions/social/Calendar")) },
+      { id: "inbox",     label: "Inbox",     icon: Inbox,         path: "/marketing/social/inbox",     component: lazy(() => import("./solutions/social/Inbox")) },
+      { id: "growth",    label: "Growth",    icon: TrendingUp,    path: "/marketing/social/growth",    component: lazy(() => import("./solutions/social/Growth")) },
       { id: "accounts",  label: "Accounts",  icon: Share2,        path: "/marketing/social/accounts",  component: lazy(() => import("./solutions/social/Accounts")) },
       { id: "analytics", label: "Analytics", icon: BarChart3,     path: "/marketing/social/analytics", component: lazy(() => import("./solutions/social/Analytics")) },
     ],
