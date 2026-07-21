@@ -334,6 +334,16 @@ export const marketing = {
     publish:   (id)             => post(`/marketing/social/posts/${id}/publish`),
     improve:   (data)           => post('/marketing/social/improve', data),
     analytics: ()               => get('/marketing/social/analytics'),
+    // Engagement inbox
+    engagements:    (params)    => get('/marketing/social/engagements', params),
+    engagementStats:()          => get('/marketing/social/engagements/stats'),
+    syncEngagements:()          => post('/marketing/social/engagements/sync'),
+    reply:          (id, text)  => post(`/marketing/social/engagements/${id}/reply`, { text }),
+    archive:        (id)        => post(`/marketing/social/engagements/${id}/archive`),
+    draftReply:     (id)        => post(`/marketing/social/engagements/${id}/draft`),
+    // Following growth
+    growth:         ()          => get('/marketing/social/growth'),
+    hashtags:       (data)      => post('/marketing/social/hashtags', data),
   },
   campaigns: {
     list:    (params) => get('/marketing/campaigns', params),

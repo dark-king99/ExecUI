@@ -72,6 +72,8 @@ model Tenant {
   industryRecords         IndustryRecord[]
   socialAccounts          SocialAccount[]
   socialPosts             SocialPost[]
+  socialEngagements       SocialEngagement[]
+  socialSnapshots         SocialFollowerSnapshot[]
   networkConnections      NetworkConnection[]
 }
 
@@ -151,6 +153,47 @@ model SocialPost {
 
   @@index([tenantId, status])
   @@index([tenantId, scheduledAt])
+}
+
+// An incoming social interaction (comment, mention, DM or review) that lands in
+// the Engagement Inbox — where the team replies to grow engagement. Real when a
+// platform API is connected; otherwise seeded with clearly-labelled samples.
+model SocialEngagement {
+  id          String   @id @default(uuid())
+  tenantId    String
+  platform    String   // facebook | instagram | whatsapp | x | linkedin | tiktok | youtube
+  kind        String   @default("comment") // comment | mention | dm | review
+  authorName  String
+  authorHandle String?
+  text        String
+  sentiment   String   @default("neutral") // positive | neutral | negative
+  status      String   @default("new")      // new | replied | archived
+  replyText   String?
+  repliedAt   DateTime?
+  simulated   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, platform])
+}
+
+// A daily follower count per platform — the time series behind the Growth page's
+// following-growth trend. One row per (tenant, platform, day).
+model SocialFollowerSnapshot {
+  id        String   @id @default(uuid())
+  tenantId  String
+  platform  String
+  followers Int      @default(0)
+  day       String   // YYYY-MM-DD (tenant-local day key)
+  createdAt DateTime @default(now())
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, platform, day])
+  @@index([tenantId, day])
 }
 
 // Generic industry-object store — the additive "custom object" engine that
