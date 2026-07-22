@@ -8,7 +8,7 @@
         "dev": "prisma generate && prisma migrate deploy && nodemon src/server.js",
         "start": "node src/server.js",
         "check:syntax": "node scripts/check-syntax.mjs",
-        "test": "node --test \"test/*.test.mjs\"",
+        "test": "node --test test/*.test.mjs",
         "studio": "prisma studio --port 5556"
     },
     "dependencies": {

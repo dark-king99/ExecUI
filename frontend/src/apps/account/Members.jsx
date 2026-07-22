@@ -9,7 +9,6 @@ import { useApi, useMutation } from "../../hooks/useApi";
 import { enterprise } from "../../services/api";
 
 function AddMemberModal({ roles, onClose, onCreated }) {
-  const toast = useToast();
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", employeeId: "", role: "employee" });
   const [err, setErr] = useState(null);
   const [done, setDone] = useState(null);

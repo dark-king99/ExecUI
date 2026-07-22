@@ -60,7 +60,6 @@ function SectionLabel({ label, collapsed }) {
 
 export default function Sidebar() {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const { user } = useUser();
   const allowed = accessFor(user).sections;

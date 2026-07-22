@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
 import {
   ArrowRight, ArrowUpRight, Mail, Play, Sparkles, ChevronDown,
   MessageSquare, Table2, Send, Users, Megaphone, Network, BarChart3,

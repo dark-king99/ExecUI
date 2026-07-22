@@ -503,7 +503,6 @@ export const MarketingSales = () => {
   }
 
   const totalBudget = campaigns.reduce((sum, c) => sum + c.budget, 0);
-  const totalSpent = campaigns.reduce((sum, c) => sum + c.spent, 0);
   const totalClientValue = clients.reduce((sum, c) => sum + c.value, 0);
 
   return (
