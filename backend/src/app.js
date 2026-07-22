@@ -29,7 +29,17 @@ app.disable("x-powered-by");
 app.use(compression());
 
 // ── Security headers ─────────────────────────────────────────────────────────
-app.use(cors());
+// CORS: when CORS_ORIGINS is set (comma-separated), only those origins may call
+// the API cross-origin. Unset ⇒ reflect (fine for the same-origin SPA / dev).
+// Auth rides in the Authorization header (no cookies), so credentials stay off.
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
+app.use(cors({
+  origin: ALLOWED_ORIGINS.length
+    ? (origin, cb) => cb(null, !origin || ALLOWED_ORIGINS.includes(origin))
+    : true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  maxAge: 86400,
+}));
 app.use(helmet({
   contentSecurityPolicy: false,          // SPA is served same-origin
   crossOriginResourcePolicy: false,      // uploaded assets are cross-origin-read
@@ -49,7 +59,10 @@ app.use(rateLimit({
   max: Number(process.env.RATE_LIMIT_PER_MIN) || 600,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path === "/health" || req.path.startsWith("/health/"),
+  // Never limit health probes — under both the bare and /api-prefixed paths that
+  // orchestrators hit — or a traffic spike would 429 the probes and get the pod
+  // wrongly restarted/evicted.
+  skip: (req) => /^\/(api\/)?health(\/(live|ready))?$/.test(req.path),
   message: { message: "Too many requests — slow down and try again shortly.", status: 429 },
 }));
 

@@ -43,7 +43,7 @@ function planFeatures(plan) {
   const sol = ent.solutions ?? {};
   const lines = [];
   if (sol.crm?.length)       lines.push(`${sol.crm.length === 9 ? "Full" : sol.crm.length} CRM solution${sol.crm.length > 1 ? "s" : ""}`);
-  if (sol.marketing?.length) lines.push(`${sol.marketing.length === 7 ? "Full" : sol.marketing.length} Marketing solution${sol.marketing.length > 1 ? "s" : ""}`);
+  if (sol.marketing?.length) lines.push(`${sol.marketing.length === 8 ? "Full" : sol.marketing.length} Marketing solution${sol.marketing.length > 1 ? "s" : ""}`);
   if (sol.services?.length)  lines.push(`${plan.id === "premium" ? "Core" : "Full"} Services suite`);
   if (sol.network === "all") lines.push("Network Operations");
   if (plan.industry) lines.push("Industry customization");

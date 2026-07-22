@@ -12,7 +12,7 @@
  * Everything respects prefers-reduced-motion.
  */
 import { useRef, useEffect, useState } from "react";
-import { motion, useReducedMotion, useInView, animate, useMotionValue, useSpring, useTransform } from "motion/react";
+import { useReducedMotion, useInView, animate, useMotionValue, useSpring, useTransform } from "motion/react";
 
 // ── Animated mesh gradient — the "color video" backdrop ──────────────────────
 // Three drifting, blurred, hue-cycling blobs. Pure CSS animation (GPU-cheap);

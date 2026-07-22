@@ -26,6 +26,7 @@ export const MKT_SOLUTIONS = [
   { id: "intelligence",       name: "Intelligence" },
   { id: "einstein",           name: "Einstein (Marketing AI)" },
   { id: "commerce",           name: "Commerce" },
+  { id: "social",             name: "Social" },
 ];
 export const SERVICES_SOLUTIONS = [
   { id: "financial", name: "Financial Management" },
@@ -41,7 +42,7 @@ const MKT_ALL = ids(MKT_SOLUTIONS);
 const SVC_ALL = ids(SERVICES_SOLUTIONS);
 
 const CRM_STD = ["leads", "accounts", "opportunities", "forecasting", "activities"];
-const MKT_STD = ["engagement", "account-engagement", "personalization", "intelligence"];
+const MKT_STD = ["engagement", "account-engagement", "personalization", "intelligence", "social"];
 const SVC_PREMIUM = ["financial", "operation", "strategic"];
 
 // Monthly AI-assist request allowance per plan (mirrors backend plans.config.js).

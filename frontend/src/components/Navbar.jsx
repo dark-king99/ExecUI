@@ -109,7 +109,7 @@ function NavSearch({ user }) {
   );
 }
 
-export default function Navbar({ user, onLogout, roleToUse, effectiveRole, setEffectiveRole }) {
+export default function Navbar({ user, onLogout, roleToUse }) {
   const [open, setOpen]   = useState(false);
   const { theme, toggleTheme } = useSidebar();
   const navigate = useNavigate();

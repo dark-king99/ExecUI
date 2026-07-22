@@ -291,7 +291,6 @@ export const Dashboard = () => {
   const avatarUrl = profile?.avatarUrl ?? stored.avatarUrl ?? stored.avatar_url;
   const initials = displayName.split(' ').filter(Boolean).map((n) => n[0]).slice(0, 2).join('') || '?';
 
-  const [overview, setOverview]       = useState(null);
   const [stats, setStats] = useState({
     financial: { total_income: 0, total_expenses: 0, net_profit: 0, transaction_count: 0 },
     projects: { active: 0, completed: 0, total: 0 },
