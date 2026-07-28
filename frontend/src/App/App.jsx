@@ -16,6 +16,7 @@ import Breadcrumbs from "../components/Breadcrumbs";
 import Dashboard from "../apps/services/Dashboard";
 import { accessFor } from "../lib/access";
 import useRewardTracking from "../hooks/useRewardTracking";
+import { identify, resetAnalytics } from "../lib/analytics";
 
 // ── Lazy-loaded mini-app route groups ─────────────────────────────────────────
 const HomeView            = lazy(() => import("../apps/HomeView"));
@@ -260,9 +261,11 @@ export default function App() {
     if (user) {
       localStorage.setItem("user", JSON.stringify(user));
       if (user.token) setToken(user.token);
+      identify(user);                 // tie analytics events to this user
     } else {
       localStorage.removeItem("user");
       clearToken();
+      resetAnalytics();               // stop attributing events after logout
     }
   }, [user]);
 

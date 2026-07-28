@@ -81,6 +81,7 @@ In place: semantic landmarks, keyboard-focusable controls with visible focus rin
 - Org/tenant deletion cascades to **all** tenant data (`onDelete: Cascade` on every tenant relation) — deleting the tenant purges CRM, marketing, social, network, uploads references, etc.
 **Retention policy (target):** operational data lives while the account is active; on account closure, purge PII within **30 days** (audit logs anonymized, not deleted, for integrity). Email logs and follower snapshots retained **90 days**. *Automation of the timed purge is the tracked follow-up; the cascade + manual delete exist today.*
 **Data-subject requests:** export = the tenant's own data via existing list endpoints; erasure = tenant/user delete above.
+**Product analytics:** optional, off unless PostHog keys are set (see [`docs/ANALYTICS.md`](./docs/ANALYTICS.md)). Sends only ids/role/plan (no names/emails unless explicitly enabled), respects Do-Not-Track + opt-out, and masks all inputs in session replay. Backend error events carry route/status/ids only — never request bodies.
 
 ## 9. Load & stress testing — ✅ (tooling shipped)
 - `backend/scripts/loadtest.mjs` — zero-dep concurrent load tool: throughput, p50/p95/p99, error rate, 429 count; non-zero exit on >1% hard errors (CI-gate friendly).

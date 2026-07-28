@@ -2,6 +2,7 @@ import { execSync } from "child_process";
 import app from "./app.js";
 import prisma from "./config/database.js";
 import { log } from "./lib/logger.js";
+import { shutdownAnalytics } from "./lib/analytics.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -63,3 +64,11 @@ app.listen(PORT, () => {
 });
 
 ensureDatabase();
+
+// Flush buffered analytics on graceful shutdown so nothing is lost.
+for (const sig of ["SIGTERM", "SIGINT"]) {
+  process.on(sig, async () => {
+    await shutdownAnalytics();
+    process.exit(0);
+  });
+}

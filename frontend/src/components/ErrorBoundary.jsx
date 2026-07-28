@@ -1,4 +1,5 @@
 import React from "react";
+import { captureError } from "../lib/analytics";
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -12,6 +13,8 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error("UI ERROR:", error, info);
+    // Surface which UI section broke (and where) to analytics.
+    captureError(error, { boundary: this.props.name || "route", componentStack: info?.componentStack });
   }
 
   render() {
