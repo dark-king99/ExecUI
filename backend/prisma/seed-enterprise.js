@@ -2,10 +2,8 @@
  * Enterprise seed: NexaCorp Inc.
  * Roles, users across 5 departments, CRM deals, network infra, marketing data.
  */
-import { PrismaClient } from "@prisma/client";
+import prisma from "../src/config/database.js";
 import bcrypt from "bcrypt";
-
-const prisma = new PrismaClient();
 const HASH = (pw) => bcrypt.hash(pw, 10);
 
 async function main() {

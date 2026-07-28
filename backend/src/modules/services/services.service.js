@@ -1,9 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../config/database.js";
 import { randomUUID } from "crypto";
 import { notify } from "../notifications/notifications.service.js";
 import { assistText } from "../../lib/aiAssist.js";
-
-const prisma = new PrismaClient();
 
 // BizTask.assignee is a display name — resolve it to a tenant user and drop a
 // notification in their bell. Fire-and-forget: a notify failure never blocks
