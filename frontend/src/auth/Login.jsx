@@ -4,6 +4,7 @@ import {
   Megaphone, AlertCircle, Loader2, Eye, EyeOff, Shield, Copy, KeyRound, Sun, Moon,
 } from "lucide-react";
 import { auth, setToken } from "../services/api";
+import { track } from "../lib/analytics";
 import ExecUIBackground from "../components/ExecUIBackground";
 import AnimatedLogo from "../components/AnimatedLogo";
 
@@ -153,6 +154,7 @@ export default function Login({ onLogin }) {
 
   const finish = (response) => {
     setToken(response.token);
+    track("logged_in", { role: response.user?.role, method: mode });
     onLogin({ ...response.user, token: response.token });
   };
 
