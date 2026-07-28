@@ -75,6 +75,8 @@ model Tenant {
   socialEngagements       SocialEngagement[]
   socialSnapshots         SocialFollowerSnapshot[]
   networkConnections      NetworkConnection[]
+  rewardEvents            RewardEvent[]
+  rewardStats             RewardStat[]
 }
 
 // An internet/WAN connection — the backbone of a small office's network. Lets a
@@ -276,6 +278,8 @@ model User {
   activities       MarketingActivity[]
   sessions         UserSession[]
   auditLogs        AuditLog[]
+  rewardEvents     RewardEvent[]
+  rewardStat       RewardStat?
 
   @@unique([tenantId, employeeId])
 }
@@ -1045,4 +1049,51 @@ model NotificationPref {
   inApp     Boolean  @default(true)
   digest    String   @default("daily") // realtime | daily | weekly | off
   updatedAt DateTime @updatedAt
+}
+
+// ── Reward system ────────────────────────────────────────────────────────────
+// Append-only ledger of point-earning actions. Every navigation, workspace
+// action and completed piece of work lands here; RewardStat is the running
+// rollup so the leaderboard stays a single cheap read. Both carry tenantId, so
+// the isolation guard scopes them automatically.
+model RewardEvent {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  category  String   // navigation | usage | performance | milestone
+  type      String   // e.g. "visit:/crm", "create:crm", "update:marketing"
+  points    Int
+  detail    String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, userId, type, createdAt])
+}
+
+// Running per-user rollup — points, category breakdown, activity streak. One
+// row per user per tenant; updated in the same request that records an event.
+model RewardStat {
+  id            String   @id @default(uuid())
+  tenantId      String
+  userId        String   @unique
+  points        Int      @default(0)
+  navPoints     Int      @default(0)
+  usagePoints   Int      @default(0)
+  perfPoints    Int      @default(0)
+  eventsCount   Int      @default(0)
+  currentStreak Int      @default(0)
+  longestStreak Int      @default(0)
+  lastActiveDay String?               // "YYYY-MM-DD" (UTC)
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId, points])
 }

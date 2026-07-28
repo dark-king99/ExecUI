@@ -18,12 +18,19 @@ import attachmentRoutes  from "../modules/attachments/attachments.routes.js";
 import messagingRoutes  from "../modules/messaging/messaging.routes.js";
 import notificationRoutes from "../modules/notifications/notifications.routes.js";
 import emailRoutes      from "../modules/email/email.routes.js";
+import rewardsRoutes    from "../modules/rewards/rewards.routes.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { requireModule } from "../middleware/access.middleware.js";
+import { rewardTracking } from "../middleware/rewardTracking.middleware.js";
 
 const router = express.Router();
 
 router.get("/health", (_req, res) => res.json({ status: "ok" }));
+
+// Turn successful workspace mutations into reward points (best-effort, on
+// response finish — see the middleware). Must run before the route handlers so
+// it can observe their outcome.
+router.use(rewardTracking);
 
 router.use("/auth",       authRoutes);
 router.use("/users",      userRoutes);
@@ -48,5 +55,6 @@ router.use("/services",   authenticate, requireModule("services"),  servicesRout
 router.use("/account",    accountRoutes);
 router.use("/assistant",  assistantRoutes);
 router.use("/views",      viewsRoutes);
+router.use("/rewards",    rewardsRoutes);
 
 export default router;

@@ -15,6 +15,7 @@ import CommandPalette from "../components/CommandPalette";
 import Breadcrumbs from "../components/Breadcrumbs";
 import Dashboard from "../apps/services/Dashboard";
 import { accessFor } from "../lib/access";
+import useRewardTracking from "../hooks/useRewardTracking";
 
 // ── Lazy-loaded mini-app route groups ─────────────────────────────────────────
 const HomeView            = lazy(() => import("../apps/HomeView"));
@@ -58,6 +59,7 @@ const AuditLogs           = lazy(() => import("../apps/account/AuditLogs"));
 const EnterpriseWorkspace = lazy(() => import("../apps/account/EnterpriseWorkspace"));
 const OrganizationProfile = lazy(() => import("../apps/account/OrganizationProfile"));
 const Members             = lazy(() => import("../apps/account/Members"));
+const Rewards             = lazy(() => import("../apps/rewards/Rewards"));
 
 // Services
 const FinancialManagement             = lazy(() => import("../apps/services/FinancialManagement"));
@@ -83,6 +85,9 @@ function PageSuspense({ children }) {
 // ── App shell ─────────────────────────────────────────────────────────────────
 function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }) {
   const location = useLocation();
+
+  // Turn navigation into reward points (only while signed in).
+  useRewardTracking(!!user);
 
   // Sections with their own sidebar that replace the top navbar.
   const section = location.pathname.split("/")[1];
@@ -144,6 +149,9 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/overview" element={<ExecutiveOverview />} />
 
                 {/* Account — personal views (any user) */}
+                {/* Rewards — org-wide, available to every employee. */}
+                <Route path="/rewards" element={<Rewards />} />
+
                 <Route path="/account" element={<Navigate to="/account/profile" replace />} />
                 <Route path="/account/profile"      element={<Profile />} />
                 <Route path="/account/security"     element={<Security />} />
