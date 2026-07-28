@@ -593,6 +593,16 @@ export const overview = {
   emailReport: ()     => post('/overview/report/email', {}),
 };
 
+// ── Rewards (org-wide recognition: navigation, usage & performance) ─────────
+export const rewards = {
+  config:      ()       => get('/rewards/config'),
+  leaderboard: (range)  => get('/rewards/leaderboard', range ? { range } : undefined),
+  me:          ()       => get('/rewards/me'),
+  user:        (id)     => get(`/rewards/user/${id}`),
+  // Fire-and-forget navigation ping; never surface errors to the UI.
+  track:       (path)   => post('/rewards/track', { path }).catch(() => {}),
+};
+
 // ── Attachments (generic, cross-module files) ─────────────────────────────
 export const attachments = {
   list:   (entityType, entityId) => get(`/attachments/${entityType}/${entityId}`),
