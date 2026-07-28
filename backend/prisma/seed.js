@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../src/config/database.js";
 
 const permissions = [
   { key: "profile.read", description: "Read authenticated user profile" },
