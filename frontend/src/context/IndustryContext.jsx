@@ -7,6 +7,8 @@
  */
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { crm } from "../services/api";
+import { useUser } from "./UserContext";
+import { accessFor } from "../lib/access";
 import { SOLUTIONS as CRM_SOLUTIONS } from "../apps/crm/solutions.config";
 import { SOLUTIONS as MKT_SOLUTIONS } from "../apps/marketing/solutions.config";
 import { industrySolutionFor } from "../apps/crm/industries.config";
@@ -17,8 +19,12 @@ export function IndustryProvider({ children }) {
   const [industryId, setIndustryId] = useState("general");
   const [catalog, setCatalog] = useState([]);      // [{ id, name, objects }]
   const [loading, setLoading] = useState(true);
+  // Same reasoning as NetworkContext: no CRM access means a guaranteed 403.
+  const { user } = useUser();
+  const canRead = accessFor(user).sections.includes("crm");
 
   const load = useCallback(async () => {
+    if (!canRead) { setIndustryId("general"); setCatalog([]); setLoading(false); return; }
     try {
       const res = await crm.industry.get();
       setIndustryId(res?.industry || "general");
@@ -30,7 +36,7 @@ export function IndustryProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canRead]);
 
   useEffect(() => { load(); }, [load]);
 

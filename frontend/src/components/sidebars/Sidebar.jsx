@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Server, Home, Users, TrendingUp, BarChart3, UserLock, Building2,
-  ChevronLeft, ChevronRight, Settings, Layers, Activity, LayoutDashboard, Trophy
+  ChevronLeft, ChevronRight, Settings, Layers, Activity, LayoutDashboard, Trophy, CheckCircle2
 } from "lucide-react";
 import { accessFor } from "../../lib/access";
 import { useUser } from "../../context/UserContext";
@@ -105,6 +105,7 @@ export default function Sidebar() {
 
         <NavBtn icon={Home}            label="Home"               path="/home"     current={pathname} collapsed={collapsed} />
         <NavBtn icon={LayoutDashboard} label="Executive Overview" path="/overview" current={pathname} collapsed={collapsed} />
+        <NavBtn icon={CheckCircle2}    label="Approvals"          path="/approvals" current={pathname} collapsed={collapsed} />
         <NavBtn icon={Trophy}          label="Rewards"            path="/rewards"  current={pathname} collapsed={collapsed} />
         <NavBtn icon={UserLock}        label="Account"            path="/account"  current={pathname} collapsed={collapsed} />
 

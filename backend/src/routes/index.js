@@ -21,6 +21,8 @@ import emailRoutes      from "../modules/email/email.routes.js";
 import rewardsRoutes    from "../modules/rewards/rewards.routes.js";
 import reportsRoutes    from "../modules/reports/reports.routes.js";
 import developerRoutes  from "../modules/api/developer.routes.js";
+import workflowRoutes   from "../modules/workflows/workflows.routes.js";
+import approvalRoutes   from "../modules/approvals/approvals.routes.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { requireModule } from "../middleware/access.middleware.js";
 import { rewardTracking } from "../middleware/rewardTracking.middleware.js";
@@ -60,5 +62,7 @@ router.use("/views",      viewsRoutes);
 router.use("/rewards",    rewardsRoutes);
 router.use("/reports",    reportsRoutes);
 router.use("/developer",  developerRoutes);
+router.use("/workflows",  workflowRoutes);
+router.use("/approvals",  approvalRoutes);
 
 export default router;

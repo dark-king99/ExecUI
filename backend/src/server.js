@@ -5,6 +5,7 @@ import { log } from "./lib/logger.js";
 import { shutdownAnalytics } from "./lib/analytics.js";
 import { startReportScheduler, stopReportScheduler } from "./modules/reports/reports.schedule.js";
 import { startWebhookWorker, stopWebhookWorker } from "./modules/webhooks/webhooks.service.js";
+import { startWorkflowEngine, stopWorkflowEngine } from "./modules/workflows/workflows.engine.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -73,11 +74,15 @@ startReportScheduler();
 // Capture domain events and deliver outbound webhooks.
 startWebhookWorker();
 
+// Run automation rules when records change.
+startWorkflowEngine();
+
 // Flush buffered analytics on graceful shutdown so nothing is lost.
 for (const sig of ["SIGTERM", "SIGINT"]) {
   process.on(sig, async () => {
     stopReportScheduler();
     stopWebhookWorker();
+    stopWorkflowEngine();
     await shutdownAnalytics();
     process.exit(0);
   });
