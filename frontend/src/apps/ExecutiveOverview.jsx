@@ -8,6 +8,7 @@ import { useApi, useMutation } from "../hooks/useApi";
 import { useToast } from "../components/ui/Toast";
 import { overview } from "../services/api";
 import { Avatar, AvatarImage, AvatarFallback } from "../components/ui/avatar";
+import IndustrySelect from "../components/IndustrySelect";
 import { SOLUTIONS as MKT } from "./marketing/solutions.config";
 import { SOLUTIONS as CRM } from "./crm/solutions.config";
 import { SOLUTIONS as NET } from "./network/solutions.config";
@@ -207,7 +208,7 @@ export default function ExecutiveOverview() {
     );
   }
 
-  const { identity, access, gauge, kpis, metrics, activity, schedule, tasks, messages } = data;
+  const { identity, access, gauge, kpis, metrics, activity, schedule, tasks, messages, organization } = data;
   // Department Communication here is for enterprise admins only; the channel
   // itself remains available to every employee in Account → Messaging.
   const isAdmin = ["enterprise_admin", "system_admin"].includes(identity.role);
@@ -255,6 +256,16 @@ export default function ExecutiveOverview() {
           </span>
         </div>
       </div>
+
+      {/* ── Organization industry (pick it here, plan-gated, admin-editable) ── */}
+      {organization && (
+        <IndustrySelect
+          variant="card"
+          industry={organization.industry}
+          industryName={organization.industryName}
+          planIncludesIndustry={organization.planIncludesIndustry}
+        />
+      )}
 
       {/* ── Gauge + KPI band ────────────────────────────────────────────── */}
       <div className="grid gap-5 lg:grid-cols-3">
