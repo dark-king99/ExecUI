@@ -12,6 +12,7 @@ import {
   sanitizeInput, enforceJsonContentType, concurrencyLimiter, requestTimeout,
 } from "./middleware/hardening.middleware.js";
 import routes from "./routes/index.js";
+import scimRoutes from "./modules/scim/scim.routes.js";
 import { STORAGE_ROOT } from "./lib/storage.js";
 import { stripeWebhook } from "./modules/account/account.controller.js";
 import prisma from "./config/database.js";
@@ -61,8 +62,9 @@ app.use(rateLimit({
   legacyHeaders: false,
   // Never limit health probes — under both the bare and /api-prefixed paths that
   // orchestrators hit — or a traffic spike would 429 the probes and get the pod
-  // wrongly restarted/evicted.
-  skip: (req) => /^\/(api\/)?health(\/(live|ready))?$/.test(req.path),
+  // wrongly restarted/evicted. SCIM is exempt too: a directory sync legitimately
+  // bursts far above a human rate, and it carries its own limiter + bearer token.
+  skip: (req) => /^\/(api\/)?health(\/(live|ready))?$/.test(req.path) || req.path.startsWith("/scim/"),
   message: { message: "Too many requests — slow down and try again shortly.", status: 429 },
 }));
 
@@ -70,8 +72,20 @@ app.use(rateLimit({
 // registered before the JSON body parser runs.
 app.post("/api/account/billing/webhook", express.raw({ type: "application/json" }), stripeWebhook);
 
+// ── SCIM 2.0 provisioning (IdP → ExecUI) ─────────────────────────────────────
+// Mounted before the JSON guard below because SCIM clients send
+// `application/scim+json`; this router parses and validates its own bodies and
+// authenticates with a bearer token rather than a session.
+app.use("/scim/v2", scimRoutes);
+
 // ── Body parsing + universal input hygiene ───────────────────────────────────
-app.use(enforceJsonContentType);
+// The SAML HTTP-POST binding delivers the assertion as
+// application/x-www-form-urlencoded (fixed by the SAML 2.0 spec), so the ACS
+// endpoint is exempt from the JSON-only guard. Its body is still size-capped and
+// the assertion itself must carry a valid signature.
+const SAML_ACS_PATH = /^\/api\/auth\/sso\/saml\/[^/]+\/callback$/;
+app.use((req, res, next) =>
+  SAML_ACS_PATH.test(req.path) ? next() : enforceJsonContentType(req, res, next));
 app.use(express.json({ limit: "200kb" }));
 app.use(express.urlencoded({ extended: false, limit: "200kb" }));
 app.use(sanitizeInput);   // reject prototype-pollution / oversized payloads

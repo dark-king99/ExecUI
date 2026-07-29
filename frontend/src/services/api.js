@@ -593,6 +593,27 @@ export const overview = {
   emailReport: ()     => post('/overview/report/email', {}),
 };
 
+// ── Enterprise Single Sign-On (OIDC / SAML) + SCIM provisioning ────────────
+export const sso = {
+  // Public (pre-login)
+  discover: (payload)  => post('/auth/sso/discover', payload),
+  startUrl: (tenantId, redirectTo = '/overview') =>
+    `${BASE_URL}/auth/sso/start?tenant=${encodeURIComponent(tenantId)}&redirectTo=${encodeURIComponent(redirectTo)}`,
+  exchange: (code)     => post('/auth/sso/exchange', { code }),
+  // Admin console
+  config: {
+    get:    ()     => get('/auth/sso/config'),
+    save:   (data) => put('/auth/sso/config', data),
+    remove: ()     => del('/auth/sso/config'),
+    test:   ()     => post('/auth/sso/config/test', {}),
+  },
+  scimTokens: {
+    list:   ()     => get('/auth/sso/scim/tokens'),
+    create: (data) => post('/auth/sso/scim/tokens', data),
+    revoke: (id)   => del(`/auth/sso/scim/tokens/${id}`),
+  },
+};
+
 // ── Rewards (org-wide recognition: navigation, usage & performance) ─────────
 export const rewards = {
   config:      ()       => get('/rewards/config'),

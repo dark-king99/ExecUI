@@ -5,9 +5,14 @@ import { authenticate } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import { authRateLimit, rateLimit } from "../../middleware/ratelimit.middleware.js";
 import { loginSchema, enterpriseSignupSchema, employeeSignupSchema } from "./auth.schema.js";
+import ssoRoutes from "../sso/sso.routes.js";
 import prisma from "../../config/database.js";
 
 const router = express.Router();
+
+// Enterprise Single Sign-On (OIDC + SAML). Public login endpoints plus the
+// admin configuration API — see sso.routes.js.
+router.use("/sso", ssoRoutes);
 
 // Signups are rarer than logins — a small per-IP budget stops mass account
 // creation without bothering a real admin onboarding a company.

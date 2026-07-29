@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useUser } from "../../context/UserContext";
 import {
 
-  ArrowLeft, User, ShieldCheck, Key, Bell, Users, Plug, MessagesSquare,
+  ArrowLeft, User, ShieldCheck, Key, KeyRound, Bell, Users, Plug, MessagesSquare,
   CreditCard, FileText, ChevronLeft, ChevronRight, Building2, IdCard,
 
 } from "lucide-react";
@@ -19,6 +19,7 @@ const orgItems = [
   { id: "organization", label: "Organization",        icon: Building2,   path: "/account/organization" },
   { id: "members",      label: "Members",             icon: Users,       path: "/account/members" },
   { id: "team",         label: "Roles & Permissions", icon: ShieldCheck, path: "/account/team" },
+  { id: "sso",          label: "Single Sign-On",      icon: KeyRound,    path: "/account/sso" },
   { id: "integrations", label: "Integrations",        icon: Plug,        path: "/account/integrations" },
   { id: "billing",      label: "Billing",             icon: CreditCard,  path: "/account/billing" },
   { id: "audit",        label: "Audit Logs",          icon: FileText,    path: "/account/audit" },

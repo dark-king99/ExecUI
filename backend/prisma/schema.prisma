@@ -2,8 +2,8 @@
 // learn more: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
-   binaryTargets = ["native", "debian-openssl-1.1.x", "linux-musl"]
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.1.x", "linux-musl"]
 }
 
 datasource db {
@@ -14,50 +14,50 @@ datasource db {
 // -- Core multi-tenant models --------------------------------------------------
 
 model Tenant {
-  id                String   @id @default(uuid())
-  name              String
-  slug              String   @unique
-  code              String?  @unique
-  createdAt         DateTime @default(now())
-  stripeCustomerId  String?
-  stripePlanId      String?
-  stripeSubId       String?
-  plan              String   @default("executive")
-  planSolutions     String[] @default([])
+  id               String   @id @default(uuid())
+  name             String
+  slug             String   @unique
+  code             String?  @unique
+  createdAt        DateTime @default(now())
+  stripeCustomerId String?
+  stripePlanId     String?
+  stripeSubId      String?
+  plan             String   @default("executive")
+  planSolutions    String[] @default([])
 
   // Selected industry vertical. "general" ⇒ core CRM only (unchanged behavior);
   // any other value additively unlocks that industry's modules.
-  industry          String   @default("general")
+  industry       String @default("general")
   // Network Management scale. "office" ⇒ small-office view (internet + routers +
   // devices, no datacenter clutter); "datacenter" ⇒ the full enterprise view.
-  networkProfile    String   @default("office")
+  networkProfile String @default("office")
 
-  users            User[]
-  roles            Role[]
-  contacts         Contact[]
-  crmTasks         CrmTask[]
-  crmTickets       CrmTicket[]
-  crmFollowUps     CrmFollowUp[]
-  crmOpportunities CrmOpportunity[]
-  crmServiceUsages CrmServiceUsage[]
-  marketingTodos   MarketingTodo[]
-  scheduleEvents   MarketingScheduleEvent[]
-  activities       MarketingActivity[]
-  campaigns        MarketingCampaign[]
-  audiences        MarketingAudience[]
-  experiments      MarketingExperiment[]
-  bizTransactions  BizTransaction[]
-  bizTaxPlans      BizTaxPlan[]
-  bizInvestments   BizInvestment[]
-  bizSOPs          BizSOP[]
-  bizWorkflows     BizWorkflow[]
-  bizGoals         BizGoal[]
-  bizMarketAnalysis BizMarketAnalysis[]
-  bizCampaigns     BizCampaign[]
-  bizClients       BizClient[]
-  bizMembers       BizMember[]
-  bizProjects      BizProject[]
-  bizTasks         BizTask[]
+  users                   User[]
+  roles                   Role[]
+  contacts                Contact[]
+  crmTasks                CrmTask[]
+  crmTickets              CrmTicket[]
+  crmFollowUps            CrmFollowUp[]
+  crmOpportunities        CrmOpportunity[]
+  crmServiceUsages        CrmServiceUsage[]
+  marketingTodos          MarketingTodo[]
+  scheduleEvents          MarketingScheduleEvent[]
+  activities              MarketingActivity[]
+  campaigns               MarketingCampaign[]
+  audiences               MarketingAudience[]
+  experiments             MarketingExperiment[]
+  bizTransactions         BizTransaction[]
+  bizTaxPlans             BizTaxPlan[]
+  bizInvestments          BizInvestment[]
+  bizSOPs                 BizSOP[]
+  bizWorkflows            BizWorkflow[]
+  bizGoals                BizGoal[]
+  bizMarketAnalysis       BizMarketAnalysis[]
+  bizCampaigns            BizCampaign[]
+  bizClients              BizClient[]
+  bizMembers              BizMember[]
+  bizProjects             BizProject[]
+  bizTasks                BizTask[]
   networkDevices          NetworkDevice[]
   networkAlerts           NetworkAlert[]
   networkIncidents        NetworkIncident[]
@@ -77,31 +77,34 @@ model Tenant {
   networkConnections      NetworkConnection[]
   rewardEvents            RewardEvent[]
   rewardStats             RewardStat[]
+  ssoConnection           SsoConnection?
+  scimTokens              ScimToken[]
+  ssoLoginRequests        SsoLoginRequest[]
 }
 
 // An internet/WAN connection — the backbone of a small office's network. Lets a
 // company with no servers still monitor its ISP links, bandwidth and data usage.
 model NetworkConnection {
-  id            String   @id @default(uuid())
-  tenantId      String
-  name          String                       // "Primary Fiber"
-  provider      String?                       // ISP, e.g. "Orange Liberia"
-  linkType      String   @default("fiber")    // fiber | dsl | lte | fixed_wireless | satellite | other
-  role          String   @default("primary")  // primary | backup
-  downMbps      Float?                         // plan download speed
-  upMbps        Float?                         // plan upload speed
-  ipAddress     String?                        // public / WAN IP
-  gateway       String?                        // router / gateway IP
-  status        String   @default("up")        // up | down | degraded
-  monthlyUsageGb Float   @default(0)
-  dataCapGb     Float?                          // null = unlimited
-  monthlyCost   Float?
-  currency      String   @default("LRD")
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(uuid())
+  tenantId       String
+  name           String // "Primary Fiber"
+  provider       String? // ISP, e.g. "Orange Liberia"
+  linkType       String   @default("fiber") // fiber | dsl | lte | fixed_wireless | satellite | other
+  role           String   @default("primary") // primary | backup
+  downMbps       Float? // plan download speed
+  upMbps         Float? // plan upload speed
+  ipAddress      String? // public / WAN IP
+  gateway        String? // router / gateway IP
+  status         String   @default("up") // up | down | degraded
+  monthlyUsageGb Float    @default(0)
+  dataCapGb      Float? // null = unlimited
+  monthlyCost    Float?
+  currency       String   @default("LRD")
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
 }
@@ -111,22 +114,22 @@ model NetworkConnection {
 // real provider is configured the account is a managed placeholder (see
 // lib/social.js) so the workflow is fully usable without live API keys.
 model SocialAccount {
-  id           String   @id @default(uuid())
-  tenantId     String
-  platform     String   // facebook | instagram | whatsapp | x | linkedin | tiktok | youtube
-  handle       String
-  displayName  String?
-  status       String   @default("connected") // connected | disconnected | error
-  followers    Int      @default(0)
-  tokenCipher  String?
-  tokenIv      String?
-  tokenTag     String?
+  id            String   @id @default(uuid())
+  tenantId      String
+  platform      String // facebook | instagram | whatsapp | x | linkedin | tiktok | youtube
+  handle        String
+  displayName   String?
+  status        String   @default("connected") // connected | disconnected | error
+  followers     Int      @default(0)
+  tokenCipher   String?
+  tokenIv       String?
+  tokenTag      String?
   connectedById String?
-  meta         Json     @default("{}")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  meta          Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, platform, handle])
   @@index([tenantId, platform])
@@ -135,23 +138,23 @@ model SocialAccount {
 // A social post/campaign item, publishable to one or more platforms. Content
 // often originates from Einstein (AI) or the Engagement Content Builder.
 model SocialPost {
-  id           String   @id @default(uuid())
-  tenantId     String
-  content      String
-  mediaUrl     String?
-  platforms    String[] @default([])
-  status       String   @default("draft") // draft | scheduled | publishing | published | failed
-  source       String   @default("manual") // manual | einstein | engagement
-  scheduledAt  DateTime?
-  publishedAt  DateTime?
-  authorId     String?
-  authorName   String?
-  results      Json     @default("{}")  // per-platform outcome
-  metrics      Json     @default("{}")  // per-platform reach/likes/comments/shares
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String    @id @default(uuid())
+  tenantId    String
+  content     String
+  mediaUrl    String?
+  platforms   String[]  @default([])
+  status      String    @default("draft") // draft | scheduled | publishing | published | failed
+  source      String    @default("manual") // manual | einstein | engagement
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  authorId    String?
+  authorName  String?
+  results     Json      @default("{}") // per-platform outcome
+  metrics     Json      @default("{}") // per-platform reach/likes/comments/shares
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, status])
   @@index([tenantId, scheduledAt])
@@ -161,22 +164,22 @@ model SocialPost {
 // the Engagement Inbox — where the team replies to grow engagement. Real when a
 // platform API is connected; otherwise seeded with clearly-labelled samples.
 model SocialEngagement {
-  id          String   @id @default(uuid())
-  tenantId    String
-  platform    String   // facebook | instagram | whatsapp | x | linkedin | tiktok | youtube
-  kind        String   @default("comment") // comment | mention | dm | review
-  authorName  String
+  id           String    @id @default(uuid())
+  tenantId     String
+  platform     String // facebook | instagram | whatsapp | x | linkedin | tiktok | youtube
+  kind         String    @default("comment") // comment | mention | dm | review
+  authorName   String
   authorHandle String?
-  text        String
-  sentiment   String   @default("neutral") // positive | neutral | negative
-  status      String   @default("new")      // new | replied | archived
-  replyText   String?
-  repliedAt   DateTime?
-  simulated   Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  text         String
+  sentiment    String    @default("neutral") // positive | neutral | negative
+  status       String    @default("new") // new | replied | archived
+  replyText    String?
+  repliedAt    DateTime?
+  simulated    Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, status])
   @@index([tenantId, platform])
@@ -189,10 +192,10 @@ model SocialFollowerSnapshot {
   tenantId  String
   platform  String
   followers Int      @default(0)
-  day       String   // YYYY-MM-DD (tenant-local day key)
+  day       String // YYYY-MM-DD (tenant-local day key)
   createdAt DateTime @default(now())
 
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, platform, day])
   @@index([tenantId, day])
@@ -206,24 +209,23 @@ model SocialFollowerSnapshot {
 model IndustryRecord {
   id         String   @id @default(uuid())
   tenantId   String
-  industry   String   // e.g. "telecom", "banking"
-  objectType String   // e.g. "subscriber", "loan_application"
-  name       String                       // human label for the record
-  stage      String?                      // pipeline stage (for pipeline objects)
+  industry   String // e.g. "telecom", "banking"
+  objectType String // e.g. "subscriber", "loan_application"
+  name       String // human label for the record
+  stage      String? // pipeline stage (for pipeline objects)
   status     String   @default("active")
-  amount     Float?                        // primary numeric (balance, loan value…)
-  currency   String   @default("LRD")      // local currency by default
-  ownerId    String?                       // assigned user
+  amount     Float? // primary numeric (balance, loan value…)
+  currency   String   @default("LRD") // local currency by default
+  ownerId    String? // assigned user
   ownerName  String?
-  data       Json     @default("{}")       // all industry-specific fields
+  data       Json     @default("{}") // all industry-specific fields
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, industry, objectType])
   @@index([tenantId, objectType, stage])
-
 }
 
 // Per-tenant monthly AI-assist consumption. One row per (tenant, month); the
@@ -231,33 +233,42 @@ model IndustryRecord {
 model AiUsage {
   id        String   @id @default(uuid())
   tenantId  String
-  period    String   // calendar month, "YYYY-MM"
+  period    String // calendar month, "YYYY-MM"
   count     Int      @default(0)
   updatedAt DateTime @updatedAt
 
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, period])
   @@index([tenantId])
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String?
-  employeeId   String?
-  status       String   @default("active") // active | invited
-  firstName    String
-  lastName     String
-  avatarUrl    String?
-  department   String?
-  jobTitle     String?
-  phone        String?
-  isActive     Boolean  @default(true)
-  lastLoginAt  DateTime?
-  mfaEnabled   Boolean  @default(false)
-  mfaSecret    String?              // TOTP secret (base32); set during enrollment
+  id                String    @id @default(uuid())
+  email             String    @unique
+  passwordHash      String?
+  employeeId        String?
+  status            String    @default("active") // active | invited
+  firstName         String
+  lastName          String
+  avatarUrl         String?
+  department        String?
+  jobTitle          String?
+  phone             String?
+  isActive          Boolean   @default(true)
+  lastLoginAt       DateTime?
+  mfaEnabled        Boolean   @default(false)
+  mfaSecret         String? // TOTP secret (base32); set during enrollment
   passwordChangedAt DateTime?
+
+  // ── Identity federation ────────────────────────────────────────────────
+  // externalId  — the IdP's stable id for this user (SCIM "externalId").
+  // ssoSubject  — the subject claim / NameID seen at SSO login.
+  // provisionedVia — "manual" | "signup" | "sso" | "scim" (audit + safety: SCIM
+  //                  only hard-manages the accounts it created).
+  externalId     String?
+  ssoSubject     String?
+  provisionedVia String  @default("manual")
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id])
@@ -282,19 +293,21 @@ model User {
   rewardStat       RewardStat?
 
   @@unique([tenantId, employeeId])
+  @@unique([tenantId, externalId])
+  @@index([tenantId, ssoSubject])
 }
 
 model UserSession {
-  id          String    @id @default(uuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenantId    String
-  tenant      Tenant    @relation(fields: [tenantId], references: [id])
-  ipAddress   String?
-  userAgent   String?
-  startedAt   DateTime  @default(now())
-  endedAt     DateTime?
-  isActive    Boolean   @default(true)
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  ipAddress String?
+  userAgent String?
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  isActive  Boolean   @default(true)
 }
 
 model AuditLog {
@@ -358,9 +371,9 @@ model RolePermission {
 model CrmTask {
   id                  String    @id @default(uuid())
   title               String
-  task_type           String    @default("call")   // call | email | meeting | follow_up | review
+  task_type           String    @default("call") // call | email | meeting | follow_up | review
   status              String    @default("pending") // pending | in_progress | completed | cancelled
-  priority            String    @default("medium")  // low | medium | high | urgent
+  priority            String    @default("medium") // low | medium | high | urgent
   due_date            DateTime?
   relatedCustomerName String?
   userId              String
@@ -379,7 +392,7 @@ model CrmTicket {
   customer_name String
   category      String   @default("general")
   priority      String   @default("medium") // low | medium | high | urgent
-  status        String   @default("open")   // open | in_progress | pending | resolved | closed
+  status        String   @default("open") // open | in_progress | pending | resolved | closed
   sla_status    String   @default("on_track") // on_track | at_risk | breached
   tenantId      String
   createdAt     DateTime @default(now())
@@ -393,7 +406,7 @@ model CrmTicket {
 model CrmFollowUp {
   id             String   @id @default(uuid())
   customer_name  String
-  follow_up_type String   // call | email | meeting
+  follow_up_type String // call | email | meeting
   status         String   @default("scheduled") // scheduled | completed | cancelled
   scheduled_date DateTime
   notes          String?
@@ -408,7 +421,7 @@ model CrmFollowUp {
 model CrmOpportunity {
   id          String   @id @default(uuid())
   name        String
-  source      String?  // Inbound | Outbound | Referral | Website | Event
+  source      String? // Inbound | Outbound | Referral | Website | Event
   value       Float    @default(0)
   stage       String   @default("prospecting") // prospecting | qualification | proposal | negotiation | closed_won | closed_lost
   probability Int      @default(0)
@@ -477,7 +490,7 @@ model MarketingActivity {
   id        String   @id @default(uuid())
   action    String
   target    String
-  service   String   // personalization | b2b | emma | creative
+  service   String // personalization | b2b | emma | creative
   userId    String
   tenantId  String
   timestamp DateTime @default(now())
@@ -492,14 +505,14 @@ model NetworkDevice {
   id             String   @id @default(uuid())
   hostname       String
   ip_address     String
-  device_type    String   @default("server")    // server | endpoint | router | switch | firewall | cloud
-  status         String   @default("up")         // up | down | degraded | maintenance
+  device_type    String   @default("server") // server | endpoint | router | switch | firewall | cloud
+  status         String   @default("up") // up | down | degraded | maintenance
   os             String?
   cpu_util       Float    @default(0)
   mem_util       Float    @default(0)
   bandwidth_mbps Float    @default(0)
   region         String?
-  cloud_provider String?                          // aws | azure | gcp | on_prem
+  cloud_provider String? // aws | azure | gcp | on_prem
   tenantId       String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -512,8 +525,8 @@ model NetworkAlert {
   id         String    @id @default(uuid())
   title      String
   message    String?
-  severity   String    @default("info")  // info | warning | critical
-  status     String    @default("open")  // open | acknowledged | resolved
+  severity   String    @default("info") // info | warning | critical
+  status     String    @default("open") // open | acknowledged | resolved
   deviceId   String?
   tenantId   String
   createdAt  DateTime  @default(now())
@@ -528,7 +541,7 @@ model NetworkIncident {
   title       String
   description String?
   severity    String    @default("medium") // low | medium | high | critical
-  status      String    @default("open")   // open | investigating | resolved | closed
+  status      String    @default("open") // open | investigating | resolved | closed
   tenantId    String
   createdAt   DateTime  @default(now())
   resolvedAt  DateTime?
@@ -542,7 +555,7 @@ model NetworkChange {
   title       String
   description String?
   status      String   @default("pending") // pending | approved | rejected | completed
-  priority    String   @default("medium")  // low | medium | high | urgent
+  priority    String   @default("medium") // low | medium | high | urgent
   tenantId    String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -574,8 +587,8 @@ model NetworkServer {
   cpu_util    Float    @default(0)
   mem_util    Float    @default(0)
   disk_util   Float    @default(0)
-  status      String   @default("online")  // online | offline | maintenance | rebooting
-  environment String   @default("prod")    // prod | staging | dev | test
+  status      String   @default("online") // online | offline | maintenance | rebooting
+  environment String   @default("prod") // prod | staging | dev | test
   region      String?
   tags        String?
   tenantId    String
@@ -589,12 +602,12 @@ model NetworkUserRestriction {
   id             String   @id @default(uuid())
   name           String
   description    String?
-  target_type    String   @default("user")      // user | device | group | subnet
+  target_type    String   @default("user") // user | device | group | subnet
   target         String
-  rule_type      String   @default("block")     // block | allow | rate_limit | schedule
-  protocol       String   @default("any")       // tcp | udp | icmp | any
+  rule_type      String   @default("block") // block | allow | rate_limit | schedule
+  protocol       String   @default("any") // tcp | udp | icmp | any
   port           String?
-  direction      String   @default("both")      // inbound | outbound | both
+  direction      String   @default("both") // inbound | outbound | both
   priority       Int      @default(100)
   enabled        Boolean  @default(true)
   bandwidth_kbps Int?
@@ -609,9 +622,9 @@ model FirewallRule {
   id          String   @id @default(uuid())
   name        String
   description String?
-  chain       String   @default("INPUT")    // INPUT | OUTPUT | FORWARD
-  action      String   @default("ACCEPT")   // ACCEPT | DROP | REJECT | LOG
-  protocol    String   @default("any")      // tcp | udp | icmp | any
+  chain       String   @default("INPUT") // INPUT | OUTPUT | FORWARD
+  action      String   @default("ACCEPT") // ACCEPT | DROP | REJECT | LOG
+  protocol    String   @default("any") // tcp | udp | icmp | any
   src_ip      String?
   dst_ip      String?
   src_port    String?
@@ -686,7 +699,7 @@ model MarketingExperiment {
 
 model BizTransaction {
   id          String   @id @default(uuid())
-  type        String   @default("income")   // income | expense
+  type        String   @default("income") // income | expense
   category    String
   amount      Float
   description String?
@@ -698,16 +711,16 @@ model BizTransaction {
 }
 
 model BizTaxPlan {
-  id                 String   @id @default(uuid())
-  title              String
-  year               Int
-  status             String   @default("active") // active | inactive | completed
-  estimated_savings  Float    @default(0)
-  strategy           String?
-  notes              String?
-  tenantId           String
-  tenant             Tenant   @relation(fields: [tenantId], references: [id])
-  createdAt          DateTime @default(now())
+  id                String   @id @default(uuid())
+  title             String
+  year              Int
+  status            String   @default("active") // active | inactive | completed
+  estimated_savings Float    @default(0)
+  strategy          String?
+  notes             String?
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt         DateTime @default(now())
 }
 
 model BizInvestment {
@@ -782,20 +795,20 @@ model BizMarketAnalysis {
 }
 
 model BizCampaign {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
-  platform    String    @default("email")
-  status      String    @default("draft")   // draft | active | paused | completed
-  budget      Float     @default(0)
-  spent       Float     @default(0)
-  leads       Int       @default(0)
-  conversions Int       @default(0)
+  platform    String   @default("email")
+  status      String   @default("draft") // draft | active | paused | completed
+  budget      Float    @default(0)
+  spent       Float    @default(0)
+  leads       Int      @default(0)
+  conversions Int      @default(0)
   start_date  String?
   end_date    String?
   tenantId    String
-  tenant      Tenant    @relation(fields: [tenantId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model BizClient {
@@ -828,35 +841,35 @@ model BizMember {
 }
 
 model BizProject {
-  id           String    @id @default(uuid())
+  id           String   @id @default(uuid())
   name         String
   description  String?
-  status       String    @default("planning") // planning | in_progress | review | completed
-  priority     String    @default("medium")
-  progress     Int       @default(0)
-  budget       Float     @default(0)
-  team_members Json      @default("[]")
+  status       String   @default("planning") // planning | in_progress | review | completed
+  priority     String   @default("medium")
+  progress     Int      @default(0)
+  budget       Float    @default(0)
+  team_members Json     @default("[]")
   start_date   String?
   end_date     String?
   tenantId     String
-  tenant       Tenant    @relation(fields: [tenantId], references: [id])
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model BizTask {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   title       String
   description String?
   project_id  String?
-  status      String    @default("todo")    // todo | in_progress | review | done
-  priority    String    @default("medium")
+  status      String   @default("todo") // todo | in_progress | review | done
+  priority    String   @default("medium")
   assignee    String?
   due_date    String?
   tenantId    String
-  tenant      Tenant    @relation(fields: [tenantId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model DeptMessage {
@@ -864,30 +877,29 @@ model DeptMessage {
   tenantId   String
   authorId   String
   authorName String
-  fromDept   String                       // canonical department key of the sender
-  toDept     String?                       // null = all departments / company-wide
+  fromDept   String // canonical department key of the sender
+  toDept     String? // null = all departments / company-wide
   body       String
   createdAt  DateTime @default(now())
 
   @@index([tenantId, createdAt])
 }
 
-
 model IntegrationConnection {
   id           String    @id @default(uuid())
   tenantId     String
   name         String
-  kind         String    @default("api")    // api | webhook | slack | custom
+  kind         String    @default("api") // api | webhook | slack | custom
   baseUrl      String
   authType     String    @default("bearer") // bearer | header | none
-  authHeader   String?                       // header name when authType = header
-  secretCipher String?                       // AES-256-GCM ciphertext (never plaintext)
+  authHeader   String? // header name when authType = header
+  secretCipher String? // AES-256-GCM ciphertext (never plaintext)
   secretIv     String?
   secretTag    String?
-  secretLast4  String?                       // last 4 chars, for display only
-  status       String    @default("active")  // active | disabled
+  secretLast4  String? // last 4 chars, for display only
+  status       String    @default("active") // active | disabled
   lastUsedAt   DateTime?
-  lastStatus   String?                        // outcome of the last call/test
+  lastStatus   String? // outcome of the last call/test
   createdById  String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -900,10 +912,10 @@ model NetworkAutomationJob {
   tenantId    String
   name        String
   description String?
-  trigger     String    @default("manual")   // schedule | event | manual | webhook
+  trigger     String    @default("manual") // schedule | event | manual | webhook
   targets     String?
   steps       Json      @default("[]")
-  status      String    @default("pending")  // pending | queued | running | success | failed
+  status      String    @default("pending") // pending | queued | running | success | failed
   lastRun     DateTime?
   duration    String?
   createdAt   DateTime  @default(now())
@@ -915,8 +927,8 @@ model NetworkAutomationJob {
 model Notification {
   id        String    @id @default(uuid())
   tenantId  String
-  userId    String                          // recipient
-  type      String    @default("message")   // message | dept_message | email | system
+  userId    String // recipient
+  type      String    @default("message") // message | dept_message | email | system
   title     String
   body      String?
   link      String?
@@ -947,11 +959,11 @@ model EmailLog {
   toEmail     String
   fromEmail   String?
   subject     String
-  status      String   @default("queued")  // sent | failed | skipped
+  status      String   @default("queued") // sent | failed | skipped
   provider    String   @default("resend")
   providerId  String?
   error       String?
-  context     String?                        // marketing:campaign | crm:contact | auth:invite ...
+  context     String? // marketing:campaign | crm:contact | auth:invite ...
   createdById String?
   createdAt   DateTime @default(now())
 
@@ -963,7 +975,7 @@ model EmailLog {
 model Attachment {
   id           String   @id @default(uuid())
   tenantId     String
-  entityType   String   // deal | lead | task | project | campaign
+  entityType   String // deal | lead | task | project | campaign
   entityId     String
   fileName     String
   mimeType     String?
@@ -1060,8 +1072,8 @@ model RewardEvent {
   id        String   @id @default(uuid())
   tenantId  String
   userId    String
-  category  String   // navigation | usage | performance | milestone
-  type      String   // e.g. "visit:/crm", "create:crm", "update:marketing"
+  category  String // navigation | usage | performance | milestone
+  type      String // e.g. "visit:/crm", "create:crm", "update:marketing"
   points    Int
   detail    String?
   createdAt DateTime @default(now())
@@ -1087,7 +1099,7 @@ model RewardStat {
   eventsCount   Int      @default(0)
   currentStreak Int      @default(0)
   longestStreak Int      @default(0)
-  lastActiveDay String?               // "YYYY-MM-DD" (UTC)
+  lastActiveDay String? // "YYYY-MM-DD" (UTC)
   updatedAt     DateTime @updatedAt
   createdAt     DateTime @default(now())
 
@@ -1096,4 +1108,114 @@ model RewardStat {
 
   @@unique([tenantId, userId])
   @@index([tenantId, points])
+}
+
+// ── Enterprise identity federation (SSO + SCIM) ──────────────────────────────
+// One identity provider per organization. Covers both protocols enterprises
+// actually use: OIDC (Okta/Entra/Google/Auth0) and SAML 2.0. Client secrets and
+// SP private keys are encrypted at rest (AES-GCM, lib/secrets) — the database
+// never holds plaintext credentials and they are never returned to the client.
+model SsoConnection {
+  id       String  @id @default(uuid())
+  tenantId String  @unique
+  protocol String // oidc | saml
+  enabled  Boolean @default(false)
+  // Enforced ⇒ password login is refused for this org (SSO is the only way in).
+  // Admins keep a password fallback so a broken IdP can never lock everyone out.
+  enforced Boolean @default(false)
+
+  displayName String? // button label, e.g. "Log in with Okta"
+  // Email domains routed to this IdP (used by SSO discovery on the login page).
+  domains     String[] @default([])
+
+  // Just-in-time provisioning: create the user on first successful SSO login.
+  jitProvisioning   Boolean @default(true)
+  defaultRoleId     String?
+  defaultDepartment String?
+
+  // ── OIDC ──
+  issuer             String?
+  clientId           String?
+  clientSecretCipher String?
+  clientSecretIv     String?
+  clientSecretTag    String?
+  authorizationUrl   String?
+  tokenUrl           String?
+  jwksUrl            String?
+  userinfoUrl        String?
+  endSessionUrl      String?
+  scopes             String  @default("openid email profile")
+
+  // ── SAML 2.0 ──
+  entryPoint         String? // IdP SSO URL
+  idpIssuer          String? // IdP entityID
+  idpCert            String? // IdP x509 signing certificate (base64/PEM)
+  logoutUrl          String? // IdP SLO endpoint
+  signRequests       Boolean @default(false)
+  spCertificate      String?
+  spKeyCipher        String?
+  spKeyIv            String?
+  spKeyTag           String?
+  signatureAlgorithm String  @default("sha256")
+
+  // ── Attribute mapping (IdP claim/attribute → ExecUI field) ──
+  attrEmail      String  @default("email")
+  attrFirstName  String  @default("given_name")
+  attrLastName   String  @default("family_name")
+  attrExternalId String?
+  attrGroups     String?
+  // Optional IdP group → role name mapping, e.g. {"Admins":"enterprise_admin"}.
+  groupRoleMap   Json    @default("{}")
+
+  lastLoginAt DateTime?
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Bearer token an IdP uses to call the SCIM 2.0 API. Only the SHA-256 hash is
+// stored — the plaintext is shown exactly once, at creation.
+model ScimToken {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  tokenHash   String    @unique
+  last4       String
+  createdById String?
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+// Short-lived, single-use record of an in-flight SSO login. Carries the OIDC
+// nonce + PKCE verifier and the SAML AuthnRequest id, so callbacks can be bound
+// to a request we actually started (CSRF + replay protection).
+model SsoLoginRequest {
+  id           String    @id @default(uuid())
+  tenantId     String
+  protocol     String
+  nonce        String?
+  codeVerifier String?
+  requestId    String?
+  redirectTo   String?
+  ipAddress    String?
+  // After a valid assertion we mint a single-use handoff code and redirect the
+  // browser with THAT, not the JWT — so the session token never lands in
+  // browser history, referrers or server logs. The SPA exchanges it once.
+  userId       String?
+  handoffCode  String?   @unique
+  consumedAt   DateTime?
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([expiresAt])
 }
