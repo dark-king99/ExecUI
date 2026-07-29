@@ -12,7 +12,7 @@
  * Everything respects prefers-reduced-motion.
  */
 import { useRef, useEffect, useState } from "react";
-import { useReducedMotion, useInView, animate, useMotionValue, useSpring, useTransform } from "motion/react";
+import { motion as Motion, useReducedMotion, useInView, animate, useMotionValue, useSpring, useTransform } from "motion/react";
 
 // ── Animated mesh gradient — the "color video" backdrop ──────────────────────
 // Three drifting, blurred, hue-cycling blobs. Pure CSS animation (GPU-cheap);
@@ -31,7 +31,7 @@ export function MeshGradient({ className = "", intensity = 1, hue = true }) {
 export function FadeUp({ children, className = "", delay = 0, y = 28, once = true }) {
   const reduce = useReducedMotion();
   return (
-    <motion.div
+    <Motion.div
       className={className}
       initial={reduce ? false : { opacity: 0, y, filter: "blur(3px)" }}
       whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -39,14 +39,14 @@ export function FadeUp({ children, className = "", delay = 0, y = 28, once = tru
       transition={{ duration: 0.7, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
-    </motion.div>
+    </Motion.div>
   );
 }
 
 // ── Staggered container / items ───────────────────────────────────────────────
 export function Stagger({ children, className = "", gap = 0.08, delay = 0 }) {
   return (
-    <motion.div
+    <Motion.div
       className={className}
       initial="hidden"
       whileInView="show"
@@ -54,14 +54,14 @@ export function Stagger({ children, className = "", gap = 0.08, delay = 0 }) {
       variants={{ hidden: {}, show: { transition: { staggerChildren: gap, delayChildren: delay } } }}
     >
       {children}
-    </motion.div>
+    </Motion.div>
   );
 }
 
 export function Item({ children, className = "", y = 24 }) {
   const reduce = useReducedMotion();
   return (
-    <motion.div
+    <Motion.div
       className={className}
       variants={{
         hidden: reduce ? {} : { opacity: 0, y, scale: 0.98 },
@@ -69,7 +69,7 @@ export function Item({ children, className = "", y = 24 }) {
       }}
     >
       {children}
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -116,7 +116,7 @@ export function TiltCard({ children, className = "", max = 8 }) {
   if (reduce) return <div className={className}>{children}</div>;
 
   return (
-    <motion.div
+    <Motion.div
       className={`relative [transform-style:preserve-3d] ${className}`}
       style={{ rotateX: rx, rotateY: ry, perspective: 900 }}
       onPointerMove={onMove}
@@ -124,12 +124,12 @@ export function TiltCard({ children, className = "", max = 8 }) {
       whileHover={{ scale: 1.015 }}
     >
       {children}
-      <motion.div
+      <Motion.div
         aria-hidden
         className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-0 transition-opacity duration-300 hover:opacity-100"
         style={{ background: glare }}
       />
-    </motion.div>
+    </Motion.div>
   );
 }
 
