@@ -60,6 +60,7 @@ const Billing             = lazy(() => import("../apps/account/Billing"));
 const AuditLogs           = lazy(() => import("../apps/account/AuditLogs"));
 const Developer           = lazy(() => import("../apps/account/Developer"));
 const Workflows           = lazy(() => import("../apps/account/Workflows"));
+const Compliance          = lazy(() => import("../apps/account/Compliance"));
 const Approvals           = lazy(() => import("../apps/approvals/Approvals"));
 const EnterpriseWorkspace = lazy(() => import("../apps/account/EnterpriseWorkspace"));
 const OrganizationProfile = lazy(() => import("../apps/account/OrganizationProfile"));
@@ -179,6 +180,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/account/audit"        element={isAdmin ? <AuditLogs /> : <Navigate to="/account/profile" replace />} />
                 <Route path="/account/developer"    element={isAdmin ? <Developer /> : <Navigate to="/account/profile" replace />} />
                 <Route path="/account/workflows"    element={isAdmin ? <Workflows /> : <Navigate to="/account/profile" replace />} />
+                <Route path="/account/compliance"   element={isAdmin ? <Compliance /> : <Navigate to="/account/profile" replace />} />
                 <Route path="/account/sso"          element={isAdmin ? <SingleSignOn /> : <Navigate to="/account/profile" replace />} />
 
                 {/* Analytics — cross-service launcher + config-driven solution pages */}
