@@ -230,6 +230,32 @@ export const DATASETS = {
     defaultSort: { field: "createdAt", dir: "desc" },
   },
 
+  // ── Contracts (admin only — commercial terms) ─────────────────────────────
+  // Renewal exposure is the report every finance team asks for: "what are we
+  // committed to, and what rolls over if nobody acts?"
+  contracts: {
+    id: "contracts", name: "Contracts", module: null, adminOnly: true, model: "contract",
+    description: "Contract register — counterparties, value, status and renewal dates.",
+    dateField: "createdAt",
+    fields: {
+      title:             f("Title", "string"),
+      counterparty:      f("Counterparty", "string", { groupable: true }),
+      type:              f("Type", "string", { groupable: true }),
+      status:            f("Status", "string", { groupable: true }),
+      value:             f("Value", "number", { aggregatable: true, money: true }),
+      currency:          f("Currency", "string", { groupable: true }),
+      startDate:         f("Starts", "date", { groupable: true }),
+      endDate:           f("Ends", "date", { groupable: true }),
+      autoRenew:         f("Auto-renews", "boolean", { groupable: true }),
+      renewalTermMonths: f("Renewal term (months)", "number", { aggregatable: true }),
+      noticePeriodDays:  f("Notice period (days)", "number", { aggregatable: true }),
+      ownerName:         f("Owner", "string", { groupable: true }),
+      createdAt:         f("Created", "date", { groupable: true }),
+    },
+    defaultFields: ["title", "counterparty", "status", "value", "endDate"],
+    defaultSort: { field: "endDate", dir: "asc" },
+  },
+
   // ── People (admin only — contains employee PII) ────────────────────────────
   employees: {
     id: "employees", name: "Employees", module: null, adminOnly: true, model: "user",

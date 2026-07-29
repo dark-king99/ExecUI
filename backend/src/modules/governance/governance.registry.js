@@ -143,7 +143,50 @@ export const CATEGORIES = [
     note: "Anonymized so sign-off history remains auditable.",
   }),
 
+  cat("signature_parties", {
+    label: "E-signature parties",
+    model: "signer",
+    dateField: "createdAt",
+    subject: { by: "email", field: "email" },
+    onErase: "anonymize",
+    // A signature is evidence that someone agreed to something, so the row must
+    // survive erasure — but the identifiers don't have to. email is UNIQUE per
+    // envelope, so it becomes a per-row tombstone rather than a constant.
+    anonymize: {
+      name: REDACTED,
+      email: (row) => `erased-${row.id}@deleted.invalid`,
+      signatureName: REDACTED,
+      ip: null, userAgent: null, tokenHash: null,
+    },
+    exportFields: ["id", "requestId", "name", "email", "role", "status", "signatureName", "consent", "viewedAt", "signedAt", "createdAt"],
+    defaultRetentionDays: null,
+    pii: true,
+    note: "Anonymized so signature evidence survives, without keeping the signer's identity.",
+  }),
+
   // ── Retention-only (no personal subject link) ─────────────────────────────
+  cat("signature_trail", {
+    label: "E-signature audit trail",
+    model: "signatureEvent",
+    dateField: "createdAt",
+    subject: null,
+    onErase: null,
+    defaultRetentionDays: null,
+    pii: true,
+    note: "Records IP addresses. Kept indefinitely by default — it's what proves a signature happened.",
+  }),
+
+  cat("contract_events", {
+    label: "Contract timeline",
+    model: "contractEvent",
+    dateField: "createdAt",
+    subject: null,
+    onErase: null,
+    defaultRetentionDays: null,
+    pii: false,
+    note: "The record of how each contract reached its current status.",
+  }),
+
   cat("webhook_deliveries", {
     label: "Webhook deliveries",
     model: "webhookDelivery",
