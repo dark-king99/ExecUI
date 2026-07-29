@@ -21,6 +21,8 @@ export const SCOPES = [
   "network:read", "network:write",
   "people:read",
   "reports:read",
+  "contracts:read", "contracts:write",
+  "documents:read",
   "webhooks:manage",
 ];
 
@@ -35,6 +37,9 @@ export const SCOPE_LABELS = {
   "network:write": "Create & update network records",
   "people:read": "Read the employee directory",
   "reports:read": "Run saved reports",
+  "contracts:read": "Read the contract register",
+  "contracts:write": "Create & update contracts",
+  "documents:read": "Read document metadata (never file contents)",
   "webhooks:manage": "Manage webhook endpoints",
 };
 
@@ -225,6 +230,59 @@ export const RESOURCES = {
     },
     filterable: ["severity", "status", "deviceId"],
     defaultSort: { field: "createdAt", dir: "desc" },
+  },
+
+  // ── Contracts (CLM) ───────────────────────────────────────────────────────
+  // `status` is deliberately read-only: a contract's lifecycle moves only along
+  // the transitions declared in the CLM registry, so an integration can't push
+  // an unsigned draft straight to "active". Use the lifecycle endpoint for that.
+  contracts: {
+    id: "contracts", name: "Contract", model: "contract", module: "contracts", scope: "contracts",
+    fields: {
+      id: ro("string"),
+      title: f("string", { writable: true, required: true, max: 250 }),
+      counterparty: f("string", { writable: true, required: true, max: 200 }),
+      type: f("string", { writable: true, enum: ["msa", "sow", "nda", "dpa", "vendor", "customer", "employment", "lease", "license", "other"] }),
+      status: ro("string"),
+      value: f("number", { writable: true, min: 0 }),
+      currency: f("string", { writable: true, max: 3 }),
+      startDate: f("date", { writable: true }),
+      endDate: f("date", { writable: true }),
+      autoRenew: f("boolean", { writable: true }),
+      renewalTermMonths: f("number", { writable: true, min: 1, max: 120 }),
+      noticePeriodDays: f("number", { writable: true, min: 0, max: 730 }),
+      documentId: f("string", { writable: true }),
+      ownerId: f("string", { writable: true, ref: "user" }),
+      notes: f("string", { writable: true, max: 4000 }),
+      terminatedAt: ro("date"),
+      createdAt: ro("date"),
+      updatedAt: ro("date"),
+    },
+    filterable: ["status", "type", "counterparty", "ownerId", "autoRenew"],
+    defaultSort: { field: "endDate", dir: "asc" },
+  },
+
+  // ── Documents (metadata only — file bytes are never served over /api/v1) ───
+  documents: {
+    id: "documents", name: "Document", model: "document", module: "documents", scope: "documents",
+    readOnly: true,
+    fields: {
+      id: ro("string"),
+      title: ro("string"),
+      description: ro("string"),
+      category: ro("string"),
+      status: ro("string"),
+      confidential: ro("boolean"),
+      currentVersion: ro("number"),
+      entityType: ro("string"),
+      entityId: ro("string"),
+      ownerId: ro("string"),
+      ownerName: ro("string"),
+      createdAt: ro("date"),
+      updatedAt: ro("date"),
+    },
+    filterable: ["category", "status", "confidential", "ownerId"],
+    defaultSort: { field: "updatedAt", dir: "desc" },
   },
 
   // ── People (read-only: staff PII is never writable over the public API) ────

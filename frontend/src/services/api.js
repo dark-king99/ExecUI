@@ -111,7 +111,11 @@ export const notificationsStreamUrl = () =>
   `${BASE_URL}/notifications/stream?token=${encodeURIComponent(localStorage.getItem(TOKEN_KEY) ?? '')}`;
 
 const get    = (path, params) => {
-  const qs = params ? `?${new URLSearchParams(params)}` : '';
+  // Drop absent params: URLSearchParams would serialise them as the *string*
+  // "undefined", which the API then treats as a real filter value (a search for
+  // the word "undefined" matches nothing).
+  const entries = Object.entries(params ?? {}).filter(([, v]) => v !== undefined && v !== null && v !== '');
+  const qs = entries.length ? `?${new URLSearchParams(entries)}` : '';
   return request(`${path}${qs}`);
 };
 const post   = (path, body)   => request(path, { method: 'POST',   body: JSON.stringify(body) });
@@ -756,6 +760,85 @@ export const rewards = {
   user:        (id)     => get(`/rewards/user/${id}`),
   // Fire-and-forget navigation ping; never surface errors to the UI.
   track:       (path)   => post('/rewards/track', { path }).catch(() => {}),
+};
+
+// ── Documents, e-signature & contracts (CLM) ──────────────────────────────
+export const documents = {
+  catalog: ()        => get('/documents/catalog'),
+  stats:   ()        => get('/documents/stats'),
+  list:    (params)  => get('/documents', params),
+  get:     (id)      => get(`/documents/${id}`),
+  create:  (data)    => post('/documents', data),
+  update:  (id, data) => put(`/documents/${id}`, data),
+  archive: (id)      => post(`/documents/${id}/archive`),
+  remove:  (id)      => del(`/documents/${id}`),
+
+  /** Upload a new version of a document (multipart). */
+  addVersion: (id, file, notes) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (notes) form.append('notes', notes);
+    return request(`/documents/${id}/versions`, { method: 'POST', body: form, headers: {} });
+  },
+
+  templates: {
+    list:     (all)       => get('/documents/templates', all ? { all: 'true' } : undefined),
+    get:      (id)        => get(`/documents/templates/${id}`),
+    create:   (data)      => post('/documents/templates', data),
+    update:   (id, data)  => put(`/documents/templates/${id}`, data),
+    remove:   (id)        => del(`/documents/templates/${id}`),
+    preview:  (id, values) => post(`/documents/templates/${id}/preview`, { values }),
+    generate: (id, data)  => post(`/documents/templates/${id}/generate`, data),
+  },
+
+  signatures: {
+    list:    (params)   => get('/documents/signatures', params),
+    get:     (id)       => get(`/documents/signatures/${id}`),
+    create:  (data)     => post('/documents/signatures', data),
+    send:    (id, body) => post(`/documents/signatures/${id}/send`, body || {}),
+    cancel:  (id, reason) => post(`/documents/signatures/${id}/cancel`, { reason }),
+    certificate: (id)   => get(`/documents/signatures/${id}/certificate`),
+
+    /** Download the completion certificate as a PDF. */
+    certificatePdf: async (id) => {
+      const token = getToken();
+      const res = await fetch(`${BASE_URL}/documents/signatures/${id}/certificate.pdf`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.message || friendlyError(res.status));
+      const blob = await res.blob();
+      const filename = /filename="?([^"]+)"?/.exec(res.headers.get('Content-Disposition') || '')?.[1] || 'certificate.pdf';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      return { filename };
+    },
+  },
+};
+
+export const contracts = {
+  list:      (params)   => get('/contracts', params),
+  portfolio: ()         => get('/contracts/portfolio'),
+  get:       (id)       => get(`/contracts/${id}`),
+  create:    (data)     => post('/contracts', data),
+  update:    (id, data) => put(`/contracts/${id}`, data),
+  remove:    (id)       => del(`/contracts/${id}`),
+  setStatus: (id, status, note) => post(`/contracts/${id}/status`, { status, note }),
+  addNote:   (id, note) => post(`/contracts/${id}/note`, { note }),
+  approval:  (id, body) => post(`/contracts/${id}/approval`, body || {}),
+  signature: (id, body) => post(`/contracts/${id}/signature`, body),
+  renew:     (id, body) => post(`/contracts/${id}/renew`, body || {}),
+};
+
+// ── Public signing portal ─────────────────────────────────────────────────
+// No session: the token in the URL is the entire credential, so these calls
+// deliberately don't carry (or need) the Authorization header.
+export const signing = {
+  view:    (token)         => get(`/sign/${encodeURIComponent(token)}`),
+  sign:    (token, body)   => post(`/sign/${encodeURIComponent(token)}/sign`, body),
+  decline: (token, reason) => post(`/sign/${encodeURIComponent(token)}/decline`, { reason }),
 };
 
 // ── Attachments (generic, cross-module files) ─────────────────────────────

@@ -7,6 +7,7 @@ import { startReportScheduler, stopReportScheduler } from "./modules/reports/rep
 import { startWebhookWorker, stopWebhookWorker } from "./modules/webhooks/webhooks.service.js";
 import { startWorkflowEngine, stopWorkflowEngine } from "./modules/workflows/workflows.engine.js";
 import { startRetentionScheduler, stopRetentionScheduler } from "./modules/governance/governance.scheduler.js";
+import { startClmScheduler, stopClmScheduler } from "./modules/documents/contracts.scheduler.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -81,6 +82,9 @@ startWorkflowEngine();
 // Apply data-retention policies daily.
 startRetentionScheduler();
 
+// Contract renewal reminders + signature-envelope expiry, daily.
+startClmScheduler();
+
 // Flush buffered analytics on graceful shutdown so nothing is lost.
 for (const sig of ["SIGTERM", "SIGINT"]) {
   process.on(sig, async () => {
@@ -88,6 +92,7 @@ for (const sig of ["SIGTERM", "SIGINT"]) {
     stopWebhookWorker();
     stopWorkflowEngine();
     stopRetentionScheduler();
+    stopClmScheduler();
     await shutdownAnalytics();
     process.exit(0);
   });

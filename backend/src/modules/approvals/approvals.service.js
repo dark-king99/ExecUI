@@ -13,6 +13,7 @@
  */
 import prisma from "../../config/database.js";
 import { runWithTenant } from "../../lib/tenantContext.js";
+import { emitDomainEvent } from "../../lib/domainEvents.js";
 import { notify, notifyMany } from "../notifications/notifications.service.js";
 import { log } from "../../lib/logger.js";
 import { resolveAudience, executeActions } from "../workflows/workflows.actions.js";
@@ -261,7 +262,31 @@ async function loadRecord(resourceId, recordId) {
   }
 }
 
+/**
+ * Announce an outcome on the domain-event bus so in-process modules can react to
+ * their own approvals (the contract register moves to pending_signature this
+ * way). Deliberately not a webhook resource: `resource` here is the *subject* of
+ * the approval, and the webhook queue ignores events whose resource isn't a
+ * public API resource, so nothing leaks outward from this.
+ */
+function announceOutcome(request, outcome) {
+  emitDomainEvent({
+    tenantId: request.tenantId,
+    resource: "approvals",
+    action: outcome,
+    type: `approval.${outcome}`,
+    record: {
+      id: request.id,
+      subjectResource: request.resource ?? null,
+      subjectRecordId: request.recordId ?? null,
+      title: request.title,
+      requestedById: request.requestedById ?? null,
+    },
+  });
+}
+
 async function notifyOutcome(tenantId, request, outcome, comment) {
+  announceOutcome(request, outcome);
   if (!request.requestedById) return;
   try {
     await runWithTenant({ tenantId }, async () =>

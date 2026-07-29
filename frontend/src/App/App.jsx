@@ -62,6 +62,11 @@ const Developer           = lazy(() => import("../apps/account/Developer"));
 const Workflows           = lazy(() => import("../apps/account/Workflows"));
 const Compliance          = lazy(() => import("../apps/account/Compliance"));
 const Approvals           = lazy(() => import("../apps/approvals/Approvals"));
+
+// Documents, e-signature & contracts (CLM)
+const Documents           = lazy(() => import("../apps/documents/Documents"));
+const Contracts           = lazy(() => import("../apps/documents/Contracts"));
+const SignPortal          = lazy(() => import("../apps/documents/SignPortal"));
 const EnterpriseWorkspace = lazy(() => import("../apps/account/EnterpriseWorkspace"));
 const OrganizationProfile = lazy(() => import("../apps/account/OrganizationProfile"));
 const Members             = lazy(() => import("../apps/account/Members"));
@@ -161,6 +166,10 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
 
                 {/* Approvals — every employee participates in sign-off. */}
                 <Route path="/approvals" element={<Approvals />} />
+
+                {/* Documents — company-wide; the contract register is admin-only. */}
+                <Route path="/documents" element={<Documents />} />
+                <Route path="/contracts" element={isAdmin ? <Contracts /> : <Navigate to="/documents" replace />} />
 
                 <Route path="/account" element={<Navigate to="/account/profile" replace />} />
                 <Route path="/account/profile"      element={<Profile />} />
@@ -295,6 +304,20 @@ export default function App() {
   // because the whole point is that there is no session yet.
   if (typeof window !== "undefined" && window.location.pathname === "/sso/callback") {
     return <SsoCallback onLogin={setUser} />;
+  }
+
+  // The signing portal is for counterparties who have no account here, so it
+  // renders before the login gate too — and deliberately outside the app shell,
+  // since none of the navigation would mean anything to them.
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/sign/")) {
+    const signToken = decodeURIComponent(window.location.pathname.slice("/sign/".length));
+    if (signToken) {
+      return (
+        <PageSuspense>
+          <SignPortal token={signToken} />
+        </PageSuspense>
+      );
+    }
   }
 
   if (!user) return <Login onLogin={setUser} />;

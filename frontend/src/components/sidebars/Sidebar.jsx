@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Server, Home, Users, TrendingUp, BarChart3, UserLock, Building2,
-  ChevronLeft, ChevronRight, Settings, Layers, Activity, LayoutDashboard, Trophy, CheckCircle2
+  ChevronLeft, ChevronRight, Settings, Layers, Activity, LayoutDashboard, Trophy, CheckCircle2,
+  FileText, FileSignature
 } from "lucide-react";
 import { accessFor } from "../../lib/access";
 import { useUser } from "../../context/UserContext";
@@ -63,6 +64,9 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { user } = useUser();
   const allowed = accessFor(user).sections;
+  // The contract register commits the organization legally — admins only, and
+  // the nav shouldn't advertise a page that would just redirect.
+  const isAdmin = ["enterprise_admin", "system_admin"].includes(user?.role);
 
   useEffect(() => {
     const saved = localStorage.getItem("sidebar-collapsed");
@@ -106,6 +110,10 @@ export default function Sidebar() {
         <NavBtn icon={Home}            label="Home"               path="/home"     current={pathname} collapsed={collapsed} />
         <NavBtn icon={LayoutDashboard} label="Executive Overview" path="/overview" current={pathname} collapsed={collapsed} />
         <NavBtn icon={CheckCircle2}    label="Approvals"          path="/approvals" current={pathname} collapsed={collapsed} />
+        <NavBtn icon={FileText}        label="Documents"          path="/documents" current={pathname} collapsed={collapsed} />
+        {isAdmin && (
+          <NavBtn icon={FileSignature} label="Contracts"          path="/contracts" current={pathname} collapsed={collapsed} />
+        )}
         <NavBtn icon={Trophy}          label="Rewards"            path="/rewards"  current={pathname} collapsed={collapsed} />
         <NavBtn icon={UserLock}        label="Account"            path="/account"  current={pathname} collapsed={collapsed} />
 

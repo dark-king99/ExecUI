@@ -71,11 +71,12 @@ In place: semantic landmarks, keyboard-focusable controls with visible focus rin
 - **Auth-specific** stricter limits on login/signup (`middleware/ratelimit.middleware.js`, ~5/min, keyed by IP **and** attempted email so one IP can't lock out everyone).
 - **Overload protection:** `concurrencyLimiter` (max in-flight, sheds load with 503 before the event loop drowns) + `requestTimeout` (25s) + body-size caps.
 - `trust proxy` set so limits key on the real client IP behind the ingress.
+- **Public signing portal** (`/api/sign/:token`) — the only unauthenticated write surface — carries its own tighter per-IP limit (30/min, env `SIGN_RATE_LIMIT_PER_MIN`). Authorization is a 256-bit token stored only as a SHA-256 hash; links are single-use and expire.
 - **CORS** now restricted via `CORS_ORIGINS` allowlist (unset ⇒ same-origin reflect for dev). Auth uses bearer tokens (no cookies) ⇒ no CSRF surface.
 > Single-instance limiter is in-process; **move to a Redis store before horizontal scaling.**
 
 ## 8. PII handling, retention & deletion — ✅
-**PII inventory:** user name, email, phone, job title, avatar; tenant/company; audit logs; billing customer id (Stripe holds card data — we never store PANs). Social/integration tokens are encrypted at rest.
+**PII inventory:** user name, email, phone, job title, avatar; tenant/company; audit logs; billing customer id (Stripe holds card data — we never store PANs); e-signature parties (name, email, IP, user agent). Social/integration tokens are encrypted at rest; e-signature access tokens are stored only as SHA-256 hashes.
 **Handling:** passwords bcrypt; secrets/tokens AES-GCM; PII never logged (logs carry `reqId`, not payloads); TLS in transit (§12).
 **Deletion:**
 - Employee removal → `DELETE /users/admin/users/:id` (hard delete + audit entry).
@@ -83,6 +84,7 @@ In place: semantic landmarks, keyboard-focusable controls with visible focus rin
 **Retention — automated.** Configurable per data category in **Account → Compliance**, applied by a daily job. Each category declares a recommended default (webhook deliveries 30d, sessions/notifications/email logs 90d, audit logs 730d) and whether expiry **deletes** or **anonymizes**. A live preview shows what a policy would remove before it runs. See [`docs/COMPLIANCE.md`](./docs/COMPLIANCE.md).
 **Data-subject requests — self-serve.** Export (Art. 15) produces a portable JSON bundle of every category held about a person; erasure (Art. 17) deletes or anonymizes per category. Audit logs, approval decisions, email logs and the employee row are **anonymized rather than deleted** so evidence and record ownership survive; credentials and MFA secrets are destroyed. Every request — including blocked ones and why — is recorded permanently.
 **Legal holds.** A hold on a person or a data category freezes it against erasure and purging, and always beats a deletion request.
+**Signing counterparties.** People who sign a document are data subjects too, even when they were never employees or CRM contacts — subject lookup finds them by email. Erasure **anonymizes** their signer rows (name redacted, email replaced with a per-row tombstone, IP and user agent cleared) so the *signature evidence* survives while the identity does not. The signing audit trail and contract timeline are retained indefinitely by default: they are what prove a signature happened. See [`docs/DOCUMENTS.md`](./docs/DOCUMENTS.md).
 **Data-subject requests:** export = the tenant's own data via existing list endpoints; erasure = tenant/user delete above.
 **Product analytics:** optional, off unless PostHog keys are set (see [`docs/ANALYTICS.md`](./docs/ANALYTICS.md)). Sends only ids/role/plan (no names/emails unless explicitly enabled), respects Do-Not-Track + opt-out, and masks all inputs in session replay. Backend error events carry route/status/ids only — never request bodies.
 
@@ -117,7 +119,8 @@ In place: semantic landmarks, keyboard-focusable controls with visible focus rin
 
 ### Open follow-ups (prioritized)
 1. ~~**Retention automation**~~ — **done**: per-category policies + daily purge + legal holds (`docs/COMPLIANCE.md`).
-2. **Accessibility audit** — axe/Lighthouse sweep + fixes to WCAG 2.1 AA; focus-trap all modals.
-3. **Redis** — shared rate-limit + cache store to unlock horizontal scaling.
-4. **Test depth** — per-module API integration tests + a Playwright login→section smoke suite in CI.
-5. **First DR rehearsal** — run the restore drill, record RTO/RPO actuals.
+2. **Object-store access control** — uploaded files are served as static objects at `/api/uploads/<key>` (unguessable keys, but no authorization). This is what lets a signing counterparty read a document without an account; put it behind **signed, expiring URLs** before storing genuinely restricted material. See [`docs/DOCUMENTS.md`](./docs/DOCUMENTS.md) §7.
+3. **Accessibility audit** — axe/Lighthouse sweep + fixes to WCAG 2.1 AA; focus-trap all modals.
+4. **Redis** — shared rate-limit + cache store to unlock horizontal scaling.
+5. **Test depth** — per-module API integration tests + a Playwright login→section smoke suite in CI.
+6. **First DR rehearsal** — run the restore drill, record RTO/RPO actuals.

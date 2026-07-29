@@ -24,6 +24,8 @@ import developerRoutes  from "../modules/api/developer.routes.js";
 import workflowRoutes   from "../modules/workflows/workflows.routes.js";
 import approvalRoutes   from "../modules/approvals/approvals.routes.js";
 import governanceRoutes from "../modules/governance/governance.routes.js";
+import documentRoutes, { contractRouter } from "../modules/documents/documents.routes.js";
+import signRoutes      from "../modules/documents/sign.routes.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { requireModule } from "../middleware/access.middleware.js";
 import { rewardTracking } from "../middleware/rewardTracking.middleware.js";
@@ -31,6 +33,12 @@ import { rewardTracking } from "../middleware/rewardTracking.middleware.js";
 const router = express.Router();
 
 router.get("/health", (_req, res) => res.json({ status: "ok" }));
+
+// ── Public signing portal ───────────────────────────────────────────────────
+// Mounted before authentication and before reward tracking: the people using it
+// are counterparties with no account, authenticated by their signing token
+// alone (see sign.routes.js).
+router.use("/sign", signRoutes);
 
 // Turn successful workspace mutations into reward points (best-effort, on
 // response finish — see the middleware). Must run before the route handlers so
@@ -66,5 +74,7 @@ router.use("/developer",  developerRoutes);
 router.use("/workflows",  workflowRoutes);
 router.use("/approvals",  approvalRoutes);
 router.use("/governance", governanceRoutes);
+router.use("/documents",  documentRoutes);
+router.use("/contracts",  contractRouter);
 
 export default router;
