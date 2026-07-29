@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import { motion } from "motion";
+
+import { AnimatePresence, motion as Motion, useReducedMotion } from "motion/react";
 import {
   ArrowRight, ArrowUpRight, Mail, Play, Sparkles, ChevronDown,
   MessageSquare, Table2, Send, Users, Megaphone, Network, BarChart3,
@@ -65,7 +67,7 @@ function HeroTitle() {
               const dir = local < letterCount / 2 ? -1 : 1; // left half → left, right half → right
               const times = [0, ds / T, (ds + dropDur) / T, holdEnd / T, es / T, (es + exitDur) / T, 1];
               return (
-                <motion.span
+                <Motion.span
                   key={ci}
                   className={`inline-block will-change-transform ${line.className}`}
                   animate={{
@@ -83,7 +85,7 @@ function HeroTitle() {
                   }}
                 >
                   {ch}
-                </motion.span>
+                </Motion.span>
               );
             })}
           </span>
@@ -281,7 +283,7 @@ function SuiteBars({ suite }) {
   return (
     <div className="flex h-40 items-end justify-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/30">
       {suite.bars.map((h, i) => (
-        <motion.div
+        <Motion.div
           key={`${suite.id}-${i}`}
           className={`w-7 rounded-t-lg ${suite.bar}`}
           initial={{ height: 0, opacity: 0.4 }}
@@ -376,7 +378,7 @@ export default function HomeView() {
         <section className="mx-auto flex min-h-[82vh] max-w-4xl flex-col items-center justify-center text-center">
           <HeroTitle />
 
-          <motion.p
+          <Motion.p
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.45 }}
@@ -384,10 +386,10 @@ export default function HomeView() {
           >
             From CRM and marketing automation to network operations and analytics —
             {" "}{TOTAL_SOLUTIONS} solutions across five suites, shaped to each department and plan.
-          </motion.p>
+          </Motion.p>
 
           {/* Email capture */}
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.6 }}
@@ -415,7 +417,7 @@ export default function HomeView() {
               </button>
             </form>
             <p className="mt-3 text-xs text-slate-400">We'll never share your email address.</p>
-          </motion.div>
+          </Motion.div>
 
           {/* Live product numbers */}
           <Stagger className="mt-14 grid w-full max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4" gap={0.1} delay={0.2}>
@@ -489,7 +491,7 @@ export default function HomeView() {
                     }`}
                   >
                     {isActive && (
-                      <motion.span
+                      <Motion.span
                         layoutId="suite-pill"
                         className="absolute inset-0 rounded-full bg-slate-900 dark:bg-white"
                         transition={{ type: "spring", stiffness: 320, damping: 30 }}
@@ -505,7 +507,7 @@ export default function HomeView() {
             <div className={`relative overflow-hidden p-8 ${cardBase}`}>
               <MeshGradient intensity={0.16} hue={false} />
               <AnimatePresence mode="wait">
-                <motion.div
+                <Motion.div
                   key={active.id}
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -533,7 +535,7 @@ export default function HomeView() {
                     </button>
                   </div>
                   <SuiteBars suite={active} />
-                </motion.div>
+                </Motion.div>
               </AnimatePresence>
             </div>
           </FadeUp>
@@ -580,7 +582,7 @@ export default function HomeView() {
               const Icon = TIER_ICONS[p.id] ?? Layers;
               return (
                 <Item key={p.id} className="h-full">
-                  <motion.button
+                  <Motion.button
                     onClick={() => navigate("/account/billing")}
                     whileHover={{ y: -6 }}
                     transition={{ type: "spring", stiffness: 300, damping: 22 }}
@@ -619,7 +621,7 @@ export default function HomeView() {
                         </li>
                       </ul>
                     </div>
-                  </motion.button>
+                  </Motion.button>
                 </Item>
               );
             })}
@@ -770,7 +772,7 @@ export default function HomeView() {
               <p className="mx-auto mt-3 max-w-xl text-sm text-slate-300">
                 Step into your Executive Overview and see every service, solution, and signal in one place.
               </p>
-              <motion.button
+              <Motion.button
                 onClick={goToSystem}
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.97 }}
@@ -778,7 +780,7 @@ export default function HomeView() {
               >
                 Get started
                 <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
-              </motion.button>
+              </Motion.button>
             </div>
           </div>
         </FadeUp>
