@@ -77,6 +77,8 @@ model Tenant {
   networkConnections      NetworkConnection[]
   rewardEvents            RewardEvent[]
   rewardStats             RewardStat[]
+  reports                 Report[]
+  reportSchedules         ReportSchedule[]
   ssoConnection           SsoConnection?
   scimTokens              ScimToken[]
   ssoLoginRequests        SsoLoginRequest[]
@@ -291,6 +293,7 @@ model User {
   auditLogs        AuditLog[]
   rewardEvents     RewardEvent[]
   rewardStat       RewardStat?
+  reports          Report[]
 
   @@unique([tenantId, employeeId])
   @@unique([tenantId, externalId])
@@ -1218,4 +1221,58 @@ model SsoLoginRequest {
 
   @@index([tenantId])
   @@index([expiresAt])
+}
+
+// ── Custom reporting (BI) ────────────────────────────────────────────────────
+// A saved report definition. `dataset` names an entry in the report dataset
+// registry and `definition` holds the (validated) field/filter/grouping spec —
+// never raw SQL, so a saved report can't become an injection vector.
+model Report {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  dataset     String
+  definition  Json     @default("{}")
+  shared      Boolean  @default(true) // visible org-wide vs. only the author
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  schedules ReportSchedule[]
+
+  @@index([tenantId])
+}
+
+// A recurring delivery of a report: render to CSV/XLSX/PDF and email it to the
+// recipients on a cadence. nextRunAt is the scheduler's work queue.
+model ReportSchedule {
+  id          String    @id @default(uuid())
+  tenantId    String
+  reportId    String
+  format      String    @default("csv") // csv | xlsx | pdf
+  frequency   String    @default("weekly") // daily | weekly | monthly
+  hour        Int       @default(7) // local hour in `timezone`
+  minute      Int       @default(0)
+  weekday     Int? // 0=Sun..6=Sat, for weekly
+  dayOfMonth  Int? // 1..28, for monthly
+  timezone    String    @default("UTC") // IANA zone the hour/minute is expressed in
+  recipients  String[]  @default([])
+  active      Boolean   @default(true)
+  nextRunAt   DateTime?
+  lastRunAt   DateTime?
+  lastStatus  String? // sent | skipped | failed
+  lastError   String?
+  runCount    Int       @default(0)
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([active, nextRunAt])
 }

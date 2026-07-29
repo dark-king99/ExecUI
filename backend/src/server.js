@@ -3,6 +3,7 @@ import app from "./app.js";
 import prisma from "./config/database.js";
 import { log } from "./lib/logger.js";
 import { shutdownAnalytics } from "./lib/analytics.js";
+import { startReportScheduler, stopReportScheduler } from "./modules/reports/reports.schedule.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -65,9 +66,13 @@ app.listen(PORT, () => {
 
 ensureDatabase();
 
+// Deliver scheduled report exports on their cadence.
+startReportScheduler();
+
 // Flush buffered analytics on graceful shutdown so nothing is lost.
 for (const sig of ["SIGTERM", "SIGINT"]) {
   process.on(sig, async () => {
+    stopReportScheduler();
     await shutdownAnalytics();
     process.exit(0);
   });

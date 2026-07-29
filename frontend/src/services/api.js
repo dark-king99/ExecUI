@@ -614,6 +614,56 @@ export const sso = {
   },
 };
 
+// ── Reports (custom BI: build, save, export, schedule) ─────────────────────
+export const reports = {
+  datasets: ()          => get('/reports/datasets'),
+  preview:  (body)      => post('/reports/preview', body),
+  list:     ()          => get('/reports'),
+  get:      (id)        => get(`/reports/${id}`),
+  create:   (data)      => post('/reports', data),
+  update:   (id, data)  => put(`/reports/${id}`, data),
+  remove:   (id)        => del(`/reports/${id}`),
+  run:      (id, over)  => post(`/reports/${id}/run`, over || {}),
+
+  /**
+   * Download an export. The API returns a binary body (not JSON), so this
+   * bypasses the JSON request helper and streams it into a browser download.
+   */
+  download: async (body) => {
+    const token = getToken();
+    const res = await fetch(`${BASE_URL}/reports/export`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      let message = friendlyError(res.status);
+      try { message = (await res.json())?.message || message; } catch { /* binary/none */ }
+      throw new Error(message);
+    }
+    const blob = await res.blob();
+    const disp = res.headers.get('Content-Disposition') || '';
+    const filename = /filename="?([^"]+)"?/.exec(disp)?.[1] || 'report';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    return { filename, size: blob.size };
+  },
+
+  schedules: {
+    list:   ()         => get('/reports/schedules'),
+    create: (data)     => post('/reports/schedules', data),
+    update: (id, data) => put(`/reports/schedules/${id}`, data),
+    remove: (id)       => del(`/reports/schedules/${id}`),
+    runNow: (id)       => post(`/reports/schedules/${id}/run`),
+  },
+};
+
 // ── Rewards (org-wide recognition: navigation, usage & performance) ─────────
 export const rewards = {
   config:      ()       => get('/rewards/config'),
