@@ -12,6 +12,7 @@ import { MeshGradient, FadeUp, Stagger, Item, AnimatedNumber, TiltCard, Marquee 
 import ExecUIBackground from "../components/ExecUIBackground";
 import AnimatedLogo from "../components/AnimatedLogo";
 import Footer from "../components/Footer";
+import IndustrySelect from "../components/IndustrySelect";
 import { PLANS, CUSTOM, CRM_SOLUTIONS, MKT_SOLUTIONS, SERVICES_SOLUTIONS } from "../lib/plans";
 import { SOLUTIONS as NET_SOLUTIONS } from "./network/solutions.config";
 import { SOLUTIONS as ANA_SOLUTIONS } from "./analytics/solutions.config";
@@ -372,6 +373,11 @@ export default function HomeView() {
       </header>
 
       <div className="relative z-10 mx-auto max-w-7xl px-6 pb-24">
+        {/* Reminder for admins who haven't picked an industry yet (plan-gated). */}
+        <div className="mx-auto max-w-2xl pt-6">
+          <IndustrySelect variant="banner" promptOnly />
+        </div>
+
         {/* ── Hero ──────────────────────────────────────────────────────── */}
         <section className="mx-auto flex min-h-[82vh] max-w-4xl flex-col items-center justify-center text-center">
           <HeroTitle />

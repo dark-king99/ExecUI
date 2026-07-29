@@ -1,5 +1,7 @@
 import prisma from "../../config/database.js";
 import { accessFor, DEPT_LABELS, SECTIONS } from "../access/access.policy.js";
+import { INDUSTRIES, GENERAL } from "../crm/industries/registry.js";
+import { entitlementsFor } from "../billing/plans.config.js";
 import * as messaging from "../messaging/messaging.service.js";
 import { sendEmail } from "../../lib/email.js";
 import { notify } from "../notifications/notifications.service.js";
@@ -222,10 +224,10 @@ async function deptMessages(tenantId, deptKey, privileged) {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 export async function getDashboard(userId, tenantId) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { role: true },
-  });
+  const [user, tenant] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, include: { role: true } }),
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { industry: true, plan: true, planSolutions: true } }),
+  ]);
   const access = accessFor({ role: user?.role?.name, department: user?.department });
 
   // Each section/panel is resolved defensively: a single failing query yields
@@ -262,6 +264,13 @@ export async function getDashboard(userId, tenantId) {
       employeeId: user?.employeeId ?? null,
     },
     access: { sections: access.sections, slices: access.slices, privileged: access.privileged, deptKey: access.dept, label: access.label },
+    organization: {
+      industry: tenant?.industry || GENERAL,
+      industryName: INDUSTRIES[tenant?.industry]?.name || "General",
+      industrySet: !!tenant?.industry && tenant.industry !== GENERAL,
+      plan: tenant?.plan || null,
+      planIncludesIndustry: entitlementsFor(tenant?.plan || "executive", tenant?.planSolutions || []).industry,
+    },
     gauge: buildGauge(access.dept, m),
     kpis: buildKpis(access.dept, m),
     metrics: m,

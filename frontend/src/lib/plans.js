@@ -80,10 +80,11 @@ const parseCustom = (customSolutions = []) => {
     if (s.startsWith("crm:")) crm.push(s.slice(4));
     else if (s.startsWith("marketing:")) marketing.push(s.slice(10));
   }
-  return { crm, marketing };
+  // Custom plans can always opt into an industry (billed as a surcharge).
+  return { crm, marketing, industry: true };
 };
 
-function build({ crm = [], marketing = [], services = [], network = false }) {
+function build({ crm = [], marketing = [], services = [], network = false, industry = false }) {
   const sections = [];
   if (crm.length) sections.push("crm");
   if (marketing.length) sections.push("marketing");
@@ -98,6 +99,7 @@ function build({ crm = [], marketing = [], services = [], network = false }) {
     sections,
     solutions: { crm, marketing, services, network: network ? "all" : [] },
     analyticsSlices,
+    industry: !!industry,
   };
 }
 
