@@ -9,6 +9,8 @@
  */
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { network } from "../services/api";
+import { useUser } from "./UserContext";
+import { accessFor } from "../lib/access";
 import { solutionsForProfile } from "../apps/network/solutions.config";
 
 const NetworkContext = createContext(null);
@@ -16,8 +18,14 @@ const NetworkContext = createContext(null);
 export function NetworkProvider({ children }) {
   const [profile, setProfileState] = useState("office");
   const [loading, setLoading] = useState(true);
+  // Employees without Network access would get a 403 here. Skip the call rather
+  // than firing a request we know will be refused — it only produced console
+  // noise and false errors in analytics.
+  const { user } = useUser();
+  const canRead = accessFor(user).sections.includes("network");
 
   const load = useCallback(async () => {
+    if (!canRead) { setLoading(false); return; }
     try {
       const res = await network.profile.get();
       setProfileState(res?.profile || "office");
@@ -26,7 +34,7 @@ export function NetworkProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canRead]);
 
   useEffect(() => {
     load();

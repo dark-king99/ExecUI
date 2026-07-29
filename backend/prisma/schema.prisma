@@ -82,6 +82,10 @@ model Tenant {
   apiTokens               ApiToken[]
   webhookEndpoints        WebhookEndpoint[]
   webhookDeliveries       WebhookDelivery[]
+  workflows               Workflow[]
+  workflowRuns            WorkflowRun[]
+  approvalRequests        ApprovalRequest[]
+  approvalDecisions       ApprovalDecision[]
   ssoConnection           SsoConnection?
   scimTokens              ScimToken[]
   ssoLoginRequests        SsoLoginRequest[]
@@ -1350,4 +1354,102 @@ model WebhookDelivery {
 
   @@index([tenantId, createdAt])
   @@index([status, nextAttemptAt])
+}
+
+// ── Workflow automation & approvals ──────────────────────────────────────────
+// "When X happens, do Y." Triggered by domain events (the same stream that
+// drives outbound webhooks), so a rule fires whether the change came from the
+// UI, the public API or a background job. Conditions and actions are validated
+// JSON specs — never executable code — so a rule can't become an injection path.
+model Workflow {
+  id            String    @id @default(uuid())
+  tenantId      String
+  name          String
+  description   String?
+  triggerEvent  String // e.g. "opportunities.updated"
+  match         String    @default("all") // all | any
+  conditions    Json      @default("[]")
+  actions       Json      @default("[]")
+  oncePerRecord Boolean   @default(false) // don't re-fire for a record already handled
+  active        Boolean   @default(true)
+  runCount      Int       @default(0)
+  lastRunAt     DateTime?
+  lastStatus    String? // success | failed | skipped
+  lastError     String?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  runs   WorkflowRun[]
+
+  @@index([tenantId])
+  @@index([tenantId, triggerEvent, active])
+}
+
+// One execution of one workflow — the audit trail that makes automation
+// trustworthy: what fired, on which record, what each action did.
+model WorkflowRun {
+  id         String   @id @default(uuid())
+  tenantId   String
+  workflowId String
+  event      String
+  recordId   String?
+  status     String   @default("success") // success | failed | skipped
+  matched    Boolean  @default(true)
+  results    Json     @default("[]") // per-action outcome
+  error      String?
+  durationMs Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([workflowId, recordId])
+}
+
+// A multi-step sign-off on a record. Steps are resolved to real approvers at
+// request time and progressed one at a time; any rejection ends the chain.
+model ApprovalRequest {
+  id            String    @id @default(uuid())
+  tenantId      String
+  title         String
+  resource      String? // registry resource id, when attached to a record
+  recordId      String?
+  recordLabel   String?
+  summary       String?
+  status        String    @default("pending") // pending | approved | rejected | cancelled
+  steps         Json      @default("[]") // [{ name, approverIds[], requiredCount, status }]
+  currentStep   Int       @default(0)
+  onApprove     Json      @default("[]") // actions to run when fully approved
+  workflowId    String? // set when raised by a workflow
+  requestedById String?
+  decidedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  decisions ApprovalDecision[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+}
+
+model ApprovalDecision {
+  id        String   @id @default(uuid())
+  tenantId  String
+  requestId String
+  stepIndex Int
+  userId    String
+  userName  String?
+  decision  String // approve | reject
+  comment   String?
+  createdAt DateTime @default(now())
+
+  tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  request ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, stepIndex, userId])
+  @@index([tenantId])
 }

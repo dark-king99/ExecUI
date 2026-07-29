@@ -614,6 +614,27 @@ export const sso = {
   },
 };
 
+// ── Workflow automation (admin) + approvals (everyone) ─────────────────────
+export const workflows = {
+  catalog: ()          => get('/workflows/catalog'),
+  list:    ()          => get('/workflows'),
+  get:     (id)        => get(`/workflows/${id}`),
+  create:  (data)      => post('/workflows', data),
+  update:  (id, data)  => put(`/workflows/${id}`, data),
+  remove:  (id)        => del(`/workflows/${id}`),
+  test:    (id, body)  => post(`/workflows/${id}/test`, body || {}),
+  runs:    (params)    => get('/workflows/runs', params),
+};
+
+export const approvals = {
+  list:         (params) => get('/approvals', params),
+  pendingCount: ()       => get('/approvals/pending-count'),
+  get:          (id)     => get(`/approvals/${id}`),
+  create:       (data)   => post('/approvals', data),
+  decide:       (id, d)  => post(`/approvals/${id}/decide`, d),
+  cancel:       (id)     => post(`/approvals/${id}/cancel`),
+};
+
 // ── Developer (public API tokens + outbound webhooks) ──────────────────────
 export const developer = {
   meta: () => get('/developer/meta'),
