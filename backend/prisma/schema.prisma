@@ -86,6 +86,9 @@ model Tenant {
   workflowRuns            WorkflowRun[]
   approvalRequests        ApprovalRequest[]
   approvalDecisions       ApprovalDecision[]
+  retentionPolicies       RetentionPolicy[]
+  dataRequests            DataRequest[]
+  legalHolds              LegalHold[]
   ssoConnection           SsoConnection?
   scimTokens              ScimToken[]
   ssoLoginRequests        SsoLoginRequest[]
@@ -1452,4 +1455,76 @@ model ApprovalDecision {
 
   @@unique([requestId, stepIndex, userId])
   @@index([tenantId])
+}
+
+// ── Compliance & data governance ─────────────────────────────────────────────
+// How long a category of data is kept before it is purged. `action` decides
+// whether rows are deleted outright or anonymized — audit trails must survive
+// as evidence, so they lose their PII rather than disappearing.
+model RetentionPolicy {
+  id          String    @id @default(uuid())
+  tenantId    String
+  category    String // registry category id
+  retainDays  Int
+  action      String    @default("delete") // delete | anonymize
+  active      Boolean   @default(true)
+  lastRunAt   DateTime?
+  lastPurged  Int       @default(0)
+  totalPurged Int       @default(0)
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, category])
+  @@index([tenantId])
+}
+
+// A data-subject access request (GDPR Art. 15 export / Art. 17 erasure).
+// The outcome is recorded permanently so the organization can evidence that it
+// honored the request, and what exactly was done.
+model DataRequest {
+  id            String    @id @default(uuid())
+  tenantId      String
+  type          String // export | erase
+  subjectType   String // employee | contact
+  subjectId     String?
+  subjectEmail  String
+  subjectLabel  String?
+  status        String    @default("pending") // pending | completed | failed | blocked
+  result        Json      @default("{}") // export bundle or erasure summary
+  recordCount   Int       @default(0)
+  note          String?
+  error         String?
+  requestedById String?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, subjectEmail])
+}
+
+// Freezes data against erasure and retention purging — for litigation,
+// investigation or audit. A hold always wins over a deletion request.
+model LegalHold {
+  id           String    @id @default(uuid())
+  tenantId     String
+  name         String
+  reason       String?
+  scope        String    @default("subject") // subject | category
+  subjectEmail String? // when scope = subject
+  category     String? // when scope = category
+  active       Boolean   @default(true)
+  placedById   String?
+  releasedAt   DateTime?
+  releasedById String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, active])
 }

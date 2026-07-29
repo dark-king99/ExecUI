@@ -12,7 +12,7 @@ Cross-refs: [`SECURITY.md`](./SECURITY.md) (secret rotation), [`docs/DATA-STATUS
 | 5 | Health checks | ✅ |
 | 6 | Accessibility | ⚠️ |
 | 7 | Rate limiting & abuse prevention | ✅ |
-| 8 | PII handling, retention & deletion | ⚠️ / 📋 |
+| 8 | PII handling, retention & deletion | ✅ |
 | 9 | Load & stress testing | ✅ (tooling) |
 | 10 | Regression tests & CI | ✅ |
 | 11 | RTO / RPO | 📋 |
@@ -74,13 +74,15 @@ In place: semantic landmarks, keyboard-focusable controls with visible focus rin
 - **CORS** now restricted via `CORS_ORIGINS` allowlist (unset ⇒ same-origin reflect for dev). Auth uses bearer tokens (no cookies) ⇒ no CSRF surface.
 > Single-instance limiter is in-process; **move to a Redis store before horizontal scaling.**
 
-## 8. PII handling, retention & deletion — ⚠️ / 📋
+## 8. PII handling, retention & deletion — ✅
 **PII inventory:** user name, email, phone, job title, avatar; tenant/company; audit logs; billing customer id (Stripe holds card data — we never store PANs). Social/integration tokens are encrypted at rest.
 **Handling:** passwords bcrypt; secrets/tokens AES-GCM; PII never logged (logs carry `reqId`, not payloads); TLS in transit (§12).
 **Deletion:**
 - Employee removal → `DELETE /users/admin/users/:id` (hard delete + audit entry).
 - Org/tenant deletion cascades to **all** tenant data (`onDelete: Cascade` on every tenant relation) — deleting the tenant purges CRM, marketing, social, network, uploads references, etc.
-**Retention policy (target):** operational data lives while the account is active; on account closure, purge PII within **30 days** (audit logs anonymized, not deleted, for integrity). Email logs and follower snapshots retained **90 days**. *Automation of the timed purge is the tracked follow-up; the cascade + manual delete exist today.*
+**Retention — automated.** Configurable per data category in **Account → Compliance**, applied by a daily job. Each category declares a recommended default (webhook deliveries 30d, sessions/notifications/email logs 90d, audit logs 730d) and whether expiry **deletes** or **anonymizes**. A live preview shows what a policy would remove before it runs. See [`docs/COMPLIANCE.md`](./docs/COMPLIANCE.md).
+**Data-subject requests — self-serve.** Export (Art. 15) produces a portable JSON bundle of every category held about a person; erasure (Art. 17) deletes or anonymizes per category. Audit logs, approval decisions, email logs and the employee row are **anonymized rather than deleted** so evidence and record ownership survive; credentials and MFA secrets are destroyed. Every request — including blocked ones and why — is recorded permanently.
+**Legal holds.** A hold on a person or a data category freezes it against erasure and purging, and always beats a deletion request.
 **Data-subject requests:** export = the tenant's own data via existing list endpoints; erasure = tenant/user delete above.
 **Product analytics:** optional, off unless PostHog keys are set (see [`docs/ANALYTICS.md`](./docs/ANALYTICS.md)). Sends only ids/role/plan (no names/emails unless explicitly enabled), respects Do-Not-Track + opt-out, and masks all inputs in session replay. Backend error events carry route/status/ids only — never request bodies.
 
@@ -114,7 +116,7 @@ In place: semantic landmarks, keyboard-focusable controls with visible focus rin
 ---
 
 ### Open follow-ups (prioritized)
-1. **Retention automation** — scheduled job to purge closed-account PII on the 30/90-day policy.
+1. ~~**Retention automation**~~ — **done**: per-category policies + daily purge + legal holds (`docs/COMPLIANCE.md`).
 2. **Accessibility audit** — axe/Lighthouse sweep + fixes to WCAG 2.1 AA; focus-trap all modals.
 3. **Redis** — shared rate-limit + cache store to unlock horizontal scaling.
 4. **Test depth** — per-module API integration tests + a Playwright login→section smoke suite in CI.

@@ -614,6 +614,46 @@ export const sso = {
   },
 };
 
+// ── Compliance & data governance (admin) ───────────────────────────────────
+export const governance = {
+  catalog: ()        => get('/governance/catalog'),
+  subject: (email)   => get('/governance/subject', { email }),
+  requests: (params) => get('/governance/requests', params),
+  request:  (id)     => get(`/governance/requests/${id}`),
+  export:   (email)  => post('/governance/export', { email }),
+  erase:    (email, note) => post('/governance/erase', { email, note }),
+
+  /** Download an export bundle as a JSON file. */
+  download: async (id) => {
+    const token = getToken();
+    const res = await fetch(`${BASE_URL}/governance/requests/${id}/download`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.message || friendlyError(res.status));
+    const blob = await res.blob();
+    const filename = /filename="?([^"]+)"?/.exec(res.headers.get('Content-Disposition') || '')?.[1] || 'data-export.json';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    return { filename };
+  },
+
+  retention: {
+    list:    ()     => get('/governance/retention'),
+    save:    (data) => put('/governance/retention', data),
+    remove:  (id)   => del(`/governance/retention/${id}`),
+    preview: ()     => get('/governance/retention/preview'),
+    run:     ()     => post('/governance/retention/run'),
+  },
+  holds: {
+    list:    ()     => get('/governance/holds'),
+    place:   (data) => post('/governance/holds', data),
+    release: (id)   => post(`/governance/holds/${id}/release`),
+  },
+};
+
 // ── Workflow automation (admin) + approvals (everyone) ─────────────────────
 export const workflows = {
   catalog: ()          => get('/workflows/catalog'),
