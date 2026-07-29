@@ -27,7 +27,8 @@ Cross-refs: [`SECURITY.md`](./SECURITY.md) (secret rotation), [`docs/DATA-STATUS
 - **XSS:** React escapes by default; **zero `dangerouslySetInnerHTML`** in the app. Outbound HTML emails are server-built from escaped values.
 - **Hardening middleware** (`middleware/hardening.middleware.js`): `sanitizeInput` blocks prototype-pollution keys (`__proto__`, etc.) and oversized payloads; `enforceJsonContentType`; JSON/urlencoded body cap **200 KB**.
 - **Tenant isolation:** every tenant-scoped query is auto-filtered by the Prisma tenant guard (`lib/tenantContext`) — verified by cross-tenant tests.
-- **Secrets:** at rest via `SECRETS_KEY` (AES-GCM, `lib/secrets`); passwords bcrypt; social/integration tokens encrypted.
+- **Secrets:** at rest via `SECRETS_KEY` (AES-GCM, `lib/secrets`); passwords bcrypt; social/integration tokens, SSO client secrets and SP private keys encrypted.
+- **Federated identity** (see [`docs/SSO.md`](./docs/SSO.md)): SAML assertions are signature/audience/timestamp-verified via `@node-saml/node-saml` (no hand-rolled XML-DSig); OIDC uses PKCE + `state` + `nonce` with JWKS signature verification and rejects `alg:none`/HMAC. SSO login requests and handoff codes are single-use and short-lived, so no session token ever travels in a URL. SCIM bearer tokens are stored only as SHA-256 hashes and are bound to a single tenant.
 
 ## 2. Error handling & graceful degradation — ✅
 - **Central handler** (`middleware/error.middleware.js`): 5xx never leak stack/internals to clients (generic message + `requestId`; stack goes to logs only). 4xx return the caller-facing message.

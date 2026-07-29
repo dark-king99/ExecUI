@@ -12,13 +12,20 @@
         "studio": "prisma studio --port 5556"
     },
     "dependencies": {
+
         "@prisma/adapter-pg": "^7.9.1",
         "@prisma/client": "7.9.1",
         "bcrypt": "^6.0.0",
+
+        "@node-saml/node-saml": "^5.1.0",
+        "@prisma/client": "^5.22.0",
+        "bcrypt": "^5.1.1",
+
         "bcryptjs": "^3.0.3",
         "compression": "^1.8.1",
         "cors": "^2.8.5",
         "dotenv": "^16.4.5",
+        "exceljs": "^4.4.0",
         "express": "^4.19.2",
         "express-rate-limit": "^8.5.2",
         "helmet": "^8.1.0",
@@ -27,6 +34,7 @@
 
         "pg": "^8.22.0",
 
+        "pdfkit": "^0.19.1",
         "posthog-node": "^5.46.1",
 
         "stripe": "^22.1.1",

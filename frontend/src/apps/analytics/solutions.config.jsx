@@ -2,7 +2,7 @@ import { lazy } from "react";
 import {
   LayoutDashboard, Megaphone, LineChart, Layers,
   Target, Filter, TrendingUp,
-  Wifi, Gauge, Activity,
+  Wifi, Gauge, Activity, FileBarChart,
 } from "lucide-react";
 
 /**
@@ -38,6 +38,17 @@ export const SOLUTIONS = [
       { id: "overview", label: "Overview", icon: LayoutDashboard, path: "/analytics/sales",          component: lazy(() => import("./solutions/sales/Overview")) },
       { id: "funnel",   label: "Funnel",   icon: Filter,          path: "/analytics/sales/funnel",   component: lazy(() => import("./solutions/sales/Funnel")) },
       { id: "forecast", label: "Forecast", icon: TrendingUp,      path: "/analytics/sales/forecast", component: lazy(() => import("./solutions/sales/Forecast")) },
+    ],
+  },
+  {
+    id: "reports",
+    name: "Reports",
+    tagline: "Custom reporting & scheduled exports",
+    description: "Build your own reports on any data set, export to CSV, Excel or PDF, and have them emailed on a schedule.",
+    icon: FileBarChart,
+    color: "indigo",
+    pages: [
+      { id: "builder", label: "Builder", icon: FileBarChart, path: "/analytics/reports", component: lazy(() => import("./solutions/reports/Builder")) },
     ],
   },
   {

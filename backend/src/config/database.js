@@ -1,8 +1,13 @@
 import "dotenv/config";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { currentTenantId, isUnscoped } from "../lib/tenantContext.js";
+
 import pg from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
+
+import { emitDomainEvent } from "../lib/domainEvents.js";
+import { RESOURCES } from "../modules/api/api.resources.js";
+
 // Models that carry a tenantId column — computed from the runtime schema so the
 // isolation guard can never drift from the models themselves.
 const TENANT_MODELS = new Set(
@@ -94,6 +99,59 @@ const tenantGuard = Prisma.defineExtension({
   },
 });
 
-const prisma = basePrisma.$extends(tenantGuard);
+/**
+ * Domain-event capture (the source of outbound webhooks).
+ *
+ * Watching writes here — rather than in the API layer — means an event fires
+ * however the change was made: through the public API, through the app's own
+ * UI, or by a background job. That's what makes "notify me when a deal closes"
+ * actually dependable.
+ *
+ * Only models exposed as public API resources are watched, and emission is
+ * fire-and-forget: a webhook failure can never roll back a database write.
+ * `updateMany`/`deleteMany` are deliberately not covered — they return counts,
+ * not records, so there is no payload to send (documented in docs/API.md).
+ */
+const delegateOf = (model) => model[0].toLowerCase() + model.slice(1);
+const EVENT_MODELS = new Map(
+  Object.values(RESOURCES).map((r) => [r.model, r.id]),
+);
+
+const eventEmitter = Prisma.defineExtension({
+  name: "domain-events",
+  query: {
+    $allModels: {
+      async create({ model, args, query }) {
+        const result = await query(args);
+        publish(model, "created", result);
+        return result;
+      },
+      async update({ model, args, query }) {
+        const result = await query(args);
+        publish(model, "updated", result);
+        return result;
+      },
+      async delete({ model, args, query }) {
+        const result = await query(args);
+        publish(model, "deleted", result);
+        return result;
+      },
+    },
+  },
+});
+
+function publish(model, action, record) {
+  try {
+    const resource = EVENT_MODELS.get(delegateOf(model));
+    if (!resource || !record) return;
+    const tenantId = record.tenantId || currentTenantId();
+    if (!tenantId) return;
+    emitDomainEvent({ tenantId, resource, action, type: `${resource}.${action}`, record });
+  } catch {
+    /* never disturb the write */
+  }
+}
+
+const prisma = basePrisma.$extends(tenantGuard).$extends(eventEmitter);
 
 export default prisma;

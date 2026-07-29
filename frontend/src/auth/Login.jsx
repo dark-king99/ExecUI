@@ -3,7 +3,7 @@ import {
   ArrowRight, Building2, CheckCircle2, BarChart3, Network, Users,
   Megaphone, AlertCircle, Loader2, Eye, EyeOff, Shield, Copy, KeyRound, Sun, Moon,
 } from "lucide-react";
-import { auth, setToken } from "../services/api";
+import { auth, sso, setToken } from "../services/api";
 import { track } from "../lib/analytics";
 import ExecUIBackground from "../components/ExecUIBackground";
 import AnimatedLogo from "../components/AnimatedLogo";
@@ -135,6 +135,8 @@ export default function Login({ onLogin }) {
   const [copied, setCopied] = useState(false);
   const [mfaStep, setMfaStep] = useState(false); // password OK, awaiting TOTP code
   const [mfaCode, setMfaCode] = useState("");
+  const [ssoBusy, setSsoBusy] = useState(false);
+  const [ssoNote, setSsoNote] = useState(null);
 
   // Pointer parallax for the background blobs.
   const layers = useRef([]);
@@ -196,6 +198,33 @@ export default function Login({ onLogin }) {
 
   const switchMode = (m) => { setMode(m); setApiError(null); setMfaStep(false); setMfaCode(""); };
   const handleKeyDown = (e) => { if (e.key === "Enter") handleSubmit(); };
+
+  // ── Enterprise SSO ─────────────────────────────────────────────────────────
+  // Look up the org's identity provider by work-email domain (or the enterprise
+  // code already typed), then hand the browser to it. Deliberately says nothing
+  // about whether an account exists.
+  const startSso = async () => {
+    setApiError(null);
+    setSsoNote(null);
+    setSsoBusy(true);
+    try {
+      const res = await sso.discover({ email, code: enterpriseCode });
+      if (res?.sso && res.tenantId) {
+        track("sso_login_started", { protocol: res.protocol });
+        window.location.assign(sso.startUrl(res.tenantId, "/overview"));
+        return;
+      }
+      setSsoNote(
+        email || enterpriseCode
+          ? "No Single Sign-On is configured for that organization. Sign in with your email, password and employee ID instead."
+          : "Enter your work email above, then choose “Sign in with SSO”."
+      );
+    } catch (e) {
+      setSsoNote(e?.message || "Couldn't reach the Single Sign-On service.");
+    } finally {
+      setSsoBusy(false);
+    }
+  };
 
   const heading = {
     signin:     { title: "Welcome back", sub: "Sign in with your email, password, and employee ID." },
@@ -375,6 +404,28 @@ export default function Login({ onLogin }) {
                     </>
                   )}
                 </button>
+
+                {/* Enterprise Single Sign-On — resolves the org's IdP from the
+                    work email domain (or enterprise code) and hands off to it. */}
+                {mode === "signin" && !mfaStep && (
+                  <div className="pt-1">
+                    <div className="flex items-center gap-3 py-1">
+                      <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+                      <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-600">or</span>
+                      <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={startSso}
+                      disabled={ssoBusy}
+                      className="mt-1 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition disabled:opacity-50"
+                    >
+                      {ssoBusy ? <Loader2 size={15} className="animate-spin" /> : <Shield size={15} className="text-indigo-500" />}
+                      {ssoBusy ? "Checking…" : "Sign in with SSO"}
+                    </button>
+                    {ssoNote && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{ssoNote}</p>}
+                  </div>
+                )}
               </div>
 
               <div className="mt-6 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-600">
