@@ -85,3 +85,13 @@ test("unknown plan falls back to the default", () => {
   assert.equal(planLabel("premium"), "Premium");
   assert.equal(planLabel("custom"), "Custom");
 });
+
+test("every plan's entitlements expose industry customization", () => {
+  for (const p of PLANS) {
+    assert.equal(entitlementsFor(p.id).industry, true, `${p.id} should include industry`);
+  }
+  // Custom can always opt in (billed as a surcharge).
+  assert.equal(entitlementsFor("custom", ["crm:leads"]).industry, true);
+  // Fallback plan is covered too.
+  assert.equal(entitlementsFor("bogus").industry, true);
+});

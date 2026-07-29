@@ -8,6 +8,7 @@
 import prisma from "../../../config/database.js";
 import { ValidationError, NotFoundError } from "../../../lib/errors.js";
 import { INDUSTRIES, GENERAL, isValidIndustry, objectMeta, objectTypesFor, industryObjects } from "./registry.js";
+import { entitlementsFor, DEFAULT_PLAN } from "../../billing/plans.config.js";
 
 const shape = (r) => ({
   id: r.id,
@@ -35,6 +36,21 @@ export async function getIndustry(tenantId) {
 /** Set the tenant's industry (admin action). "general" reverts to core-only. */
 export async function setIndustry(tenantId, industry) {
   if (!isValidIndustry(industry)) throw new ValidationError("Unknown industry");
+  // Selecting a vertical must be covered by the plan (general always reverts to
+  // core CRM, so it's always allowed). Belt-and-braces on top of the admin-only
+  // route guard, and future-proof if a plan ever drops industry customization.
+  if (industry !== GENERAL) {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId }, select: { plan: true, planSolutions: true },
+    });
+    const ent = entitlementsFor(tenant?.plan || DEFAULT_PLAN, tenant?.planSolutions || []);
+    if (!ent.industry) {
+      const err = new Error("Industry customization isn't included in your current plan. Upgrade your subscription to enable it.");
+      err.status = 403;
+      err.code = "PLAN_UPGRADE_REQUIRED";
+      throw err;
+    }
+  }
   await prisma.tenant.update({ where: { id: tenantId }, data: { industry } });
   return getIndustry(tenantId);
 }
