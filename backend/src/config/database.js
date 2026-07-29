@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { currentTenantId, isUnscoped } from "../lib/tenantContext.js";
 import pg from "pg";
