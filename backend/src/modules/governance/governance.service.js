@@ -91,7 +91,7 @@ export async function findSubject(rawEmail) {
   const email = normEmail(rawEmail);
   if (!email) throw err("Enter the person's email address");
 
-  const [user, contact] = await Promise.all([
+  const [user, contact, signer] = await Promise.all([
     prisma.user.findFirst({
       where: { email: { equals: email, mode: "insensitive" } },
       select: { id: true, email: true, firstName: true, lastName: true, department: true, jobTitle: true, isActive: true, status: true },
@@ -100,17 +100,25 @@ export async function findSubject(rawEmail) {
       where: { email: { equals: email, mode: "insensitive" } },
       select: { id: true, email: true, name: true },
     }),
+    // Someone who signed a document is a data subject too, even if they were
+    // never an employee or a CRM contact — and they have the same rights.
+    prisma.signer.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      select: { id: true, email: true, name: true },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
-  if (!user && !contact) return { email, found: false, subjectType: null };
+  if (!user && !contact && !signer) return { email, found: false, subjectType: null };
   return {
     email,
     found: true,
-    subjectType: user ? "employee" : "contact",
+    subjectType: user ? "employee" : contact ? "contact" : "counterparty",
     userId: user?.id || null,
-    label: user ? `${user.firstName} ${user.lastName}`.trim() : contact?.name || email,
+    label: user ? `${user.firstName} ${user.lastName}`.trim() : contact?.name || signer?.name || email,
     employee: user || null,
     contact: contact || null,
+    counterparty: signer || null,
   };
 }
 
@@ -122,7 +130,7 @@ export async function findSubject(rawEmail) {
  */
 export async function exportSubject(requestedById, rawEmail) {
   const subject = await findSubject(rawEmail);
-  if (!subject.found) throw err(`No employee or contact found with the email "${normEmail(rawEmail)}"`, 404);
+  if (!subject.found) throw err(`No employee, contact or signing party found with the email "${normEmail(rawEmail)}"`, 404);
 
   const data = {};
   let recordCount = 0;
@@ -179,7 +187,7 @@ const pick = (row, fields) => {
  */
 export async function eraseSubject(requestedById, rawEmail, { note } = {}) {
   const subject = await findSubject(rawEmail);
-  if (!subject.found) throw err(`No employee or contact found with the email "${normEmail(rawEmail)}"`, 404);
+  if (!subject.found) throw err(`No employee, contact or signing party found with the email "${normEmail(rawEmail)}"`, 404);
 
   const holds = await activeHoldsFor({ email: subject.email });
   if (holds.length) {

@@ -89,6 +89,14 @@ model Tenant {
   retentionPolicies       RetentionPolicy[]
   dataRequests            DataRequest[]
   legalHolds              LegalHold[]
+  documents               Document[]
+  documentVersions        DocumentVersion[]
+  documentTemplates       DocumentTemplate[]
+  signatureRequests       SignatureRequest[]
+  signers                 Signer[]
+  signatureEvents         SignatureEvent[]
+  contracts               Contract[]
+  contractEvents          ContractEvent[]
   ssoConnection           SsoConnection?
   scimTokens              ScimToken[]
   ssoLoginRequests        SsoLoginRequest[]
@@ -1527,4 +1535,227 @@ model LegalHold {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, active])
+}
+
+// ── Documents, e-signature & contract lifecycle (CLM) ────────────────────────
+// A document is the *identity* of a file (its title, owner, category); the file
+// itself always lives in a DocumentVersion. Uploading a replacement therefore
+// adds a version rather than overwriting one — a signed contract can never be
+// silently swapped for different text.
+model Document {
+  id             String   @id @default(uuid())
+  tenantId       String
+  title          String
+  description    String?
+  category       String   @default("general") // registry category id
+  status         String   @default("active") // active | archived
+  confidential   Boolean  @default(false)
+  currentVersion Int      @default(0)
+  tags           String[] @default([])
+  // Optional link to the record this document belongs to (deal, project, …).
+  entityType     String?
+  entityId       String?
+  templateId     String?
+  ownerId        String?
+  ownerName      String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  versions  DocumentVersion[]
+  requests  SignatureRequest[]
+  contracts Contract[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, category])
+  @@index([tenantId, entityType, entityId])
+}
+
+// One immutable revision of a document. `checksum` is the SHA-256 of the stored
+// bytes — it's what a completion certificate binds a signature to, so a signed
+// file can be proven to be the one that was signed.
+model DocumentVersion {
+  id           String   @id @default(uuid())
+  tenantId     String
+  documentId   String
+  version      Int
+  fileName     String
+  mimeType     String?
+  size         Int      @default(0)
+  url          String
+  checksum     String?
+  notes        String?
+  uploadedById String?
+  uploaderName String?
+  createdAt    DateTime @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, version])
+  @@index([tenantId, documentId])
+}
+
+// A reusable document template. `body` carries {{placeholders}} rendered with the
+// same prototype-safe templating the automation engine uses.
+model DocumentTemplate {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  category    String   @default("general")
+  body        String
+  variables   Json     @default("[]") // [{ key, label, required }]
+  active      Boolean  @default(true)
+  useCount    Int      @default(0)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, active])
+}
+
+// An e-signature envelope: one document version, one or more signers.
+// `certificate` holds the tamper-evident completion record (see
+// signatures.service.js) — hashes, timestamps and IPs, plus a hash over itself.
+model SignatureRequest {
+  id          String    @id @default(uuid())
+  tenantId    String
+  documentId  String
+  versionId   String?
+  title       String
+  message     String?
+  status      String    @default("draft") // draft | sent | completed | declined | cancelled | expired
+  sequential  Boolean   @default(false)
+  expiresAt   DateTime?
+  sentAt      DateTime?
+  completedAt DateTime?
+  certificate Json?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document  Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  signers   Signer[]
+  events    SignatureEvent[]
+  contracts Contract[]
+
+  @@index([tenantId, status])
+}
+
+// A party on an envelope. Only the SHA-256 of the emailed access token is
+// stored, so the database can't be used to sign on someone else's behalf.
+model Signer {
+  id            String    @id @default(uuid())
+  tenantId      String
+  requestId     String
+  name          String
+  email         String
+  role          String    @default("signer") // signer | approver | viewer
+  order         Int       @default(0)
+  status        String    @default("pending") // pending | sent | viewed | signed | declined
+  tokenHash     String?
+  userId        String?
+  signatureName String? // typed legal name, the act of signing
+  consent       Boolean   @default(false) // explicit intent to sign electronically
+  ip            String?
+  userAgent     String?
+  viewedAt      DateTime?
+  signedAt      DateTime?
+  declineReason String?
+  remindedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  request SignatureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  events  SignatureEvent[]
+
+  @@unique([requestId, email])
+  @@index([tenantId, status])
+  @@index([tokenHash])
+}
+
+// The signing audit trail — every state change, with who/when/where. Append-only
+// by convention: nothing in the app updates or deletes these rows.
+model SignatureEvent {
+  id        String   @id @default(uuid())
+  tenantId  String
+  requestId String
+  signerId  String?
+  type      String // created | sent | reminded | viewed | signed | declined | completed | cancelled | expired
+  detail    String?
+  ip        String?
+  userAgent String?
+  actorName String?
+  createdAt DateTime @default(now())
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  request SignatureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  signer  Signer?          @relation(fields: [signerId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, requestId, createdAt])
+}
+
+// A contract: the business agreement wrapped around a document, with dates,
+// money and a lifecycle. Renewal fields drive the reminder scheduler.
+model Contract {
+  id                 String    @id @default(uuid())
+  tenantId           String
+  title              String
+  counterparty       String
+  type               String    @default("other") // registry contract type
+  status             String    @default("draft") // registry lifecycle state
+  value              Float     @default(0)
+  currency           String    @default("USD")
+  startDate          DateTime?
+  endDate            DateTime?
+  autoRenew          Boolean   @default(false)
+  renewalTermMonths  Int?
+  noticePeriodDays   Int       @default(30)
+  renewalNotifiedAt  DateTime?
+  expiryNotifiedAt   DateTime?
+  documentId         String?
+  approvalRequestId  String?
+  signatureRequestId String?
+  ownerId            String?
+  ownerName          String?
+  notes              String?
+  terminatedAt       DateTime?
+  renewedFromId      String?
+  createdById        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document  Document?         @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  signature SignatureRequest? @relation(fields: [signatureRequestId], references: [id], onDelete: SetNull)
+  events    ContractEvent[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, endDate])
+}
+
+// The contract timeline — every lifecycle move, with who made it. This is the
+// answer to "how did this contract get to be active?".
+model ContractEvent {
+  id         String   @id @default(uuid())
+  tenantId   String
+  contractId String
+  type       String // created | updated | status | approval | signature | renewal | reminder | note
+  detail     String?
+  fromStatus String?
+  toStatus   String?
+  actorId    String?
+  actorName  String?
+  createdAt  DateTime @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, contractId, createdAt])
 }
