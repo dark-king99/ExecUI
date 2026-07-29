@@ -151,7 +151,7 @@ export async function deliverSchedule(schedule, report) {
  * external cron hitting the app) rather than only by the in-process ticker.
  */
 export async function runDueSchedules(now = new Date()) {
-  const due = await runUnscoped(() =>
+  const due = await runUnscoped(async () =>
     prisma.reportSchedule.findMany({
       where: { active: true, nextRunAt: { lte: now } },
       include: { report: true },
@@ -163,7 +163,7 @@ export async function runDueSchedules(now = new Date()) {
   for (const s of due) {
     // Atomic claim: only the instance that moves nextRunAt forward runs it.
     const next = computeNextRun(s, now);
-    const claimed = await runUnscoped(() =>
+    const claimed = await runUnscoped(async () =>
       prisma.reportSchedule.updateMany({
         where: { id: s.id, nextRunAt: s.nextRunAt },
         data: { nextRunAt: next },
@@ -175,7 +175,7 @@ export async function runDueSchedules(now = new Date()) {
       const { email } = await runWithTenant({ tenantId: s.tenantId }, () => deliverSchedule(s, s.report));
       const status = email?.sent ? "sent" : email?.skipped ? "skipped" : "failed";
       if (status === "failed") failed++; else delivered++;
-      await runUnscoped(() => prisma.reportSchedule.update({
+      await runUnscoped(async () => prisma.reportSchedule.update({
         where: { id: s.id },
         data: {
           lastRunAt: new Date(), lastStatus: status,
@@ -186,7 +186,7 @@ export async function runDueSchedules(now = new Date()) {
       log.info?.("report_schedule_run", { scheduleId: s.id, status, report: s.report?.name });
     } catch (err) {
       failed++;
-      await runUnscoped(() => prisma.reportSchedule.update({
+      await runUnscoped(async () => prisma.reportSchedule.update({
         where: { id: s.id },
         data: { lastRunAt: new Date(), lastStatus: "failed", lastError: String(err.message).slice(0, 500), runCount: { increment: 1 } },
       }).catch(() => {}));

@@ -20,6 +20,7 @@ import notificationRoutes from "../modules/notifications/notifications.routes.js
 import emailRoutes      from "../modules/email/email.routes.js";
 import rewardsRoutes    from "../modules/rewards/rewards.routes.js";
 import reportsRoutes    from "../modules/reports/reports.routes.js";
+import developerRoutes  from "../modules/api/developer.routes.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { requireModule } from "../middleware/access.middleware.js";
 import { rewardTracking } from "../middleware/rewardTracking.middleware.js";
@@ -58,5 +59,6 @@ router.use("/assistant",  assistantRoutes);
 router.use("/views",      viewsRoutes);
 router.use("/rewards",    rewardsRoutes);
 router.use("/reports",    reportsRoutes);
+router.use("/developer",  developerRoutes);
 
 export default router;

@@ -79,6 +79,9 @@ model Tenant {
   rewardStats             RewardStat[]
   reports                 Report[]
   reportSchedules         ReportSchedule[]
+  apiTokens               ApiToken[]
+  webhookEndpoints        WebhookEndpoint[]
+  webhookDeliveries       WebhookDelivery[]
   ssoConnection           SsoConnection?
   scimTokens              ScimToken[]
   ssoLoginRequests        SsoLoginRequest[]
@@ -1275,4 +1278,76 @@ model ReportSchedule {
 
   @@index([tenantId])
   @@index([active, nextRunAt])
+}
+
+// ── Public API & outbound webhooks ───────────────────────────────────────────
+// A machine credential other systems use to call ExecUI. Only a SHA-256 hash is
+// stored — the plaintext is shown once at creation and can never be recovered.
+model ApiToken {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  tokenHash   String    @unique // sha256(token) — the lookup key
+  prefix      String // "execui_live_ab12…" shown in the UI for identification
+  scopes      String[]  @default([])
+  lastUsedAt  DateTime?
+  lastUsedIp  String?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tokenHash])
+}
+
+// A customer-registered HTTPS endpoint that receives signed event callbacks.
+model WebhookEndpoint {
+  id            String    @id @default(uuid())
+  tenantId      String
+  url           String
+  description   String?
+  events        String[]  @default([]) // subscribed event types; ["*"] = all
+  secret        String // signing secret (shown once, used for HMAC)
+  active        Boolean   @default(true)
+  failureCount  Int       @default(0) // consecutive failures
+  disabledAt    DateTime? // auto-disabled after repeated failures
+  lastStatus    String?
+  lastAttemptAt DateTime?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@index([tenantId])
+  @@index([tenantId, active])
+}
+
+// One attempt-tracked delivery of one event to one endpoint. Retried with
+// exponential backoff; kept as an auditable log the customer can inspect/replay.
+model WebhookDelivery {
+  id             String    @id @default(uuid())
+  tenantId       String
+  endpointId     String
+  event          String
+  payload        Json
+  status         String    @default("pending") // pending | delivered | failed
+  attempts       Int       @default(0)
+  responseStatus Int?
+  responseBody   String?
+  error          String?
+  nextAttemptAt  DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([status, nextAttemptAt])
 }

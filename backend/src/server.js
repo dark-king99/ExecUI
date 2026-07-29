@@ -4,6 +4,7 @@ import prisma from "./config/database.js";
 import { log } from "./lib/logger.js";
 import { shutdownAnalytics } from "./lib/analytics.js";
 import { startReportScheduler, stopReportScheduler } from "./modules/reports/reports.schedule.js";
+import { startWebhookWorker, stopWebhookWorker } from "./modules/webhooks/webhooks.service.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -69,10 +70,14 @@ ensureDatabase();
 // Deliver scheduled report exports on their cadence.
 startReportScheduler();
 
+// Capture domain events and deliver outbound webhooks.
+startWebhookWorker();
+
 // Flush buffered analytics on graceful shutdown so nothing is lost.
 for (const sig of ["SIGTERM", "SIGINT"]) {
   process.on(sig, async () => {
     stopReportScheduler();
+    stopWebhookWorker();
     await shutdownAnalytics();
     process.exit(0);
   });

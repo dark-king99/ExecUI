@@ -12,6 +12,7 @@ import {
   sanitizeInput, enforceJsonContentType, concurrencyLimiter, requestTimeout,
 } from "./middleware/hardening.middleware.js";
 import routes from "./routes/index.js";
+import apiV1Routes from "./modules/api/api.routes.js";
 import scimRoutes from "./modules/scim/scim.routes.js";
 import { STORAGE_ROOT } from "./lib/storage.js";
 import { stripeWebhook } from "./modules/account/account.controller.js";
@@ -115,6 +116,11 @@ app.get("/api/health", ready);
 
 // ── Object storage (uploaded assets served from disk, not the DB) ─────────
 app.use("/api/uploads", express.static(STORAGE_ROOT, { maxAge: "7d", immutable: true }));
+
+// ── Public API (v1) ───────────────────────────────────────────────────────
+// Mounted before the app's own routes so it owns its error envelope, token
+// authentication and per-token rate limiting end to end.
+app.use("/api/v1", apiV1Routes);
 
 // ── API routes ────────────────────────────────────────────────────────────
 app.use("/api", routes);

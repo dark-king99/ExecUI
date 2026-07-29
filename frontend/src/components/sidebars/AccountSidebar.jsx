@@ -4,7 +4,7 @@ import { useUser } from "../../context/UserContext";
 import {
 
   ArrowLeft, User, ShieldCheck, Key, KeyRound, Bell, Users, Plug, MessagesSquare,
-  CreditCard, FileText, ChevronLeft, ChevronRight, Building2, IdCard,
+  CreditCard, FileText, ChevronLeft, ChevronRight, Building2, IdCard, Webhook,
 
 } from "lucide-react";
 
@@ -22,6 +22,7 @@ const orgItems = [
   { id: "sso",          label: "Single Sign-On",      icon: KeyRound,    path: "/account/sso" },
   { id: "integrations", label: "Integrations",        icon: Plug,        path: "/account/integrations" },
   { id: "billing",      label: "Billing",             icon: CreditCard,  path: "/account/billing" },
+  { id: "developer",    label: "Developer",           icon: Webhook,     path: "/account/developer" },
   { id: "audit",        label: "Audit Logs",          icon: FileText,    path: "/account/audit" },
 ];
 

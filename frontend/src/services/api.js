@@ -614,6 +614,29 @@ export const sso = {
   },
 };
 
+// ── Developer (public API tokens + outbound webhooks) ──────────────────────
+export const developer = {
+  meta: () => get('/developer/meta'),
+  tokens: {
+    list:   ()     => get('/developer/tokens'),
+    create: (data) => post('/developer/tokens', data),   // returns the plaintext token ONCE
+    revoke: (id)   => post(`/developer/tokens/${id}/revoke`),
+    remove: (id)   => del(`/developer/tokens/${id}`),
+  },
+  webhooks: {
+    list:   ()         => get('/developer/webhooks'),
+    create: (data)     => post('/developer/webhooks', data), // returns the signing secret ONCE
+    update: (id, data) => put(`/developer/webhooks/${id}`, data),
+    remove: (id)       => del(`/developer/webhooks/${id}`),
+    rotate: (id)       => post(`/developer/webhooks/${id}/rotate`),
+    test:   (id)       => post(`/developer/webhooks/${id}/test`),
+  },
+  deliveries: {
+    list:   (params) => get('/developer/deliveries', params),
+    replay: (id)     => post(`/developer/deliveries/${id}/replay`),
+  },
+};
+
 // ── Reports (custom BI: build, save, export, schedule) ─────────────────────
 export const reports = {
   datasets: ()          => get('/reports/datasets'),
