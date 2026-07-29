@@ -19,7 +19,12 @@ export function emailConfigured() {
   return !!API_KEY;
 }
 
-export async function sendEmail({ tenantId, to, subject, html, text, from, context, userId }) {
+/**
+ * Send an email. `attachments` is an optional array of
+ * { filename, content: Buffer|base64 string, contentType } — used by scheduled
+ * report delivery to attach the rendered CSV/XLSX/PDF.
+ */
+export async function sendEmail({ tenantId, to, subject, html, text, from, context, userId, attachments }) {
   const fromEmail = from || FROM;
   const toList = Array.isArray(to) ? to.filter(Boolean) : [to].filter(Boolean);
   const base = {
@@ -41,7 +46,17 @@ export async function sendEmail({ tenantId, to, subject, html, text, from, conte
     const resp = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: fromEmail, to: toList, subject: base.subject, html: html || undefined, text: text || (html ? undefined : base.subject) }),
+      body: JSON.stringify({
+        from: fromEmail, to: toList, subject: base.subject,
+        html: html || undefined, text: text || (html ? undefined : base.subject),
+        attachments: Array.isArray(attachments) && attachments.length
+          ? attachments.map((a) => ({
+              filename: a.filename,
+              content: Buffer.isBuffer(a.content) ? a.content.toString("base64") : a.content,
+              content_type: a.contentType || undefined,
+            }))
+          : undefined,
+      }),
     });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) {

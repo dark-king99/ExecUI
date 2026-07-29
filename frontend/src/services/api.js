@@ -593,6 +593,100 @@ export const overview = {
   emailReport: ()     => post('/overview/report/email', {}),
 };
 
+// ── Enterprise Single Sign-On (OIDC / SAML) + SCIM provisioning ────────────
+export const sso = {
+  // Public (pre-login)
+  discover: (payload)  => post('/auth/sso/discover', payload),
+  startUrl: (tenantId, redirectTo = '/overview') =>
+    `${BASE_URL}/auth/sso/start?tenant=${encodeURIComponent(tenantId)}&redirectTo=${encodeURIComponent(redirectTo)}`,
+  exchange: (code)     => post('/auth/sso/exchange', { code }),
+  // Admin console
+  config: {
+    get:    ()     => get('/auth/sso/config'),
+    save:   (data) => put('/auth/sso/config', data),
+    remove: ()     => del('/auth/sso/config'),
+    test:   ()     => post('/auth/sso/config/test', {}),
+  },
+  scimTokens: {
+    list:   ()     => get('/auth/sso/scim/tokens'),
+    create: (data) => post('/auth/sso/scim/tokens', data),
+    revoke: (id)   => del(`/auth/sso/scim/tokens/${id}`),
+  },
+};
+
+// ── Developer (public API tokens + outbound webhooks) ──────────────────────
+export const developer = {
+  meta: () => get('/developer/meta'),
+  tokens: {
+    list:   ()     => get('/developer/tokens'),
+    create: (data) => post('/developer/tokens', data),   // returns the plaintext token ONCE
+    revoke: (id)   => post(`/developer/tokens/${id}/revoke`),
+    remove: (id)   => del(`/developer/tokens/${id}`),
+  },
+  webhooks: {
+    list:   ()         => get('/developer/webhooks'),
+    create: (data)     => post('/developer/webhooks', data), // returns the signing secret ONCE
+    update: (id, data) => put(`/developer/webhooks/${id}`, data),
+    remove: (id)       => del(`/developer/webhooks/${id}`),
+    rotate: (id)       => post(`/developer/webhooks/${id}/rotate`),
+    test:   (id)       => post(`/developer/webhooks/${id}/test`),
+  },
+  deliveries: {
+    list:   (params) => get('/developer/deliveries', params),
+    replay: (id)     => post(`/developer/deliveries/${id}/replay`),
+  },
+};
+
+// ── Reports (custom BI: build, save, export, schedule) ─────────────────────
+export const reports = {
+  datasets: ()          => get('/reports/datasets'),
+  preview:  (body)      => post('/reports/preview', body),
+  list:     ()          => get('/reports'),
+  get:      (id)        => get(`/reports/${id}`),
+  create:   (data)      => post('/reports', data),
+  update:   (id, data)  => put(`/reports/${id}`, data),
+  remove:   (id)        => del(`/reports/${id}`),
+  run:      (id, over)  => post(`/reports/${id}/run`, over || {}),
+
+  /**
+   * Download an export. The API returns a binary body (not JSON), so this
+   * bypasses the JSON request helper and streams it into a browser download.
+   */
+  download: async (body) => {
+    const token = getToken();
+    const res = await fetch(`${BASE_URL}/reports/export`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      let message = friendlyError(res.status);
+      try { message = (await res.json())?.message || message; } catch { /* binary/none */ }
+      throw new Error(message);
+    }
+    const blob = await res.blob();
+    const disp = res.headers.get('Content-Disposition') || '';
+    const filename = /filename="?([^"]+)"?/.exec(disp)?.[1] || 'report';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    return { filename, size: blob.size };
+  },
+
+  schedules: {
+    list:   ()         => get('/reports/schedules'),
+    create: (data)     => post('/reports/schedules', data),
+    update: (id, data) => put(`/reports/schedules/${id}`, data),
+    remove: (id)       => del(`/reports/schedules/${id}`),
+    runNow: (id)       => post(`/reports/schedules/${id}/run`),
+  },
+};
+
 // ── Rewards (org-wide recognition: navigation, usage & performance) ─────────
 export const rewards = {
   config:      ()       => get('/rewards/config'),

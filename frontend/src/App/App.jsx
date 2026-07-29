@@ -3,6 +3,7 @@ import { setToken, clearToken } from "../services/api";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { UserProvider } from "../context/UserContext";
 import Login from "../auth/Login";
+import SsoCallback from "../auth/SsoCallback";
 import { SidebarProvider } from "../components/SidebarContext";
 import SidebarInset from "../components/SidebarInset";
 import Navbar from "../components/Navbar";
@@ -57,10 +58,12 @@ const Messaging           = lazy(() => import("../apps/account/Messaging"));
 const TeamPermissions     = lazy(() => import("../apps/account/TeamPermissions"));
 const Billing             = lazy(() => import("../apps/account/Billing"));
 const AuditLogs           = lazy(() => import("../apps/account/AuditLogs"));
+const Developer           = lazy(() => import("../apps/account/Developer"));
 const EnterpriseWorkspace = lazy(() => import("../apps/account/EnterpriseWorkspace"));
 const OrganizationProfile = lazy(() => import("../apps/account/OrganizationProfile"));
 const Members             = lazy(() => import("../apps/account/Members"));
 const Rewards             = lazy(() => import("../apps/rewards/Rewards"));
+const SingleSignOn        = lazy(() => import("../apps/account/SingleSignOn"));
 
 // Services
 const FinancialManagement             = lazy(() => import("../apps/services/FinancialManagement"));
@@ -169,6 +172,8 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/account/workspace"    element={isAdmin ? <EnterpriseWorkspace /> : <Navigate to="/account/profile" replace />} />
                 <Route path="/account/billing"      element={isAdmin ? <Billing /> : <Navigate to="/account/profile" replace />} />
                 <Route path="/account/audit"        element={isAdmin ? <AuditLogs /> : <Navigate to="/account/profile" replace />} />
+                <Route path="/account/developer"    element={isAdmin ? <Developer /> : <Navigate to="/account/profile" replace />} />
+                <Route path="/account/sso"          element={isAdmin ? <SingleSignOn /> : <Navigate to="/account/profile" replace />} />
 
                 {/* Analytics — cross-service launcher + config-driven solution pages */}
                 <Route path="/analytics" element={guard("analytics", <AnalyticsSolutions />)} />
@@ -277,6 +282,12 @@ export default function App() {
     window.addEventListener('auth:expired', handleAuthExpired);
     return () => window.removeEventListener('auth:expired', handleAuthExpired);
   }, []);
+
+  // The IdP redirects here after SSO — it must render before the login gate,
+  // because the whole point is that there is no session yet.
+  if (typeof window !== "undefined" && window.location.pathname === "/sso/callback") {
+    return <SsoCallback onLogin={setUser} />;
+  }
 
   if (!user) return <Login onLogin={setUser} />;
 
