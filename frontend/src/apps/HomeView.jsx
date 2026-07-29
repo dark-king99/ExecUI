@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { AnimatePresence, useReducedMotion } from "motion/react";
-import { motion } from "motion";
 
 import { AnimatePresence, motion as Motion, useReducedMotion } from "motion/react";
 import {
