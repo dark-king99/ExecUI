@@ -33,6 +33,7 @@ router.get("/tickets", handle((req) => tickets.listTickets({
   status: req.query.status, priority: req.query.priority, source: req.query.source,
   assigneeId: req.query.assigneeId, search: req.query.search,
   mine: req.query.mine === "true", unassigned: req.query.unassigned === "true",
+  contactId: req.query.contactId, contactEmail: req.query.contactEmail,
   userId: req.user.userId, limit: req.query.limit,
 })));
 router.post("/tickets", handle((req) => tickets.createTicket({

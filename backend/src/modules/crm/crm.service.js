@@ -855,61 +855,121 @@ export const getRenewalsSummary = async (tenantId) => {
 };
 
 // ── Cases ─────────────────────────────────────────────────────────────────────
+/**
+ * "Cases" is the CRM's window onto the **same tickets** the helpdesk queue works.
+ * One table, two audiences: a salesperson looking at an account's open problems,
+ * and a support agent working the queue.
+ *
+ * It used to be a second implementation over that table, and the divergence did
+ * real damage:
+ *
+ *   • the case description was populated from the *customer's name*;
+ *   • adding a note returned a note object and **saved nothing** — the UI said
+ *     "note added" and it was gone on refresh;
+ *   • resolving a case set `status` without `resolvedAt`, so the helpdesk's
+ *     resolution times were blank and the "rate only after resolution" rule
+ *     silently refused ratings for tickets that were, in fact, resolved.
+ *
+ * So it delegates now. Every write goes through the helpdesk service, which owns
+ * the status machine, the timeline, the first-response clock and the customer
+ * notifications. The only thing this file does is rename fields for the CRM UI.
+ */
+const caseView = (t) => ({
+  id: t.id,
+  title: t.subject,
+  description: t.description,
+  ticketNumber: t.ticketNumber,
+  category: t.category,
+  status: t.status,
+  priority: t.priority,
+  slaStatus: t.slaStatus,
+  customerName: t.customerName,
+  contactEmail: t.contactEmail,
+  contactId: t.contactId,
+  assigneeName: t.assigneeName,
+  source: t.source,
+  // The two flags the CRM UI reads. Derived from the ticket rather than
+  // hardcoded to false, which is what they were.
+  locked: t.slaStatus === "breached",
+  approved: ["resolved", "closed"].includes(t.status),
+  resolvedAt: t.resolvedAt,
+  firstResponseAt: t.firstResponseAt,
+  messageCount: t.messageCount,
+  createdAt: t.createdAt,
+  updatedAt: t.updatedAt,
+});
+
+const helpdesk = () => import("../helpdesk/tickets.service.js");
+
 export const listCases = async (tenantId, params = {}) => {
-  const where = { tenantId };
-  if (params.status) where.status = params.status;
-  const rows = await prisma.crmTicket.findMany({
-    where, orderBy: { createdAt: "desc" },
+  const { listTickets } = await helpdesk();
+  const rows = await listTickets({
+    status: params.status, priority: params.priority,
+    search: params.search, limit: params.limit,
   });
-  return rows.map((t) => ({
-    id: t.id, title: t.subject, description: t.customer_name,
-    ticketNumber: t.ticket_number, category: t.category,
-    status: t.status, priority: t.priority, slaStatus: t.sla_status,
-    locked: false, approved: false,
-    createdAt: t.createdAt, updatedAt: t.updatedAt,
-  }));
+  return rows.map(caseView);
 };
 
 export const getCase = async (tenantId, id) => {
-  const t = await prisma.crmTicket.findFirst({ where: { id, tenantId } });
+  const { getTicket } = await helpdesk();
+  const t = await getTicket(id).catch(() => null);
   if (!t) return null;
   return {
-    id: t.id, title: t.subject, description: t.customer_name,
-    ticketNumber: t.ticket_number, category: t.category,
-    status: t.status, priority: t.priority, slaStatus: t.sla_status,
-    locked: false, approved: false, notes: [],
-    createdAt: t.createdAt, updatedAt: t.updatedAt,
+    ...caseView(t),
+    // Real notes, from the one thread. Internal notes are the case notes; the
+    // public replies are the conversation with the customer.
+    notes: (t.messages ?? []).map((m) => ({
+      id: m.id, note: m.body, author: m.authorName,
+      internal: m.visibility === "internal",
+      createdAt: m.createdAt,
+    })),
   };
 };
 
-export const updateCase = async (tenantId, id, data) => {
-  const update = {};
-  if (data.status !== undefined) update.status = data.status;
-  if (data.priority !== undefined) update.priority = data.priority;
-  if (data.subject !== undefined) update.subject = data.subject;
-  if (data.sla_status !== undefined) update.sla_status = data.sla_status;
-  return prisma.crmTicket.update({ where: { id }, data: update });
+export const updateCase = async (tenantId, id, data, user) => {
+  const { updateTicket } = await helpdesk();
+  // Accept both the CRM field names and the helpdesk ones.
+  const t = await updateTicket(user ?? { userId: null }, id, {
+    subject: data.subject ?? data.title,
+    status: data.status,
+    priority: data.priority,
+    slaStatus: data.slaStatus ?? data.sla_status,
+    category: data.category,
+    assigneeId: data.assigneeId,
+  });
+  return caseView(t);
 };
 
-export const addCaseNote = async (tenantId, id, data) => {
-  const ticket = await prisma.crmTicket.findFirst({ where: { id, tenantId } });
-  if (!ticket) throw new Error("Case not found");
-  return { id, note: data.note ?? data.content ?? "", createdAt: new Date().toISOString() };
+export const addCaseNote = async (tenantId, id, data, user) => {
+  const body = String(data.note ?? data.content ?? "").trim();
+  if (!body) throw new Error("A note needs some text");
+  const { addMessage } = await helpdesk();
+  // A case note is an internal note on the ticket thread: the support agent sees
+  // it in the same conversation, and the customer never does.
+  const t = await addMessage(user ?? { userId: null }, id, { body, visibility: "internal" });
+  const last = (t.messages ?? []).find((m) => m.body === body) ?? null;
+  return { id: last?.id ?? id, note: body, createdAt: last?.createdAt ?? new Date().toISOString() };
 };
 
-export const approveCase = async (tenantId, id) => {
-  await prisma.crmTicket.update({ where: { id }, data: { status: "resolved" } });
-  return { success: true };
+export const approveCase = async (tenantId, id, user) => {
+  const { updateTicket } = await helpdesk();
+  // Goes through the status machine, so resolvedAt is stamped, the change is
+  // recorded on the timeline and the customer is told — exactly as it would be
+  // if the same person had done it from the helpdesk queue.
+  const t = await updateTicket(user ?? { userId: null }, id, { status: "resolved" });
+  return { success: true, case: caseView(t) };
 };
 
-export const lockCase = async (tenantId, id) => {
-  await prisma.crmTicket.update({ where: { id }, data: { sla_status: "breached" } });
-  return { success: true };
+export const lockCase = async (tenantId, id, user) => {
+  const { updateTicket } = await helpdesk();
+  const t = await updateTicket(user ?? { userId: null }, id, { slaStatus: "breached" });
+  return { success: true, case: caseView(t) };
 };
 
-export const unlockCase = async (tenantId, id) => {
-  await prisma.crmTicket.update({ where: { id }, data: { sla_status: "on_track" } });
-  return { success: true };
+export const unlockCase = async (tenantId, id, user) => {
+  const { updateTicket } = await helpdesk();
+  const t = await updateTicket(user ?? { userId: null }, id, { slaStatus: "on_track" });
+  return { success: true, case: caseView(t) };
 };
 
 // ── Playbooks (no backing table → empty until created) ────────────────────────

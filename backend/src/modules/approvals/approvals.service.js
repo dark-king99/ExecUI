@@ -121,9 +121,14 @@ async function notifyStep(tenantId, request, stepIndex) {
 }
 
 // ── Reading ──────────────────────────────────────────────────────────────────
-export async function listRequests({ status, mine, userId, limit = 100 } = {}) {
+export async function listRequests({ status, mine, userId, workflowId, resource, recordId, limit = 100 } = {}) {
   const where = {};
   if (status) where.status = status;
+  // "What has this workflow actually raised?" and "where is the sign-off on this
+  // record?" — both were unanswerable without scanning the whole list.
+  if (workflowId) where.workflowId = workflowId;
+  if (resource) where.resource = resource;
+  if (recordId) where.recordId = recordId;
   const rows = await prisma.approvalRequest.findMany({
     where, orderBy: { createdAt: "desc" },
     take: Math.min(200, Math.max(1, Number(limit) || 100)),

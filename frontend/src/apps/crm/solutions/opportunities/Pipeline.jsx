@@ -3,6 +3,7 @@ import { Briefcase, DollarSign, Trophy, Users } from "lucide-react";
 import { useApi } from "../../../../hooks/useApi";
 import { crm } from "../../../../services/api";
 import { SolutionShell, MetricGrid, Loading, fmtNum } from "../../components/crm-ui";
+import useRecordFocus from "../../../../hooks/useRecordFocus";
 
 const STAGE_ORDER = ["Discovery", "Qualified", "Proposal", "Negotiation", "Closed Won", "Closed Lost"];
 const STAGE_ACCENT = {
@@ -11,6 +12,8 @@ const STAGE_ACCENT = {
 };
 
 export default function Pipeline() {
+  // A deal followed from global search lands on its card.
+  const focus = useRecordFocus();
   const { data: summary, loading } = useApi(() => crm.pipeline.summary(), [], { pollingInterval: 60000 });
   const { data: deals, loading: dLoading } = useApi(() => crm.deals.list(), [], { pollingInterval: 60000 });
 
@@ -53,7 +56,8 @@ export default function Pipeline() {
                     {cards.length === 0 ? (
                       <div className="py-6 text-center text-xs text-slate-400">No deals</div>
                     ) : cards.map((d) => (
-                      <div key={d.id} className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-3 shadow-sm">
+                      <div key={d.id} data-record-id={d.id}
+                        className={focus.className(d.id, "bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-3 shadow-sm")}>
                         <div className="text-sm font-medium text-slate-900 dark:text-white leading-snug">{d.name}</div>
                         <div className="text-xs text-slate-400 mt-1">{d.account}</div>
                         <div className="flex items-center justify-between mt-2">

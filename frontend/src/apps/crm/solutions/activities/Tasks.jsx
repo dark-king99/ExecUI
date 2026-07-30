@@ -5,11 +5,14 @@ import { useToast } from "../../../../components/ui/Toast";
 import { useApi, useMutation } from "../../../../hooks/useApi";
 import { crm } from "../../../../services/api";
 import { SolutionShell, MetricGrid, Section, Loading, ErrorNote, Modal, Field, TextInput, SelectInput, PrimaryBtn, GhostBtn, Pill, fmtNum, fmtDate } from "../../components/crm-ui";
+import useRecordFocus from "../../../../hooks/useRecordFocus";
 
 const PRIORITY_COLOR = { high: "rose", medium: "amber", low: "slate" };
 const FILTERS = ["all", "pending", "in_progress", "completed"];
 
 export default function Tasks() {
+  // A task followed from global search lands on its row.
+  const focus = useRecordFocus();
   const toast = useToast();
   const [filter, setFilter] = useState("all");
   const [showModal, setShowModal] = useState(false);
@@ -63,7 +66,7 @@ export default function Tasks() {
         {loading && all.length === 0 ? <Loading table /> : (
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {filtered.length === 0 ? <div className="py-10 text-center text-sm text-slate-400">No tasks.</div> : filtered.map((t) => (
-              <div key={t.id} className="px-5 py-3 flex items-center gap-3">
+              <div key={t.id} data-record-id={t.id} className={focus.className(t.id, "px-5 py-3 flex items-center gap-3")}>
                 <button onClick={() => t.status !== "completed" && complete(t.id)} disabled={t.status === "completed"}
                   className={`h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition ${t.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-slate-300 dark:border-slate-600 hover:border-indigo-500"}`}>
                   {t.status === "completed" && <Check size={12} className="text-white" />}

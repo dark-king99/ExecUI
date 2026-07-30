@@ -15,8 +15,10 @@ import { useToast } from "../../components/ui/Toast";
 import { governance } from "../../services/api";
 import {
   ShieldCheck, Search, Download, Trash2, Lock, Unlock, Clock, AlertTriangle,
-  FileJson, RefreshCw, Play, Plus, X, Scale, Database, CheckCircle2,
+  FileJson, RefreshCw, Play, Plus, X, Scale, Database, CheckCircle2, ExternalLink,
 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { linkTo } from "../../lib/recordLinks";
 
 const cls = (...a) => a.filter(Boolean).join(" ");
 const input = "w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white";
@@ -89,9 +91,19 @@ function Subjects({ toast }) {
               <div>
                 <p className="font-semibold text-slate-900 dark:text-white">{subject.label}</p>
                 <p className="text-xs text-slate-500">
-                  {subject.email} · {subject.subjectType === "employee" ? "Employee" : "CRM contact"}
+                  {subject.email} · {subject.subjectType === "employee" ? "Employee"
+                    : subject.subjectType === "contact" ? "CRM contact" : "Signature counterparty"}
                   {subject.employee?.department ? ` · ${subject.employee.department}` : ""}
                 </p>
+                {/* Before erasing somebody's data it is worth being able to look at
+                    who they are. The request already resolves the record; it just
+                    never offered it. */}
+                {(subject.userId || subject.contact?.id) && (
+                  <Link to={subject.userId ? linkTo("person", subject.userId) : linkTo("contact", subject.contact.id)}
+                    className="mt-1 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-600 hover:text-indigo-500 dark:bg-indigo-500/10 dark:text-indigo-400">
+                    <ExternalLink size={9} /> Open their record
+                  </Link>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 <button onClick={doExport} disabled={busy}

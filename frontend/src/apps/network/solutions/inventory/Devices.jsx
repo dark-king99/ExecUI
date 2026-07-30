@@ -1,14 +1,28 @@
 import { useState, useMemo } from "react";
-import { Boxes, Search, RefreshCw, Wifi, WifiOff, AlertTriangle } from "lucide-react";
+import { Boxes, Search, RefreshCw, Wifi, WifiOff, AlertTriangle, Bell } from "lucide-react";
 import StatusBadge from "../../../../components/ui/StatusBadge";
 import { useApi } from "../../../../hooks/useApi";
 import { network } from "../../../../services/api";
+import { Link } from "react-router-dom";
 import { SolutionShell, MetricGrid, Section, Loading, ErrorNote, UtilBar, Pill, fmtNum } from "../../components/net-ui";
+import useRecordFocus from "../../../../hooks/useRecordFocus";
 
 const STATUS_VARIANT = { Online: "success", Offline: "danger", Warning: "warning" };
 const TYPES = ["all", "server", "endpoint", "cloud", "router", "switch", "firewall"];
 
 export default function Devices() {
+  // A device followed from an alert or from global search lands on its row.
+  const focus = useRecordFocus("open");
+  // One query for the open alerts, indexed by device.
+  const { data: alerts } = useApi(() => network.alerts.list({ status: "open", take: 200 }), []);
+  const alertCounts = useMemo(() => {
+    const m = new Map();
+    for (const a of alerts ?? []) {
+      if (a.deviceId) m.set(a.deviceId, (m.get(a.deviceId) ?? 0) + 1);
+    }
+    return m;
+  }, [alerts]);
+  const alertsFor = (id) => alertCounts.get(id) ?? 0;
   const [search, setSearch] = useState("");
   const [type, setType] = useState("all");
   const { data: devices, loading, error, refetch } = useApi(() => network.devices.list({ limit: 500 }), [], { pollingInterval: 60000 });
@@ -50,16 +64,16 @@ export default function Devices() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800">
-                  {["Device", "Type", "Location", "CPU", "Memory", "Status"].map((h) => (
+                  {["Device", "Type", "Location", "CPU", "Memory", "Alerts", "Status"].map((h) => (
                     <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="py-10 text-center text-sm text-slate-500">No devices found.</td></tr>
+                  <tr><td colSpan={7} className="py-10 text-center text-sm text-slate-500">No devices found.</td></tr>
                 ) : filtered.map((d) => (
-                  <tr key={d.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                  <tr key={d.id} data-record-id={d.id} className={focus.className(d.id, "hover:bg-slate-50 dark:hover:bg-slate-800/40 transition")}>
                     <td className="px-5 py-3">
                       <div className="font-medium text-slate-900 dark:text-white">{d.name}</div>
                       <div className="text-xs text-slate-400">{d.ip}{d.os ? ` · ${d.os}` : ""}</div>
@@ -68,6 +82,16 @@ export default function Devices() {
                     <td className="px-5 py-3 text-slate-500">{d.location}</td>
                     <td className="px-5 py-3">{d.cpu_util != null ? <UtilBar value={d.cpu_util} /> : "—"}</td>
                     <td className="px-5 py-3">{d.mem_util != null ? <UtilBar value={d.mem_util} /> : "—"}</td>
+                    <td className="px-5 py-3">
+                      {/* The other half of the alert link: a device that is
+                          shouting should say so where you look up devices. */}
+                      {alertsFor(d.id) ? (
+                        <Link to={`/network/alerts?device=${d.id}`}
+                          className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-600 hover:text-rose-500 dark:bg-rose-500/10 dark:text-rose-400">
+                          <Bell size={10} /> {alertsFor(d.id)}
+                        </Link>
+                      ) : <span className="text-xs text-slate-300 dark:text-slate-600">—</span>}
+                    </td>
                     <td className="px-5 py-3"><StatusBadge label={d.status} variant={STATUS_VARIANT[d.status] ?? "neutral"} dot /></td>
                   </tr>
                 ))}

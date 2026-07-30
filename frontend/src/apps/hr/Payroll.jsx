@@ -22,6 +22,8 @@ import { useApi } from "../../hooks/useApi";
 import useRecordParam from "../../hooks/useRecordParam";
 import { useToast } from "../../components/ui/Toast";
 import { hr, payroll } from "../../services/api";
+import { Link } from "react-router-dom";
+import { linkTo } from "../../lib/recordLinks";
 import {
   Wallet, Calculator, Plus, Download, CheckCircle2, AlertTriangle, Percent,
   Landmark, Receipt, ArrowRight, Trash2, X, Info, FileText,
@@ -111,11 +113,20 @@ function RunDetail({ id, catalog, toast, refetch }) {
             <Calculator size={13} /> {run.calculatedAt ? "Recalculate" : "Calculate"}
           </button>
         )}
-        {run.status === "review" && (
+        {run.status === "review" && !run.approvalRequestId && (
           <button onClick={() => act(() => payroll.runs.approval(id), "Sent for approval.")} disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300">
             <CheckCircle2 size={13} /> Send for approval
           </button>
+        )}
+        {/* Once it's out for sign-off, "where is it?" is the only question worth
+            answering — so link to the request rather than offering to raise a
+            second one. */}
+        {run.approvalRequestId && (
+          <Link to={linkTo("approval", run.approvalRequestId)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500/40 dark:text-indigo-400 dark:hover:bg-indigo-500/10">
+            <CheckCircle2 size={13} /> View the approval
+          </Link>
         )}
         {(run.nextStates ?? []).map((s) => (
           <button key={s} disabled={busy}
@@ -183,7 +194,14 @@ function RunDetail({ id, catalog, toast, refetch }) {
               <div className="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5">
                 <button className="min-w-0 flex-1 text-left" onClick={() => setOpenSlip(openSlip === p.id ? null : p.id)}>
                   <p className="truncate text-xs font-medium text-slate-800 dark:text-slate-200">
-                    {p.userName}
+                    {/* The figures on this line come from that person's
+                        compensation record, so the record is one click away —
+                        checking a number against its source is the first thing
+                        anybody does when a payslip looks wrong. */}
+                    <Link to={linkTo("person", p.userId)} onClick={(e) => e.stopPropagation()}
+                      className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
+                      {p.userName}
+                    </Link>
                     {p.prorated && <span className="ml-1 text-[11px] text-amber-600 dark:text-amber-400">prorated {p.daysWorked}/{p.daysInPeriod}d</span>}
                     {p.hours != null && <span className="ml-1 text-[11px] text-slate-400">{p.hours}h</span>}
                     {p.unpaidLeaveDays > 0 && <span className="ml-1 text-[11px] text-slate-400">· {p.unpaidLeaveDays}d unpaid</span>}

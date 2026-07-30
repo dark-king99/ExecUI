@@ -95,12 +95,16 @@ export function shape(t, { messages, now = new Date() } = {}) {
 }
 
 // ── Reading ──────────────────────────────────────────────────────────────────
-export async function listTickets({ status, priority, assigneeId, source, search, mine, userId, unassigned, limit = 100 } = {}) {
+export async function listTickets({ status, priority, assigneeId, source, search, mine, userId, unassigned, contactId, contactEmail, limit = 100 } = {}) {
   const where = {};
   if (status === "open") where.status = { in: OPEN_STATUSES };
   else if (status && status !== "all") where.status = status;
   if (priority) where.priority = priority;
   if (source) where.source = source;
+  // "What has this customer been complaining about?" — asked from the CRM, where
+  // the answer changes how you talk to them.
+  if (contactId) where.contactId = contactId;
+  if (contactEmail) where.contactEmail = String(contactEmail).trim().toLowerCase();
   if (unassigned) where.assigneeId = null;
   else if (mine && userId) where.assigneeId = userId;
   else if (assigneeId) where.assigneeId = assigneeId;

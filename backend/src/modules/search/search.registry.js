@@ -28,7 +28,7 @@ export const SOURCES = {
   // ── CRM ───────────────────────────────────────────────────────────────────
   contacts: {
     id: "contacts", label: "Contacts", module: "crm", model: "contact",
-    icon: "user", link: () => "/crm/contacts",
+    icon: "user", link: (r) => linkTo("contact", r.id),
     fields: [f("name", 10), f("email", 8), f("key", 4)],
     select: { id: true, name: true, email: true, createdAt: true },
     title: (r) => r.name,
@@ -38,7 +38,7 @@ export const SOURCES = {
 
   deals: {
     id: "deals", label: "Deals", module: "crm", model: "crmOpportunity",
-    icon: "trending-up", link: () => "/crm/pipeline",
+    icon: "trending-up", link: (r) => linkTo("deal", r.id),
     fields: [f("name", 10), f("source", 3), f("stage", 3)],
     select: { id: true, name: true, value: true, stage: true, status: true, createdAt: true },
     title: (r) => r.name,
@@ -61,7 +61,7 @@ export const SOURCES = {
 
   crm_tasks: {
     id: "crm_tasks", label: "CRM tasks", module: "crm", model: "crmTask",
-    icon: "check-square", link: () => "/crm/tasks",
+    icon: "check-square", link: (r) => linkTo("crmTask", r.id),
     fields: [f("title", 10), f("relatedCustomerName", 6)],
     select: { id: true, title: true, status: true, priority: true, relatedCustomerName: true, createdAt: true },
     title: (r) => r.title,
@@ -72,7 +72,7 @@ export const SOURCES = {
   // ── Marketing ─────────────────────────────────────────────────────────────
   campaigns: {
     id: "campaigns", label: "Campaigns", module: "marketing", model: "marketingCampaign",
-    icon: "megaphone", link: () => "/marketing/campaigns",
+    icon: "megaphone", link: (r) => linkTo("campaign", r.id),
     fields: [f("name", 10), f("objective", 5), f("channel", 4)],
     select: { id: true, name: true, status: true, channel: true, budget: true, createdAt: true },
     title: (r) => r.name,
@@ -82,7 +82,7 @@ export const SOURCES = {
 
   social_posts: {
     id: "social_posts", label: "Social posts", module: "marketing", model: "socialPost",
-    icon: "share-2", link: () => "/marketing/social",
+    icon: "share-2", link: (r) => linkTo("social", r.id),
     fields: [f("content", 8)],
     select: { id: true, content: true, status: true, platforms: true, createdAt: true },
     title: (r) => String(r.content ?? "").slice(0, 90),
@@ -93,7 +93,7 @@ export const SOURCES = {
   // ── Business services ─────────────────────────────────────────────────────
   projects: {
     id: "projects", label: "Projects", module: "services", model: "bizProject",
-    icon: "layers", link: () => "/services/team",
+    icon: "layers", link: (r) => linkTo("project", r.id),
     fields: [f("name", 10), f("description", 4)],
     select: { id: true, name: true, status: true, progress: true, createdAt: true },
     title: (r) => r.name,
@@ -103,7 +103,7 @@ export const SOURCES = {
 
   biz_tasks: {
     id: "biz_tasks", label: "Team tasks", module: "services", model: "bizTask",
-    icon: "check-square", link: () => "/services/team",
+    icon: "check-square", link: (r) => linkTo("bizTask", r.id),
     fields: [f("title", 10), f("description", 4), f("assignee", 6)],
     select: { id: true, title: true, status: true, assignee: true, createdAt: true },
     title: (r) => r.title,
@@ -113,7 +113,7 @@ export const SOURCES = {
 
   sops: {
     id: "sops", label: "Procedures (SOPs)", module: "services", model: "bizSOP",
-    icon: "book-open", link: () => "/services/operations",
+    icon: "book-open", link: (r) => linkTo("sop", r.id),
     fields: [f("title", 10), f("description", 5), f("department", 4)],
     select: { id: true, title: true, description: true, department: true, status: true, createdAt: true },
     title: (r) => r.title,
@@ -123,7 +123,7 @@ export const SOURCES = {
 
   clients: {
     id: "clients", label: "Clients", module: "services", model: "bizClient",
-    icon: "briefcase", link: () => "/services/marketing",
+    icon: "briefcase", link: (r) => linkTo("client", r.id),
     fields: [f("name", 10), f("email", 7), f("company", 8)],
     select: { id: true, name: true, email: true, company: true, status: true, createdAt: true },
     title: (r) => r.name,
@@ -134,7 +134,7 @@ export const SOURCES = {
   // ── Network ───────────────────────────────────────────────────────────────
   devices: {
     id: "devices", label: "Devices", module: "network", model: "networkDevice",
-    icon: "server", link: () => "/network/monitoring",
+    icon: "server", link: (r) => linkTo("device", r.id),
     fields: [f("hostname", 10), f("ip_address", 9, { exactOnly: true }), f("os", 4), f("region", 4)],
     select: { id: true, hostname: true, ip_address: true, status: true, device_type: true, createdAt: true },
     title: (r) => r.hostname,
@@ -144,7 +144,7 @@ export const SOURCES = {
 
   alerts: {
     id: "alerts", label: "Network alerts", module: "network", model: "networkAlert",
-    icon: "alert-triangle", link: () => "/network/monitoring",
+    icon: "alert-triangle", link: (r) => linkTo("alert", r.id),
     fields: [f("title", 10), f("message", 5)],
     select: { id: true, title: true, severity: true, status: true, createdAt: true },
     title: (r) => r.title,
