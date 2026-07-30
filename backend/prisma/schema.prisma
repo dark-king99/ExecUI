@@ -97,6 +97,18 @@ model Tenant {
   signatureEvents         SignatureEvent[]
   contracts               Contract[]
   contractEvents          ContractEvent[]
+  employmentProfiles      EmploymentProfile[]
+  compensations           Compensation[]
+  payComponents           PayComponent[]
+  employeePayComponents   EmployeePayComponent[]
+  taxTables               TaxTable[]
+  payRuns                 PayRun[]
+  payslips                Payslip[]
+  leaveTypes              LeaveType[]
+  leaveBalances           LeaveBalance[]
+  leaveRequests           LeaveRequest[]
+  timeEntries             TimeEntry[]
+  employmentEvents        EmploymentEvent[]
   ssoConnection           SsoConnection?
   scimTokens              ScimToken[]
   ssoLoginRequests        SsoLoginRequest[]
@@ -312,6 +324,16 @@ model User {
   rewardEvents     RewardEvent[]
   rewardStat       RewardStat?
   reports          Report[]
+
+  // HR / People Ops
+  employment       EmploymentProfile?
+  compensations    Compensation[]
+  payComponents    EmployeePayComponent[]
+  payslips         Payslip[]
+  leaveBalances    LeaveBalance[]
+  leaveRequests    LeaveRequest[]
+  timeEntries      TimeEntry[]
+  employmentEvents EmploymentEvent[]
 
   @@unique([tenantId, employeeId])
   @@unique([tenantId, externalId])
@@ -1758,4 +1780,358 @@ model ContractEvent {
   contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, contractId, createdAt])
+}
+
+// ── HR / People Ops ──────────────────────────────────────────────────────────
+// The employment facts about a person, kept OUT of User. User is an identity
+// (can this person sign in?); employment is a separate, far more sensitive
+// concern with its own access rules — mixing them would mean every route that
+// reads a user could accidentally read someone's salary or bank details.
+model EmploymentProfile {
+  id       String @id @default(uuid())
+  tenantId String
+  userId   String @unique
+
+  employmentType    String    @default("full_time") // full_time | part_time | contract | intern | temporary
+  status            String    @default("active") // active | probation | on_leave | notice | terminated
+  hireDate          DateTime?
+  probationEndAt    DateTime?
+  noticeGivenAt     DateTime?
+  endDate           DateTime? // last day worked
+  terminationReason String?
+  workLocation      String? // office | remote | hybrid | free text
+  managerId         String?
+  costCenter        String?
+  weeklyHours       Float?    @default(40)
+
+  dateOfBirth       DateTime?
+  emergencyName     String?
+  emergencyPhone    String?
+  emergencyRelation String?
+
+  // Government ids and bank details are encrypted at rest (AES-256-GCM, the
+  // same store used for integration secrets). Only the last few digits are
+  // ever returned to a client, so the console can confirm "the right account"
+  // without exposing it.
+  taxIdCipher       String?
+  taxIdIv           String?
+  taxIdTag          String?
+  taxIdLast4        String?
+  nationalIdCipher  String?
+  nationalIdIv      String?
+  nationalIdTag     String?
+  nationalIdLast4   String?
+  bankName          String?
+  bankAccountCipher String?
+  bankAccountIv     String?
+  bankAccountTag    String?
+  bankAccountLast4  String?
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, managerId])
+}
+
+// A compensation record is a *version*, never an edit. Payroll always resolves
+// "what was this person paid as of this date", so a raise adds a row and the
+// history stays auditable — the same reasoning as document versions.
+model Compensation {
+  id       String @id @default(uuid())
+  tenantId String
+  userId   String
+
+  effectiveFrom DateTime
+  payType       String   @default("salary") // salary | hourly
+  baseAmount    Float // annual salary, or hourly rate
+  currency      String   @default("USD")
+  payFrequency  String   @default("monthly") // monthly | semimonthly | biweekly | weekly
+  hoursPerWeek  Float?
+  reason        String? // hire | raise | promotion | adjustment | correction
+  note          String?
+  createdById   String?
+  createdAt     DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, effectiveFrom])
+}
+
+// The org's own catalog of recurring earnings, deductions and employer costs.
+// Payroll rules are jurisdiction-specific, so the engine is generic and the
+// organization declares its own components rather than trusting anything we
+// hard-code.
+model PayComponent {
+  id       String @id @default(uuid())
+  tenantId String
+
+  code         String // stable identifier used on payslip lines
+  name         String
+  kind         String   @default("deduction") // earning | deduction | employer_contribution
+  calc         String   @default("fixed") // fixed | percent_of_base | percent_of_gross
+  amount       Float    @default(0) // fixed amount, or percent when calc is a percentage
+  currency     String   @default("USD")
+  taxable      Boolean  @default(true) // earnings: adds to taxable pay
+  preTax       Boolean  @default(false) // deductions: reduces taxable pay
+  capPerPeriod Float?
+  appliesTo    String   @default("all") // all | assigned  (assigned ⇒ per-employee opt-in)
+  active       Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  note         String?
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant      Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignments EmployeePayComponent[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, active])
+}
+
+// One employee's assignment of (or override for) a pay component.
+model EmployeePayComponent {
+  id          String @id @default(uuid())
+  tenantId    String
+  userId      String
+  componentId String
+
+  amount        Float? // overrides the catalog amount when set
+  effectiveFrom DateTime?
+  effectiveTo   DateTime?
+  active        Boolean   @default(true)
+  note          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  component PayComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, componentId])
+  @@index([tenantId, userId])
+}
+
+// Progressive income-tax bands, entered by the organization for its own
+// jurisdiction. Deliberately data, not code: we do not ship "correct" tax rates
+// for anywhere, because a wrong rate shipped as a default is worse than no
+// default at all.
+model TaxTable {
+  id       String @id @default(uuid())
+  tenantId String
+
+  name         String
+  jurisdiction String?
+  currency     String   @default("USD")
+  // [{ upTo: number|null, rate: number }] — ordered, last band has upTo null.
+  bands        Json     @default("[]")
+  allowance    Float    @default(0) // tax-free annual allowance
+  active       Boolean  @default(true)
+  isDefault    Boolean  @default(false)
+  note         String?
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, active])
+}
+
+// One payroll cycle. Immutable once approved: a pay run that can be edited
+// after sign-off isn't a record of what was paid.
+model PayRun {
+  id       String @id @default(uuid())
+  tenantId String
+
+  reference         String? // human label, e.g. "March 2026 — monthly"
+  periodStart       DateTime
+  periodEnd         DateTime
+  payDate           DateTime
+  frequency         String    @default("monthly")
+  currency          String    @default("USD")
+  status            String    @default("draft") // draft | review | approved | paid | cancelled
+  totals            Json      @default("{}") // gross, tax, deductions, net, employerCost, headcount
+  taxTableId        String?
+  approvalRequestId String?
+  note              String?
+  calculatedAt      DateTime?
+  approvedById      String?
+  approvedAt        DateTime?
+  paidAt            DateTime?
+  paymentRef        String?
+  createdById       String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payslips Payslip[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, periodStart])
+}
+
+// One person's pay for one run. `lines` is the full breakdown and `snapshot`
+// records the compensation the calculation used, so a payslip stays explicable
+// years later even after the person's salary has changed five times.
+model Payslip {
+  id       String @id @default(uuid())
+  tenantId String
+  payRunId String
+  userId   String
+
+  currency        String   @default("USD")
+  gross           Float    @default(0)
+  taxableGross    Float    @default(0)
+  tax             Float    @default(0)
+  deductions      Float    @default(0)
+  net             Float    @default(0)
+  employerCost    Float    @default(0)
+  hours           Float?
+  daysInPeriod    Int?
+  daysWorked      Int?
+  unpaidLeaveDays Float    @default(0)
+  prorated        Boolean  @default(false)
+  lines           Json     @default("[]")
+  snapshot        Json     @default("{}")
+  note            String?
+  createdAt       DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payRun PayRun @relation(fields: [payRunId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([payRunId, userId])
+  @@index([tenantId, userId])
+}
+
+// The org's leave catalog: holiday, sick, parental, unpaid…
+model LeaveType {
+  id       String @id @default(uuid())
+  tenantId String
+
+  code             String
+  name             String
+  paid             Boolean  @default(true)
+  annualDays       Float    @default(0) // entitlement per year
+  carryOverMax     Float    @default(0)
+  requiresApproval Boolean  @default(true)
+  countsWeekends   Boolean  @default(false)
+  active           Boolean  @default(true)
+  colour           String? // UI hint
+  note             String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  balances LeaveBalance[]
+  requests LeaveRequest[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, active])
+}
+
+// Per person, per leave type, per year.
+model LeaveBalance {
+  id          String @id @default(uuid())
+  tenantId    String
+  userId      String
+  leaveTypeId String
+  year        Int
+
+  entitledDays Float    @default(0)
+  carriedOver  Float    @default(0)
+  adjustment   Float    @default(0) // manual correction, +/-
+  usedDays     Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, leaveTypeId, year])
+  @@index([tenantId, year])
+}
+
+model LeaveRequest {
+  id          String @id @default(uuid())
+  tenantId    String
+  userId      String
+  leaveTypeId String
+
+  startDate         DateTime
+  endDate           DateTime
+  days              Float
+  halfDay           Boolean   @default(false)
+  reason            String?
+  status            String    @default("pending") // pending | approved | rejected | cancelled
+  approvalRequestId String?
+  decidedById       String?
+  decidedAt         DateTime?
+  decisionNote      String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, userId, startDate])
+}
+
+// Hours worked — what hourly pay is calculated from. Only APPROVED entries are
+// ever paid; a draft timesheet must not be able to pay itself.
+model TimeEntry {
+  id       String @id @default(uuid())
+  tenantId String
+  userId   String
+
+  date          DateTime
+  hours         Float
+  overtimeHours Float     @default(0)
+  project       String?
+  note          String?
+  status        String    @default("draft") // draft | submitted | approved | rejected
+  approvedById  String?
+  approvedAt    DateTime?
+  payslipId     String? // set once paid, so hours can't be paid twice
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, project])
+  @@index([tenantId, status])
+  @@index([tenantId, userId, date])
+}
+
+// The employment timeline — hired, promoted, paid, left. The answer to "what
+// happened with this person, and who recorded it".
+model EmploymentEvent {
+  id       String @id @default(uuid())
+  tenantId String
+  userId   String
+
+  type        String // hired | profile | compensation | leave | timesheet | payroll | status | note | terminated
+  detail      String?
+  fromValue   String?
+  toValue     String?
+  effectiveAt DateTime?
+  actorId     String?
+  actorName   String?
+  createdAt   DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, createdAt])
 }

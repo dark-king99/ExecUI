@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   Server, Home, Users, TrendingUp, BarChart3, UserLock, Building2,
   ChevronLeft, ChevronRight, Settings, Layers, Activity, LayoutDashboard, Trophy, CheckCircle2,
-  FileText, FileSignature
+  FileText, FileSignature, UserCog, Wallet
 } from "lucide-react";
 import { accessFor } from "../../lib/access";
 import { useUser } from "../../context/UserContext";
@@ -113,6 +113,11 @@ export default function Sidebar() {
         <NavBtn icon={FileText}        label="Documents"          path="/documents" current={pathname} collapsed={collapsed} />
         {isAdmin && (
           <NavBtn icon={FileSignature} label="Contracts"          path="/contracts" current={pathname} collapsed={collapsed} />
+        )}
+        {/* Every employee has an HR page (their own); payroll is admin-only. */}
+        <NavBtn icon={UserCog}         label={isAdmin ? "People" : "My HR"} path="/people" current={pathname} collapsed={collapsed} />
+        {isAdmin && (
+          <NavBtn icon={Wallet}        label="Payroll"            path="/payroll" current={pathname} collapsed={collapsed} />
         )}
         <NavBtn icon={Trophy}          label="Rewards"            path="/rewards"  current={pathname} collapsed={collapsed} />
         <NavBtn icon={UserLock}        label="Account"            path="/account"  current={pathname} collapsed={collapsed} />

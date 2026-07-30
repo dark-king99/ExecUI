@@ -23,6 +23,7 @@ export const SCOPES = [
   "reports:read",
   "contracts:read", "contracts:write",
   "documents:read",
+  "hr:read",
   "webhooks:manage",
 ];
 
@@ -40,6 +41,7 @@ export const SCOPE_LABELS = {
   "contracts:read": "Read the contract register",
   "contracts:write": "Create & update contracts",
   "documents:read": "Read document metadata (never file contents)",
+  "hr:read": "Read payroll totals, employment records and leave (never bank details or government ids)",
   "webhooks:manage": "Manage webhook endpoints",
 };
 
@@ -283,6 +285,72 @@ export const RESOURCES = {
     },
     filterable: ["category", "status", "confidential", "ownerId"],
     defaultSort: { field: "updatedAt", dir: "desc" },
+  },
+
+  // ── HR (read-only, and deliberately incomplete) ────────────────────────────
+  // These exist so an accounting or BI system can pull payroll totals and
+  // absence. Bank details, government ids, dates of birth and emergency contacts
+  // are NOT in the registry at all, so no token scope can ever reach them — the
+  // only way to see those is a deliberate, audited reveal in the HR console.
+  payslips: {
+    id: "payslips", name: "Payslip", model: "payslip", module: "hr", scope: "hr",
+    readOnly: true,
+    fields: {
+      id: ro("string"),
+      userId: ro("string"),
+      payRunId: ro("string"),
+      currency: ro("string"),
+      gross: ro("number"),
+      taxableGross: ro("number"),
+      tax: ro("number"),
+      deductions: ro("number"),
+      net: ro("number"),
+      employerCost: ro("number"),
+      hours: ro("number"),
+      prorated: ro("boolean"),
+      createdAt: ro("date"),
+    },
+    filterable: ["userId", "payRunId", "currency"],
+    defaultSort: { field: "createdAt", dir: "desc" },
+  },
+
+  "leave-requests": {
+    id: "leave-requests", name: "LeaveRequest", model: "leaveRequest", module: "hr", scope: "hr",
+    readOnly: true,
+    fields: {
+      id: ro("string"),
+      userId: ro("string"),
+      leaveTypeId: ro("string"),
+      startDate: ro("date"),
+      endDate: ro("date"),
+      days: ro("number"),
+      halfDay: ro("boolean"),
+      status: ro("string"),
+      createdAt: ro("date"),
+    },
+    filterable: ["userId", "status", "leaveTypeId"],
+    defaultSort: { field: "startDate", dir: "desc" },
+  },
+
+  employment: {
+    id: "employment", name: "Employment", model: "employmentProfile", module: "hr", scope: "hr",
+    readOnly: true,
+    fields: {
+      id: ro("string"),
+      userId: ro("string"),
+      employmentType: ro("string"),
+      status: ro("string"),
+      hireDate: ro("date"),
+      endDate: ro("date"),
+      workLocation: ro("string"),
+      managerId: ro("string"),
+      costCenter: ro("string"),
+      weeklyHours: ro("number"),
+      createdAt: ro("date"),
+      updatedAt: ro("date"),
+    },
+    filterable: ["status", "employmentType", "managerId", "costCenter"],
+    defaultSort: { field: "createdAt", dir: "desc" },
   },
 
   // ── People (read-only: staff PII is never writable over the public API) ────

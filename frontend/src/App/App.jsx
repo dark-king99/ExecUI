@@ -63,6 +63,10 @@ const Workflows           = lazy(() => import("../apps/account/Workflows"));
 const Compliance          = lazy(() => import("../apps/account/Compliance"));
 const Approvals           = lazy(() => import("../apps/approvals/Approvals"));
 
+// HR / People Ops + payroll
+const People              = lazy(() => import("../apps/hr/People"));
+const Payroll             = lazy(() => import("../apps/hr/Payroll"));
+
 // Documents, e-signature & contracts (CLM)
 const Documents           = lazy(() => import("../apps/documents/Documents"));
 const Contracts           = lazy(() => import("../apps/documents/Contracts"));
@@ -170,6 +174,11 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 {/* Documents — company-wide; the contract register is admin-only. */}
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/contracts" element={isAdmin ? <Contracts /> : <Navigate to="/documents" replace />} />
+
+                {/* People — the console for admins, self-service HR for everyone
+                    else (the page decides); payroll is admin-only. */}
+                <Route path="/people" element={<People />} />
+                <Route path="/payroll" element={isAdmin ? <Payroll /> : <Navigate to="/people" replace />} />
 
                 <Route path="/account" element={<Navigate to="/account/profile" replace />} />
                 <Route path="/account/profile"      element={<Profile />} />
