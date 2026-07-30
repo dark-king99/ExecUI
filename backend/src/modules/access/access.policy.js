@@ -9,15 +9,27 @@
 
 export const SECTIONS = ["crm", "marketing", "network", "services", "analytics"];
 
+/**
+ * Sections that administer the organization rather than serve a job. Granted by
+ * an admin role, never by a department — so `requireModule("services")` refuses
+ * an ordinary employee whatever their department says.
+ */
+export const ADMIN_ONLY_SECTIONS = ["services"];
+
 // department key -> { sections, slices }
+//
+// `general` is where every employee lands whose department is blank or
+// unrecognized — every newly invited person until somebody sets one. It used to
+// grant Business Services and nothing else, so a new employee got the company's
+// financial and strategic planning tools and no CRM, Marketing or Network.
 const MATRIX = {
-  executive:  { sections: [...SECTIONS],                       slices: ["marketing", "sales", "network"] },
-  sales:      { sections: ["crm", "analytics"],                slices: ["sales"] },
-  marketing:  { sections: ["marketing", "analytics"],          slices: ["marketing"] },
-  it:         { sections: ["network", "analytics"],            slices: ["network"] },
-  finance:    { sections: ["services"],                        slices: [] },
-  operations: { sections: ["services", "network", "analytics"],slices: ["network"] },
-  general:    { sections: ["services"],                        slices: [] },
+  executive:  { sections: [...SECTIONS],                                slices: ["marketing", "sales", "network"] },
+  sales:      { sections: ["crm", "analytics"],                         slices: ["sales"] },
+  marketing:  { sections: ["marketing", "analytics"],                   slices: ["marketing"] },
+  it:         { sections: ["network", "analytics"],                     slices: ["network"] },
+  finance:    { sections: ["crm", "analytics"],                         slices: ["sales"] },
+  operations: { sections: ["network", "analytics"],                     slices: ["network"] },
+  general:    { sections: ["crm", "marketing", "network", "analytics"], slices: ["marketing", "sales", "network"] },
 };
 
 export const DEPT_LABELS = {
@@ -44,7 +56,15 @@ export function accessFor({ role, department } = {}) {
   }
   const dept = canonicalDept(department);
   const privileged = dept === "executive";
-  return { dept, label: DEPT_LABELS[dept], privileged, ...MATRIX[dept] };
+  const base = MATRIX[dept];
+  // Admin-only sections are dropped here rather than at each route, so
+  // `requireModule("services")` refuses an ordinary employee no matter which
+  // department they are in — including Executive.
+  return {
+    dept, label: DEPT_LABELS[dept], privileged,
+    ...base,
+    sections: base.sections.filter((s) => !ADMIN_ONLY_SECTIONS.includes(s)),
+  };
 }
 
 export function canAccessSection(access, section) {

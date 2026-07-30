@@ -56,17 +56,18 @@ test("a plan without a module hides the module", () => {
 });
 
 test("a plan without a solution hides that solution, not just the module", () => {
-  // Premium buys three of the five Business Services.
-  const premium = user({ plan: "premium", department: "operations" });
-  assert.equal(canSeeSection(premium, "services", "user"), true, "the module is included");
-  assert.equal(canSeeSolution(premium, "services", "financial", "user"), true);
-  assert.equal(canSeeSolution(premium, "services", "operation", "user"), true);
-  assert.equal(canSeeSolution(premium, "services", "team", "user"), false,
+  // Premium buys three of the five Business Services. Business Services is
+  // admin-only, so the viewer here is an admin.
+  const premium = admin({ plan: "premium" });
+  assert.equal(canSeeSection(premium, "services", "enterprise_admin"), true, "the module is included");
+  assert.equal(canSeeSolution(premium, "services", "financial", "enterprise_admin"), true);
+  assert.equal(canSeeSolution(premium, "services", "operation", "enterprise_admin"), true);
+  assert.equal(canSeeSolution(premium, "services", "team", "enterprise_admin"), false,
     "Team & Project is not in Premium — showing it and bouncing on click is the bug");
-  assert.equal(canSeeSolution(premium, "services", "marketing", "user"), false);
+  assert.equal(canSeeSolution(premium, "services", "marketing", "enterprise_admin"), false);
 
-  const enterprise = user({ plan: "enterprise", department: "operations" });
-  assert.equal(canSeeSolution(enterprise, "services", "team", "user"), true);
+  const enterprise = admin({ plan: "enterprise" });
+  assert.equal(canSeeSolution(enterprise, "services", "team", "enterprise_admin"), true);
 });
 
 test("a Standard plan hides the CRM solutions it doesn't include", () => {
@@ -102,10 +103,10 @@ test("a custom plan shows exactly what it bought and nothing else", () => {
 
 // ── Department ───────────────────────────────────────────────────────────────
 test("department still narrows what the plan allows", () => {
-  const finance = user({ department: "finance", plan: "executive" });
-  assert.equal(canSeeSection(finance, "services", "user"), true);
-  assert.equal(canSeeSection(finance, "crm", "user"), false,
-    "the org bought CRM; this employee's job doesn't include it");
+  const marketer = user({ department: "marketing", plan: "executive" });
+  assert.equal(canSeeSection(marketer, "marketing", "user"), true);
+  assert.equal(canSeeSection(marketer, "network", "user"), false,
+    "the org bought Network Ops; this employee's job doesn't include it");
 });
 
 test("access is the intersection, so either gate alone is enough to hide it", () => {
@@ -118,7 +119,7 @@ test("access is the intersection, so either gate alone is enough to hide it", ()
 
 // ── The one policy drives every surface ──────────────────────────────────────
 test("a solution is hidden without its module needing to be checked separately", () => {
-  const noCrm = user({ department: "finance", plan: "executive" });
+  const noCrm = user({ department: "it", plan: "executive" });
   assert.equal(canSeeSolution(noCrm, "crm", "leads", "user"), false,
     "canSeeSolution must imply canSeeSection, or a page slips through");
 });
@@ -182,4 +183,69 @@ test("every indexed destination declares a section or is genuinely universal", (
       assert.fail(`${e.path} is visible to everybody — declare a section or adminOnly`);
     }
   }
+});
+
+// ── Business Services is an administrator's module ───────────────────────────
+/**
+ * The bug these cover: a newly invited employee saw **Business Services and
+ * nothing else** — the company's financial management, strategic planning and
+ * operations — while CRM, Marketing and Network were all hidden. Exactly
+ * backwards. The cause was the `general` department row, which is where anybody
+ * with a blank or unrecognized department lands, and which granted `services`
+ * alone.
+ */
+test("a newly invited employee gets the operational modules, not the company's books", () => {
+  // No department set — the state every invited person starts in.
+  const invited = user({ department: undefined, plan: "executive" });
+  for (const section of ["crm", "marketing", "network", "analytics"]) {
+    assert.equal(canSeeSection(invited, section, "user"), true,
+      `a new employee should be able to work in ${section}`);
+  }
+  assert.equal(canSeeSection(invited, "services", "user"), false,
+    "Business Services administers the company — it is not a new hire's landing page");
+});
+
+test("an unrecognized department behaves the same as a blank one", () => {
+  for (const dept of ["", "  ", "Widget Polishing", null]) {
+    const u = user({ department: dept, plan: "executive" });
+    assert.equal(canSeeSection(u, "crm", "user"), true, `department "${dept}"`);
+    assert.equal(canSeeSection(u, "services", "user"), false, `department "${dept}"`);
+  }
+});
+
+test("no department grants Business Services — only an admin role does", () => {
+  for (const dept of ["executive", "finance", "operations", "sales", "marketing", "it", "general"]) {
+    assert.equal(canSeeSection(user({ department: dept }), "services", "user"), false,
+      `department "${dept}" must not grant Business Services`);
+  }
+  assert.equal(canSeeSection(admin(), "services", "enterprise_admin"), true,
+    "an administrator does get it");
+});
+
+test("an executive-department employee who isn't an admin still doesn't get it", () => {
+  // The department that grants everything, held by somebody who administers
+  // nothing: the role is what decides.
+  const exec = user({ department: "executive", plan: "executive" });
+  assert.equal(canSeeSection(exec, "crm", "user"), true);
+  assert.equal(canSeeSection(exec, "services", "user"), false);
+});
+
+test("every department leaves an employee with something to do", () => {
+  // A department that grants nothing is an employee who signs in to an empty
+  // product — which is what Finance would have become when services moved.
+  for (const dept of ["executive", "sales", "marketing", "it", "finance", "operations", "general"]) {
+    const u = user({ department: dept, plan: "executive" });
+    const open = ["crm", "marketing", "network", "analytics", "services"]
+      .filter((s) => canSeeSection(u, s, "user"));
+    assert.ok(open.length > 0, `department "${dept}" can open nothing at all`);
+  }
+});
+
+test("the plan still narrows what a department grants", () => {
+  // A new employee on Standard: no Network Ops, because the org didn't buy it.
+  const invited = user({ department: undefined, plan: "standard" });
+  assert.equal(canSeeSection(invited, "crm", "user"), true);
+  assert.equal(canSeeSection(invited, "marketing", "user"), true);
+  assert.equal(canSeeSection(invited, "network", "user"), false,
+    "Standard has no Network Ops — the department can't grant what the plan lacks");
 });

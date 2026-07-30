@@ -27,7 +27,9 @@
  * the API's own authorization are the security boundary, and neither is removed
  * by anything in this file.
  */
-import { accessFor, isAdminRole } from "./access.js";
+import {
+  accessFor, isAdminRole, ADMIN_ONLY_SECTIONS as POLICY_ADMIN_ONLY_SECTIONS,
+} from "./access.js";
 
 /** Did the org's plan *and* this employee's department both allow this section? */
 export function canSeeSection(user, section, role) {
@@ -59,8 +61,12 @@ export function canSeeSolution(user, module, solutionId, role) {
 /** Administrators, by the **effective** role, so role simulation really simulates. */
 export const canSeeAdmin = (user, role) => isAdminRole(role ?? user?.role);
 
-/** Some sections are administrator-only regardless of department or plan. */
-const ADMIN_ONLY_SECTIONS = new Set([]);
+/**
+ * Some sections administer the organization rather than serve a job, so a
+ * department can never grant them — only an admin role can. Business Services is
+ * the one: financial management, strategic planning, company-wide operations.
+ */
+const ADMIN_ONLY_SECTIONS = new Set(POLICY_ADMIN_ONLY_SECTIONS);
 const blockedByRole = (section, user, role) =>
   ADMIN_ONLY_SECTIONS.has(section) && !canSeeAdmin(user, role);
 
