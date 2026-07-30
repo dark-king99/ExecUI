@@ -117,8 +117,11 @@ export default function Navbar({ user, onLogout, roleToUse }) {
   const avatarUrl = profile?.avatarUrl ?? user?.avatarUrl ?? null;
   const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "U";
 
+  // `backdrop-blur` makes this header its own stacking context, so the z-index on
+  // the menus below only orders them against each other — it can never lift them
+  // over a card in <main>. Raising the header itself is what does that.
   return (
-    <header className="h-14 shrink-0 bg-white dark:bg-slate-950/95 backdrop-blur-sm border-b border-slate-100 dark:border-slate-800/70 flex items-center px-5 gap-90">
+    <header className="relative z-50 h-14 shrink-0 bg-white dark:bg-slate-950/95 backdrop-blur-sm border-b border-slate-100 dark:border-slate-800/70 flex items-center px-5 gap-90">
 
       {/* ── Search ───────────────────────────────────────────────────── */}
       <NavSearch user={user} role={roleToUse ?? user?.role} />
