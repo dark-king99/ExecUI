@@ -19,7 +19,7 @@ import useRecordParam from "../../hooks/useRecordParam";
 import { useToast } from "../../components/ui/Toast";
 import { useUser } from "../../context/UserContext";
 import { isAdminUser } from "../../lib/access";
-import { linkTo } from "../../lib/recordLinks";
+import { linkTo, linkToEntity } from "../../lib/recordLinks";
 import { documents } from "../../services/api";
 import {
   FileText, Upload, Plus, Search, Archive, Trash2, PenLine, Send, X, Clock,
@@ -311,6 +311,13 @@ function DocumentsTab({ catalog, isAdmin, toast }) {
                       <Pill tone="bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
                         {d.signatureCount} envelope{d.signatureCount === 1 ? "" : "s"}
                       </Pill>
+                    )}
+                    {/* Filed against a record — a deal, a project, a client. The
+                        columns have always been there; nothing ever showed them. */}
+                    {linkToEntity(d.entityType, d.entityId) && (
+                      <RelatedLink to={linkToEntity(d.entityType, d.entityId)}>
+                        <Layers size={9} /> {d.entityType}
+                      </RelatedLink>
                     )}
                     {/* This document is somebody's contract. Say which, and go there. */}
                     {isAdmin && (d.contracts ?? []).map((c) => (

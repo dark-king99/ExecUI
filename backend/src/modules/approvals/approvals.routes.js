@@ -19,7 +19,11 @@ const handle = (fn, status = 200) => async (req, res) => {
 };
 
 router.get("/", authenticate, handle((req) =>
-  svc.listRequests({ status: req.query.status, mine: req.query.mine === "true", userId: uid(req), limit: req.query.limit })));
+  svc.listRequests({
+    status: req.query.status, mine: req.query.mine === "true", userId: uid(req),
+    workflowId: req.query.workflowId, resource: req.query.resource, recordId: req.query.recordId,
+    limit: req.query.limit,
+  })));
 
 router.get("/pending-count", authenticate, handle((req) => svc.pendingCountFor(uid(req)).then((count) => ({ count }))));
 

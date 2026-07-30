@@ -30,7 +30,12 @@ import { Textarea } from '../../components/ui/textarea';
 import { Progress } from '../../components/ui/progress';
 import { toast } from '../../components/ui/sonner';
 
-const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
+// The services API is mounted at /api/services, like every other module. The
+// base defaults to "/api" for the same reason services/api.js does: with `?? ''`
+// these pages requested /services/... , which matches no route and falls through
+// to the SPA — so every one of them logged "Unexpected token '<'" and rendered
+// empty. Same-origin production and dev alike.
+const API = `${import.meta.env.VITE_API_BASE_URL || '/api'}/services`;
 const authHeaders = () => ({
   'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
   'Content-Type': 'application/json',

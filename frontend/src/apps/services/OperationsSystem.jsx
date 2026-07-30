@@ -28,8 +28,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '../../components/ui/textarea';
 import { Switch } from '../../components/ui/switch';
 import { toast } from '../../components/ui/sonner';
+import useRecordFocus from "../../hooks/useRecordFocus";
 
-const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
+// The services API is mounted at /api/services, like every other module. The
+// base defaults to "/api" for the same reason services/api.js does: with `?? ''`
+// these pages requested /services/... , which matches no route and falls through
+// to the SPA — so every one of them logged "Unexpected token '<'" and rendered
+// empty. Same-origin production and dev alike.
+const API = `${import.meta.env.VITE_API_BASE_URL || '/api'}/services`;
 const authHeaders = () => ({
   'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
   'Content-Type': 'application/json',
@@ -380,6 +386,8 @@ const AISOPGenerator = ({ onGenerate, isDarkMode, onClose }) => {
 };
 
 export const OperationsSystems = () => {
+  // An SOP followed from global search lands on its card.
+  const focus = useRecordFocus("open");
   const { theme } = useSidebar();
   const isDarkMode = theme === 'dark';
   const [sops, setSOPs] = useState([]);
@@ -611,7 +619,7 @@ export const OperationsSystems = () => {
               </Card>
             ) : (
               sops.map((sop) => (
-                <Card key={sop.id} className={`${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                <Card key={sop.id} data-record-id={sop.id} className={focus.className(sop.id, isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200')}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div>

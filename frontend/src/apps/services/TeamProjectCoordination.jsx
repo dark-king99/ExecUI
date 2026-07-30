@@ -32,8 +32,14 @@ import { Textarea } from '../../components/ui/textarea';
 import { Progress } from '../../components/ui/progress';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import { toast } from '../../components/ui/sonner';
+import useRecordFocus from "../../hooks/useRecordFocus";
 
-const API = `${import.meta.env.VITE_API_BASE_URL ?? ''}/services`;
+// The services API is mounted at /api/services, like every other module. The
+// base defaults to "/api" for the same reason services/api.js does: with `?? ''`
+// these pages requested /services/... , which matches no route and falls through
+// to the SPA — so every one of them logged "Unexpected token '<'" and rendered
+// empty. Same-origin production and dev alike.
+const API = `${import.meta.env.VITE_API_BASE_URL || '/api'}/services`;
 const authHeaders = () => ({
   'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
   'Content-Type': 'application/json',
@@ -525,6 +531,10 @@ const AITeamAdvisor = ({ projects, teamMembers, isDarkMode, onClose }) => {
 };
 
 export const TeamProjectCoordination = () => {
+  // Projects and tasks are both listed here, so each gets its own parameter —
+  // a link to a task must not highlight a project that happens to share an id.
+  const projectFocus = useRecordFocus("open");
+  const taskFocus = useRecordFocus("task");
   const { theme } = useSidebar();
   const isDarkMode = theme === 'dark';
   const [teamMembers, setTeamMembers] = useState([]);
@@ -843,7 +853,7 @@ export const TeamProjectCoordination = () => {
                 const projectTasks = tasks.filter(t => t.project_id === project.id);
                 const completedProjectTasks = projectTasks.filter(t => t.status === 'done').length;
                 return (
-                  <Card key={project.id} className={`${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                  <Card key={project.id} data-record-id={project.id} className={projectFocus.className(project.id, isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200')}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div>
@@ -1084,7 +1094,7 @@ export const TeamProjectCoordination = () => {
                 const project = projects.find(p => p.id === task.project_id);
                 const assignee = teamMembers.find(m => m.id === task.assigned_to);
                 return (
-                  <Card key={task.id} className={`${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                  <Card key={task.id} data-record-id={task.id} className={taskFocus.className(task.id, isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200')}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3">

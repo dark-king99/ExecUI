@@ -120,7 +120,50 @@ can see the other.
 - `renewedFromId` is a real foreign key, so a renewal cannot point at a contract
   that no longer exists.
 
-## 5. Registries are checked against the schema
+## 5. What the full sweep found
+
+Auditing every relationship in the schema against the screens that show it turned
+up ten gaps. Three were not "missing links" but wrong behaviour:
+
+**Search sent six of its sixteen sources to the 404 page.** `/crm/contacts`,
+`/crm/pipeline`, `/crm/tasks`, `/marketing/campaigns`, `/network/monitoring` and
+`/services/operations` are not routes — the real ones are
+`/crm/accounts/contacts`, `/crm/opportunities`, `/crm/activities`,
+`/marketing/personalization/campaigns`, `/network/inventory` and
+`/services/operation`. Every contact, deal, task, campaign, device and alert
+anybody found in global search took them to "page not found". A link is only a
+string until someone clicks it, so the route table is now checked against the
+router itself.
+
+**CRM → Service → Cases was a second implementation over the helpdesk's own
+table.** One `CrmTicket`, two screens, and the CRM one was wrong in three ways:
+the case description was read from the *customer's name*; adding a note returned
+a note object and saved nothing, so the UI said "note added" and it was gone on
+refresh; and resolving set `status` without `resolvedAt`, which left resolution
+times blank and made the "rate only after resolution" rule refuse ratings for
+tickets that were in fact resolved. It delegates to the helpdesk service now — one
+status machine, one timeline, one thread — and each screen links to the other.
+
+**The Business Services pages had never loaded their data.** All six built their
+base URL as `${VITE_API_BASE_URL ?? ''}/services`, so with the variable unset they
+requested `/services/…`, which matches no route and falls through to the SPA. The
+pages parsed HTML as JSON and logged `Unexpected token '<'`. The API is at
+`/api/services`; the base now defaults to `/api` like the shared client does.
+
+The rest were relationships the database knew about and no screen showed:
+
+| Relationship | Was | Now |
+|---|---|---|
+| Approval → the record being approved | a label, nothing to click | opens the contract, pay run or leave request |
+| Contract / pay run → its approval | an id in the payload | a link to the request |
+| Ticket ↔ CRM contact | resolved on creation, never shown | each links to the other; the queue filters by contact |
+| Payslip → the person | a name in plain text | opens the employment record the figures came from |
+| Alert ↔ device | a hostname in plain text | each links to the other; alerts filter by device |
+| Data subject → their record | an email address | opens the person or contact before you erase them |
+| Workflow → approvals it raised | nothing | the requests that rule created |
+| Document → the record it is filed against | two unread columns | a link to the deal, project or client |
+
+## 6. Registries are checked against the schema
 
 Search sources declare the columns they match and return. A source whose query
 throws degrades to a named warning rather than failing the whole search — correct

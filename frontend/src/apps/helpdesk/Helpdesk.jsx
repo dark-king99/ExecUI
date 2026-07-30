@@ -13,6 +13,8 @@
  */
 import { useState } from "react";
 import useRecordParam from "../../hooks/useRecordParam";
+import { Link } from "react-router-dom";
+import { linkTo } from "../../lib/recordLinks";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody } from "../../components/ui/Card";
 import { useApi } from "../../hooks/useApi";
@@ -22,6 +24,7 @@ import { helpdesk } from "../../services/api";
 import {
   LifeBuoy, BookOpen, Search, Plus, Send, Lock, Globe, Clock, CheckCircle2,
   AlertTriangle, Star, Copy, ExternalLink, Trash2, X, Eye, ThumbsUp, ThumbsDown, Link2,
+  User, Headset,
 } from "lucide-react";
 
 const cls = (...a) => a.filter(Boolean).join(" ");
@@ -90,6 +93,27 @@ function TicketDetail({ id, toast, refetch }) {
 
   return (
     <div className="space-y-3 border-t border-slate-200 p-3 dark:border-slate-700">
+      {/* The ticket already knows which CRM contact raised it — it resolves one on
+          creation. Until now it kept that to itself, so an agent couldn't see the
+          account behind the complaint. */}
+      {(ticket.contactId || ticket.source === "portal") && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Related</span>
+          {ticket.contactId && (
+            <Link to={linkTo("contact", ticket.contactId)}
+              className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-600 hover:text-sky-500 dark:bg-sky-500/10 dark:text-sky-400">
+              <User size={9} /> {ticket.customerName || "CRM contact"}
+              <ExternalLink size={9} className="opacity-60" />
+            </Link>
+          )}
+          <Link to={linkTo("case", ticket.id)}
+            className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-600 hover:text-rose-500 dark:bg-rose-500/10 dark:text-rose-400">
+            <Headset size={9} /> Account view
+            <ExternalLink size={9} className="opacity-60" />
+          </Link>
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           ["Customer", ticket.customerName],
@@ -213,15 +237,17 @@ function TicketDetail({ id, toast, refetch }) {
 
 // ── Queue ────────────────────────────────────────────────────────────────────
 function Queue({ toast, openId, setOpenId }) {
-  const [status, setStatus] = useState("open");
+  // "Show me everything this customer has raised", followed from a CRM contact.
+  const [contactId, setContactId] = useRecordParam("contact");
+  const [status, setStatus] = useState(contactId ? "all" : "open");
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState({ subject: "", description: "", customerName: "", contactEmail: "", priority: "medium", category: "general" });
   const [busy, setBusy] = useState(false);
 
   const { data: tickets, refetch } = useApi(
-    () => helpdesk.tickets.list({ status, search: search || undefined, limit: 100 }),
-    [status, search],
+    () => helpdesk.tickets.list({ status, search: search || undefined, contactId: contactId || undefined, limit: 100 }),
+    [status, search, contactId],
     { pollingInterval: 60000 },
   );
 
@@ -238,6 +264,17 @@ function Queue({ toast, openId, setOpenId }) {
 
   return (
     <div className="space-y-4">
+      {/* A filtered queue that doesn't say it is filtered reads as an empty
+          queue, which is a very different piece of news. */}
+      {contactId && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-300 bg-sky-50 p-2.5 text-[11px] text-sky-800 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-200">
+          <span>Showing only the tickets raised by one contact.</span>
+          <button onClick={() => setContactId(null)}
+            className="rounded-lg border border-sky-400 px-2 py-1 font-medium hover:bg-sky-100 dark:border-sky-500/50 dark:hover:bg-sky-500/20">
+            Show the whole queue
+          </button>
+        </div>
+      )}
       <Card>
         <CardBody className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[180px] flex-1">

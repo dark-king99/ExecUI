@@ -361,12 +361,17 @@ function ContractDetail({ id, catalog, docs, toast, refetch, onOpen }) {
               rather than being an id you have to go and look up. */}
           <AttachedDocument contract={c} onAttach={() => setEditing(true)} />
 
-          {(c.signature || c.renewedFrom || c.renewedBy) && (
+          {(c.signature || c.approvalRequestId || c.renewedFrom || c.renewedBy) && (
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Related</span>
               {c.signature && (
                 <RelatedLink to={linkTo("envelope", c.signature.id)}>
                   <FileSignature size={9} /> Envelope · {c.signature.status} · {c.signature.signed}/{c.signature.total} signed
+                </RelatedLink>
+              )}
+              {c.approvalRequestId && (
+                <RelatedLink to={linkTo("approval", c.approvalRequestId)}>
+                  <CheckCircle2 size={9} /> Internal approval
                 </RelatedLink>
               )}
               {c.renewedFrom && (

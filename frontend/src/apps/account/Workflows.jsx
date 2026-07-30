@@ -12,6 +12,7 @@ import { Card, CardBody } from "../../components/ui/Card";
 import { useApi } from "../../hooks/useApi";
 import { useToast } from "../../components/ui/Toast";
 import { workflows } from "../../services/api";
+import { Link } from "react-router-dom";
 import {
   Zap, Plus, X, Trash2, Play, Pause, FlaskConical, History, AlertCircle,
   CheckCircle2, RefreshCw, ChevronRight, Filter, Bolt,
@@ -338,6 +339,15 @@ export default function Workflows() {
                       {w.oncePerRecord ? " · once per record" : ""}
                     </p>
                     {w.lastError && <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">{w.lastError}</p>}
+                    {/* A workflow that raises approvals should be able to show the
+                        ones it raised — otherwise "require approval" is an action
+                        with no visible consequence. */}
+                    {(w.actions ?? []).some((a) => a.type === "request_approval") && (
+                      <Link to={`/approvals?workflow=${w.id}`}
+                        className="mt-1 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-600 hover:text-indigo-500 dark:bg-indigo-500/10 dark:text-indigo-400">
+                        <CheckCircle2 size={10} /> Approvals it raised
+                      </Link>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
                     <button onClick={() => test(w.id)} title="Dry run against a real record"
