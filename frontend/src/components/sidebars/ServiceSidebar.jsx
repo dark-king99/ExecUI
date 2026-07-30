@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useUser } from "../../context/UserContext";
 import { canSee } from "../../lib/visibility";
+import AnimatedLogo from "../AnimatedLogo";
 
 const menuItems = [
   { id: "dashboard",  label: "Dashboard",            icon: LayoutDashboard, path: "/services/dashboard",  color: "text-indigo-500",  activeBg: "bg-indigo-50 dark:bg-indigo-500/10",  activeBar: "bg-indigo-600 dark:bg-indigo-400" },
@@ -46,9 +47,10 @@ export const ServiceSidebar = () => {
       {/* Header */}
       <div className="flex items-center h-14 px-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
         <div className={`flex items-center gap-2.5 flex-1 min-w-0 ${collapsed ? "justify-center" : ""}`}>
-          <div className="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 shadow-sm ">
-            <icon size={13}>💼</icon>
-          </div>
+          {/* One brand mark across every sidebar. Hidden when collapsed: the
+              wordmark is ~2.8:1, so it can't fit the 60px rail — the same choice
+              the main sidebar makes. */}
+          {!collapsed && <AnimatedLogo className="h-7 shrink-0" />}
           {!collapsed && (
             <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate leading-none">
               Services
