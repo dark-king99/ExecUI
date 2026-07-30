@@ -65,6 +65,31 @@ function friendlyError(status) {
 // header, entirely separate from the employee session.
 const VISITOR_PATHS = /^\/(portal|sign)\//;
 
+// ── Write notification ────────────────────────────────────────────────────
+// Any successful write invalidates the query cache, so every mounted view
+// refreshes — not just the one that made the call. This is what keeps related
+// screens in step with each other: sending a contract for signature updates the
+// contract register, the document hub's envelope count and the approvals inbox
+// without any of them knowing the others exist.
+//
+// It lives here, at the single door every request goes through, rather than in
+// each page's save handler. Pages that remembered to broadcast stayed in sync
+// and pages that forgot silently went stale, which is exactly the kind of
+// inconsistency you can't fix by being careful.
+const QUIET_PATHS = [
+  '/rewards/track',   // fires on every navigation; nothing else depends on it
+];
+
+function notifyWrite(path, method) {
+  if (!method || method === 'GET' || method === 'HEAD') return;
+  if (QUIET_PATHS.some((p) => path.startsWith(p))) return;
+  // Imported lazily so the API layer stays usable outside React (and so this
+  // module has no import-time dependency on the hook layer).
+  import('../hooks/useApi.js')
+    .then((m) => m.invalidateQueries())
+    .catch(() => { /* sync is a convenience, never a failure mode */ });
+}
+
 // ── Core request ──────────────────────────────────────────────────────────
 async function request(path, options = {}) {
   const token = getToken();
@@ -85,7 +110,11 @@ async function request(path, options = {}) {
     throw new Error("Can't reach the server. Check your connection and try again.");
   }
 
-  if (response.status === 204) return null;
+  // 204 No Content is still a completed write (a DELETE, typically).
+  if (response.status === 204) {
+    notifyWrite(path, options.method);
+    return null;
+  }
 
   const { json, isJson } = await readBody(response);
 
@@ -111,6 +140,8 @@ async function request(path, options = {}) {
   if (!isJson) {
     throw new Error("Unexpected response from the server. Please refresh and try again.");
   }
+
+  notifyWrite(path, options.method);
   return json;
 }
 

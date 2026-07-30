@@ -1,15 +1,42 @@
 # HR / People Ops & Payroll
 
+Everything lives on **one route, `/people`** — labelled **HR** for administrators
+and **My HR** for everyone else.
+
 | Capability | Where | Who |
 |---|---|---|
-| **My HR** — own details, leave, timesheet, payslips | **People** (`/people`) | every employee |
-| **Directory & employment records** | **People → Directory** | admins |
-| **Compensation history** | **People → Directory → person** | admins |
-| **Leave** — types, balances, approvals | **People → Leave** | admins; managers decide their own team's |
-| **Timesheets** — submit and approve hours | **People → Timesheets** | employees submit, managers/admins approve |
-| **Payroll** — components, tax, pay runs, payslips | **Payroll** (`/payroll`) | admins |
+| **My HR** — own details, leave, timesheet, payslips | **HR → My HR** | every employee |
+| **Directory & employment records** | **HR → Directory** | admins |
+| **Compensation history** | **HR → Directory → person** | admins |
+| **Leave** — types, balances, approvals | **HR → Leave** | admins; managers decide their own team's |
+| **Timesheets** — submit and approve hours | **HR → Timesheets** | employees submit, managers/admins approve |
+| **Payroll** — components, tax, pay runs, payslips | **HR → Payroll** | **enterprise admins only** |
 
 ---
+
+## 0. Why payroll is inside HR
+
+Payroll is a tab of HR, not a page of its own. Two reasons:
+
+1. **It isn't a separate thing.** A pay run reads the employment records, the
+   compensation history and the approved timesheets that live on the other tabs.
+   Splitting it out put a wall between a calculation and its own inputs.
+2. **A top-level nav item advertises a page.** Payroll is the most sensitive
+   screen in the product; it has no business appearing in the sidebar of every
+   employee who can't open it.
+
+Access is checked on the **effective** role, so a system admin previewing the
+product as another role loses payroll too — a preview that keeps admin pages
+isn't a preview. The API is independently gated: every `/api/payroll/*` route
+requires an admin role regardless of what the UI shows.
+
+`/payroll` still resolves — it redirects to `/people?tab=payroll`. Bookmarks,
+notification links sent before the move, and older docs keep working; a page that
+moves shouldn't become a 404.
+
+Tabs are addressable (`?tab=payroll`, `?tab=leave`, `?tab=me&section=pay`), which
+is what lets a notification about a payslip or a pay run open the thing it is
+about instead of the module it belongs to.
 
 ## 1. What is stated up front
 

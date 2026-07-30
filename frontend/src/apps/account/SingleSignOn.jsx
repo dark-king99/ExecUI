@@ -16,6 +16,7 @@ import { useToast } from "../../components/ui/Toast";
 import { useUser } from "../../context/UserContext";
 import { sso } from "../../services/api";
 import { entitlementsFor } from "../../lib/plans";
+import { isAdminUser } from "../../lib/access";
 import {
   ShieldCheck, Copy, Check, Lock, KeyRound, Plus, Trash2, RefreshCw,
   AlertCircle, ChevronRight, Users, ExternalLink,
@@ -80,7 +81,7 @@ export default function SingleSignOn() {
   const toast = useToast();
   const navigate = useNavigate();
 
-  const isAdmin = ["enterprise_admin", "system_admin"].includes(user?.role);
+  const isAdmin = isAdminUser(user);
   const ent = entitlementsFor(user?.plan || "executive", user?.planSolutions || []);
 
   const { data, loading, refetch } = useApi(() => sso.config.get(), [], { immediate: isAdmin && ent.sso });

@@ -6,9 +6,10 @@
  * Everything here is scoped to the signed-in person by the server, so there is
  * no id in any request that could be pointed at a colleague.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardBody } from "../../components/ui/Card";
 import { useApi } from "../../hooks/useApi";
+import useRecordParam from "../../hooks/useRecordParam";
 import { useToast } from "../../components/ui/Toast";
 import { hr } from "../../services/api";
 import {
@@ -293,7 +294,13 @@ function MyTime({ toast }) {
 function MyPay({ toast }) {
   const { data: slips } = useApi(() => hr.me.payslips(), [], { cacheKey: "hr:me:payslips" });
   const { data: ytd } = useApi(() => hr.me.ytd(), []);
-  const [openId, setOpenId] = useState(null);
+  // "Your payslip for JUL-2026 is available" opens that payslip.
+  const [openId, setOpenId] = useRecordParam("payslip");
+
+  useEffect(() => {
+    if (!openId || !slips) return;
+    document.getElementById(`slip-${openId}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [openId, slips]);
 
   return (
     <div className="space-y-4">
@@ -322,7 +329,9 @@ function MyPay({ toast }) {
           )}
           <div className="space-y-1.5">
             {(slips ?? []).map((p) => (
-              <div key={p.id} className="rounded-xl border border-slate-200 dark:border-slate-700">
+              <div key={p.id} id={`slip-${p.id}`}
+                className={cls("rounded-xl border dark:border-slate-700",
+                  openId === p.id ? "border-indigo-300 ring-1 ring-indigo-200 dark:border-indigo-500/50 dark:ring-indigo-500/20" : "border-slate-200")}>
                 <div className="flex flex-wrap items-center justify-between gap-2 p-2.5">
                   <button className="min-w-0 flex-1 text-left" onClick={() => setOpenId(openId === p.id ? null : p.id)}>
                     <p className="truncate text-xs font-semibold text-slate-900 dark:text-white">{p.run?.reference}</p>

@@ -48,6 +48,25 @@ const STATIC = [
   { label: "Strategic Planning", path: "/services/strategic", section: "services", keywords: "strategy goals okr roadmap" },
   { label: "Marketing & Sales",  path: "/services/marketing", section: "services", keywords: "marketing sales revenue" },
   { label: "Team & Project",     path: "/services/team",      section: "services", keywords: "team project coordination tasks" },
+
+  // Company-wide pages that live outside the module sidebars. These were
+  // reachable only from the sidebar until now, which made them invisible to
+  // Ctrl+K — the fastest way to move around the product.
+  { label: "Documents",          path: "/documents",  section: null, keywords: "documents files versions templates upload signature esign envelope" },
+  { label: "Signatures",         path: "/documents?tab=signatures", section: null, adminOnly: true, keywords: "signature esign envelope sign parties certificate" },
+  { label: "Contracts",          path: "/contracts",  section: null, adminOnly: true, keywords: "contracts clm register renewal counterparty notice period agreement msa nda" },
+  { label: "HR",                 path: "/people",     section: null, keywords: "hr people directory employees staff onboarding leave timesheet payslip my hr" },
+  { label: "Leave",              path: "/people?tab=leave", section: null, keywords: "leave holiday vacation absence time off balance" },
+  { label: "Timesheets",         path: "/people?tab=time",  section: null, keywords: "timesheet hours time tracking approve" },
+  { label: "Payroll",            path: "/people?tab=payroll", section: null, adminOnly: true, keywords: "payroll pay run payslip salary wages tax bank file components hr" },
+  { label: "Helpdesk",           path: "/helpdesk",   section: "crm", keywords: "helpdesk support tickets queue knowledge base portal customer" },
+  { label: "Approvals",          path: "/approvals",  section: null, keywords: "approvals sign off requests inbox decide" },
+  { label: "Rewards",            path: "/rewards",    section: null, keywords: "rewards points leaderboard perks" },
+  { label: "Global search",      path: "/search",     section: null, keywords: "search everything find records global" },
+  { label: "Compliance",         path: "/account/compliance", section: null, adminOnly: true, keywords: "compliance governance dsar erasure retention legal hold gdpr privacy" },
+  { label: "Workflows",          path: "/account/workflows",  section: null, adminOnly: true, keywords: "workflows automation rules approvals chains" },
+  { label: "Developer",          path: "/account/developer",  section: null, adminOnly: true, keywords: "developer api tokens webhooks openapi" },
+  { label: "Single sign-on",     path: "/account/sso",        section: null, adminOnly: true, keywords: "sso saml oidc scim provisioning identity" },
 ];
 
 export const SEARCH_INDEX = [
@@ -58,13 +77,22 @@ export const SEARCH_INDEX = [
   ...fromConfig(ANA, "analytics", "Analytics"),
 ];
 
-/** Rank index entries against a query, filtered by the user's allowed sections. */
-export function searchApp(query, allowedSections = []) {
+/** Can this person actually open that destination? */
+export const canReach = (entry, allowedSections = [], isAdmin = false) =>
+  (entry.section == null || allowedSections.includes(entry.section)) &&
+  (!entry.adminOnly || isAdmin);
+
+/**
+ * Rank index entries against a query, filtered by what the user can reach.
+ * Offering a page that immediately redirects is worse than not offering it, so
+ * admin-only destinations are hidden rather than listed and then bounced.
+ */
+export function searchApp(query, allowedSections = [], isAdmin = false) {
   const q = (query || "").trim().toLowerCase();
   if (!q) return [];
   const tokens = q.split(/\s+/).filter(Boolean);
   return SEARCH_INDEX
-    .filter((e) => e.section == null || allowedSections.includes(e.section))
+    .filter((e) => canReach(e, allowedSections, isAdmin))
     .map((e) => {
       const label = e.label.toLowerCase();
       const hay = `${label} ${(e.group || "").toLowerCase()} ${e.keywords.toLowerCase()} ${e.path.toLowerCase()}`;

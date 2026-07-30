@@ -417,7 +417,7 @@ export async function decideRequest(user, id, { decision, note } = {}) {
       tenantId: request.tenantId, userId: request.userId, type: "leave",
       title: `Your ${request.leaveType?.name?.toLowerCase() ?? "leave"} was ${decision}`,
       body: note || `${request.startDate.toISOString().slice(0, 10)} → ${request.endDate.toISOString().slice(0, 10)}`,
-      link: "/people", actorName: "People Ops",
+      link: "/people?tab=me&section=leave", actorName: "People Ops",
     });
   } catch { /* the decision stands even if the notification fails */ }
 
@@ -517,7 +517,7 @@ export async function onApprovalOutcome({ tenantId, record, action }) {
         tenantId, userId: request.userId, type: "leave",
         title: `Your ${request.leaveType?.name?.toLowerCase() ?? "leave"} was ${status}`,
         body: `${request.startDate.toISOString().slice(0, 10)} → ${request.endDate.toISOString().slice(0, 10)}`,
-        link: "/people", actorName: "People Ops",
+        link: "/people?tab=me&section=leave", actorName: "People Ops",
       });
     } catch { /* best effort */ }
 
