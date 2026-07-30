@@ -143,6 +143,162 @@ export const CATEGORIES = [
     note: "Anonymized so sign-off history remains auditable.",
   }),
 
+  // ── Helpdesk & customer portal ────────────────────────────────────────────
+  cat("ticket_messages", {
+    label: "Support conversations",
+    model: "ticketMessage",
+    dateField: "createdAt",
+    subject: { by: "email", field: "authorEmail" },
+    onErase: "anonymize",
+    // The conversation survives so the ticket still makes sense, but what the
+    // person wrote — which can be anything — does not.
+    anonymize: { body: REDACTED, authorName: REDACTED, authorEmail: null },
+    exportFields: ["id", "ticketId", "body", "authorType", "authorName", "visibility", "createdAt"],
+    defaultRetentionDays: 1095,
+    pii: true,
+    note: "A customer's own messages are theirs; the thread is kept so the ticket remains explicable.",
+  }),
+
+  cat("portal_sessions", {
+    label: "Support portal sign-ins",
+    model: "portalSession",
+    dateField: "createdAt",
+    subject: { by: "email", field: "email" },
+    onErase: "delete",
+    exportFields: ["id", "email", "lastSeenAt", "createdAt"],
+    defaultRetentionDays: 30,
+    pii: true,
+    note: "Records IP and browser. Expired sessions are purged hourly; nothing here needs keeping.",
+  }),
+
+  cat("portal_links", {
+    label: "Support portal sign-in links",
+    model: "portalMagicLink",
+    dateField: "createdAt",
+    subject: { by: "email", field: "email" },
+    onErase: "delete",
+    exportFields: ["id", "email", "expiresAt", "usedAt", "createdAt"],
+    defaultRetentionDays: 7,
+    pii: true,
+    note: "Single-use credentials. Deleted as soon as they are spent or expire.",
+  }),
+
+  cat("kb_feedback", {
+    label: "Help article feedback",
+    model: "kbFeedback",
+    dateField: "createdAt",
+    subject: { by: "email", field: "email" },
+    onErase: "anonymize",
+    anonymize: { email: null, comment: REDACTED },
+    exportFields: ["id", "articleId", "helpful", "comment", "createdAt"],
+    defaultRetentionDays: 730,
+    pii: false,
+    note: "The helpful/not-helpful vote is kept; the comment and address are not.",
+  }),
+
+  // ── HR / People Ops ───────────────────────────────────────────────────────
+  cat("employment_record", {
+    label: "Employment record",
+    model: "employmentProfile",
+    dateField: "createdAt",
+    subject: { by: "userId" },
+    onErase: "anonymize",
+    // The row survives because payslips and leave reference it, but everything
+    // personal goes — including the encrypted government ids and bank details,
+    // whose ciphertext is destroyed rather than merely hidden.
+    anonymize: {
+      dateOfBirth: null,
+      emergencyName: null, emergencyPhone: null, emergencyRelation: null,
+      taxIdCipher: null, taxIdIv: null, taxIdTag: null, taxIdLast4: null,
+      nationalIdCipher: null, nationalIdIv: null, nationalIdTag: null, nationalIdLast4: null,
+      bankName: null, bankAccountCipher: null, bankAccountIv: null, bankAccountTag: null, bankAccountLast4: null,
+      notes: REDACTED,
+      status: "terminated",
+    },
+    // Note what is NOT exportable: the ciphertext columns. A data subject gets
+    // the *value* of their own bank details on request through HR, not the raw
+    // encrypted blob and certainly not its key material.
+    exportFields: [
+      "id", "userId", "employmentType", "status", "hireDate", "probationEndAt",
+      "endDate", "terminationReason", "workLocation", "managerId", "costCenter",
+      "weeklyHours", "dateOfBirth", "emergencyName", "emergencyPhone",
+      "emergencyRelation", "bankName", "bankAccountLast4", "createdAt",
+    ],
+    defaultRetentionDays: null,
+    pii: true,
+    note: "Anonymized rather than deleted so payroll history stays valid. Encrypted ids and bank details are destroyed.",
+  }),
+
+  cat("compensation", {
+    label: "Compensation history",
+    model: "compensation",
+    dateField: "effectiveFrom",
+    subject: { by: "userId" },
+    onErase: "anonymize",
+    anonymize: { note: REDACTED, reason: REDACTED },
+    exportFields: ["id", "effectiveFrom", "payType", "baseAmount", "currency", "payFrequency", "reason", "createdAt"],
+    defaultRetentionDays: null,
+    pii: true,
+    note: "Kept: pay history is what a payslip is explained by, and is usually a statutory record.",
+  }),
+
+  cat("payslips", {
+    label: "Payslips",
+    model: "payslip",
+    dateField: "createdAt",
+    subject: { by: "userId" },
+    onErase: "anonymize",
+    anonymize: { note: REDACTED },
+    exportFields: [
+      "id", "payRunId", "currency", "gross", "taxableGross", "tax", "deductions",
+      "net", "employerCost", "hours", "daysWorked", "unpaidLeaveDays", "lines", "createdAt",
+    ],
+    defaultRetentionDays: null,
+    pii: true,
+    note: "Payroll records are statutorily retained (commonly 3–7 years) — never purge these without checking local law.",
+  }),
+
+  cat("leave_records", {
+    label: "Leave records",
+    model: "leaveRequest",
+    dateField: "startDate",
+    subject: { by: "userId" },
+    onErase: "anonymize",
+    // The reason for sick or compassionate leave is health data; it goes, while
+    // the fact of the absence stays so payroll and entitlements reconcile.
+    anonymize: { reason: REDACTED, decisionNote: REDACTED },
+    exportFields: ["id", "leaveTypeId", "startDate", "endDate", "days", "halfDay", "reason", "status", "createdAt"],
+    defaultRetentionDays: 1825,
+    pii: true,
+    note: "Reasons can be health data, so they are redacted on erasure even though the absence itself is kept.",
+  }),
+
+  cat("timesheets", {
+    label: "Timesheets",
+    model: "timeEntry",
+    dateField: "date",
+    subject: { by: "userId" },
+    onErase: "anonymize",
+    anonymize: { note: REDACTED, project: REDACTED },
+    exportFields: ["id", "date", "hours", "overtimeHours", "project", "status", "createdAt"],
+    defaultRetentionDays: 1825,
+    pii: false,
+    note: "Hours underpin pay, so they are kept as evidence of what was paid for.",
+  }),
+
+  cat("employment_events", {
+    label: "Employment timeline",
+    model: "employmentEvent",
+    dateField: "createdAt",
+    subject: { by: "userId" },
+    onErase: "anonymize",
+    anonymize: { detail: REDACTED, fromValue: null, toValue: null, actorName: REDACTED },
+    exportFields: ["id", "type", "detail", "effectiveAt", "createdAt"],
+    defaultRetentionDays: null,
+    pii: true,
+    note: "Anonymized so the employment audit trail survives without its contents.",
+  }),
+
   cat("signature_parties", {
     label: "E-signature parties",
     model: "signer",

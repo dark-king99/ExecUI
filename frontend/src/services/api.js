@@ -60,6 +60,11 @@ function friendlyError(status) {
   return `Request failed (${status}).`;
 }
 
+// Endpoints used by people who have no ExecUI account: the customer support
+// portal and the e-signature portal. Their auth is a visitor token in the URL or
+// header, entirely separate from the employee session.
+const VISITOR_PATHS = /^\/(portal|sign)\//;
+
 // ── Core request ──────────────────────────────────────────────────────────
 async function request(path, options = {}) {
   const token = getToken();
@@ -85,8 +90,12 @@ async function request(path, options = {}) {
   const { json, isJson } = await readBody(response);
 
   if (!response.ok) {
-    // Auto-logout on invalid/expired token
-    if (response.status === 401) {
+    // Auto-logout on invalid/expired token — but NOT for the visitor-facing
+    // portals. A 401 from /portal or /sign means "this customer isn't signed
+    // in", which is a normal state there and says nothing about the employee
+    // session; treating it as an expiry would log a staff member out of ExecUI
+    // just for opening the support portal.
+    if (response.status === 401 && !VISITOR_PATHS.test(path)) {
       clearToken();
       localStorage.removeItem('user');
       window.dispatchEvent(new CustomEvent('auth:expired'));
@@ -122,6 +131,28 @@ const post   = (path, body)   => request(path, { method: 'POST',   body: JSON.st
 const put    = (path, body)   => request(path, { method: 'PUT',    body: JSON.stringify(body) });
 const patch  = (path, body)   => request(path, { method: 'PATCH',  body: JSON.stringify(body) });
 const del    = (path)         => request(path, { method: 'DELETE' });
+
+/**
+ * Stream a file response straight into a browser download.
+ * Binary bodies (PDF, CSV, XLSX) can't go through the JSON request helper, so
+ * this is the one place that handles them — with the auth header attached and
+ * the server's own filename honoured when it sends one.
+ */
+async function downloadFile(path, fallbackName) {
+  const token = getToken();
+  const res = await fetch(`${BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.message || friendlyError(res.status));
+  const blob = await res.blob();
+  const filename = /filename="?([^"]+)"?/.exec(res.headers.get('Content-Disposition') || '')?.[1] || fallbackName;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  return { filename, size: blob.size };
+}
 
 // ── Auth ──────────────────────────────────────────────────────────────────
 export const auth = {
@@ -839,6 +870,169 @@ export const signing = {
   view:    (token)         => get(`/sign/${encodeURIComponent(token)}`),
   sign:    (token, body)   => post(`/sign/${encodeURIComponent(token)}/sign`, body),
   decline: (token, reason) => post(`/sign/${encodeURIComponent(token)}/decline`, { reason }),
+};
+
+// ── Global search ─────────────────────────────────────────────────────────
+export const search = {
+  catalog: ()               => get('/search/catalog'),
+  query:   (q, params)      => get('/search', { q, ...(params || {}) }),
+  suggest: (q, limit)       => get('/search/suggest', { q, limit }),
+};
+
+// ── Helpdesk & knowledge base (staff side) ────────────────────────────────
+export const helpdesk = {
+  stats: () => get('/helpdesk/stats'),
+  tickets: {
+    list:    (params)     => get('/helpdesk/tickets', params),
+    get:     (id)         => get(`/helpdesk/tickets/${id}`),
+    create:  (data)       => post('/helpdesk/tickets', data),
+    update:  (id, data)   => put(`/helpdesk/tickets/${id}`, data),
+    reply:   (id, data)   => post(`/helpdesk/tickets/${id}/messages`, data),
+  },
+  suggestArticles: (text) => post('/helpdesk/suggest-articles', { text }),
+  kb: {
+    stats:          ()          => get('/helpdesk/kb/stats'),
+    categories:     (all)       => get('/helpdesk/kb/categories', all ? { all: 'true' } : undefined),
+    createCategory: (data)      => post('/helpdesk/kb/categories', data),
+    updateCategory: (id, data)  => put(`/helpdesk/kb/categories/${id}`, data),
+    deleteCategory: (id)        => del(`/helpdesk/kb/categories/${id}`),
+    articles:       (params)    => get('/helpdesk/kb/articles', params),
+    article:        (id)        => get(`/helpdesk/kb/articles/${id}`),
+    create:         (data)      => post('/helpdesk/kb/articles', data),
+    update:         (id, data)  => put(`/helpdesk/kb/articles/${id}`, data),
+    remove:         (id)        => del(`/helpdesk/kb/articles/${id}`),
+  },
+  portal: {
+    info:      ()      => get('/helpdesk/portal'),
+    issueLink: (email) => post('/helpdesk/portal/link', { email }),
+  },
+};
+
+// ── Customer support portal (public — no employee session) ────────────────
+// The organization slug comes from the URL, and the customer's own session
+// token is passed explicitly: it belongs to a visitor, not to an ExecUI user,
+// so it deliberately never touches the shared auth_token storage.
+export const portal = {
+  landing:     (slug)               => request(`/portal/${encodeURIComponent(slug)}`),
+  help:        (slug)               => request(`/portal/${encodeURIComponent(slug)}/help`),
+  helpSearch:  (slug, q)            => request(`/portal/${encodeURIComponent(slug)}/help/search?q=${encodeURIComponent(q)}`),
+  article:     (slug, key)          => request(`/portal/${encodeURIComponent(slug)}/help/${encodeURIComponent(key)}`),
+  suggest:     (slug, text)         => request(`/portal/${encodeURIComponent(slug)}/help/suggest`, { method: 'POST', body: JSON.stringify({ text }) }),
+  feedback:    (slug, id, body)     => request(`/portal/${encodeURIComponent(slug)}/help/${encodeURIComponent(id)}/feedback`, { method: 'POST', body: JSON.stringify(body) }),
+
+  requestLink: (slug, email)        => request(`/portal/${encodeURIComponent(slug)}/auth/request`, { method: 'POST', body: JSON.stringify({ email }) }),
+  verifyLink:  (slug, token)        => request(`/portal/${encodeURIComponent(slug)}/auth/verify`, { method: 'POST', body: JSON.stringify({ token }) }),
+
+  me:          (slug, session)      => request(`/portal/${encodeURIComponent(slug)}/auth/me`, { headers: { Authorization: `Bearer ${session}` } }),
+  signOut:     (slug, session)      => request(`/portal/${encodeURIComponent(slug)}/auth/signout`, { method: 'POST', headers: { Authorization: `Bearer ${session}` } }),
+  tickets:     (slug, session)      => request(`/portal/${encodeURIComponent(slug)}/tickets`, { headers: { Authorization: `Bearer ${session}` } }),
+  ticket:      (slug, session, id)  => request(`/portal/${encodeURIComponent(slug)}/tickets/${id}`, { headers: { Authorization: `Bearer ${session}` } }),
+  submit:      (slug, session, body) => request(`/portal/${encodeURIComponent(slug)}/tickets`, { method: 'POST', headers: { Authorization: `Bearer ${session}` }, body: JSON.stringify(body) }),
+  reply:       (slug, session, id, body) => request(`/portal/${encodeURIComponent(slug)}/tickets/${id}/reply`, { method: 'POST', headers: { Authorization: `Bearer ${session}` }, body: JSON.stringify(body) }),
+  rate:        (slug, session, id, body) => request(`/portal/${encodeURIComponent(slug)}/tickets/${id}/rate`, { method: 'POST', headers: { Authorization: `Bearer ${session}` }, body: JSON.stringify(body) }),
+};
+
+// ── HR / People Ops ───────────────────────────────────────────────────────
+// `me.*` is self-service and always about the signed-in person — the user id
+// comes from the token, never from the request.
+export const hr = {
+  catalog: () => get('/hr/catalog'),
+  stats:   () => get('/hr/stats'),
+  orgChart: () => get('/hr/org-chart'),
+
+  me: {
+    get:        ()      => get('/hr/me'),
+    update:     (data)  => put('/hr/me', data),
+    leave:      (year)  => get('/hr/me/leave', { year }),
+    requestLeave: (data) => post('/hr/me/leave', data),
+    cancelLeave: (id)   => post(`/hr/me/leave/${id}/cancel`),
+    time:       (params) => get('/hr/me/time', params),
+    logTime:    (data)  => post('/hr/me/time', data),
+    updateTime: (id, data) => put(`/hr/me/time/${id}`, data),
+    deleteTime: (id)    => del(`/hr/me/time/${id}`),
+    submitTime: (data)  => post('/hr/me/time/submit', data),
+    payslips:   ()      => get('/hr/me/payslips'),
+    ytd:        (year)  => get('/hr/me/payslips/ytd', { year }),
+    payslip:    (id)    => get(`/hr/me/payslips/${id}`),
+    payslipPdf: (id)    => downloadFile(`/hr/me/payslips/${id}/pdf`, `payslip-${id.slice(0, 8)}.pdf`),
+  },
+
+  people: {
+    list:   (params)      => get('/hr/people', params),
+    get:    (userId)      => get(`/hr/people/${userId}`),
+    save:   (userId, data) => put(`/hr/people/${userId}`, data),
+    note:   (userId, note) => post(`/hr/people/${userId}/note`, { note }),
+    reveal: (userId, field) => post(`/hr/people/${userId}/reveal`, { field }),
+    compensation: {
+      list:   (userId)      => get(`/hr/people/${userId}/compensation`),
+      add:    (userId, data) => post(`/hr/people/${userId}/compensation`, data),
+      update: (id, data)    => put(`/hr/compensation/${id}`, data),
+      remove: (id)          => del(`/hr/compensation/${id}`),
+    },
+    components: (userId) => get(`/hr/people/${userId}/components`),
+  },
+
+  leave: {
+    types:      (all)   => get('/hr/leave/types', all ? { all: 'true' } : undefined),
+    createType: (data)  => post('/hr/leave/types', data),
+    updateType: (id, data) => put(`/hr/leave/types/${id}`, data),
+    deleteType: (id)    => del(`/hr/leave/types/${id}`),
+    seedTypes:  ()      => post('/hr/leave/types/seed'),
+    requests:   (params) => get('/hr/leave/requests', params),
+    book:       (data)  => post('/hr/leave/requests', data),
+    decide:     (id, data) => post(`/hr/leave/requests/${id}/decide`, data),
+    balances:   (params) => get('/hr/leave/balances', params),
+    adjust:     (data)  => post('/hr/leave/balances', data),
+    rollover:   (data)  => post('/hr/leave/rollover', data || {}),
+    calendar:   (params) => get('/hr/leave/calendar', params),
+    team:       (params) => get('/hr/team/leave', params),
+  },
+
+  time: {
+    list:    (params) => get('/hr/time', params),
+    team:    (params) => get('/hr/team/time', params),
+    log:     (data)   => post('/hr/time', data),
+    decide:  (data)   => post('/hr/time/decide', data),
+    reopen:  (id)     => post(`/hr/time/${id}/reopen`),
+  },
+};
+
+export const payroll = {
+  stats: () => get('/payroll/stats'),
+
+  components: {
+    list:     (all)      => get('/payroll/components', all ? { all: 'true' } : undefined),
+    create:   (data)     => post('/payroll/components', data),
+    update:   (id, data) => put(`/payroll/components/${id}`, data),
+    remove:   (id)       => del(`/payroll/components/${id}`),
+    assign:   (data)     => post('/payroll/components/assign', data),
+    unassign: (id)       => del(`/payroll/components/assign/${id}`),
+  },
+
+  taxTables: {
+    list:    ()       => get('/payroll/tax-tables'),
+    save:    (data)   => put('/payroll/tax-tables', data),
+    remove:  (id)     => del(`/payroll/tax-tables/${id}`),
+    preview: (id, annualIncome) => post(`/payroll/tax-tables/${id}/preview`, { annualIncome }),
+  },
+
+  runs: {
+    list:      (params)   => get('/payroll/runs', params),
+    get:       (id)       => get(`/payroll/runs/${id}`),
+    create:    (data)     => post('/payroll/runs', data),
+    update:    (id, data) => put(`/payroll/runs/${id}`, data),
+    remove:    (id)       => del(`/payroll/runs/${id}`),
+    calculate: (id)       => post(`/payroll/runs/${id}/calculate`),
+    approval:  (id, data) => post(`/payroll/runs/${id}/approval`, data || {}),
+    setStatus: (id, status, extra) => post(`/payroll/runs/${id}/status`, { status, ...(extra || {}) }),
+    bankFile:  (id)       => get(`/payroll/runs/${id}/bank-file`),
+    downloadBankFile: (id) => downloadFile(`/payroll/runs/${id}/bank-file?download=true`, `payment-file-${id.slice(0, 8)}.csv`),
+  },
+
+  payslips: {
+    get: (id)    => get(`/payroll/payslips/${id}`),
+    pdf: (id)    => downloadFile(`/payroll/payslips/${id}/pdf`, `payslip-${id.slice(0, 8)}.pdf`),
+  },
 };
 
 // ── Attachments (generic, cross-module files) ─────────────────────────────

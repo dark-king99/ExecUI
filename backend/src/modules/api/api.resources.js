@@ -23,6 +23,8 @@ export const SCOPES = [
   "reports:read",
   "contracts:read", "contracts:write",
   "documents:read",
+  "hr:read",
+  "helpdesk:read", "helpdesk:write",
   "webhooks:manage",
 ];
 
@@ -40,6 +42,9 @@ export const SCOPE_LABELS = {
   "contracts:read": "Read the contract register",
   "contracts:write": "Create & update contracts",
   "documents:read": "Read document metadata (never file contents)",
+  "hr:read": "Read payroll totals, employment records and leave (never bank details or government ids)",
+  "helpdesk:read": "Read help articles and ticket conversations",
+  "helpdesk:write": "Create support tickets on a customer's behalf",
   "webhooks:manage": "Manage webhook endpoints",
 };
 
@@ -283,6 +288,123 @@ export const RESOURCES = {
     },
     filterable: ["category", "status", "confidential", "ownerId"],
     defaultSort: { field: "updatedAt", dir: "desc" },
+  },
+
+  // ── Helpdesk ──────────────────────────────────────────────────────────────
+  // Tickets are writable so another system (a status page, a monitoring tool, an
+  // email gateway) can raise support requests. `status` and the outcome
+  // timestamps are read-only: a ticket's lifecycle moves through the helpdesk,
+  // where replying to the customer and recording a first response are the same
+  // act. Internal notes are not reachable here at all.
+  "support-tickets": {
+    id: "support-tickets", name: "SupportTicket", model: "crmTicket", module: "helpdesk", scope: "helpdesk",
+    fields: {
+      id: ro("string"),
+      ticket_number: ro("string"),
+      subject: f("string", { writable: true, required: true, max: 200 }),
+      description: f("string", { writable: true, max: 20000 }),
+      customer_name: f("string", { writable: true, max: 200 }),
+      contactEmail: f("string", { writable: true, max: 200, format: "email" }),
+      category: f("string", { writable: true, max: 80 }),
+      priority: f("string", { writable: true, enum: ["low", "medium", "high", "urgent"] }),
+      status: ro("string"),
+      source: ro("string"),
+      assigneeName: ro("string"),
+      satisfaction: ro("number"),
+      firstResponseAt: ro("date"),
+      resolvedAt: ro("date"),
+      createdAt: ro("date"),
+      updatedAt: ro("date"),
+    },
+    filterable: ["status", "priority", "category", "source", "contactEmail"],
+    defaultSort: { field: "createdAt", dir: "desc" },
+  },
+
+  "help-articles": {
+    id: "help-articles", name: "HelpArticle", model: "kbArticle", module: "helpdesk", scope: "helpdesk",
+    readOnly: true,
+    fields: {
+      id: ro("string"),
+      title: ro("string"),
+      slug: ro("string"),
+      excerpt: ro("string"),
+      body: ro("string"),
+      status: ro("string"),
+      visibility: ro("string"),
+      views: ro("number"),
+      helpfulYes: ro("number"),
+      helpfulNo: ro("number"),
+      publishedAt: ro("date"),
+      updatedAt: ro("date"),
+    },
+    filterable: ["status", "visibility"],
+    defaultSort: { field: "updatedAt", dir: "desc" },
+  },
+
+  // ── HR (read-only, and deliberately incomplete) ────────────────────────────
+  // These exist so an accounting or BI system can pull payroll totals and
+  // absence. Bank details, government ids, dates of birth and emergency contacts
+  // are NOT in the registry at all, so no token scope can ever reach them — the
+  // only way to see those is a deliberate, audited reveal in the HR console.
+  payslips: {
+    id: "payslips", name: "Payslip", model: "payslip", module: "hr", scope: "hr",
+    readOnly: true,
+    fields: {
+      id: ro("string"),
+      userId: ro("string"),
+      payRunId: ro("string"),
+      currency: ro("string"),
+      gross: ro("number"),
+      taxableGross: ro("number"),
+      tax: ro("number"),
+      deductions: ro("number"),
+      net: ro("number"),
+      employerCost: ro("number"),
+      hours: ro("number"),
+      prorated: ro("boolean"),
+      createdAt: ro("date"),
+    },
+    filterable: ["userId", "payRunId", "currency"],
+    defaultSort: { field: "createdAt", dir: "desc" },
+  },
+
+  "leave-requests": {
+    id: "leave-requests", name: "LeaveRequest", model: "leaveRequest", module: "hr", scope: "hr",
+    readOnly: true,
+    fields: {
+      id: ro("string"),
+      userId: ro("string"),
+      leaveTypeId: ro("string"),
+      startDate: ro("date"),
+      endDate: ro("date"),
+      days: ro("number"),
+      halfDay: ro("boolean"),
+      status: ro("string"),
+      createdAt: ro("date"),
+    },
+    filterable: ["userId", "status", "leaveTypeId"],
+    defaultSort: { field: "startDate", dir: "desc" },
+  },
+
+  employment: {
+    id: "employment", name: "Employment", model: "employmentProfile", module: "hr", scope: "hr",
+    readOnly: true,
+    fields: {
+      id: ro("string"),
+      userId: ro("string"),
+      employmentType: ro("string"),
+      status: ro("string"),
+      hireDate: ro("date"),
+      endDate: ro("date"),
+      workLocation: ro("string"),
+      managerId: ro("string"),
+      costCenter: ro("string"),
+      weeklyHours: ro("number"),
+      createdAt: ro("date"),
+      updatedAt: ro("date"),
+    },
+    filterable: ["status", "employmentType", "managerId", "costCenter"],
+    defaultSort: { field: "createdAt", dir: "desc" },
   },
 
   // ── People (read-only: staff PII is never writable over the public API) ────

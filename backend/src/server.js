@@ -8,6 +8,8 @@ import { startWebhookWorker, stopWebhookWorker } from "./modules/webhooks/webhoo
 import { startWorkflowEngine, stopWorkflowEngine } from "./modules/workflows/workflows.engine.js";
 import { startRetentionScheduler, stopRetentionScheduler } from "./modules/governance/governance.scheduler.js";
 import { startClmScheduler, stopClmScheduler } from "./modules/documents/contracts.scheduler.js";
+import { startHrScheduler, stopHrScheduler } from "./modules/hr/hr.scheduler.js";
+import { startHelpdeskScheduler, stopHelpdeskScheduler } from "./modules/helpdesk/helpdesk.scheduler.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -85,6 +87,12 @@ startRetentionScheduler();
 // Contract renewal reminders + signature-envelope expiry, daily.
 startClmScheduler();
 
+// Leave-year rollover, plus the leave/payroll approval hooks.
+startHrScheduler();
+
+// Expire portal sign-in links and dead customer sessions.
+startHelpdeskScheduler();
+
 // Flush buffered analytics on graceful shutdown so nothing is lost.
 for (const sig of ["SIGTERM", "SIGINT"]) {
   process.on(sig, async () => {
@@ -93,6 +101,8 @@ for (const sig of ["SIGTERM", "SIGINT"]) {
     stopWorkflowEngine();
     stopRetentionScheduler();
     stopClmScheduler();
+    stopHrScheduler();
+    stopHelpdeskScheduler();
     await shutdownAnalytics();
     process.exit(0);
   });

@@ -91,6 +91,11 @@ export const DATASETS = {
       priority:      f("Priority", "string", { groupable: true }),
       status:        f("Status", "string", { groupable: true }),
       sla_status:    f("SLA", "string", { groupable: true }),
+      source:        f("Source", "string", { groupable: true }),
+      assigneeName:  f("Assignee", "string", { groupable: true }),
+      satisfaction:  f("Rating (1-5)", "number", { aggregatable: true }),
+      firstResponseAt: f("First reply", "date"),
+      resolvedAt:    f("Resolved", "date", { groupable: true }),
       createdAt:     f("Created", "date", { groupable: true }),
     },
     defaultFields: ["ticket_number", "subject", "priority", "status", "sla_status"],
@@ -228,6 +233,69 @@ export const DATASETS = {
     },
     defaultFields: ["title", "severity", "status", "createdAt"],
     defaultSort: { field: "createdAt", dir: "desc" },
+  },
+
+  // ── Knowledge base ────────────────────────────────────────────────────────
+  // Tickets are already reportable above; this answers the help-centre question:
+  // which articles are read, and which ones aren't working.
+  kb_articles: {
+    id: "kb_articles", name: "Help articles", module: "crm", model: "kbArticle",
+    description: "Knowledge base — reads, helpfulness and publication state.",
+    dateField: "updatedAt",
+    fields: {
+      title:       f("Title", "string"),
+      status:      f("Status", "string", { groupable: true }),
+      visibility:  f("Visibility", "string", { groupable: true }),
+      views:       f("Views", "number", { aggregatable: true }),
+      helpfulYes:  f("Helpful", "number", { aggregatable: true }),
+      helpfulNo:   f("Not helpful", "number", { aggregatable: true }),
+      authorName:  f("Author", "string", { groupable: true }),
+      publishedAt: f("Published", "date", { groupable: true }),
+      updatedAt:   f("Updated", "date", { groupable: true }),
+    },
+    defaultFields: ["title", "status", "views", "helpfulYes", "helpfulNo"],
+    defaultSort: { field: "views", dir: "desc" },
+  },
+
+  // ── Payroll & people (admin only — the most sensitive data here) ───────────
+  // Payslips are reportable because "what did payroll cost by month/department"
+  // is a question finance has to be able to answer without a database client.
+  payslips: {
+    id: "payslips", name: "Payslips", module: null, adminOnly: true, model: "payslip",
+    description: "Payroll history — gross, tax, deductions and net per person, per run.",
+    dateField: "createdAt",
+    fields: {
+      gross:        f("Gross pay", "number", { aggregatable: true, money: true }),
+      taxableGross: f("Taxable pay", "number", { aggregatable: true, money: true }),
+      tax:          f("Tax", "number", { aggregatable: true, money: true }),
+      deductions:   f("Deductions", "number", { aggregatable: true, money: true }),
+      net:          f("Net pay", "number", { aggregatable: true, money: true }),
+      employerCost: f("Total employer cost", "number", { aggregatable: true, money: true }),
+      currency:     f("Currency", "string", { groupable: true }),
+      hours:        f("Hours paid", "number", { aggregatable: true }),
+      unpaidLeaveDays: f("Unpaid leave days", "number", { aggregatable: true }),
+      prorated:     f("Prorated", "boolean", { groupable: true }),
+      createdAt:    f("Created", "date", { groupable: true }),
+    },
+    defaultFields: ["gross", "tax", "deductions", "net", "currency"],
+    defaultSort: { field: "createdAt", dir: "desc" },
+  },
+
+  leave_requests: {
+    id: "leave_requests", name: "Leave", module: null, adminOnly: true, model: "leaveRequest",
+    description: "Absence — who booked what, when, and whether it was approved.",
+    dateField: "startDate",
+    fields: {
+      startDate: f("Starts", "date", { groupable: true }),
+      endDate:   f("Ends", "date", { groupable: true }),
+      days:      f("Days", "number", { aggregatable: true }),
+      status:    f("Status", "string", { groupable: true }),
+      halfDay:   f("Half day", "boolean", { groupable: true }),
+      reason:    f("Reason", "string"),
+      createdAt: f("Requested", "date", { groupable: true }),
+    },
+    defaultFields: ["startDate", "endDate", "days", "status"],
+    defaultSort: { field: "startDate", dir: "desc" },
   },
 
   // ── Contracts (admin only — commercial terms) ─────────────────────────────

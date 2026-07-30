@@ -110,7 +110,15 @@ test("every subject-linked category can be exported and erased", () => {
 });
 
 test("export field lists never include secrets", () => {
-  const forbidden = ["passwordHash", "mfaSecret", "tokenHash", "secret", "tokenCipher", "tenantId"];
+  const forbidden = [
+    "passwordHash", "mfaSecret", "tokenHash", "secret", "tokenCipher", "tenantId",
+    // Encrypted HR identifiers: a data subject is entitled to the *value* of
+    // their bank details, which HR can give them — never the ciphertext, and
+    // never the iv/tag that go with it.
+    "taxIdCipher", "taxIdIv", "taxIdTag",
+    "nationalIdCipher", "nationalIdIv", "nationalIdTag",
+    "bankAccountCipher", "bankAccountIv", "bankAccountTag",
+  ];
   for (const c of CATEGORIES) {
     for (const f of c.exportFields || []) {
       assert.ok(!forbidden.includes(f), `${c.id}.${f} must never be exported to a data subject`);
