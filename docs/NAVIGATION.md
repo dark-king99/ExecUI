@@ -101,6 +101,20 @@ lives at **`/account/my-hr`**, beside their profile, where it is theirs rather
 than something they administer. Hiding the console must never take away somebody's
 own payslip.
 
+**Business Services is an administrator's module.** Financial management,
+strategic planning and company-wide operations administer the organization; they
+aren't a job function, so no department grants them — only an admin role does,
+and `requireModule("services")` refuses everybody else at the API.
+
+This is also where the department matrix was inverted. `general` — the row every
+employee lands on whose department is blank or unrecognized, which is every newly
+invited person until somebody sets one — granted **Business Services and nothing
+else**. A new hire opened the product to the company's books and no CRM,
+Marketing or Network at all. `general` now grants the operational modules, and
+the plan narrows from there. No department may grant an admin-only section, and
+every department leaves an employee with something to open — both are asserted in
+`backend/test/visibility.test.mjs`.
+
 **Plans hide solutions, not just modules.** A Premium tenant gets three of the
 five Business Services; the other two are not in the sidebar, not routable, and
 not in the command palette. Analytics is sliced the same way — no Network Ops, no
