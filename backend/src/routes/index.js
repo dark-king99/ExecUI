@@ -27,6 +27,8 @@ import governanceRoutes from "../modules/governance/governance.routes.js";
 import documentRoutes, { contractRouter } from "../modules/documents/documents.routes.js";
 import signRoutes      from "../modules/documents/sign.routes.js";
 import hrRoutes, { payrollRouter } from "../modules/hr/hr.routes.js";
+import searchRoutes   from "../modules/search/search.routes.js";
+import helpdeskRoutes from "../modules/helpdesk/helpdesk.routes.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { requireModule } from "../middleware/access.middleware.js";
 import { rewardTracking } from "../middleware/rewardTracking.middleware.js";
@@ -79,5 +81,7 @@ router.use("/documents",  documentRoutes);
 router.use("/contracts",  contractRouter);
 router.use("/hr",         hrRoutes);
 router.use("/payroll",    payrollRouter);
+router.use("/search",     searchRoutes);
+router.use("/helpdesk",   helpdeskRoutes);
 
 export default router;

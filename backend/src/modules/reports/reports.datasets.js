@@ -91,6 +91,11 @@ export const DATASETS = {
       priority:      f("Priority", "string", { groupable: true }),
       status:        f("Status", "string", { groupable: true }),
       sla_status:    f("SLA", "string", { groupable: true }),
+      source:        f("Source", "string", { groupable: true }),
+      assigneeName:  f("Assignee", "string", { groupable: true }),
+      satisfaction:  f("Rating (1-5)", "number", { aggregatable: true }),
+      firstResponseAt: f("First reply", "date"),
+      resolvedAt:    f("Resolved", "date", { groupable: true }),
       createdAt:     f("Created", "date", { groupable: true }),
     },
     defaultFields: ["ticket_number", "subject", "priority", "status", "sla_status"],
@@ -228,6 +233,28 @@ export const DATASETS = {
     },
     defaultFields: ["title", "severity", "status", "createdAt"],
     defaultSort: { field: "createdAt", dir: "desc" },
+  },
+
+  // ── Knowledge base ────────────────────────────────────────────────────────
+  // Tickets are already reportable above; this answers the help-centre question:
+  // which articles are read, and which ones aren't working.
+  kb_articles: {
+    id: "kb_articles", name: "Help articles", module: "crm", model: "kbArticle",
+    description: "Knowledge base — reads, helpfulness and publication state.",
+    dateField: "updatedAt",
+    fields: {
+      title:       f("Title", "string"),
+      status:      f("Status", "string", { groupable: true }),
+      visibility:  f("Visibility", "string", { groupable: true }),
+      views:       f("Views", "number", { aggregatable: true }),
+      helpfulYes:  f("Helpful", "number", { aggregatable: true }),
+      helpfulNo:   f("Not helpful", "number", { aggregatable: true }),
+      authorName:  f("Author", "string", { groupable: true }),
+      publishedAt: f("Published", "date", { groupable: true }),
+      updatedAt:   f("Updated", "date", { groupable: true }),
+    },
+    defaultFields: ["title", "status", "views", "helpfulYes", "helpfulNo"],
+    defaultSort: { field: "views", dir: "desc" },
   },
 
   // ── Payroll & people (admin only — the most sensitive data here) ───────────

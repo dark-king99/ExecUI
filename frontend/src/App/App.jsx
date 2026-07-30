@@ -63,6 +63,11 @@ const Workflows           = lazy(() => import("../apps/account/Workflows"));
 const Compliance          = lazy(() => import("../apps/account/Compliance"));
 const Approvals           = lazy(() => import("../apps/approvals/Approvals"));
 
+// Global search + helpdesk / customer portal
+const SearchResults       = lazy(() => import("../apps/search/SearchResults"));
+const Helpdesk            = lazy(() => import("../apps/helpdesk/Helpdesk"));
+const Portal              = lazy(() => import("../apps/helpdesk/Portal"));
+
 // HR / People Ops + payroll
 const People              = lazy(() => import("../apps/hr/People"));
 const Payroll             = lazy(() => import("../apps/hr/Payroll"));
@@ -174,6 +179,12 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 {/* Documents — company-wide; the contract register is admin-only. */}
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/contracts" element={isAdmin ? <Contracts /> : <Navigate to="/documents" replace />} />
+
+                {/* Global search — every module the signed-in user can see. */}
+                <Route path="/search" element={<SearchResults />} />
+
+                {/* Helpdesk — support queue + knowledge base (CRM-gated). */}
+                <Route path="/helpdesk" element={guard("crm", <Helpdesk />)} />
 
                 {/* People — the console for admins, self-service HR for everyone
                     else (the page decides); payroll is admin-only. */}
@@ -313,6 +324,20 @@ export default function App() {
   // because the whole point is that there is no session yet.
   if (typeof window !== "undefined" && window.location.pathname === "/sso/callback") {
     return <SsoCallback onLogin={setUser} />;
+  }
+
+  // The customer support portal is for customers, not employees: it renders
+  // before the login gate, outside the app shell, addressed by the organization's
+  // slug so one deployment can serve every tenant's portal.
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/portal/")) {
+    const portalSlug = decodeURIComponent(window.location.pathname.slice("/portal/".length).split("/")[0]);
+    if (portalSlug) {
+      return (
+        <PageSuspense>
+          <Portal slug={portalSlug} />
+        </PageSuspense>
+      );
+    }
   }
 
   // The signing portal is for counterparties who have no account here, so it

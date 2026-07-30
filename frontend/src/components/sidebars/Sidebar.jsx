@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   Server, Home, Users, TrendingUp, BarChart3, UserLock, Building2,
   ChevronLeft, ChevronRight, Settings, Layers, Activity, LayoutDashboard, Trophy, CheckCircle2,
-  FileText, FileSignature, UserCog, Wallet
+  FileText, FileSignature, UserCog, Wallet, LifeBuoy
 } from "lucide-react";
 import { accessFor } from "../../lib/access";
 import { useUser } from "../../context/UserContext";
@@ -12,6 +12,7 @@ import AnimatedLogo from "../AnimatedLogo";
 // Department-gated module nav (filtered by the signed-in employee's access).
 const MODULES = [
   { section: "crm",       label: "CRM",       path: "/crm",       icon: Users },
+  { section: "crm",       label: "Helpdesk",  path: "/helpdesk",  icon: LifeBuoy },
   { section: "marketing", label: "Marketing", path: "/marketing", icon: TrendingUp },
   { section: "network",   label: "Network",   path: "/network",   icon: Server },
   { section: "analytics", label: "Analytics", path: "/analytics", icon: BarChart3 },

@@ -60,6 +60,11 @@ function friendlyError(status) {
   return `Request failed (${status}).`;
 }
 
+// Endpoints used by people who have no ExecUI account: the customer support
+// portal and the e-signature portal. Their auth is a visitor token in the URL or
+// header, entirely separate from the employee session.
+const VISITOR_PATHS = /^\/(portal|sign)\//;
+
 // ── Core request ──────────────────────────────────────────────────────────
 async function request(path, options = {}) {
   const token = getToken();
@@ -85,8 +90,12 @@ async function request(path, options = {}) {
   const { json, isJson } = await readBody(response);
 
   if (!response.ok) {
-    // Auto-logout on invalid/expired token
-    if (response.status === 401) {
+    // Auto-logout on invalid/expired token — but NOT for the visitor-facing
+    // portals. A 401 from /portal or /sign means "this customer isn't signed
+    // in", which is a normal state there and says nothing about the employee
+    // session; treating it as an expiry would log a staff member out of ExecUI
+    // just for opening the support portal.
+    if (response.status === 401 && !VISITOR_PATHS.test(path)) {
       clearToken();
       localStorage.removeItem('user');
       window.dispatchEvent(new CustomEvent('auth:expired'));
@@ -861,6 +870,66 @@ export const signing = {
   view:    (token)         => get(`/sign/${encodeURIComponent(token)}`),
   sign:    (token, body)   => post(`/sign/${encodeURIComponent(token)}/sign`, body),
   decline: (token, reason) => post(`/sign/${encodeURIComponent(token)}/decline`, { reason }),
+};
+
+// ── Global search ─────────────────────────────────────────────────────────
+export const search = {
+  catalog: ()               => get('/search/catalog'),
+  query:   (q, params)      => get('/search', { q, ...(params || {}) }),
+  suggest: (q, limit)       => get('/search/suggest', { q, limit }),
+};
+
+// ── Helpdesk & knowledge base (staff side) ────────────────────────────────
+export const helpdesk = {
+  stats: () => get('/helpdesk/stats'),
+  tickets: {
+    list:    (params)     => get('/helpdesk/tickets', params),
+    get:     (id)         => get(`/helpdesk/tickets/${id}`),
+    create:  (data)       => post('/helpdesk/tickets', data),
+    update:  (id, data)   => put(`/helpdesk/tickets/${id}`, data),
+    reply:   (id, data)   => post(`/helpdesk/tickets/${id}/messages`, data),
+  },
+  suggestArticles: (text) => post('/helpdesk/suggest-articles', { text }),
+  kb: {
+    stats:          ()          => get('/helpdesk/kb/stats'),
+    categories:     (all)       => get('/helpdesk/kb/categories', all ? { all: 'true' } : undefined),
+    createCategory: (data)      => post('/helpdesk/kb/categories', data),
+    updateCategory: (id, data)  => put(`/helpdesk/kb/categories/${id}`, data),
+    deleteCategory: (id)        => del(`/helpdesk/kb/categories/${id}`),
+    articles:       (params)    => get('/helpdesk/kb/articles', params),
+    article:        (id)        => get(`/helpdesk/kb/articles/${id}`),
+    create:         (data)      => post('/helpdesk/kb/articles', data),
+    update:         (id, data)  => put(`/helpdesk/kb/articles/${id}`, data),
+    remove:         (id)        => del(`/helpdesk/kb/articles/${id}`),
+  },
+  portal: {
+    info:      ()      => get('/helpdesk/portal'),
+    issueLink: (email) => post('/helpdesk/portal/link', { email }),
+  },
+};
+
+// ── Customer support portal (public — no employee session) ────────────────
+// The organization slug comes from the URL, and the customer's own session
+// token is passed explicitly: it belongs to a visitor, not to an ExecUI user,
+// so it deliberately never touches the shared auth_token storage.
+export const portal = {
+  landing:     (slug)               => request(`/portal/${encodeURIComponent(slug)}`),
+  help:        (slug)               => request(`/portal/${encodeURIComponent(slug)}/help`),
+  helpSearch:  (slug, q)            => request(`/portal/${encodeURIComponent(slug)}/help/search?q=${encodeURIComponent(q)}`),
+  article:     (slug, key)          => request(`/portal/${encodeURIComponent(slug)}/help/${encodeURIComponent(key)}`),
+  suggest:     (slug, text)         => request(`/portal/${encodeURIComponent(slug)}/help/suggest`, { method: 'POST', body: JSON.stringify({ text }) }),
+  feedback:    (slug, id, body)     => request(`/portal/${encodeURIComponent(slug)}/help/${encodeURIComponent(id)}/feedback`, { method: 'POST', body: JSON.stringify(body) }),
+
+  requestLink: (slug, email)        => request(`/portal/${encodeURIComponent(slug)}/auth/request`, { method: 'POST', body: JSON.stringify({ email }) }),
+  verifyLink:  (slug, token)        => request(`/portal/${encodeURIComponent(slug)}/auth/verify`, { method: 'POST', body: JSON.stringify({ token }) }),
+
+  me:          (slug, session)      => request(`/portal/${encodeURIComponent(slug)}/auth/me`, { headers: { Authorization: `Bearer ${session}` } }),
+  signOut:     (slug, session)      => request(`/portal/${encodeURIComponent(slug)}/auth/signout`, { method: 'POST', headers: { Authorization: `Bearer ${session}` } }),
+  tickets:     (slug, session)      => request(`/portal/${encodeURIComponent(slug)}/tickets`, { headers: { Authorization: `Bearer ${session}` } }),
+  ticket:      (slug, session, id)  => request(`/portal/${encodeURIComponent(slug)}/tickets/${id}`, { headers: { Authorization: `Bearer ${session}` } }),
+  submit:      (slug, session, body) => request(`/portal/${encodeURIComponent(slug)}/tickets`, { method: 'POST', headers: { Authorization: `Bearer ${session}` }, body: JSON.stringify(body) }),
+  reply:       (slug, session, id, body) => request(`/portal/${encodeURIComponent(slug)}/tickets/${id}/reply`, { method: 'POST', headers: { Authorization: `Bearer ${session}` }, body: JSON.stringify(body) }),
+  rate:        (slug, session, id, body) => request(`/portal/${encodeURIComponent(slug)}/tickets/${id}/rate`, { method: 'POST', headers: { Authorization: `Bearer ${session}` }, body: JSON.stringify(body) }),
 };
 
 // ── HR / People Ops ───────────────────────────────────────────────────────

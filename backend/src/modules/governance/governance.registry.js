@@ -143,6 +143,59 @@ export const CATEGORIES = [
     note: "Anonymized so sign-off history remains auditable.",
   }),
 
+  // ── Helpdesk & customer portal ────────────────────────────────────────────
+  cat("ticket_messages", {
+    label: "Support conversations",
+    model: "ticketMessage",
+    dateField: "createdAt",
+    subject: { by: "email", field: "authorEmail" },
+    onErase: "anonymize",
+    // The conversation survives so the ticket still makes sense, but what the
+    // person wrote — which can be anything — does not.
+    anonymize: { body: REDACTED, authorName: REDACTED, authorEmail: null },
+    exportFields: ["id", "ticketId", "body", "authorType", "authorName", "visibility", "createdAt"],
+    defaultRetentionDays: 1095,
+    pii: true,
+    note: "A customer's own messages are theirs; the thread is kept so the ticket remains explicable.",
+  }),
+
+  cat("portal_sessions", {
+    label: "Support portal sign-ins",
+    model: "portalSession",
+    dateField: "createdAt",
+    subject: { by: "email", field: "email" },
+    onErase: "delete",
+    exportFields: ["id", "email", "lastSeenAt", "createdAt"],
+    defaultRetentionDays: 30,
+    pii: true,
+    note: "Records IP and browser. Expired sessions are purged hourly; nothing here needs keeping.",
+  }),
+
+  cat("portal_links", {
+    label: "Support portal sign-in links",
+    model: "portalMagicLink",
+    dateField: "createdAt",
+    subject: { by: "email", field: "email" },
+    onErase: "delete",
+    exportFields: ["id", "email", "expiresAt", "usedAt", "createdAt"],
+    defaultRetentionDays: 7,
+    pii: true,
+    note: "Single-use credentials. Deleted as soon as they are spent or expire.",
+  }),
+
+  cat("kb_feedback", {
+    label: "Help article feedback",
+    model: "kbFeedback",
+    dateField: "createdAt",
+    subject: { by: "email", field: "email" },
+    onErase: "anonymize",
+    anonymize: { email: null, comment: REDACTED },
+    exportFields: ["id", "articleId", "helpful", "comment", "createdAt"],
+    defaultRetentionDays: 730,
+    pii: false,
+    note: "The helpful/not-helpful vote is kept; the comment and address are not.",
+  }),
+
   // ── HR / People Ops ───────────────────────────────────────────────────────
   cat("employment_record", {
     label: "Employment record",

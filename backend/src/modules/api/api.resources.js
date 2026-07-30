@@ -24,6 +24,7 @@ export const SCOPES = [
   "contracts:read", "contracts:write",
   "documents:read",
   "hr:read",
+  "helpdesk:read", "helpdesk:write",
   "webhooks:manage",
 ];
 
@@ -42,6 +43,8 @@ export const SCOPE_LABELS = {
   "contracts:write": "Create & update contracts",
   "documents:read": "Read document metadata (never file contents)",
   "hr:read": "Read payroll totals, employment records and leave (never bank details or government ids)",
+  "helpdesk:read": "Read help articles and ticket conversations",
+  "helpdesk:write": "Create support tickets on a customer's behalf",
   "webhooks:manage": "Manage webhook endpoints",
 };
 
@@ -284,6 +287,57 @@ export const RESOURCES = {
       updatedAt: ro("date"),
     },
     filterable: ["category", "status", "confidential", "ownerId"],
+    defaultSort: { field: "updatedAt", dir: "desc" },
+  },
+
+  // ── Helpdesk ──────────────────────────────────────────────────────────────
+  // Tickets are writable so another system (a status page, a monitoring tool, an
+  // email gateway) can raise support requests. `status` and the outcome
+  // timestamps are read-only: a ticket's lifecycle moves through the helpdesk,
+  // where replying to the customer and recording a first response are the same
+  // act. Internal notes are not reachable here at all.
+  "support-tickets": {
+    id: "support-tickets", name: "SupportTicket", model: "crmTicket", module: "helpdesk", scope: "helpdesk",
+    fields: {
+      id: ro("string"),
+      ticket_number: ro("string"),
+      subject: f("string", { writable: true, required: true, max: 200 }),
+      description: f("string", { writable: true, max: 20000 }),
+      customer_name: f("string", { writable: true, max: 200 }),
+      contactEmail: f("string", { writable: true, max: 200, format: "email" }),
+      category: f("string", { writable: true, max: 80 }),
+      priority: f("string", { writable: true, enum: ["low", "medium", "high", "urgent"] }),
+      status: ro("string"),
+      source: ro("string"),
+      assigneeName: ro("string"),
+      satisfaction: ro("number"),
+      firstResponseAt: ro("date"),
+      resolvedAt: ro("date"),
+      createdAt: ro("date"),
+      updatedAt: ro("date"),
+    },
+    filterable: ["status", "priority", "category", "source", "contactEmail"],
+    defaultSort: { field: "createdAt", dir: "desc" },
+  },
+
+  "help-articles": {
+    id: "help-articles", name: "HelpArticle", model: "kbArticle", module: "helpdesk", scope: "helpdesk",
+    readOnly: true,
+    fields: {
+      id: ro("string"),
+      title: ro("string"),
+      slug: ro("string"),
+      excerpt: ro("string"),
+      body: ro("string"),
+      status: ro("string"),
+      visibility: ro("string"),
+      views: ro("number"),
+      helpfulYes: ro("number"),
+      helpfulNo: ro("number"),
+      publishedAt: ro("date"),
+      updatedAt: ro("date"),
+    },
+    filterable: ["status", "visibility"],
     defaultSort: { field: "updatedAt", dir: "desc" },
   },
 

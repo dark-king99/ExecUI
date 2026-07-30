@@ -97,6 +97,12 @@ model Tenant {
   signatureEvents         SignatureEvent[]
   contracts               Contract[]
   contractEvents          ContractEvent[]
+  kbCategories            KbCategory[]
+  kbArticles              KbArticle[]
+  kbFeedback              KbFeedback[]
+  ticketMessages          TicketMessage[]
+  portalMagicLinks        PortalMagicLink[]
+  portalSessions          PortalSession[]
   employmentProfiles      EmploymentProfile[]
   compensations           Compensation[]
   payComponents           PayComponent[]
@@ -441,9 +447,29 @@ model CrmTicket {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  // ── Helpdesk / customer portal ──────────────────────────────────────────
+  // Portal tickets and internally-raised tickets deliberately share one table:
+  // a support queue that forks by where the ticket came from is a queue where
+  // something gets missed.
+  description         String? // the customer's opening message
+  contactEmail        String? // who to reply to, and who may see it in the portal
+  contactId           String?
+  source              String    @default("internal") // internal | portal | email
+  portalVisible       Boolean   @default(true) // false hides an internal-only ticket
+  assigneeId          String?
+  assigneeName        String?
+  firstResponseAt     DateTime? // when an agent first replied publicly
+  resolvedAt          DateTime?
+  closedAt            DateTime?
+  satisfaction        Int? // 1–5, set by the customer after resolution
+  satisfactionComment String?
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id])
+  messages TicketMessage[]
 
   @@unique([ticket_number, tenantId])
+  @@index([tenantId, contactEmail])
+  @@index([tenantId, status])
 }
 
 model CrmFollowUp {
@@ -2134,4 +2160,142 @@ model EmploymentEvent {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, userId, createdAt])
+}
+
+// ── Helpdesk: knowledge base & customer portal ────────────────────────────────
+// Articles are grouped into categories the customer sees as sections.
+model KbCategory {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  slug        String
+  description String?
+  icon        String?
+  visibility  String   @default("public") // public | internal
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant   Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  articles KbArticle[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, active])
+}
+
+// A help article. `visibility` decides whether customers can read it at all, and
+// `status` whether anyone can: an unpublished article is invisible to the portal
+// even when it's marked public, so drafting in the open is safe.
+model KbArticle {
+  id         String  @id @default(uuid())
+  tenantId   String
+  categoryId String?
+
+  title      String
+  slug       String
+  excerpt    String?
+  body       String
+  tags       String[] @default([])
+  visibility String   @default("public") // public | internal
+  status     String   @default("draft") // draft | published | archived
+  pinned     Boolean  @default(false)
+
+  views      Int @default(0)
+  helpfulYes Int @default(0)
+  helpfulNo  Int @default(0)
+
+  authorId    String?
+  authorName  String?
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant   Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category KbCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  feedback KbFeedback[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status, visibility])
+  @@index([tenantId, categoryId])
+}
+
+// "Was this helpful?" — the signal that tells you which articles to rewrite.
+// Kept as rows rather than only counters so the comments survive.
+model KbFeedback {
+  id        String   @id @default(uuid())
+  tenantId  String
+  articleId String
+  helpful   Boolean
+  comment   String?
+  email     String?
+  createdAt DateTime @default(now())
+
+  tenant  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  article KbArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, articleId])
+}
+
+// One message on a ticket. `visibility` is the whole point: an internal note and
+// a customer reply live in the same thread so an agent reads one story, but the
+// portal only ever serves the public ones.
+model TicketMessage {
+  id       String @id @default(uuid())
+  tenantId String
+  ticketId String
+
+  body           String
+  authorType     String   @default("agent") // agent | customer | system
+  authorId       String?
+  authorName     String?
+  authorEmail    String?
+  visibility     String   @default("public") // public | internal
+  attachmentUrl  String?
+  attachmentName String?
+  emailed        Boolean  @default(false) // did we manage to notify the customer?
+  createdAt      DateTime @default(now())
+
+  tenant Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ticket CrmTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, ticketId, createdAt])
+}
+
+// A single-use, short-lived sign-in link for the customer portal. Only the
+// token's SHA-256 is stored, so the database can't be used to log in as a
+// customer. Customers get no password — there is nothing to leak or reset.
+model PortalMagicLink {
+  id        String    @id @default(uuid())
+  tenantId  String
+  email     String
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  ip        String?
+  createdAt DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@index([tenantId, email])
+}
+
+// A signed-in portal visitor. Also hashed; revoking is deleting the row.
+model PortalSession {
+  id         String   @id @default(uuid())
+  tenantId   String
+  email      String
+  contactId  String?
+  tokenHash  String
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@index([tenantId, email])
 }
