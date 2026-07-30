@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { BarChart3, ArrowLeft, LayoutGrid, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
 import { SOLUTIONS, colorOf } from "../../apps/analytics/solutions.config";
+import { useUser } from "../../context/UserContext";
+import { canSee } from "../../lib/visibility";
 
 function PageLink({ page, active, color, onNavigate }) {
   const Icon = page.icon;
@@ -82,6 +84,7 @@ function SolutionGroup({ solution, pathname, collapsed, onNavigate }) {
 export default function AnalyticsSidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { user, role } = useUser();
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -156,7 +159,10 @@ export default function AnalyticsSidebar() {
         {collapsed && <div className="my-1.5 border-t border-slate-100 dark:border-slate-800/60" />}
 
         <div className="space-y-0.5">
-          {SOLUTIONS.map((s) => (
+          {/* Analytics is sliced by data domain: a plan without Network gets no
+              Network analytics, and showing the group anyway would advertise a
+              dashboard that has nothing behind it. */}
+          {SOLUTIONS.filter((s) => canSee(user, { section: "analytics", module: "analytics", solution: s.id }, role)).map((s) => (
             <SolutionGroup key={s.id} solution={s} pathname={pathname} collapsed={collapsed} onNavigate={navigate} />
           ))}
         </div>

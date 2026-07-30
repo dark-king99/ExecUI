@@ -15,7 +15,8 @@ import BotWidget from "../components/BotWidget";
 import CommandPalette from "../components/CommandPalette";
 import Breadcrumbs from "../components/Breadcrumbs";
 import Dashboard from "../apps/services/Dashboard";
-import { accessFor, isAdminRole } from "../lib/access";
+import { isAdminRole } from "../lib/access";
+import { canSee } from "../lib/visibility";
 import useRewardTracking from "../hooks/useRewardTracking";
 import { clearQueryCache } from "../hooks/useApi";
 import { identify, resetAnalytics } from "../lib/analytics";
@@ -69,8 +70,10 @@ const SearchResults       = lazy(() => import("../apps/search/SearchResults"));
 const Helpdesk            = lazy(() => import("../apps/helpdesk/Helpdesk"));
 const Portal              = lazy(() => import("../apps/helpdesk/Portal"));
 
-// HR / People Ops (payroll is a tab inside it — see apps/hr/People.jsx)
+// HR / People Ops (payroll is a tab inside it — see apps/hr/People.jsx).
+// Administrators only; every employee's own record is /account/my-hr.
 const People              = lazy(() => import("../apps/hr/People"));
+const MyHr                = lazy(() => import("../apps/hr/MyHrPage"));
 
 // Documents, e-signature & contracts (CLM)
 const Documents           = lazy(() => import("../apps/documents/Documents"));
@@ -124,10 +127,11 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
   // to see what that person sees.
   const isAdmin = isAdminRole(roleToUse);
 
-  // Department-based module access. Blocked sections redirect to the overview.
-  const access = accessFor(user);
-  const guard = (sec, element) =>
-    access.sections.includes(sec) ? element : <Navigate to="/overview" replace />;
+  // Nothing the viewer can't use is rendered — but the routes still guard
+  // themselves. Hiding a link is presentation; this is the part that holds when
+  // somebody types the URL, and the API authorizes independently of both.
+  const guard = (sec, element, solution) =>
+    canSee(user, { section: sec, solution }, roleToUse) ? element : <Navigate to="/overview" replace />;
 
   if (isStandalone) {
     return (
@@ -188,17 +192,22 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 {/* Helpdesk — support queue + knowledge base (CRM-gated). */}
                 <Route path="/helpdesk" element={guard("crm", <Helpdesk />)} />
 
-                {/* HR — the console for admins, self-service for everyone else
-                    (the page decides). Payroll is a tab inside it, not a page of
-                    its own: it's part of running people, and splitting it out put
-                    the most sensitive screen in the product in the top-level nav
-                    of every employee who couldn't open it.
+                {/* HR — the People Ops console. **Administrators only**: it
+                    administers other people's employment, pay and leave, so it
+                    isn't shown to anybody else and isn't reachable by URL either.
+                    Payroll is a tab inside it rather than a page of its own.
 
                     /payroll is kept as a redirect. Bookmarks, notification links
                     sent before this change and the docs all still work — a moved
                     page shouldn't turn into a 404. */}
-                <Route path="/people" element={<People />} />
+                <Route path="/people" element={isAdmin ? <People /> : <Navigate to="/account/my-hr" replace />} />
                 <Route path="/payroll" element={<Navigate to="/people?tab=payroll" replace />} />
+
+                {/* Your own employment record, leave, timesheet and payslips.
+                    Under Account because it is yours — the HR module is the
+                    console for administering *other people*, and an employee has
+                    no business seeing it exist. */}
+                <Route path="/account/my-hr" element={<MyHr />} />
 
                 <Route path="/account" element={<Navigate to="/account/profile" replace />} />
                 <Route path="/account/profile"      element={<Profile />} />
@@ -223,20 +232,20 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
 
                 {/* Analytics — cross-service launcher + config-driven solution pages */}
                 <Route path="/analytics" element={guard("analytics", <AnalyticsSolutions />)} />
-                {ANALYTICS_ROUTES.map(({ path, Component }) => (
-                  <Route key={path} path={path} element={guard("analytics", <Component />)} />
+                {ANALYTICS_ROUTES.map(({ path, Component, solution }) => (
+                  <Route key={path} path={path} element={guard("analytics", <Component />, solution)} />
                 ))}
 
                 {/* Network — solution launcher + config-driven solution pages */}
                 <Route path="/network" element={guard("network", <NetworkSolutions />)} />
-                {NETWORK_ROUTES.map(({ path, Component }) => (
-                  <Route key={path} path={path} element={guard("network", <Component />)} />
+                {NETWORK_ROUTES.map(({ path, Component, solution }) => (
+                  <Route key={path} path={path} element={guard("network", <Component />, solution)} />
                 ))}
 
                 {/* CRM — solution launcher + config-driven solution pages */}
                 <Route path="/crm" element={guard("crm", <CrmSolutions />)} />
-                {CRM_ROUTES.map(({ path, Component }) => (
-                  <Route key={path} path={path} element={guard("crm", <Component />)} />
+                {CRM_ROUTES.map(({ path, Component, solution }) => (
+                  <Route key={path} path={path} element={guard("crm", <Component />, solution)} />
                 ))}
 
 
@@ -247,21 +256,23 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
 
                 {/* Marketing — solution launcher + config-driven solution pages */}
                 <Route path="/marketing" element={guard("marketing", <MarketingSolutions />)} />
-                {MARKETING_ROUTES.map(({ path, Component }) => (
-                  <Route key={path} path={path} element={guard("marketing", <Component />)} />
+                {MARKETING_ROUTES.map(({ path, Component, solution }) => (
+                  <Route key={path} path={path} element={guard("marketing", <Component />, solution)} />
                 ))}
                 {/* Marketing industry modules — additive layer, same engine as CRM */}
                 <Route path="/marketing/i/:industryId/:objectType" element={guard("marketing", <IndustryObjectPage />)} />
 
 
                 {/* Services */}
+                {/* Each page names the plan solution it belongs to, so a plan
+                    that doesn't include it can't reach it by URL either. */}
                 <Route path="/services" element={guard("services", <Navigate to="/services/dashboard" replace />)} />
-                <Route path="/services/dashboard"      element={guard("services", <Dashboard />)} />
-                <Route path="/services/financial"      element={guard("services", <FinancialManagement />)} />
-                <Route path="/services/operation"     element={guard("services", <OperationsSystem />)} />
-                <Route path="/services/strategic"     element={guard("services", <StrategicPlanning />)} />
-                <Route path="/services/marketing" element={guard("services", <MarketingSales />)} />
-                <Route path="/services/team"         element={guard("services", <TeamProjectCoordination />)} />
+                <Route path="/services/dashboard"  element={guard("services", <Dashboard />)} />
+                <Route path="/services/financial"  element={guard("services", <FinancialManagement />, "financial")} />
+                <Route path="/services/operation"  element={guard("services", <OperationsSystem />, "operation")} />
+                <Route path="/services/strategic"  element={guard("services", <StrategicPlanning />, "strategic")} />
+                <Route path="/services/marketing"  element={guard("services", <MarketingSales />, "marketing")} />
+                <Route path="/services/team"       element={guard("services", <TeamProjectCoordination />, "team")} />
 
                 <Route path="/botwidget" element={<Navigate to="/botwidget/botmessage" replace />} />
 

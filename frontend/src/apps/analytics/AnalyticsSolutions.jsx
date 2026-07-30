@@ -5,6 +5,8 @@ import { useApi } from "../../hooks/useApi";
 import { marketing, crm, network } from "../../services/api";
 import { SOLUTIONS, colorOf } from "./solutions.config";
 import { MetricGrid, Section, fmtNum } from "./components/an-ui";
+import { useUser } from "../../context/UserContext";
+import { canSee } from "../../lib/visibility";
 
 function ServiceCard({ solution, stats }) {
   const navigate = useNavigate();
@@ -40,13 +42,22 @@ function ServiceCard({ solution, stats }) {
 }
 
 export default function AnalyticsSolutions() {
-  const { data: mktSummary } = useApi(() => marketing.analytics.summary(), [], { pollingInterval: 120000 });
-  const { data: mktCampaigns } = useApi(() => marketing.campaigns.summary(), [], { pollingInterval: 120000 });
-  const { data: crmPipeline } = useApi(() => crm.pipeline.summary(), [], { pollingInterval: 120000 });
-  const { data: crmAnalytics } = useApi(() => crm.analytics.summary(), [], { pollingInterval: 120000 });
-  const { data: crmOpps } = useApi(() => crm.opportunities.summary(), [], { pollingInterval: 120000 });
-  const { data: netMonitor } = useApi(() => network.monitor.overview(), [], { pollingInterval: 60000 });
-  const { data: netServers } = useApi(() => network.servers.metrics(), [], { pollingInterval: 60000 });
+  // Only fetch the slices this organization's plan actually holds data for. The
+  // launcher used to poll every slice on a timer regardless — so a plan without
+  // Network Ops made two requests a minute, forever, that the API correctly
+  // refused with a 403. Nothing broke; it just logged errors and burned requests
+  // asking for something it was never going to be given.
+  const { user, role } = useUser();
+  const has = (slice) => canSee(user, { section: "analytics", module: "analytics", solution: slice }, role);
+  const skip = () => Promise.resolve(null);
+
+  const { data: mktSummary } = useApi(() => (has("marketing") ? marketing.analytics.summary() : skip()), [], { pollingInterval: 120000 });
+  const { data: mktCampaigns } = useApi(() => (has("marketing") ? marketing.campaigns.summary() : skip()), [], { pollingInterval: 120000 });
+  const { data: crmPipeline } = useApi(() => (has("sales") ? crm.pipeline.summary() : skip()), [], { pollingInterval: 120000 });
+  const { data: crmAnalytics } = useApi(() => (has("sales") ? crm.analytics.summary() : skip()), [], { pollingInterval: 120000 });
+  const { data: crmOpps } = useApi(() => (has("sales") ? crm.opportunities.summary() : skip()), [], { pollingInterval: 120000 });
+  const { data: netMonitor } = useApi(() => (has("network") ? network.monitor.overview() : skip()), [], { pollingInterval: 60000 });
+  const { data: netServers } = useApi(() => (has("network") ? network.servers.metrics() : skip()), [], { pollingInterval: 60000 });
 
   const mkt = mktSummary ?? {};
   const mc = mktCampaigns ?? {};
@@ -94,7 +105,9 @@ export default function AnalyticsSolutions() {
 
       <Section title="Core Services" subtitle="Dive into analytics for each service and its solutions" pad={false}>
         <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {SOLUTIONS.map((s) => <ServiceCard key={s.id} solution={s} stats={statsBySolution[s.id] ?? []} />)}
+          {/* The launcher offers only the slices the plan includes — a card for a
+              dashboard that would refuse to open is the definition of clutter. */}
+          {SOLUTIONS.filter((s) => has(s.id)).map((s) => <ServiceCard key={s.id} solution={s} stats={statsBySolution[s.id] ?? []} />)}
         </div>
       </Section>
     </div>

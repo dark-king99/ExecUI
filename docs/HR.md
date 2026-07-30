@@ -1,11 +1,19 @@
 # HR / People Ops & Payroll
 
-Everything lives on **one route, `/people`** — labelled **HR** for administrators
-and **My HR** for everyone else.
+Two routes, deliberately:
+
+- **`/people` — the HR console, administrators only.** It administers *other
+  people*: employment records, compensation, leave decisions, payroll. It is not
+  in an employee's sidebar, not in their search results, and not reachable by URL.
+- **`/account/my-hr` — your own record, everybody.** Your details, your leave,
+  your timesheet, your payslips. Beside your profile, because it is yours.
+
+Hiding the console must never take away somebody's own payslip; that split is
+what makes both true at once.
 
 | Capability | Where | Who |
 |---|---|---|
-| **My HR** — own details, leave, timesheet, payslips | **HR → My HR** | every employee |
+| **My HR** — own details, leave, timesheet, payslips | **Account → My HR** | every employee |
 | **Directory & employment records** | **HR → Directory** | admins |
 | **Compensation history** | **HR → Directory → person** | admins |
 | **Leave** — types, balances, approvals | **HR → Leave** | admins; managers decide their own team's |

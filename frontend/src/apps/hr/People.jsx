@@ -1,11 +1,11 @@
 /**
- * HR console.
+ * HR console — **administrators only**.
  *
- * One route for the whole of people operations. For an administrator: the
- * directory, employment records, compensation history, leave administration,
- * timesheet approvals and **payroll**. For everyone else this same route is their
- * own self-service HR, so "HR" in the nav means something to every employee
- * rather than being a dead link for most of the company.
+ * People operations: the directory, employment records, compensation history,
+ * leave administration, timesheet approvals and payroll. All of it administers
+ * *other people*, which is why it is not in an employee's sidebar and not
+ * reachable by URL for them. Their own record is `/account/my-hr`, beside their
+ * profile, where it belongs.
  *
  * Payroll is a tab here rather than a page of its own. Pay is part of running
  * people — the run reads the employment records, the compensation history and the
@@ -24,6 +24,7 @@
  *    pay run opens the tab that shows it.
  */
 import { useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody } from "../../components/ui/Card";
 import { useApi } from "../../hooks/useApi";
@@ -654,18 +655,12 @@ export default function People() {
   const { data: catalog } = useApi(() => hr.catalog(), [], { cacheKey: "hr:catalog" });
   const { data: stats } = useApi(() => (isAdmin ? hr.stats() : Promise.resolve(null)), [isAdmin]);
 
-  // Everyone who isn't an administrator gets their own HR, on the same route.
-  // `?section=` picks the sub-tab, which is what makes a leave-decision or
-  // payslip notification land on the thing it is about.
+  // `?section=` picks the sub-tab of the admin's own record on the My HR tab.
   const [section] = useRecordParam("section");
-  if (!isAdmin) {
-    return (
-      <div>
-        <PageHeader title="My HR" subtitle="Your employment details, leave, timesheet and payslips." />
-        <MyHr initialTab={["profile", "leave", "time", "pay"].includes(section) ? section : "profile"} />
-      </div>
-    );
-  }
+
+  // The route already sends non-administrators to their own record; this is the
+  // belt-and-braces case (a role changing while the page is open).
+  if (!isAdmin) return <Navigate to="/account/my-hr" replace />;
 
   return (
     <div>

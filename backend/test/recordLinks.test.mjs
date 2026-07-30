@@ -48,9 +48,12 @@ test("a record on a tabbed page opens on the right tab", () => {
   assert.equal(url.searchParams.get("tab"), "payroll", "payroll is a tab of HR, not a page");
   assert.equal(url.searchParams.get("run"), "r1");
 
+  // An employee's own payslip is under Account — the HR console administers
+  // other people and is not theirs to open.
   const slip = new URL(linkTo("payslip", "p1"), "https://app.test");
-  assert.equal(slip.searchParams.get("tab"), "me");
+  assert.equal(slip.pathname, "/account/my-hr");
   assert.equal(slip.searchParams.get("payslip"), "p1");
+  assert.equal(slip.searchParams.get("tab"), null, "no HR tab — it isn't in HR");
 });
 
 test("an unknown kind degrades to the app root rather than a broken path", () => {

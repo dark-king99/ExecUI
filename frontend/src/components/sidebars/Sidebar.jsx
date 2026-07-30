@@ -5,11 +5,32 @@ import {
   ChevronLeft, ChevronRight, Settings, Layers, Activity, LayoutDashboard, Trophy, CheckCircle2,
   FileText, FileSignature, UserCog, LifeBuoy
 } from "lucide-react";
-import { accessFor } from "../../lib/access";
+import { visible } from "../../lib/visibility";
 import { useUser } from "../../context/UserContext";
 import AnimatedLogo from "../AnimatedLogo";
 
-// Department-gated module nav (filtered by the signed-in employee's access).
+/**
+ * The whole primary nav, declared. Each entry says what it needs; `canSee`
+ * decides. Nothing is rendered that the viewer can't open — an entry that would
+ * bounce them somewhere else is noise, and an entry naming something their plan
+ * doesn't include or their role doesn't allow tells them something they weren't
+ * meant to be told.
+ */
+const OVERVIEW = [
+  { label: "Home",               path: "/home",      icon: Home },
+  { label: "Executive Overview", path: "/overview",  icon: LayoutDashboard },
+  { label: "Approvals",          path: "/approvals", icon: CheckCircle2 },
+  { label: "Documents",          path: "/documents", icon: FileText },
+  // The contract register commits the organization legally.
+  { label: "Contracts",          path: "/contracts", icon: FileSignature, adminOnly: true },
+  // People operations — employment records, compensation, leave, payroll. An
+  // employee's own details live under Account, not here, so this entry is
+  // administrators only and simply doesn't exist for anybody else.
+  { label: "HR",                 path: "/people",    icon: UserCog, adminOnly: true },
+  { label: "Rewards",            path: "/rewards",   icon: Trophy },
+  { label: "Account",            path: "/account",   icon: UserLock },
+];
+
 const MODULES = [
   { section: "crm",       label: "CRM",       path: "/crm",       icon: Users },
   { section: "crm",       label: "Helpdesk",  path: "/helpdesk",  icon: LifeBuoy },
@@ -63,8 +84,8 @@ function SectionLabel({ label, collapsed }) {
 export default function Sidebar() {
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const { user, isAdmin } = useUser();
-  const allowed = accessFor(user).sections;
+  const { user, role } = useUser();
+  const modules = visible(user, MODULES, role);
 
   useEffect(() => {
     const saved = localStorage.getItem("sidebar-collapsed");
@@ -105,27 +126,16 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
         <SectionLabel label="Overview" collapsed={collapsed} />
 
-        <NavBtn icon={Home}            label="Home"               path="/home"     current={pathname} collapsed={collapsed} />
-        <NavBtn icon={LayoutDashboard} label="Executive Overview" path="/overview" current={pathname} collapsed={collapsed} />
-        <NavBtn icon={CheckCircle2}    label="Approvals"          path="/approvals" current={pathname} collapsed={collapsed} />
-        <NavBtn icon={FileText}        label="Documents"          path="/documents" current={pathname} collapsed={collapsed} />
-        {/* The contract register commits the organization legally — admins only,
-            and the nav shouldn't advertise a page that would just redirect. */}
-        {isAdmin && (
-          <NavBtn icon={FileSignature} label="Contracts"          path="/contracts" current={pathname} collapsed={collapsed} />
-        )}
-        {/* One HR entry for everyone: the console for admins (with payroll as a
-            tab inside it), their own record for everybody else. Payroll used to
-            sit here as a second top-level item, which advertised the most
-            sensitive screen in the product to people who can't open it. */}
-        <NavBtn icon={UserCog}         label={isAdmin ? "HR" : "My HR"} path="/people" current={pathname} collapsed={collapsed} />
-        <NavBtn icon={Trophy}          label="Rewards"            path="/rewards"  current={pathname} collapsed={collapsed} />
-        <NavBtn icon={UserLock}        label="Account"            path="/account"  current={pathname} collapsed={collapsed} />
+        {visible(user, OVERVIEW, role).map((e) => (
+          <NavBtn key={e.path} icon={e.icon} label={e.label} path={e.path} current={pathname} collapsed={collapsed} />
+        ))}
 
-        <SectionLabel label="Modules" collapsed={collapsed} />
+        {/* No modules, no heading — an empty section label is a promise of
+            something that isn't there. */}
+        {modules.length > 0 && <SectionLabel label="Modules" collapsed={collapsed} />}
 
-        {MODULES.filter((m) => allowed.includes(m.section)).map((m) => (
-          <NavBtn key={m.section} icon={m.icon} label={m.label} path={m.path} current={pathname} collapsed={collapsed} />
+        {modules.map((m) => (
+          <NavBtn key={m.path} icon={m.icon} label={m.label} path={m.path} current={pathname} collapsed={collapsed} />
         ))}
       </nav>
 
