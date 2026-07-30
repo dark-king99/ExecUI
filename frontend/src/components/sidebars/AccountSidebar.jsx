@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUser } from "../../context/UserContext";
-import AnimatedLogo from "../AnimatedLogo";
 import {
+
   ArrowLeft, User, ShieldCheck, Key, KeyRound, Bell, Users, Plug, MessagesSquare,
   CreditCard, FileText, ChevronLeft, ChevronRight, Building2, IdCard, Webhook, Zap, Scale,
 
@@ -78,9 +78,9 @@ export default function AccountSidebar() {
       {/* Header */}
       <div className="flex items-center h-14 px-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
         <div className={`flex items-center gap-2.5 flex-1 min-w-0 ${collapsed ? "justify-center" : ""}`}>
-          {/* The same brand mark every other sidebar carries. Hidden when
-              collapsed — the wordmark is ~2.8:1 and can't fit the rail. */}
-          {!collapsed && <AnimatedLogo className="h-7 shrink-0" />}
+          <div className="h-7 w-7 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 shadow-sm">
+            <User size={14} className="text-white" />
+          </div>
           {!collapsed && <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate leading-none">Account</span>}
         </div>
         <button onClick={toggleCollapse} className="ml-auto p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition">

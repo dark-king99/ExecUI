@@ -4,7 +4,6 @@ import { BarChart3, ArrowLeft, LayoutGrid, ChevronDown, ChevronRight, ChevronLef
 import { SOLUTIONS, colorOf } from "../../apps/analytics/solutions.config";
 import { useUser } from "../../context/UserContext";
 import { canSee } from "../../lib/visibility";
-import AnimatedLogo from "../AnimatedLogo";
 
 function PageLink({ page, active, color, onNavigate }) {
   const Icon = page.icon;
@@ -108,10 +107,9 @@ export default function AnalyticsSidebar() {
       {/* Header */}
       <div className="flex items-center h-14 px-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
         <div className={`flex items-center gap-2.5 flex-1 min-w-0 ${collapsed ? "justify-center" : ""}`}>
-          {/* One brand mark across every sidebar. Hidden when collapsed: the
-              wordmark is ~2.8:1, so it can't fit the 60px rail — the same choice
-              the main sidebar makes. */}
-          {!collapsed && <AnimatedLogo className="h-7 shrink-0" />}
+          <div className="h-7 w-7 rounded-lg  flex items-center justify-center shrink-0 shadow-sm ">
+          <img src="/analytics.png" />
+          </div>
           {!collapsed && (
             <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate leading-none">
               Analytics
