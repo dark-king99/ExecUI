@@ -22,14 +22,36 @@ export const ADMIN_ROLES = ["enterprise_admin", "system_admin"];
 export const isAdminRole = (role) => ADMIN_ROLES.includes(role);
 export const isAdminUser = (user) => isAdminRole(user?.role);
 
+/**
+ * Sections that administer the organization rather than serve a job. These are
+ * never granted by a department — only by an admin role. Business Services is
+ * financial management, strategic planning and company-wide operations: work
+ * that belongs to whoever runs the company, not to whoever was invited last week.
+ */
+export const ADMIN_ONLY_SECTIONS = ["services"];
+
+/**
+ * Department → the modules that job needs.
+ *
+ * `general` is the important row: it is where every employee lands whose
+ * department is blank or unrecognized, which is every newly invited person until
+ * somebody sets one. It used to grant **Business Services and nothing else**, so
+ * a new employee opened the product to the company's financial and strategic
+ * planning tools and no CRM, Marketing or Network at all — exactly backwards.
+ * It now grants the operational modules, and the plan narrows from there.
+ *
+ * Business Services appears only on `executive`, and even there the role gate
+ * decides: an executive-department employee who isn't an admin doesn't get it.
+ */
 const MATRIX = {
-  executive:  { sections: [...SECTIONS],                         slices: ["marketing", "sales", "network"] },
-  sales:      { sections: ["crm", "analytics"],                  slices: ["sales"] },
-  marketing:  { sections: ["marketing", "analytics"],            slices: ["marketing"] },
-  it:         { sections: ["network", "analytics"],              slices: ["network"] },
-  finance:    { sections: ["services"],                          slices: [] },
-  operations: { sections: ["services", "network", "analytics"],  slices: ["network"] },
-  general:    { sections: ["services"],                          slices: [] },
+  executive:  { sections: [...SECTIONS],                                 slices: ["marketing", "sales", "network"] },
+  sales:      { sections: ["crm", "analytics"],                          slices: ["sales"] },
+  marketing:  { sections: ["marketing", "analytics"],                    slices: ["marketing"] },
+  it:         { sections: ["network", "analytics"],                      slices: ["network"] },
+  // Finance follows the money: accounts and pipeline in CRM, revenue in analytics.
+  finance:    { sections: ["crm", "analytics"],                          slices: ["sales"] },
+  operations: { sections: ["network", "analytics"],                      slices: ["network"] },
+  general:    { sections: ["crm", "marketing", "network", "analytics"],  slices: ["marketing", "sales", "network"] },
 };
 
 export const DEPT_LABELS = {
