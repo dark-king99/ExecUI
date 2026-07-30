@@ -23,7 +23,7 @@ const blankForm = { name: "", kind: "api", baseUrl: "", authType: "bearer", auth
 
 export default function Integrations() {
   const toast = useToast();
-  const isAdmin = ["enterprise_admin", "system_admin"].includes(useUser().user?.role);
+  const isAdmin = useUser().isAdmin;
   const [form, setForm] = useState(null); // null = closed, object = add form
   const [testingId, setTestingId] = useState(null);
 

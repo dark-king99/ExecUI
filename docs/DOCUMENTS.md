@@ -111,7 +111,40 @@ it?" is the question a register exists to answer.
   contract automatically via the e-signature completion hook (no polling).
 - **Renewal** creates a *successor* contract and marks the original `renewed`,
   rather than editing dates in place — so the register keeps both. A 12-month
-  term starting 1 Aug 2027 ends 31 Jul 2028, not 1 Aug.
+  term starting 1 Aug 2027 ends 31 Jul 2028, not 1 Aug. The chain is a real
+  relation, readable in both directions ("what did this replace?" and "what
+  replaced it?"), and creating a renewal takes you to the renewal — that is the
+  record you now work on.
+
+### The document and the contract can each see the other
+
+Separating the business object from the paper is only tolerable if neither side
+becomes an id you have to go and look up.
+
+| From a document | From a contract |
+|---|---|
+| the contracts it is attached to, with status and whether they are in force | the document, its current version, file name and SHA-256 |
+| the signature envelopes raised against it | the envelope, and how many parties have signed |
+
+So the register can distinguish **no document** from **a document with no file in
+it** — both stop a signature, and a title on its own hides the second case
+entirely — and the hub can say what a document is being used for before you try to
+delete it.
+
+The guards are in the service, and the UI states them on the button rather than
+after the click:
+
+| Action | Refused when | Because |
+|---|---|---|
+| Delete document | a contract is attached (the error **names it**) | a contract without its paperwork isn't a record of anything |
+| Delete document | signature requests exist against it | it would destroy signature evidence |
+| Archive document | a contract using it is **in force** | archiving hides it from the hub and from search, losing a live obligation's own evidence from view while the obligation carries on |
+
+A *closed* contract's document can be archived — the point is the live commitment,
+not the row.
+
+See [`docs/NAVIGATION.md`](./NAVIGATION.md) for the linking and refresh mechanisms
+these views share with the rest of the product.
 
 ## 5. Renewal reminders
 

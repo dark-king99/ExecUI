@@ -257,3 +257,92 @@ test("portal URLs address the tenant by slug and carry the token in the query", 
   assert.ok(!url.includes("tok en"), "the token is percent-encoded");
   assert.match(portalUrl("a b"), /\/portal\/a%20b$/);
 });
+
+// ── The registry must describe columns that exist ─────────────────────────────
+/**
+ * Every source is queried live against Prisma, and a source whose query throws
+ * degrades to a warning rather than failing the search — which is the right
+ * behaviour at runtime and a terrible way to find a typo. The `sops` source
+ * referenced `content` and `category` on a model that has `description` and
+ * `department`: it threw on every single query, and SOPs were simply never
+ * searchable. Nothing failed, so nothing was noticed.
+ *
+ * So the registry is checked against the generated schema instead of trusted.
+ */
+test("every searchable field and returned column exists on its model", async () => {
+  const { Prisma } = await import("@prisma/client");
+  const byDelegate = new Map(
+    Prisma.dmmf.datamodel.models.map((m) => [m.name[0].toLowerCase() + m.name.slice(1), m]),
+  );
+
+  for (const source of Object.values(SOURCES)) {
+    const model = byDelegate.get(source.model);
+    assert.ok(model, `source "${source.id}" names unknown model "${source.model}"`);
+    const columns = new Set(model.fields.map((f) => f.name));
+
+    for (const { field } of source.fields) {
+      assert.ok(columns.has(field), `${source.id}: matched field "${field}" is not a column on ${source.model}`);
+    }
+    for (const column of Object.keys(source.select ?? {})) {
+      assert.ok(columns.has(column), `${source.id}: selected column "${column}" is not on ${source.model}`);
+    }
+    if (source.dateField) {
+      assert.ok(columns.has(source.dateField), `${source.id}: dateField "${source.dateField}" is not on ${source.model}`);
+    }
+    for (const column of Object.keys(source.where ?? {})) {
+      if (column.startsWith("$") || ["AND", "OR", "NOT"].includes(column)) continue;
+      assert.ok(columns.has(column), `${source.id}: filter column "${column}" is not on ${source.model}`);
+    }
+  }
+});
+
+test("a source only matches on string columns — `contains` is meaningless otherwise", async () => {
+  const { Prisma } = await import("@prisma/client");
+  const byDelegate = new Map(
+    Prisma.dmmf.datamodel.models.map((m) => [m.name[0].toLowerCase() + m.name.slice(1), m]),
+  );
+
+  for (const source of Object.values(SOURCES)) {
+    const model = byDelegate.get(source.model);
+    const typeOf = new Map(model.fields.map((f) => [f.name, f.type]));
+    for (const { field } of source.fields) {
+      assert.equal(typeOf.get(field), "String", `${source.id}: "${field}" is a ${typeOf.get(field)}, not text`);
+    }
+  }
+});
+
+test("every field a source returns for display is one it selected", async () => {
+  const { Prisma } = await import("@prisma/client");
+  const byDelegate = new Map(
+    Prisma.dmmf.datamodel.models.map((m) => [m.name[0].toLowerCase() + m.name.slice(1), m]),
+  );
+  // A plausible value per column type, so the builders are exercised the way the
+  // database would exercise them (a String[] column must arrive as an array).
+  const sample = (field, name) => {
+    if (field.isList) return [`${name}-a`, `${name}-b`];
+    switch (field.type) {
+      case "Int": case "Float": case "Decimal": case "BigInt": return 7;
+      case "Boolean": return true;
+      case "DateTime": return new Date("2026-07-01T00:00:00Z");
+      case "Json": return {};
+      default: return name === "id" ? "rec-1" : `${name}-value`;
+    }
+  };
+
+  for (const source of Object.values(SOURCES)) {
+    const model = byDelegate.get(source.model);
+    const fieldsByName = new Map(model.fields.map((f) => [f.name, f]));
+    const selected = new Set(Object.keys(source.select ?? {}));
+    // Feed the builders a row containing only the selected columns; a builder
+    // reaching for anything else would render "undefined" in the results list.
+    const row = Object.fromEntries([...selected].map((k) => [k, sample(fieldsByName.get(k) ?? {}, k)]));
+    const title = source.title(row);
+    assert.ok(title === undefined || typeof title === "string", `${source.id}: title must be a string`);
+    if (source.subtitle) {
+      const subtitle = source.subtitle(row);
+      assert.ok(subtitle === undefined || typeof subtitle === "string", `${source.id}: subtitle must be a string`);
+      assert.ok(!String(subtitle).includes("undefined"), `${source.id}: subtitle reads from a column it didn't select`);
+    }
+    assert.ok(!String(title).includes("undefined"), `${source.id}: title reads from a column it didn't select`);
+  }
+});

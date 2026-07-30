@@ -212,7 +212,7 @@ export async function submitRange(user, { from, to, userId } = {}) {
         tenantId: person.tenantId, userId: profile.managerId, type: "timesheet",
         title: `Timesheet to approve: ${nameOf(person)}`,
         body: `${result.count} day${result.count === 1 ? "" : "s"} · ${from} → ${to}`,
-        link: "/people", actorName: "People Ops",
+        link: "/people?tab=time", actorName: "People Ops",
       });
     }
   } catch { /* submission stands regardless */ }
@@ -276,7 +276,7 @@ export async function approveEntries(user, { ids, userId, from, to, decision = "
       await notify({
         tenantId: person.tenantId, userId: owner, type: "timesheet",
         title: `Your hours were ${decision}`, body: note || null,
-        link: "/people", actorName: "People Ops",
+        link: "/people?tab=me&section=time", actorName: "People Ops",
       });
     } catch { /* best effort */ }
   }

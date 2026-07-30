@@ -23,15 +23,34 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 const queryCache = new Map();            // cacheKey -> last result
 const invalidationListeners = new Set(); // Set<() => void>
 
-/** Notify every mounted query to refresh (called after any mutation). */
+let coalesceTimer = null;
+
+/**
+ * Notify every mounted query to refresh. Called automatically after any
+ * successful write (see services/api.js) and by useMutation.
+ *
+ * Coalesced on a short trailing timer: a single user action often issues several
+ * writes in a row (create, then send, then attach), and each one shouldn't
+ * trigger its own refetch of every mounted query on the page.
+ */
 export function invalidateQueries() {
-  for (const fn of Array.from(invalidationListeners)) {
-    try { fn(); } catch { /* ignore individual listener errors */ }
-  }
-  // Also surface a DOM event so non-hook code (e.g. the Services app) can react.
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('data:invalidated'));
-  }
+  if (coalesceTimer) return;
+  coalesceTimer = setTimeout(() => {
+    coalesceTimer = null;
+    for (const fn of Array.from(invalidationListeners)) {
+      try { fn(); } catch { /* ignore individual listener errors */ }
+    }
+    // Also surface a DOM event so non-hook code (e.g. the Services app) can react.
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('data:invalidated'));
+    }
+  }, 120);
+}
+
+/** Drop a shared cache entry (or the whole cache) — used on sign-out. */
+export function clearQueryCache(cacheKey) {
+  if (cacheKey) queryCache.delete(cacheKey);
+  else queryCache.clear();
 }
 
 export function useApi(fetchFn, deps = [], options = {}) {

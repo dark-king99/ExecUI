@@ -12,8 +12,10 @@ import {
 } from "../src/modules/documents/templates.service.js";
 import {
   hashToken, newToken, canonicalize, certificateHash, buildCertificate,
-  verifyCertificate, signingUrl,
+  verifyCertificate, signingUrl, shape as shapeEnvelope,
 } from "../src/modules/documents/signatures.service.js";
+import { shape as shapeDocument } from "../src/modules/documents/documents.service.js";
+import { shape as shapeContract } from "../src/modules/documents/contracts.service.js";
 
 // ── Registry integrity ───────────────────────────────────────────────────────
 test("every lifecycle state is internally consistent", () => {
@@ -334,4 +336,117 @@ test("a certificate for an unsigned envelope reports no fingerprint rather than 
   const cert = buildCertificate(env);
   assert.equal(cert.document.sha256, null);
   assert.equal(verifyCertificate(cert).valid, true, "it still verifies as an honest record");
+});
+
+// ── Relationship shaping (Document ↔ Contract) ────────────────────────────────
+// Both views describe the same pair of records. If either shape stops carrying
+// the other side, the link between the two screens disappears without anything
+// failing — the register just quietly stops mentioning the paperwork.
+test("a document reports the contracts it is attached to, and whether they bind", () => {
+  const shaped = shapeDocument(
+    { id: "d1", title: "MSA", category: "contract", status: "active", currentVersion: 2 },
+    {
+      versions: [],
+      contracts: [
+        { id: "c1", title: "Acme MSA", counterparty: "Acme", status: "active" },
+        { id: "c2", title: "Old MSA", counterparty: "Acme", status: "terminated" },
+      ],
+    },
+  );
+
+  assert.equal(shaped.contracts.length, 2);
+  assert.deepEqual(shaped.contracts.map((c) => c.id), ["c1", "c2"]);
+  // `live` is what the UI uses to decide whether archiving is allowed, so an
+  // in-force contract and a closed one must not look alike.
+  assert.equal(shaped.contracts[0].live, true);
+  assert.equal(shaped.contracts[1].live, false);
+  assert.equal(shaped.contracts[0].statusLabel, CONTRACT_STATES.active.label);
+});
+
+test("an unattached document says so with an empty list, not a missing field", () => {
+  const shaped = shapeDocument({ id: "d1", title: "Notes", category: "general", status: "active" }, { versions: [] });
+  // A caller must never have to tell "not attached" apart from "not loaded".
+  assert.deepEqual(shaped.contracts, []);
+});
+
+test("a contract carries the current version and fingerprint of its document", () => {
+  const shaped = shapeContract({
+    id: "c1", title: "Acme MSA", counterparty: "Acme", type: "msa", status: "active",
+    value: 1000, currency: "USD", noticePeriodDays: 30, documentId: "d1",
+    document: {
+      id: "d1", title: "MSA", status: "active", category: "contract",
+      confidential: true, currentVersion: 3,
+      versions: [{ version: 3, fileName: "msa.pdf", size: 2048, url: "/uploads/x.pdf", checksum: "a".repeat(64), createdAt: new Date() }],
+    },
+  });
+
+  assert.equal(shaped.document.currentVersion, 3);
+  assert.equal(shaped.document.latest.fileName, "msa.pdf");
+  assert.equal(shaped.document.latest.checksum.length, 64);
+  assert.equal(shaped.document.confidential, true);
+  // The flat title is kept: the list rendered it before this change and still can.
+  assert.equal(shaped.documentTitle, "MSA");
+});
+
+test("a document with no file is distinguishable from no document at all", () => {
+  const base = {
+    id: "c1", title: "T", counterparty: "X", type: "other", status: "draft",
+    value: 0, currency: "USD", noticePeriodDays: 30,
+  };
+  const empty = shapeContract({ ...base, documentId: "d1", document: { id: "d1", title: "Draft", status: "active", category: "contract", currentVersion: 0, versions: [] } });
+  const none = shapeContract({ ...base, documentId: null, document: null });
+
+  assert.equal(empty.document.latest, null, "attached but nothing uploaded");
+  assert.equal(empty.documentId, "d1");
+  assert.equal(none.document, null, "nothing attached at all");
+  assert.equal(none.documentId, null);
+});
+
+test("signature progress travels with the contract, so the register can show it", () => {
+  const shaped = shapeContract({
+    id: "c1", title: "T", counterparty: "X", type: "other", status: "pending_signature",
+    value: 0, currency: "USD", noticePeriodDays: 30,
+    signature: {
+      id: "e1", status: "sent", sentAt: new Date(), completedAt: null,
+      signers: [{ status: "signed" }, { status: "pending" }, { status: "signed" }],
+    },
+  });
+  assert.equal(shaped.signature.id, "e1");
+  assert.equal(shaped.signature.signed, 2);
+  assert.equal(shaped.signature.total, 3);
+  assert.equal(shaped.signatureStatus, "sent");
+});
+
+test("the renewal chain is reported in both directions", () => {
+  const shaped = shapeContract({
+    id: "c2", title: "Acme MSA 2027", counterparty: "Acme", type: "msa", status: "active",
+    value: 0, currency: "USD", noticePeriodDays: 30,
+    renewedFromId: "c1",
+    renewedFrom: { id: "c1", title: "Acme MSA 2026", status: "renewed" },
+    renewals: [{ id: "c3", title: "Acme MSA 2028", status: "draft" }],
+  });
+  assert.equal(shaped.renewedFrom.title, "Acme MSA 2026");
+  assert.equal(shaped.renewedBy.title, "Acme MSA 2028");
+
+  const lone = shapeContract({
+    id: "c1", title: "T", counterparty: "X", type: "other", status: "draft",
+    value: 0, currency: "USD", noticePeriodDays: 30, renewals: [],
+  });
+  assert.equal(lone.renewedFrom, null);
+  assert.equal(lone.renewedBy, null);
+});
+
+test("an envelope names the contract it is signing", () => {
+  const withContract = shapeEnvelope({
+    id: "e1", documentId: "d1", title: "Signature: Acme MSA", status: "sent",
+    document: { title: "MSA" }, signers: [],
+    contracts: [{ id: "c1", title: "Acme MSA", status: "pending_signature" }],
+  });
+  assert.equal(withContract.contract.id, "c1");
+
+  const standalone = shapeEnvelope({
+    id: "e2", documentId: "d2", title: "NDA", status: "draft",
+    document: { title: "NDA" }, signers: [], contracts: [],
+  });
+  assert.equal(standalone.contract, null, "not every envelope belongs to a contract");
 });

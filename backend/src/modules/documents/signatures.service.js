@@ -27,6 +27,7 @@
  */
 import crypto from "crypto";
 import prisma from "../../config/database.js";
+import { linkTo } from "../../lib/recordLinks.js";
 import { runUnscoped, runWithTenant } from "../../lib/tenantContext.js";
 import { sendEmail, emailConfigured } from "../../lib/email.js";
 import { notify } from "../notifications/notifications.service.js";
@@ -65,6 +66,11 @@ export const shape = (r) => ({
   id: r.id,
   documentId: r.documentId,
   documentTitle: r.document?.title ?? null,
+  // Which contract, if any, this envelope is signing. An envelope shown without
+  // it is a signature request nobody can trace back to the commitment it makes.
+  contract: r.contracts?.length
+    ? { id: r.contracts[0].id, title: r.contracts[0].title, status: r.contracts[0].status }
+    : null,
   versionId: r.versionId,
   title: r.title,
   message: r.message,
@@ -87,6 +93,7 @@ export const shape = (r) => ({
 const include = {
   document: { select: { title: true } },
   signers: { orderBy: [{ order: "asc" }, { email: "asc" }] },
+  contracts: { select: { id: true, title: true, status: true }, take: 1 },
 };
 
 async function trail(requestId, type, { signerId, detail, ip, userAgent, actorName, tenantId } = {}) {
@@ -441,7 +448,7 @@ async function notifyOwner(tenantId, request, message) {
     await runWithTenant({ tenantId }, async () =>
       notify({
         tenantId, userId: request.createdById, type: "signature",
-        title: message, link: "/documents", actorName: "E-signature",
+        title: message, link: linkTo("envelope", request.id), actorName: "E-signature",
       }),
     );
   } catch (e) {

@@ -6,6 +6,7 @@ import { useToast } from "../../components/ui/Toast";
 import { INDUSTRY_UI } from "./industries.config";
 import { colorOf } from "./solutions.config";
 import { PrimaryBtn } from "./components/crm-ui";
+import { isAdminUser } from "../../lib/access";
 
 const GENERAL_CARD = {
   id: "general",
@@ -20,7 +21,7 @@ export default function IndustrySetup() {
   const { industryId, catalog, setIndustry, loading } = useIndustry();
   const { user } = useUser();
   const toast = useToast();
-  const isAdmin = ["enterprise_admin", "system_admin"].includes(user?.role);
+  const isAdmin = isAdminUser(user);
 
   const [selected, setSelected] = useState(industryId);
   const [saving, setSaving] = useState(false);

@@ -8,7 +8,7 @@ import { useSidebar } from "./SidebarContext";
 import { useApi } from "../hooks/useApi";
 import { account } from "../services/api";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
-import { accessFor } from "../lib/access";
+import { accessFor, isAdminUser } from "../lib/access";
 import { searchApp } from "../lib/searchIndex";
 import NotificationBell from "./NotificationBell";
 
@@ -31,7 +31,7 @@ function NavSearch({ user }) {
   const [active, setActive] = useState(0);
   const boxRef = useRef(null);
   const allowed = accessFor(user).sections;
-  const results = open ? searchApp(q, allowed) : [];
+  const results = open ? searchApp(q, allowed, isAdminUser(user)) : [];
 
   useEffect(() => { setActive(0); }, [q]);
   useEffect(() => {

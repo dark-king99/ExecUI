@@ -20,12 +20,13 @@ import prisma from "../../config/database.js";
 import { runWithTenant } from "../../lib/tenantContext.js";
 import { onDomainEvent } from "../../lib/domainEvents.js";
 import { log } from "../../lib/logger.js";
+import { linkTo } from "../../lib/recordLinks.js";
 import { notify, notifyMany } from "../notifications/notifications.service.js";
 import { sendEmail } from "../../lib/email.js";
 import {
   CONTRACT_STATES, CONTRACT_STATUSES, CONTRACT_TYPES, LIVE_STATUSES,
   canTransition, transitionError, contractType, renewalStatus, RENEWAL_LABELS,
-  addMonths, noticeDeadline, daysUntil, nextStates,
+  addMonths, noticeDeadline, daysUntil, nextStates, documentCategory,
 } from "./documents.registry.js";
 
 const err = (message, status = 400) => { const e = new Error(message); e.status = status; return e; };
@@ -66,23 +67,79 @@ export function shape(c, { events, now = new Date() } = {}) {
     renewal: { ...renewal, label: RENEWAL_LABELS[renewal.state] ?? renewal.state },
     documentId: c.documentId,
     documentTitle: c.document?.title ?? null,
+    // The attached document as the register needs to see it: which version is
+    // current, whether it has a file at all, and — where the caller asked for the
+    // detail — the fingerprint a signature binds to. Without this the register
+    // could show a document title for a document with nothing in it.
+    document: c.document
+      ? {
+        id: c.document.id,
+        title: c.document.title,
+        status: c.document.status,
+        category: c.document.category,
+        categoryLabel: documentCategory(c.document.category)?.label ?? c.document.category,
+        confidential: c.document.confidential,
+        currentVersion: c.document.currentVersion,
+        latest: c.document.versions?.length
+          ? {
+            version: c.document.versions[0].version,
+            fileName: c.document.versions[0].fileName,
+            size: c.document.versions[0].size,
+            url: c.document.versions[0].url,
+            checksum: c.document.versions[0].checksum,
+            createdAt: c.document.versions[0].createdAt,
+          }
+          : null,
+      }
+      : null,
     approvalRequestId: c.approvalRequestId,
     signatureRequestId: c.signatureRequestId,
     signatureStatus: c.signature?.status ?? null,
+    signature: c.signature
+      ? {
+        id: c.signature.id,
+        status: c.signature.status,
+        sentAt: c.signature.sentAt,
+        completedAt: c.signature.completedAt,
+        signed: (c.signature.signers ?? []).filter((sg) => sg.status === "signed").length,
+        total: (c.signature.signers ?? []).length,
+      }
+      : null,
     ownerId: c.ownerId,
     ownerName: c.ownerName,
     notes: c.notes,
     terminatedAt: c.terminatedAt,
     renewedFromId: c.renewedFromId,
+    // The renewal chain, both ways. A register that can't answer "what did this
+    // replace?" makes you search the list by title and guess.
+    renewedFrom: c.renewedFrom ? { id: c.renewedFrom.id, title: c.renewedFrom.title, status: c.renewedFrom.status } : null,
+    renewedBy: c.renewals?.length
+      ? { id: c.renewals[0].id, title: c.renewals[0].title, status: c.renewals[0].status }
+      : null,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
     events: events ? events.map(shapeEvent) : undefined,
   };
 }
 
+// The list needs enough to render a row honestly; the detail panel needs the
+// current file. Both read the same shape, so one `include` with the version
+// attached keeps the two views from disagreeing about what's on the contract.
 const include = {
-  document: { select: { title: true } },
-  signature: { select: { status: true } },
+  document: {
+    select: {
+      id: true, title: true, status: true, category: true, confidential: true, currentVersion: true,
+      versions: {
+        orderBy: { version: "desc" }, take: 1,
+        select: { version: true, fileName: true, size: true, url: true, checksum: true, createdAt: true },
+      },
+    },
+  },
+  signature: {
+    select: { id: true, status: true, sentAt: true, completedAt: true, signers: { select: { status: true } } },
+  },
+  renewedFrom: { select: { id: true, title: true, status: true } },
+  renewals: { select: { id: true, title: true, status: true }, orderBy: { createdAt: "desc" }, take: 1 },
 };
 
 async function timeline(contractId, type, { detail, fromStatus, toStatus, actor, tenantId } = {}) {
@@ -332,7 +389,7 @@ export async function transition(user, id, to, { note } = {}) {
       await notify({
         tenantId: existing.tenantId, userId: existing.ownerId, type: "contract",
         title: `${existing.title} is now ${CONTRACT_STATES[to].label.toLowerCase()}`,
-        body: note || null, link: "/contracts", actorName: "Contracts",
+        body: note || null, link: linkTo("contract", id), actorName: "Contracts",
       });
     } catch { /* a notification failure must not undo a lifecycle move */ }
   }
@@ -474,7 +531,7 @@ export async function onSignatureCompleted(signatureRequestId) {
         await notify({
           tenantId: c.tenantId, userId: c.ownerId, type: "contract",
           title: `${c.title} is now active`, body: "All parties have signed.",
-          link: "/contracts", actorName: "Contracts",
+          link: linkTo("contract", c.id), actorName: "Contracts",
         });
       } catch { /* best effort */ }
     }
@@ -510,7 +567,7 @@ export async function onApprovalOutcome({ tenantId, record, action }) {
           tenantId, userId: contract.ownerId, type: "contract",
           title: action === "approved" ? `${contract.title} was approved` : `${contract.title} was rejected`,
           body: action === "approved" ? "It's ready to send for signature." : "Review the comments and revise it.",
-          link: "/contracts", actorName: "Contracts",
+          link: linkTo("contract", contract.id), actorName: "Contracts",
         });
       } catch { /* best effort */ }
     }
@@ -689,7 +746,7 @@ async function alert(contract, title, body) {
       if (contract.ownerId) {
         await notify({
           tenantId: contract.tenantId, userId: contract.ownerId, type: "contract",
-          title, body, link: "/contracts", actorName: "Contracts",
+          title, body, link: linkTo("contract", contract.id), actorName: "Contracts",
         });
       } else {
         // No owner: tell the admins rather than letting it fall on the floor.
@@ -700,7 +757,7 @@ async function alert(contract, title, body) {
         if (admins.length) {
           await notifyMany(admins.map((a) => a.id), {
             tenantId: contract.tenantId, type: "contract", title, body,
-            link: "/contracts", actorName: "Contracts",
+            link: linkTo("contract", contract.id), actorName: "Contracts",
           });
         }
       }

@@ -15,8 +15,9 @@ import BotWidget from "../components/BotWidget";
 import CommandPalette from "../components/CommandPalette";
 import Breadcrumbs from "../components/Breadcrumbs";
 import Dashboard from "../apps/services/Dashboard";
-import { accessFor } from "../lib/access";
+import { accessFor, isAdminRole } from "../lib/access";
 import useRewardTracking from "../hooks/useRewardTracking";
+import { clearQueryCache } from "../hooks/useApi";
 import { identify, resetAnalytics } from "../lib/analytics";
 
 // ── Lazy-loaded mini-app route groups ─────────────────────────────────────────
@@ -68,9 +69,8 @@ const SearchResults       = lazy(() => import("../apps/search/SearchResults"));
 const Helpdesk            = lazy(() => import("../apps/helpdesk/Helpdesk"));
 const Portal              = lazy(() => import("../apps/helpdesk/Portal"));
 
-// HR / People Ops + payroll
+// HR / People Ops (payroll is a tab inside it — see apps/hr/People.jsx)
 const People              = lazy(() => import("../apps/hr/People"));
-const Payroll             = lazy(() => import("../apps/hr/Payroll"));
 
 // Documents, e-signature & contracts (CLM)
 const Documents           = lazy(() => import("../apps/documents/Documents"));
@@ -118,9 +118,11 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
   // (sidebar/navbar only belong to the main system).
   const isStandalone = section === "home" || section === "privacy";
 
-  // Organization (enterprise account) views are restricted to admins.
-  const isAdmin = ["enterprise_admin", "system_admin"].includes(roleToUse) ||
-                  ["enterprise_admin", "system_admin"].includes(user?.role);
+  // Organization (enterprise account) views are restricted to admins — by the
+  // *effective* role. A system admin previewing the product as Sales previously
+  // kept every admin route, which made the preview misleading: the whole point is
+  // to see what that person sees.
+  const isAdmin = isAdminRole(roleToUse);
 
   // Department-based module access. Blocked sections redirect to the overview.
   const access = accessFor(user);
@@ -186,10 +188,17 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 {/* Helpdesk — support queue + knowledge base (CRM-gated). */}
                 <Route path="/helpdesk" element={guard("crm", <Helpdesk />)} />
 
-                {/* People — the console for admins, self-service HR for everyone
-                    else (the page decides); payroll is admin-only. */}
+                {/* HR — the console for admins, self-service for everyone else
+                    (the page decides). Payroll is a tab inside it, not a page of
+                    its own: it's part of running people, and splitting it out put
+                    the most sensitive screen in the product in the top-level nav
+                    of every employee who couldn't open it.
+
+                    /payroll is kept as a redirect. Bookmarks, notification links
+                    sent before this change and the docs all still work — a moved
+                    page shouldn't turn into a 404. */}
                 <Route path="/people" element={<People />} />
-                <Route path="/payroll" element={isAdmin ? <Payroll /> : <Navigate to="/people" replace />} />
+                <Route path="/payroll" element={<Navigate to="/people?tab=payroll" replace />} />
 
                 <Route path="/account" element={<Navigate to="/account/profile" replace />} />
                 <Route path="/account/profile"      element={<Profile />} />
@@ -307,6 +316,7 @@ export default function App() {
     } else {
       localStorage.removeItem("user");
       clearToken();
+      clearQueryCache();              // never show the previous user's cached data
       resetAnalytics();               // stop attributing events after logout
     }
   }, [user]);
@@ -357,7 +367,7 @@ export default function App() {
   if (!user) return <Login onLogin={setUser} />;
 
   return (
-    <UserProvider user={user} setUser={setUser}>
+    <UserProvider user={user} setUser={setUser} effectiveRole={roleToUse}>
       <ToastProvider>
 
         

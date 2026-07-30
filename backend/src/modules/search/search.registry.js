@@ -16,7 +16,11 @@
  * query buried in a description, or the results read as random.
  *
  * Pure module: no database, no I/O, fully unit-tested.
+ *
+ * Links come from `lib/recordLinks.js` — the same table the SPA reads — so a
+ * result always opens the record it names rather than the list it lives in.
  */
+import { linkTo } from "../../lib/recordLinks.js";
 
 const f = (field, weight, opts = {}) => ({ field, weight, ...opts });
 
@@ -44,7 +48,7 @@ export const SOURCES = {
 
   tickets: {
     id: "tickets", label: "Support tickets", module: "crm", model: "crmTicket",
-    icon: "life-buoy", link: (r) => `/helpdesk?ticket=${r.id}`,
+    icon: "life-buoy", link: (r) => linkTo("ticket", r.id),
     fields: [f("subject", 10), f("ticket_number", 9, { exactOnly: true }), f("customer_name", 7), f("description", 4), f("contactEmail", 6)],
     select: {
       id: true, ticket_number: true, subject: true, customer_name: true,
@@ -110,10 +114,10 @@ export const SOURCES = {
   sops: {
     id: "sops", label: "Procedures (SOPs)", module: "services", model: "bizSOP",
     icon: "book-open", link: () => "/services/operations",
-    fields: [f("title", 10), f("content", 5), f("category", 4)],
-    select: { id: true, title: true, category: true, status: true, createdAt: true },
+    fields: [f("title", 10), f("description", 5), f("department", 4)],
+    select: { id: true, title: true, description: true, department: true, status: true, createdAt: true },
     title: (r) => r.title,
-    subtitle: (r) => [r.category, r.status].filter(Boolean).join(" · "),
+    subtitle: (r) => [r.department, r.status].filter(Boolean).join(" · "),
     dateField: "createdAt",
   },
 
@@ -151,7 +155,7 @@ export const SOURCES = {
   // ── Documents & contracts ─────────────────────────────────────────────────
   documents: {
     id: "documents", label: "Documents", model: "document",
-    icon: "file-text", link: () => "/documents",
+    icon: "file-text", link: (r) => linkTo("document", r.id),
     fields: [f("title", 10), f("description", 5)],
     select: { id: true, title: true, description: true, category: true, status: true, currentVersion: true, updatedAt: true },
     where: { status: "active" },
@@ -162,7 +166,7 @@ export const SOURCES = {
 
   contracts: {
     id: "contracts", label: "Contracts", adminOnly: true, model: "contract",
-    icon: "file-signature", link: () => "/contracts",
+    icon: "file-signature", link: (r) => linkTo("contract", r.id),
     fields: [f("title", 10), f("counterparty", 9), f("notes", 3)],
     select: { id: true, title: true, counterparty: true, status: true, value: true, currency: true, endDate: true, updatedAt: true },
     title: (r) => r.title,
@@ -175,7 +179,7 @@ export const SOURCES = {
   // separate, public-only path (see kb.service.js), never this one.
   kb_articles: {
     id: "kb_articles", label: "Help articles", model: "kbArticle",
-    icon: "book-open", link: (r) => `/helpdesk?article=${r.id}`,
+    icon: "book-open", link: (r) => linkTo("article", r.id),
     fields: [f("title", 10), f("excerpt", 6), f("body", 4)],
     select: { id: true, title: true, excerpt: true, slug: true, status: true, visibility: true, updatedAt: true },
     where: { status: { not: "archived" } },
@@ -187,7 +191,7 @@ export const SOURCES = {
   // ── People (admin only — this is the staff directory) ──────────────────────
   people: {
     id: "people", label: "People", adminOnly: true, model: "user",
-    icon: "users", link: (r) => `/people?user=${r.id}`,
+    icon: "users", link: (r) => linkTo("person", r.id),
     fields: [f("firstName", 9), f("lastName", 9), f("email", 8), f("jobTitle", 5), f("employeeId", 7, { exactOnly: true })],
     select: {
       id: true, firstName: true, lastName: true, email: true,

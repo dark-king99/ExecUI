@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   Server, Home, Users, TrendingUp, BarChart3, UserLock, Building2,
   ChevronLeft, ChevronRight, Settings, Layers, Activity, LayoutDashboard, Trophy, CheckCircle2,
-  FileText, FileSignature, UserCog, Wallet, LifeBuoy
+  FileText, FileSignature, UserCog, LifeBuoy
 } from "lucide-react";
 import { accessFor } from "../../lib/access";
 import { useUser } from "../../context/UserContext";
@@ -63,11 +63,8 @@ function SectionLabel({ label, collapsed }) {
 export default function Sidebar() {
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const { user } = useUser();
+  const { user, isAdmin } = useUser();
   const allowed = accessFor(user).sections;
-  // The contract register commits the organization legally — admins only, and
-  // the nav shouldn't advertise a page that would just redirect.
-  const isAdmin = ["enterprise_admin", "system_admin"].includes(user?.role);
 
   useEffect(() => {
     const saved = localStorage.getItem("sidebar-collapsed");
@@ -112,14 +109,16 @@ export default function Sidebar() {
         <NavBtn icon={LayoutDashboard} label="Executive Overview" path="/overview" current={pathname} collapsed={collapsed} />
         <NavBtn icon={CheckCircle2}    label="Approvals"          path="/approvals" current={pathname} collapsed={collapsed} />
         <NavBtn icon={FileText}        label="Documents"          path="/documents" current={pathname} collapsed={collapsed} />
+        {/* The contract register commits the organization legally — admins only,
+            and the nav shouldn't advertise a page that would just redirect. */}
         {isAdmin && (
           <NavBtn icon={FileSignature} label="Contracts"          path="/contracts" current={pathname} collapsed={collapsed} />
         )}
-        {/* Every employee has an HR page (their own); payroll is admin-only. */}
-        <NavBtn icon={UserCog}         label={isAdmin ? "People" : "My HR"} path="/people" current={pathname} collapsed={collapsed} />
-        {isAdmin && (
-          <NavBtn icon={Wallet}        label="Payroll"            path="/payroll" current={pathname} collapsed={collapsed} />
-        )}
+        {/* One HR entry for everyone: the console for admins (with payroll as a
+            tab inside it), their own record for everybody else. Payroll used to
+            sit here as a second top-level item, which advertised the most
+            sensitive screen in the product to people who can't open it. */}
+        <NavBtn icon={UserCog}         label={isAdmin ? "HR" : "My HR"} path="/people" current={pathname} collapsed={collapsed} />
         <NavBtn icon={Trophy}          label="Rewards"            path="/rewards"  current={pathname} collapsed={collapsed} />
         <NavBtn icon={UserLock}        label="Account"            path="/account"  current={pathname} collapsed={collapsed} />
 

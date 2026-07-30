@@ -8,15 +8,19 @@
  * Status buttons are generated from the lifecycle map the backend enforces, so
  * the UI can only ever offer a move that will actually be allowed.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody } from "../../components/ui/Card";
 import { useApi } from "../../hooks/useApi";
+import useRecordParam from "../../hooks/useRecordParam";
 import { useToast } from "../../components/ui/Toast";
+import { linkTo } from "../../lib/recordLinks";
 import { contracts, documents } from "../../services/api";
 import {
   FileSignature, Plus, Search, AlertTriangle, Clock, RefreshCw, CheckCircle2,
   MessageSquare, Trash2, ArrowRight, ShieldCheck, Banknote, CalendarClock, X,
+  FileText, ExternalLink, Download, Upload, PenLine,
 } from "lucide-react";
 
 const cls = (...a) => a.filter(Boolean).join(" ");
@@ -47,6 +51,88 @@ const RENEWAL_TONE = {
 
 function Pill({ children, tone = TONE.slate }) {
   return <span className={cls("rounded-full px-2 py-0.5 text-[11px] font-medium", tone)}>{children}</span>;
+}
+
+/** A link into another view for a related record. */
+function RelatedLink({ to, children }) {
+  return (
+    <Link to={to} onClick={(e) => e.stopPropagation()}
+      className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-600 hover:text-indigo-500 dark:bg-indigo-500/10 dark:text-indigo-400">
+      {children}<ExternalLink size={9} className="opacity-60" />
+    </Link>
+  );
+}
+
+const bytes = (n) => (!n ? "—" : n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`);
+
+/**
+ * The paperwork behind the contract.
+ *
+ * A register that shows only a document *title* can't tell you whether the file
+ * exists, which version is current, or whether the thing you'd download is the
+ * thing that was signed. So this panel shows the version and its fingerprint,
+ * opens the file, and links into the document hub for the full history — and when
+ * nothing is attached it says what to do about it instead of leaving a blank.
+ */
+function AttachedDocument({ contract, onAttach }) {
+  const doc = contract.document;
+
+  if (!doc) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-300 p-3 dark:border-slate-700">
+        <p className="text-xs font-medium text-slate-600 dark:text-slate-300">No document attached</p>
+        <p className="mt-0.5 text-[11px] text-slate-400">
+          A contract with no paperwork can't be signed and isn't evidence of anything.
+        </p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <button onClick={onAttach}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-300">
+            <Upload size={11} /> Attach an existing document
+          </button>
+          <Link to="/documents?tab=templates"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-300">
+            <PenLine size={11} /> Generate one from a template
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <FileText size={13} className="shrink-0 text-slate-400" />
+            <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-100">{doc.title}</p>
+            <Pill>{doc.categoryLabel}</Pill>
+            {doc.confidential && <Pill tone={TONE.amber}>Confidential</Pill>}
+            {doc.status === "archived" && <Pill tone={TONE.amber}>Archived</Pill>}
+            <Pill tone={TONE.slate}>v{doc.currentVersion}</Pill>
+          </div>
+          {doc.latest ? (
+            <p className="mt-0.5 truncate text-[11px] text-slate-400">
+              {doc.latest.fileName} ({bytes(doc.latest.size)}) · {when(doc.latest.createdAt)}
+              {doc.latest.checksum ? ` · sha256 ${doc.latest.checksum.slice(0, 16)}…` : ""}
+            </p>
+          ) : (
+            <p className="mt-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+              This document has no file uploaded yet — there is nothing to sign.
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+          {doc.latest && (
+            <a href={doc.latest.url} target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-300">
+              <Download size={11} /> Open file
+            </a>
+          )}
+          <RelatedLink to={linkTo("document", doc.id)}>Document hub</RelatedLink>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── New / edit form ──────────────────────────────────────────────────────────
@@ -104,10 +190,15 @@ function ContractForm({ initial, catalog, docs, onSave, onCancel, busy }) {
           </label>
         </div>
 
+        {/* Every active document is offered, including ones with no file yet —
+            attaching first and uploading after is a normal order of work, and a
+            document that silently isn't in the list looks like it wasn't saved. */}
         <select className={input} value={f.documentId} onChange={(e) => set({ documentId: e.target.value })}>
           <option value="">No document attached</option>
-          {(docs ?? []).filter((d) => d.currentVersion > 0).map((d) => (
-            <option key={d.id} value={d.id}>{d.title} (v{d.currentVersion})</option>
+          {(docs ?? []).map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.title} {d.currentVersion > 0 ? `(v${d.currentVersion})` : "— no file uploaded yet"}
+            </option>
           ))}
         </select>
 
@@ -214,7 +305,7 @@ function SendContract({ contract, onClose, toast, refetch }) {
 }
 
 // ── Detail panel ─────────────────────────────────────────────────────────────
-function ContractDetail({ id, catalog, docs, toast, refetch }) {
+function ContractDetail({ id, catalog, docs, toast, refetch, onOpen }) {
   const { data: c, refetch: reload } = useApi(() => contracts.get(id), [id]);
   const [note, setNote] = useState("");
   const [editing, setEditing] = useState(false);
@@ -264,6 +355,32 @@ function ContractDetail({ id, catalog, docs, toast, refetch }) {
           </div>
 
           {c.notes && <p className="rounded-lg bg-slate-50 p-2.5 text-xs text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">{c.notes}</p>}
+
+          {/* The paperwork, the signature envelope and the renewal chain — the
+              three things this record points at. Each one is reachable from here
+              rather than being an id you have to go and look up. */}
+          <AttachedDocument contract={c} onAttach={() => setEditing(true)} />
+
+          {(c.signature || c.renewedFrom || c.renewedBy) && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Related</span>
+              {c.signature && (
+                <RelatedLink to={linkTo("envelope", c.signature.id)}>
+                  <FileSignature size={9} /> Envelope · {c.signature.status} · {c.signature.signed}/{c.signature.total} signed
+                </RelatedLink>
+              )}
+              {c.renewedFrom && (
+                <RelatedLink to={linkTo("contract", c.renewedFrom.id)}>
+                  <RefreshCw size={9} /> Renews {c.renewedFrom.title}
+                </RelatedLink>
+              )}
+              {c.renewedBy && (
+                <RelatedLink to={linkTo("contract", c.renewedBy.id)}>
+                  <RefreshCw size={9} /> Renewed by {c.renewedBy.title}
+                </RelatedLink>
+              )}
+            </div>
+          )}
 
           {/* Lifecycle — only the moves the backend will actually accept. */}
           <div className="flex flex-wrap items-center gap-1.5">
@@ -315,7 +432,13 @@ function ContractDetail({ id, catalog, docs, toast, refetch }) {
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
               <p className="text-xs text-slate-500">Create a successor contract; this one is marked renewed.</p>
               <button disabled={busy}
-                onClick={() => act(async () => { await contracts.renew(c.id); setRenewing(false); }, "Renewal created as a draft.")}
+                onClick={() => act(async () => {
+                  // The API answers with both sides of the chain; the successor is
+                  // the record you now work on.
+                  const { renewal } = await contracts.renew(c.id);
+                  setRenewing(false);
+                  if (renewal?.id) onOpen?.(renewal.id);
+                }, "Renewal created as a draft — you're now looking at it.")}
                 className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50">
                 Create renewal
               </button>
@@ -360,7 +483,10 @@ export default function Contracts() {
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
-  const [openId, setOpenId] = useState(null);
+  // Which contract is open lives in the URL, so a link from a document, an
+  // envelope, a notification or a search result opens that contract — and the
+  // address bar stays shareable with a colleague.
+  const [openId, setOpenId] = useRecordParam("open");
   const [busy, setBusy] = useState(false);
 
   const { data: catalog } = useApi(() => documents.catalog(), [], { cacheKey: "documents:catalog" });
@@ -371,6 +497,11 @@ export default function Contracts() {
   const { data: pf, refetch: reloadPf } = useApi(() => contracts.portfolio(), [], { cacheKey: "contracts:portfolio" });
 
   const reload = () => { refetch(); reloadPf(); };
+
+  useEffect(() => {
+    if (!openId || !list) return;
+    document.getElementById(`contract-${openId}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [openId, list]);
 
   const create = async (data) => {
     setBusy(true);
@@ -452,7 +583,9 @@ export default function Contracts() {
             </div>
           )}
           {(list ?? []).map((c) => (
-            <div key={c.id} className="rounded-xl border border-slate-200 dark:border-slate-700">
+            <div key={c.id} id={`contract-${c.id}`}
+              className={cls("rounded-xl border dark:border-slate-700",
+                openId === c.id ? "border-indigo-300 ring-1 ring-indigo-200 dark:border-indigo-500/50 dark:ring-indigo-500/20" : "border-slate-200")}>
               <button className="w-full p-3 text-left" onClick={() => setOpenId(openId === c.id ? null : c.id)}>
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{c.title}</p>
@@ -460,6 +593,13 @@ export default function Contracts() {
                   <Pill>{c.typeLabel}</Pill>
                   {c.autoRenew && <Pill tone={TONE.indigo}>auto-renews</Pill>}
                   {c.signatureStatus && <Pill tone={TONE.blue}>signature: {c.signatureStatus}</Pill>}
+                  {/* "No document" and "a document with no file in it" are
+                      different problems, and both stop a signature. */}
+                  {!c.documentId
+                    ? <Pill tone={TONE.amber}>no document</Pill>
+                    : !c.document?.currentVersion
+                      ? <Pill tone={TONE.amber}>document has no file</Pill>
+                      : null}
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
                   {c.counterparty} · {money(c.value, c.currency)} · ends {day(c.endDate)}
@@ -469,7 +609,7 @@ export default function Contracts() {
                 </p>
               </button>
               {openId === c.id && (
-                <ContractDetail id={c.id} catalog={catalog} docs={docs} toast={toast} refetch={reload} />
+                <ContractDetail id={c.id} catalog={catalog} docs={docs} toast={toast} refetch={reload} onOpen={setOpenId} />
               )}
             </div>
           ))}

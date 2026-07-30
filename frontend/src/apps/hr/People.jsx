@@ -1,29 +1,41 @@
 /**
- * People Ops console.
+ * HR console.
  *
- * For an administrator: the directory, employment records, compensation history,
- * leave administration and timesheet approvals. For everyone else this page *is*
- * their self-service HR — same route, so "People" in the nav means something to
- * every employee rather than being a dead link for most of the company.
+ * One route for the whole of people operations. For an administrator: the
+ * directory, employment records, compensation history, leave administration,
+ * timesheet approvals and **payroll**. For everyone else this same route is their
+ * own self-service HR, so "HR" in the nav means something to every employee
+ * rather than being a dead link for most of the company.
  *
- * Two deliberate choices:
+ * Payroll is a tab here rather than a page of its own. Pay is part of running
+ * people — the run reads the employment records, the compensation history and the
+ * approved timesheets that live on the other tabs — and as a separate top-level
+ * nav item it advertised the most sensitive screen in the product to every
+ * employee who couldn't open it. It is gated on the **effective** role, so a
+ * system admin previewing the product as another role loses it too.
+ *
+ * Three further deliberate choices:
  *  • People with no employment record are shown as **Not onboarded** rather than
  *    hidden, because a missing HR record is exactly the thing a People console
  *    should surface.
  *  • Salary is only ever shown on the person's own detail panel, and government
  *    ids and bank details need an explicit, audited reveal.
+ *  • Which tab you are on is in the URL, so a notification about a payslip or a
+ *    pay run opens the tab that shows it.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody } from "../../components/ui/Card";
 import { useApi } from "../../hooks/useApi";
+import useRecordParam from "../../hooks/useRecordParam";
 import { useToast } from "../../components/ui/Toast";
 import { useUser } from "../../context/UserContext";
 import { hr } from "../../services/api";
 import MyHr from "./MyHr";
+import Payroll from "./Payroll";
 import {
   Users, Search, CalendarDays, Clock, Plus, Eye, Wallet, UserCog, AlertTriangle,
-  CheckCircle2, XCircle, Sparkles, History, X,
+  CheckCircle2, XCircle, Sparkles, History, X, ShieldAlert,
 } from "lucide-react";
 
 const cls = (...a) => a.filter(Boolean).join(" ");
@@ -337,7 +349,19 @@ function Directory({ catalog, toast }) {
     () => hr.people.list({ search: search || undefined, status: status || undefined, includeInactive: "false" }),
     [search, status],
   );
-  const [openId, setOpenId] = useState(null);
+  // Global search has always linked people as `/people?user=<id>`. Until now
+  // nothing here read that parameter, so every one of those results landed on an
+  // unfiltered directory — the link looked right and did nothing.
+  const [openId, setOpenId] = useRecordParam("user");
+
+  useEffect(() => {
+    if (!openId || !people) return;
+    document.getElementById(`person-${openId}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [openId, people]);
+
+  // A linked-to person who isn't in the current page of results would otherwise
+  // open nothing at all, which reads as a broken link rather than a filter.
+  const missing = openId && people && !people.some((p) => p.userId === openId);
 
   return (
     <div className="space-y-4">
@@ -357,8 +381,19 @@ function Directory({ catalog, toast }) {
       <Card>
         <CardBody className="space-y-2">
           {people && !people.length && <Empty icon={Users} title="Nobody matches that" hint="Try a different search, or clear the status filter." />}
+          {missing && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-[11px] text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+              <span>The person you followed a link to isn&apos;t in the current filter.</span>
+              <button onClick={() => { setSearch(""); setStatus(""); }}
+                className="rounded-lg border border-amber-400 px-2 py-1 font-medium hover:bg-amber-100 dark:border-amber-500/50 dark:hover:bg-amber-500/20">
+                Clear filters
+              </button>
+            </div>
+          )}
           {(people ?? []).map((p) => (
-            <div key={p.userId} className="rounded-xl border border-slate-200 dark:border-slate-700">
+            <div key={p.userId} id={`person-${p.userId}`}
+              className={cls("rounded-xl border dark:border-slate-700",
+                openId === p.userId ? "border-indigo-300 ring-1 ring-indigo-200 dark:border-indigo-500/50 dark:ring-indigo-500/20" : "border-slate-200")}>
               <button className="w-full p-3 text-left" onClick={() => setOpenId(openId === p.userId ? null : p.userId)}>
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{p.name}</p>
@@ -601,26 +636,33 @@ function TimeAdmin({ toast }) {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 const ADMIN_TABS = [
-  { id: "directory", label: "Directory", icon: Users },
-  { id: "leave",     label: "Leave",     icon: CalendarDays },
+  { id: "directory", label: "Directory",  icon: Users },
+  { id: "leave",     label: "Leave",      icon: CalendarDays },
   { id: "time",      label: "Timesheets", icon: Clock },
-  { id: "me",        label: "My HR",     icon: UserCog },
+  { id: "payroll",   label: "Payroll",    icon: Wallet },
+  { id: "me",        label: "My HR",      icon: UserCog },
 ];
 
 export default function People() {
   const toast = useToast();
-  const { user } = useUser();
-  const isAdmin = ["enterprise_admin", "system_admin"].includes(user?.role);
-  const [tab, setTab] = useState("directory");
+  const { isAdmin } = useUser();
+  const [tabParam, setTab] = useRecordParam("tab");
+  // A tab the viewer can't open is not a tab. `/people?tab=payroll` asked for by
+  // someone who isn't an admin lands on the directory rather than on a blank
+  // panel or an error.
+  const tab = ADMIN_TABS.some((t) => t.id === tabParam) ? tabParam : "directory";
   const { data: catalog } = useApi(() => hr.catalog(), [], { cacheKey: "hr:catalog" });
   const { data: stats } = useApi(() => (isAdmin ? hr.stats() : Promise.resolve(null)), [isAdmin]);
 
   // Everyone who isn't an administrator gets their own HR, on the same route.
+  // `?section=` picks the sub-tab, which is what makes a leave-decision or
+  // payslip notification land on the thing it is about.
+  const [section] = useRecordParam("section");
   if (!isAdmin) {
     return (
       <div>
         <PageHeader title="My HR" subtitle="Your employment details, leave, timesheet and payslips." />
-        <MyHr />
+        <MyHr initialTab={["profile", "leave", "time", "pay"].includes(section) ? section : "profile"} />
       </div>
     );
   }
@@ -628,9 +670,9 @@ export default function People() {
   return (
     <div>
       <PageHeader
-        title="People"
-        subtitle="Employment records, compensation, leave and timesheets."
-        actions={stats && (
+        title="HR"
+        subtitle="Employment records, compensation, leave, timesheets and payroll."
+        actions={stats && tab !== "payroll" && (
           <div className="hidden gap-3 text-right sm:flex">
             <div>
               <p className="text-lg font-semibold text-slate-900 dark:text-white">{stats.headcount}</p>
@@ -659,7 +701,7 @@ export default function People() {
       >
         <div className="flex flex-wrap gap-1">
           {ADMIN_TABS.map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)}
+            <button key={t.id} onClick={() => setTab(t.id === "directory" ? null : t.id)}
               className={cls("inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition",
                 tab === t.id
                   ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
@@ -686,7 +728,10 @@ export default function People() {
       {tab === "directory" && <Directory catalog={catalog} toast={toast} />}
       {tab === "leave" && <LeaveAdmin toast={toast} />}
       {tab === "time" && <TimeAdmin toast={toast} />}
-      {tab === "me" && <MyHr />}
+      {/* Payroll renders without its own page header — it is a section of HR, and
+          two stacked titles would say so twice. */}
+      {tab === "payroll" && <Payroll embedded />}
+      {tab === "me" && <MyHr initialTab={["profile", "leave", "time", "pay"].includes(section) ? section : "profile"} />}
     </div>
   );
 }
