@@ -5,10 +5,13 @@ import { useToast } from "../../../../components/ui/Toast";
 import { useApi, useMutation } from "../../../../hooks/useApi";
 import { marketing } from "../../../../services/api";
 import { SolutionShell, Section, Loading, Modal, Field, TextInput, SelectInput, PrimaryBtn, GhostBtn, Pill, fmtNum } from "../../components/mkt-ui";
+import useRecordFocus from "../../../../hooks/useRecordFocus";
 
 const STATUS_VARIANT = { active: "success", paused: "warning", draft: "neutral" };
 
 export default function Campaigns() {
+  // A campaign followed from global search lands on its row.
+  const focus = useRecordFocus();
   const toast = useToast();
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: "", variant: "A" });
@@ -49,7 +52,7 @@ export default function Campaigns() {
                 {all.length === 0 ? (
                   <tr><td colSpan={5} className="py-10 text-center text-sm text-slate-500">No campaigns yet.</td></tr>
                 ) : all.map((e) => (
-                  <tr key={e.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                  <tr key={e.id} data-record-id={e.id} className={focus.className(e.id, "hover:bg-slate-50 dark:hover:bg-slate-800/40 transition")}>
                     <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{e.name}</td>
                     <td className="px-5 py-3"><Pill color="violet">Variant {e.variant}</Pill></td>
                     <td className="px-5 py-3 text-slate-700 dark:text-slate-300 flex items-center gap-1.5"><Eye size={13} className="text-slate-400" />{fmtNum(e.impressions)}</td>

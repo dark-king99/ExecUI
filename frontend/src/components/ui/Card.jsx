@@ -1,6 +1,9 @@
-export function Card({ children, className = "" }) {
+// `id` and the remaining props pass through, so a card can be the target of a
+// deep link (scrolled to and highlighted) without every caller wrapping it in an
+// extra div to hang an anchor off.
+export function Card({ children, className = "", ...rest }) {
   return (
-    <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm ${className}`}>
+    <div {...rest} className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm ${className}`}>
       {children}
     </div>
   );

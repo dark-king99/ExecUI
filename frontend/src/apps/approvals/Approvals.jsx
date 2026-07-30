@@ -6,16 +6,19 @@
  * approver on the *current* step. This page reflects that state rather than
  * deciding it, so what you can click always matches what will be allowed.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody } from "../../components/ui/Card";
 import { useApi } from "../../hooks/useApi";
 import { useToast } from "../../components/ui/Toast";
 import { useUser } from "../../context/UserContext";
 import { approvals } from "../../services/api";
+import { Link } from "react-router-dom";
+import useRecordParam from "../../hooks/useRecordParam";
+import { linkToSubject } from "../../lib/recordLinks";
 import {
   CheckCircle2, XCircle, Clock, ChevronRight, MessageSquare, RefreshCw,
-  Inbox, ShieldCheck, Ban, User,
+  Inbox, ShieldCheck, Ban, User, FileText, ExternalLink,
 } from "lucide-react";
 
 const cls = (...a) => a.filter(Boolean).join(" ");
@@ -55,9 +58,10 @@ function Steps({ steps, currentStep }) {
   );
 }
 
-function RequestCard({ r, meId, onDecide, onCancel, busy }) {
+function RequestCard({ r, meId, onDecide, onCancel, busy, highlighted = false }) {
   const [comment, setComment] = useState("");
   const [expanded, setExpanded] = useState(false);
+  const subjectLink = linkToSubject(r.resource, r.recordId);
   const step = r.steps[r.currentStep];
   const canDecide =
     r.status === "pending" &&
@@ -65,8 +69,15 @@ function RequestCard({ r, meId, onDecide, onCancel, busy }) {
     !r.decisions.some((d) => d.stepIndex === r.currentStep && d.userId === meId);
   const isMine = r.requestedById === meId;
 
+  useEffect(() => {
+    if (highlighted) {
+      document.getElementById(`approval-${r.id}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [highlighted, r.id]);
+
   return (
-    <Card>
+    <Card id={`approval-${r.id}`}
+      className={highlighted ? "ring-2 ring-indigo-400/70 dark:ring-indigo-400/50" : undefined}>
       <CardBody className="space-y-3">
         <div className="flex flex-wrap items-start gap-2">
           <div className="min-w-0 flex-1">
@@ -77,9 +88,18 @@ function RequestCard({ r, meId, onDecide, onCancel, busy }) {
             </div>
             {r.summary && <p className="mt-0.5 text-xs text-slate-500">{r.summary}</p>}
             <p className="mt-0.5 text-[11px] text-slate-400">
-              {r.recordLabel ? `${r.recordLabel} · ` : ""}Raised {when(r.createdAt)}
+              {r.recordLabel && !subjectLink ? `${r.recordLabel} · ` : ""}Raised {when(r.createdAt)}
               {r.decidedAt ? ` · Decided ${when(r.decidedAt)}` : ""}
             </p>
+            {/* You cannot sensibly approve what you cannot read. When the request
+                is about a record, the record is one click away. */}
+            {subjectLink && (
+              <Link to={subjectLink}
+                className="mt-1 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-600 hover:text-indigo-500 dark:bg-indigo-500/10 dark:text-indigo-400">
+                <FileText size={10} /> {r.recordLabel || "Open the record"}
+                <ExternalLink size={9} className="opacity-60" />
+              </Link>
+            )}
           </div>
           {isMine && r.status === "pending" && (
             <button onClick={() => onCancel(r.id)} disabled={busy}
@@ -143,11 +163,20 @@ function RequestCard({ r, meId, onDecide, onCancel, busy }) {
 export default function Approvals() {
   const toast = useToast();
   const { user } = useUser();
-  const [tab, setTab] = useState("mine");
   const [busy, setBusy] = useState(false);
 
+  // A record links here to show its own sign-off. That request may well not be
+  // one of *mine*, so the deep link switches to the full list — otherwise the
+  // link would land on an inbox that legitimately doesn't contain it.
+  const [requestId] = useRecordParam("request");
+  // Followed from a workflow: show only what that rule raised.
+  const [workflowId, setWorkflowId] = useRecordParam("workflow");
+  const [tab, setTab] = useState(requestId || workflowId ? "all" : "mine");
+
   const { data: mine, refetch: refetchMine } = useApi(() => approvals.list({ mine: true }), [], { cacheKey: "approvals:mine", pollingInterval: 60000 });
-  const { data: all, refetch: refetchAll } = useApi(() => approvals.list({ limit: 100 }), [], { cacheKey: "approvals:all" });
+  const { data: all, refetch: refetchAll } = useApi(
+    () => approvals.list({ limit: 100, workflowId: workflowId || undefined }), [workflowId],
+  );
 
   const refresh = () => { refetchMine(); refetchAll(); };
 
@@ -201,8 +230,18 @@ export default function Approvals() {
         </CardBody></Card>
       ) : (
         <div className="space-y-3">
+          {workflowId && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-300 bg-indigo-50 p-2.5 text-[11px] text-indigo-800 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-200">
+              <span>Showing only the approvals raised by one workflow.</span>
+              <button onClick={() => setWorkflowId(null)}
+                className="rounded-lg border border-indigo-400 px-2 py-1 font-medium hover:bg-indigo-100 dark:border-indigo-500/50 dark:hover:bg-indigo-500/20">
+                Show everything
+              </button>
+            </div>
+          )}
           {list.map((r) => (
-            <RequestCard key={r.id} r={r} meId={meId} onDecide={decide} onCancel={cancel} busy={busy} />
+            <RequestCard key={r.id} r={r} meId={meId} onDecide={decide} onCancel={cancel} busy={busy}
+              highlighted={r.id === requestId} />
           ))}
         </div>
       )}

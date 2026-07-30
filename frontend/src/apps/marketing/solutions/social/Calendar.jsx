@@ -6,6 +6,7 @@ import { useApi } from "../../../../hooks/useApi";
 import { useToast } from "../../../../components/ui/Toast";
 import { SolutionShell, PrimaryBtn, Pill, Loading, ErrorNote } from "../../components/mkt-ui";
 import { platformMeta } from "./platformMeta";
+import useRecordFocus from "../../../../hooks/useRecordFocus";
 
 const FILTERS = [
   { id: "all", label: "All" },
@@ -24,6 +25,8 @@ const STATUS = {
 const when = (d) => (d ? new Date(d).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
 
 export default function Calendar() {
+  // A post followed from global search lands on its card.
+  const focus = useRecordFocus("open");
   const navigate = useNavigate();
   const toast = useToast();
   const [filter, setFilter] = useState("all");
@@ -68,7 +71,8 @@ export default function Calendar() {
           {shown.map((p) => {
             const s = STATUS[p.status] ?? STATUS.draft;
             return (
-              <div key={p.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+              <div key={p.id} data-record-id={p.id}
+                className={focus.className(p.id, "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4")}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-slate-800 dark:text-slate-100 line-clamp-2 whitespace-pre-wrap">{p.content}</p>

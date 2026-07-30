@@ -115,14 +115,17 @@ export const createOpportunity       = handle((req) => svc.createOpportunity(tid
 export const listRenewals       = handle((req) => svc.listRenewals(tid(req), req.query));
 export const getRenewalsSummary = handle((req) => svc.getRenewalsSummary(tid(req)));
 
-// Cases
+// Cases — the CRM's view of the helpdesk's tickets. Writes carry the acting user
+// because the helpdesk records who changed what on the ticket's timeline.
+const actor = (req) => ({ userId: req.user?.userId, role: req.user?.role, name: req.user?.name });
+
 export const listCases   = handle((req) => svc.listCases(tid(req), req.query));
 export const getCase     = handle((req) => svc.getCase(tid(req), req.params.id));
-export const updateCase  = handle((req) => svc.updateCase(tid(req), req.params.id, req.body));
-export const addCaseNote = handle((req) => svc.addCaseNote(tid(req), req.params.id, req.body));
-export const approveCase = handle((req) => svc.approveCase(tid(req), req.params.id));
-export const lockCase    = handle((req) => svc.lockCase(tid(req), req.params.id));
-export const unlockCase  = handle((req) => svc.unlockCase(tid(req), req.params.id));
+export const updateCase  = handle((req) => svc.updateCase(tid(req), req.params.id, req.body, actor(req)));
+export const addCaseNote = handle((req) => svc.addCaseNote(tid(req), req.params.id, req.body, actor(req)));
+export const approveCase = handle((req) => svc.approveCase(tid(req), req.params.id, actor(req)));
+export const lockCase    = handle((req) => svc.lockCase(tid(req), req.params.id, actor(req)));
+export const unlockCase  = handle((req) => svc.unlockCase(tid(req), req.params.id, actor(req)));
 
 // Playbooks
 export const listPlaybooks   = handle((req) => svc.listPlaybooks(tid(req)));

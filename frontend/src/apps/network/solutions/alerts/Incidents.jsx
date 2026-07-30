@@ -4,6 +4,7 @@ import StatusBadge from "../../../../components/ui/StatusBadge";
 import { useToast } from "../../../../components/ui/Toast";
 import { useApi, useMutation } from "../../../../hooks/useApi";
 import { network } from "../../../../services/api";
+import useRecordParam from "../../../../hooks/useRecordParam";
 import { SolutionShell, MetricGrid, Section, Loading, Modal, Field, TextInput, SelectInput, PrimaryBtn, GhostBtn, Pill, fmtNum, fmtDate } from "../../components/net-ui";
 
 const SEV_COLOR = { critical: "red", high: "rose", medium: "amber", low: "slate" };
@@ -11,7 +12,9 @@ const STATUS_VARIANT = { open: "danger", investigating: "warning", resolved: "su
 
 export default function Incidents() {
   const toast = useToast();
-  const [selected, setSelected] = useState(null);
+  // An incident opened from a link or a search result selects itself, and the
+  // selection stays in the URL so it can be shared.
+  const [selected, setSelected] = useRecordParam("open");
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ title: "", severity: "medium", description: "" });
   const [err, setErr] = useState(null);
