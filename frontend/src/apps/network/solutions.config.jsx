@@ -131,8 +131,10 @@ export const SOLUTIONS = [
 ];
 
 /** Flat route table consumed by the router (all pages; visibility is UI-only). */
+// Each route carries the solution that owns it, so the router can refuse a page
+// the organization's plan doesn't include — not just the module it sits in.
 export const NETWORK_ROUTES = SOLUTIONS.flatMap((s) =>
-  s.pages.map((p) => ({ path: p.path, Component: p.component }))
+  s.pages.map((p) => ({ path: p.path, Component: p.component, solution: s.id }))
 );
 
 const pageInProfile = (page, profile) => !page.profile || page.profile === profile;

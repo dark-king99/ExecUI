@@ -28,7 +28,9 @@ export const RECORD_ROUTES = {
   template: { path: "/documents", param: "template", tab: "templates" },
   contract: { path: "/contracts", param: "open" },
   person:   { path: "/people",    param: "user" },
-  payslip:  { path: "/people",    param: "payslip", tab: "me" },
+  // An employee's own payslip lives under Account, not in the HR console —
+  // which they can't open.
+  payslip:  { path: "/account/my-hr", param: "payslip" },
   payRun:   { path: "/people",    param: "run",     tab: "payroll" },
   ticket:   { path: "/helpdesk",  param: "ticket" },
   article:  { path: "/helpdesk",  param: "article", tab: "kb" },

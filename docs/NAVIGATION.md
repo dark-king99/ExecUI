@@ -70,7 +70,56 @@ Notes:
 - Signing out clears the shared cache, so the next person to sign in on that
   browser can't be shown the previous user's data while their own loads.
 
-## 3. Pages are reachable by name
+## 3. If you can't use it, you don't see it
+
+`lib/visibility.js` is the one answer to "can this person see X". Three gates,
+applied together:
+
+| Gate | Question | Source |
+|---|---|---|
+| **plan** | did the organization buy it? | `lib/plans.js` |
+| **department** | is it this employee's job? | `lib/access.js` |
+| **role** | is this an administrator? | the **effective** role |
+
+The sidebar, the routes, the command palette and the destination index all call
+it, so a page cannot be visible on one surface and absent from another.
+
+**Absent, not disabled, and not shown-then-redirected.** Two reasons:
+
+1. Every entry somebody can't open is a thing they have to learn to ignore. A nav
+   full of those stops being a nav.
+2. Advertising what a plan doesn't include, or what a role isn't allowed to touch,
+   tells people something about the organization they weren't meant to be told.
+   "Payroll" in the sidebar of somebody who can't open it is an invitation to ask
+   why.
+
+**HR is the worked example.** The console administers *other people* — employment
+records, compensation, leave decisions, payroll — so it is administrators only:
+absent from the sidebar, absent from search, and `/people` redirects. But an
+employee must still read their own payslip, book leave and submit hours, so that
+lives at **`/account/my-hr`**, beside their profile, where it is theirs rather
+than something they administer. Hiding the console must never take away somebody's
+own payslip.
+
+**Plans hide solutions, not just modules.** A Premium tenant gets three of the
+five Business Services; the other two are not in the sidebar, not routable, and
+not in the command palette. Analytics is sliced the same way — no Network Ops, no
+Network analytics, and the launcher doesn't poll for data it will be refused.
+
+Declaring a page's requirements is one object:
+
+```js
+{ section: "services", solution: "team", adminOnly: false }
+```
+
+Anything left unset is unrestricted, so a new admin page has to say so — and
+`backend/test/visibility.test.mjs` fails any destination that is visible to
+everybody without being on a short list of genuinely universal ones.
+
+Routes still guard themselves. Hiding a link is presentation; the redirect holds
+when somebody types the URL, and the API authorizes independently of both.
+
+## 4. Pages are reachable by name
 
 `lib/searchIndex.js` lists every destination for Ctrl/⌘ + K and the navbar search,
 filtered by what the viewer can actually reach — module access **and**
@@ -81,7 +130,7 @@ Everything outside the module sidebars had been missing from this index, so
 Documents, Contracts, HR, Payroll, Helpdesk, Approvals and the compliance and
 developer consoles were reachable only by clicking the sidebar.
 
-## 4. Worked example: Documents ↔ Contracts
+## 5. Worked example: Documents ↔ Contracts
 
 A contract is the *business* object — counterparty, money, dates. A document is
 the paper. They are separate so the paper can be re-versioned while the contract
@@ -120,7 +169,7 @@ can see the other.
 - `renewedFromId` is a real foreign key, so a renewal cannot point at a contract
   that no longer exists.
 
-## 5. What the full sweep found
+## 6. What the full sweep found
 
 Auditing every relationship in the schema against the screens that show it turned
 up ten gaps. Three were not "missing links" but wrong behaviour:
@@ -163,7 +212,7 @@ The rest were relationships the database knew about and no screen showed:
 | Workflow → approvals it raised | nothing | the requests that rule created |
 | Document → the record it is filed against | two unread columns | a link to the deal, project or client |
 
-## 6. Registries are checked against the schema
+## 7. Registries are checked against the schema
 
 Search sources declare the columns they match and return. A source whose query
 throws degrades to a named warning rather than failing the whole search — correct

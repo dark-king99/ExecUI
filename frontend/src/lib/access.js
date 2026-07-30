@@ -9,7 +9,7 @@
  * department caps what this employee may touch within that.
  */
 
-import { entitlementsFor } from "./plans";
+import { entitlementsFor } from "./plans.js";
 
 export const SECTIONS = ["crm", "marketing", "network", "services", "analytics"];
 

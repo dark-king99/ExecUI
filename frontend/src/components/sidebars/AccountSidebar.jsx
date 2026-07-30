@@ -6,10 +6,15 @@ import {
   ArrowLeft, User, ShieldCheck, Key, KeyRound, Bell, Users, Plug, MessagesSquare,
   CreditCard, FileText, ChevronLeft, ChevronRight, Building2, IdCard, Webhook, Zap, Scale,
 
+  BadgeCheck,
 } from "lucide-react";
 
 const personalItems = [
   { id: "profile",       label: "Profile",       icon: User,           path: "/account/profile" },
+  // Your own employment details, leave, timesheet and payslips. This is *your*
+  // record, not the HR console — which is why it belongs beside your profile
+  // rather than in a People Ops module you have no business opening.
+  { id: "my-hr",         label: "My HR",         icon: BadgeCheck,     path: "/account/my-hr" },
   { id: "messaging",     label: "Messaging",     icon: MessagesSquare, path: "/account/messaging" },
   { id: "security",      label: "Security",      icon: ShieldCheck,    path: "/account/security" },
   { id: "notifications", label: "Notifications", icon: Bell,           path: "/account/notifications" },

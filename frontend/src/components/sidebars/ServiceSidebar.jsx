@@ -4,19 +4,25 @@ import {
   LayoutDashboard, DollarSign, Settings2, Target,
   Megaphone, Users, ArrowLeft, ChevronRight, ChevronLeft, Layers
 } from "lucide-react";
+import { useUser } from "../../context/UserContext";
+import { canSee } from "../../lib/visibility";
 
 const menuItems = [
   { id: "dashboard",  label: "Dashboard",            icon: LayoutDashboard, path: "/services/dashboard",  color: "text-indigo-500",  activeBg: "bg-indigo-50 dark:bg-indigo-500/10",  activeBar: "bg-indigo-600 dark:bg-indigo-400" },
-  { id: "financial",  label: "Financial Management", icon: DollarSign,      path: "/services/financial",  color: "text-emerald-500", activeBg: "bg-emerald-50 dark:bg-emerald-500/10", activeBar: "bg-emerald-500 dark:bg-emerald-400" },
-  { id: "operations", label: "Operations & Systems", icon: Settings2,       path: "/services/operation",  color: "text-sky-500",     activeBg: "bg-sky-50 dark:bg-sky-500/10",         activeBar: "bg-sky-500 dark:bg-sky-400" },
-  { id: "strategic",  label: "Strategic Planning",   icon: Target,          path: "/services/strategic",  color: "text-purple-500",  activeBg: "bg-purple-50 dark:bg-purple-500/10",  activeBar: "bg-purple-500 dark:bg-purple-400" },
-  { id: "marketing",  label: "Marketing & Sales",    icon: Megaphone,       path: "/services/marketing",  color: "text-rose-500",    activeBg: "bg-rose-50 dark:bg-rose-500/10",      activeBar: "bg-rose-500 dark:bg-rose-400" },
-  { id: "team",       label: "Team & Projects",      icon: Users,           path: "/services/team",       color: "text-amber-500",   activeBg: "bg-amber-50 dark:bg-amber-500/10",    activeBar: "bg-amber-500 dark:bg-amber-400" },
+  { id: "financial",  solution: "financial", label: "Financial Management", icon: DollarSign,      path: "/services/financial",  color: "text-emerald-500", activeBg: "bg-emerald-50 dark:bg-emerald-500/10", activeBar: "bg-emerald-500 dark:bg-emerald-400" },
+  { id: "operations", solution: "operation", label: "Operations & Systems", icon: Settings2,       path: "/services/operation",  color: "text-sky-500",     activeBg: "bg-sky-50 dark:bg-sky-500/10",         activeBar: "bg-sky-500 dark:bg-sky-400" },
+  { id: "strategic",  solution: "strategic", label: "Strategic Planning",   icon: Target,          path: "/services/strategic",  color: "text-purple-500",  activeBg: "bg-purple-50 dark:bg-purple-500/10",  activeBar: "bg-purple-500 dark:bg-purple-400" },
+  { id: "marketing",  solution: "marketing", label: "Marketing & Sales",    icon: Megaphone,       path: "/services/marketing",  color: "text-rose-500",    activeBg: "bg-rose-50 dark:bg-rose-500/10",      activeBar: "bg-rose-500 dark:bg-rose-400" },
+  { id: "team",       solution: "team", label: "Team & Projects",      icon: Users,           path: "/services/team",       color: "text-amber-500",   activeBg: "bg-amber-50 dark:bg-amber-500/10",    activeBar: "bg-amber-500 dark:bg-amber-400" },
 ];
 
 export const ServiceSidebar = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  // Only what the organization's plan includes. Premium buys three of these five;
+  // showing all five and bouncing on click is how a nav ends up meaning nothing.
+  const { user, role } = useUser();
+  const items = menuItems.filter((i) => canSee(user, { section: "services", module: "services", solution: i.solution }, role));
 
   const [collapsed, setCollapsed] = useState(false);
 
@@ -79,7 +85,7 @@ export const ServiceSidebar = () => {
         )}
         {collapsed && <div className="my-1 border-t border-slate-100 dark:border-slate-800/60" />}
 
-        {menuItems.map(({ id, label, icon: Icon, path, color, activeBg, activeBar }) => {
+        {items.map(({ id, label, icon: Icon, path, color, activeBg, activeBar }) => {
           const active = pathname === path || pathname.startsWith(path + "/");
           return (
             <button
