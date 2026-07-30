@@ -276,7 +276,7 @@ export async function approveEntries(user, { ids, userId, from, to, decision = "
       await notify({
         tenantId: person.tenantId, userId: owner, type: "timesheet",
         title: `Your hours were ${decision}`, body: note || null,
-        link: "/people?tab=me&section=time", actorName: "People Ops",
+        link: "/account/my-hr?section=time", actorName: "People Ops",
       });
     } catch { /* best effort */ }
   }

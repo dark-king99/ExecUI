@@ -138,8 +138,10 @@ export const SOLUTIONS = [
 ];
 
 /** Flat route table consumed by the router. */
+// Each route carries the solution that owns it, so the router can refuse a page
+// the organization's plan doesn't include — not just the module it sits in.
 export const CRM_ROUTES = SOLUTIONS.flatMap((s) =>
-  s.pages.map((p) => ({ path: p.path, Component: p.component }))
+  s.pages.map((p) => ({ path: p.path, Component: p.component, solution: s.id }))
 );
 
 /** Find the solution that owns a given pathname (most specific root wins). */

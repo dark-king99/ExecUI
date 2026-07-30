@@ -8,7 +8,7 @@ import { useSidebar } from "./SidebarContext";
 import { useApi } from "../hooks/useApi";
 import { account } from "../services/api";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
-import { accessFor, isAdminUser } from "../lib/access";
+
 import { searchApp } from "../lib/searchIndex";
 import NotificationBell from "./NotificationBell";
 
@@ -24,14 +24,13 @@ function NavItem({ icon: Icon, label, onClick }) {
   );
 }
 
-function NavSearch({ user }) {
+function NavSearch({ user, role }) {
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const boxRef = useRef(null);
-  const allowed = accessFor(user).sections;
-  const results = open ? searchApp(q, allowed, isAdminUser(user)) : [];
+  const results = open ? searchApp(q, user, role) : [];
 
   useEffect(() => { setActive(0); }, [q]);
   useEffect(() => {
@@ -122,7 +121,7 @@ export default function Navbar({ user, onLogout, roleToUse }) {
     <header className="h-14 shrink-0 bg-white dark:bg-slate-950/95 backdrop-blur-sm border-b border-slate-100 dark:border-slate-800/70 flex items-center px-5 gap-90">
 
       {/* ── Search ───────────────────────────────────────────────────── */}
-      <NavSearch user={user} />
+      <NavSearch user={user} role={roleToUse ?? user?.role} />
 
       {/* ── Quick nav ────────────────────────────────────────────────── */}
       <nav className="flex items-center gap-0.5 ml-2">
