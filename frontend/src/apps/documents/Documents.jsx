@@ -10,16 +10,21 @@
  *  • The document fingerprint (SHA-256) is shown next to each version, because
  *    it's what a completion certificate binds to.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody } from "../../components/ui/Card";
 import { useApi } from "../../hooks/useApi";
+import useRecordParam from "../../hooks/useRecordParam";
 import { useToast } from "../../components/ui/Toast";
 import { useUser } from "../../context/UserContext";
+import { isAdminUser } from "../../lib/access";
+import { linkTo } from "../../lib/recordLinks";
 import { documents } from "../../services/api";
 import {
   FileText, Upload, Plus, Search, Archive, Trash2, PenLine, Send, X, Clock,
   ShieldCheck, Copy, FileSignature, Layers, CheckCircle2, AlertTriangle, Download,
+  ExternalLink,
 } from "lucide-react";
 
 const cls = (...a) => a.filter(Boolean).join(" ");
@@ -38,6 +43,19 @@ const ENVELOPE_TONE = {
 
 function Pill({ children, tone = "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" }) {
   return <span className={cls("rounded-full px-2 py-0.5 text-[11px] font-medium", tone)}>{children}</span>;
+}
+
+/**
+ * A link to a related record in another view. Deliberately looks like a link
+ * rather than a badge: the whole point is that it goes somewhere.
+ */
+function RelatedLink({ to, children, tone = "text-indigo-600 hover:text-indigo-500 dark:text-indigo-400" }) {
+  return (
+    <Link to={to} onClick={(e) => e.stopPropagation()}
+      className={cls("inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium dark:bg-indigo-500/10", tone)}>
+      {children}<ExternalLink size={9} className="opacity-60" />
+    </Link>
+  );
 }
 
 function Empty({ icon: Icon, title, hint }) {
@@ -168,16 +186,24 @@ function SendForSignature({ doc, catalog, onClose, toast }) {
 function DocumentsTab({ catalog, isAdmin, toast }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
-  const [status, setStatus] = useState("active");
+  // A document arrived at from a link may well be archived — filtering it out
+  // would answer a direct link with an empty list.
+  const [openId, setOpenId] = useRecordParam("open");
+  const [status, setStatus] = useState(openId ? "all" : "active");
   const { data: list, loading, refetch } = useApi(
     () => documents.list({ search: search || undefined, category: category || undefined, status }),
     [search, category, status],
   );
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState({ title: "", category: "general", description: "", confidential: false });
-  const [openId, setOpenId] = useState(null);
   const [signingFor, setSigningFor] = useState(null);
   const [busy, setBusy] = useState(false);
+
+  // Scroll a linked-to document into view once the list it lives in has loaded.
+  useEffect(() => {
+    if (!openId || !list) return;
+    document.getElementById(`doc-${openId}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [openId, list]);
 
   const create = async () => {
     setBusy(true);
@@ -203,6 +229,11 @@ function DocumentsTab({ catalog, isAdmin, toast }) {
     try { await documents.archive(docId); toast.success?.("Archived."); refetch(); }
     catch (e) { toast.error?.(e.message); }
   };
+
+  // Both destructive actions are refused by the API while a contract depends on
+  // the document. Saying so on the button — and pointing at the contract — beats
+  // letting someone click and read an error.
+  const blockedBy = (d) => (d.contracts ?? []).find((c) => c.live) ?? (d.contracts ?? [])[0] ?? null;
 
   const remove = async (docId) => {
     try { await documents.remove(docId); toast.success?.("Deleted."); refetch(); }
@@ -265,7 +296,9 @@ function DocumentsTab({ catalog, isAdmin, toast }) {
               hint="Create one and upload a file, or generate it from a template." />
           )}
           {(list ?? []).map((d) => (
-            <div key={d.id} className="rounded-xl border border-slate-200 dark:border-slate-700">
+            <div key={d.id} id={`doc-${d.id}`}
+              className={cls("rounded-xl border dark:border-slate-700",
+                openId === d.id ? "border-indigo-300 ring-1 ring-indigo-200 dark:border-indigo-500/50 dark:ring-indigo-500/20" : "border-slate-200")}>
               <div className="flex flex-wrap items-start justify-between gap-2 p-3">
                 <button className="min-w-0 flex-1 text-left" onClick={() => setOpenId(openId === d.id ? null : d.id)}>
                   <div className="flex flex-wrap items-center gap-2">
@@ -279,6 +312,12 @@ function DocumentsTab({ catalog, isAdmin, toast }) {
                         {d.signatureCount} envelope{d.signatureCount === 1 ? "" : "s"}
                       </Pill>
                     )}
+                    {/* This document is somebody's contract. Say which, and go there. */}
+                    {isAdmin && (d.contracts ?? []).map((c) => (
+                      <RelatedLink key={c.id} to={linkTo("contract", c.id)}>
+                        <FileSignature size={9} /> {c.title} · {c.statusLabel}
+                      </RelatedLink>
+                    ))}
                   </div>
                   <p className="mt-0.5 text-xs text-slate-500">
                     {d.ownerName ? `${d.ownerName} · ` : ""}updated {when(d.updatedAt)}
@@ -298,12 +337,24 @@ function DocumentsTab({ catalog, isAdmin, toast }) {
                     </button>
                   )}
                   {d.status !== "archived" && (
-                    <button onClick={() => archive(d.id)} title="Archive"
-                      className="rounded-lg p-1.5 text-slate-400 hover:text-amber-500"><Archive size={13} /></button>
+                    <button onClick={() => archive(d.id)} disabled={!!blockedBy(d)?.live}
+                      title={blockedBy(d)?.live
+                        ? `Can't archive — "${blockedBy(d).title}" is still in force`
+                        : "Archive"}
+                      className="rounded-lg p-1.5 text-slate-400 hover:text-amber-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-slate-400">
+                      <Archive size={13} />
+                    </button>
                   )}
                   {isAdmin && (
-                    <button onClick={() => remove(d.id)} title="Delete permanently"
-                      className="rounded-lg p-1.5 text-slate-400 hover:text-red-500"><Trash2 size={13} /></button>
+                    <button onClick={() => remove(d.id)} disabled={!!blockedBy(d) || d.signatureCount > 0}
+                      title={blockedBy(d)
+                        ? `Can't delete — attached to "${blockedBy(d).title}"`
+                        : d.signatureCount > 0
+                          ? "Can't delete — this document carries signature evidence"
+                          : "Delete permanently"}
+                      className="rounded-lg p-1.5 text-slate-400 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-slate-400">
+                      <Trash2 size={13} />
+                    </button>
                   )}
                 </div>
               </div>
@@ -353,6 +404,26 @@ function VersionHistory({ documentId }) {
           </div>
         ))}
       </div>
+
+      {/* Where else this document appears. A document hub that can't answer
+          "what is this being used for?" makes every deletion a guess. */}
+      {((doc.contracts ?? []).length > 0 || (doc.envelopes ?? []).length > 0) && (
+        <div className="mt-3 border-t border-slate-100 pt-2.5 dark:border-slate-800">
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Used by</p>
+          <div className="flex flex-wrap gap-1.5">
+            {(doc.contracts ?? []).map((c) => (
+              <RelatedLink key={c.id} to={linkTo("contract", c.id)}>
+                <FileSignature size={9} /> {c.title} · {c.statusLabel}
+              </RelatedLink>
+            ))}
+            {(doc.envelopes ?? []).map((e) => (
+              <RelatedLink key={e.id} to={linkTo("envelope", e.id)}>
+                <Send size={9} /> {e.title} · {e.status}
+              </RelatedLink>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -520,7 +591,12 @@ function GenerateFromTemplate({ template, toast, onDone }) {
 // ── Envelopes tab ────────────────────────────────────────────────────────────
 function EnvelopesTab({ toast }) {
   const { data: list, refetch } = useApi(() => documents.signatures.list({ limit: 50 }), [], { pollingInterval: 30000 });
-  const [openId, setOpenId] = useState(null);
+  const [openId, setOpenId] = useRecordParam("envelope");
+
+  useEffect(() => {
+    if (!openId || !list) return;
+    document.getElementById(`env-${openId}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [openId, list]);
 
   const resend = async (id) => {
     try {
@@ -543,7 +619,9 @@ function EnvelopesTab({ toast }) {
             hint="Open a document and choose Sign to send it to a counterparty." />
         )}
         {(list ?? []).map((r) => (
-          <div key={r.id} className="rounded-xl border border-slate-200 dark:border-slate-700">
+          <div key={r.id} id={`env-${r.id}`}
+            className={cls("rounded-xl border dark:border-slate-700",
+              openId === r.id ? "border-indigo-300 ring-1 ring-indigo-200 dark:border-indigo-500/50 dark:ring-indigo-500/20" : "border-slate-200")}>
             <div className="flex flex-wrap items-start justify-between gap-2 p-3">
               <button className="min-w-0 flex-1 text-left" onClick={() => setOpenId(openId === r.id ? null : r.id)}>
                 <div className="flex flex-wrap items-center gap-2">
@@ -551,6 +629,12 @@ function EnvelopesTab({ toast }) {
                   <Pill tone={ENVELOPE_TONE[r.status]}>{r.status}</Pill>
                   <Pill tone="bg-slate-100 text-slate-500 dark:bg-slate-800">{r.progress.signed}/{r.progress.total} signed</Pill>
                   {r.sequential && <Pill>in order</Pill>}
+                  {/* An envelope is usually signing a commitment — link to it. */}
+                  {r.contract && (
+                    <RelatedLink to={linkTo("contract", r.contract.id)}>
+                      <FileSignature size={9} /> {r.contract.title}
+                    </RelatedLink>
+                  )}
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
                   {r.documentTitle} · sent {when(r.sentAt)}{r.expiresAt ? ` · expires ${new Date(r.expiresAt).toLocaleDateString()}` : ""}
@@ -618,6 +702,14 @@ function EnvelopeDetail({ id }) {
       </div>
 
       <div>
+        {data.documentId && (
+          <div className="mb-3">
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Signing</p>
+            <RelatedLink to={linkTo("document", data.documentId)}>
+              <FileText size={9} /> {data.documentTitle ?? "document"}
+            </RelatedLink>
+          </div>
+        )}
         <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
           <Clock size={11} /> Audit trail
         </p>
@@ -646,8 +738,11 @@ const TABS = [
 export default function Documents() {
   const toast = useToast();
   const { user } = useUser();
-  const isAdmin = ["enterprise_admin", "system_admin"].includes(user?.role);
-  const [tab, setTab] = useState("documents");
+  const isAdmin = isAdminUser(user);
+  // The tab lives in the URL so a link can open the right one — an envelope link
+  // that lands on the Documents tab has taken you to the wrong page.
+  const [tabParam, setTab] = useRecordParam("tab");
+  const tab = TABS.some((t) => t.id === tabParam) ? tabParam : "documents";
   const { data: catalog } = useApi(() => documents.catalog(), [], { cacheKey: "documents:catalog" });
   const { data: stats } = useApi(() => documents.stats(), []);
 
@@ -677,7 +772,7 @@ export default function Documents() {
       >
         <div className="flex flex-wrap gap-1">
           {TABS.map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)}
+            <button key={t.id} onClick={() => setTab(t.id === "documents" ? null : t.id)}
               className={cls(
                 "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition",
                 tab === t.id

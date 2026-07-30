@@ -13,6 +13,15 @@ import { entitlementsFor } from "./plans";
 
 export const SECTIONS = ["crm", "marketing", "network", "services", "analytics"];
 
+/**
+ * The two roles that administer an organization. Named here rather than repeated
+ * as a literal array at each call site, so "who counts as an admin" has one
+ * answer that the sidebar, the routes and each page all read.
+ */
+export const ADMIN_ROLES = ["enterprise_admin", "system_admin"];
+export const isAdminRole = (role) => ADMIN_ROLES.includes(role);
+export const isAdminUser = (user) => isAdminRole(user?.role);
+
 const MATRIX = {
   executive:  { sections: [...SECTIONS],                         slices: ["marketing", "sales", "network"] },
   sales:      { sections: ["crm", "analytics"],                  slices: ["sales"] },

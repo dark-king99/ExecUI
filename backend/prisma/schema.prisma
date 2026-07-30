@@ -1783,9 +1783,15 @@ model Contract {
   document  Document?         @relation(fields: [documentId], references: [id], onDelete: SetNull)
   signature SignatureRequest? @relation(fields: [signatureRequestId], references: [id], onDelete: SetNull)
   events    ContractEvent[]
+  // The renewal chain as a real relation, so "what did this replace?" and "what
+  // replaced it?" are answerable in one query — and a renewal can't point at a
+  // contract that no longer exists.
+  renewedFrom Contract?       @relation("ContractRenewal", fields: [renewedFromId], references: [id], onDelete: SetNull)
+  renewals    Contract[]      @relation("ContractRenewal")
 
   @@index([tenantId, status])
   @@index([tenantId, endDate])
+  @@index([renewedFromId])
 }
 
 // The contract timeline — every lifecycle move, with who made it. This is the

@@ -19,6 +19,7 @@
  * paid to anyone.
  */
 import prisma from "../../config/database.js";
+import { linkTo } from "../../lib/recordLinks.js";
 import { log } from "../../lib/logger.js";
 import { notify } from "../notifications/notifications.service.js";
 import { onDomainEvent } from "../../lib/domainEvents.js";
@@ -637,7 +638,7 @@ async function onRunPaid(runId) {
         tenantId: run.tenantId, userId: slip.userId, type: "payroll",
         title: `Your payslip for ${run.reference} is available`,
         body: `Net pay ${slip.currency} ${Number(slip.net).toLocaleString()}`,
-        link: "/people", actorName: "Payroll",
+        link: linkTo("payslip", slip.id), actorName: "Payroll",
       });
     } catch { /* payment stands regardless */ }
     await recordEvent(slip.userId, "payroll", {
@@ -932,7 +933,7 @@ export async function onApprovalOutcome({ tenantId, record, action }) {
           tenantId, userId: run.createdById, type: "payroll",
           title: action === "approved" ? `${run.reference} was approved` : `${run.reference} was sent back`,
           body: action === "approved" ? "You can now record it as paid and export the payment file." : "Review the comments and recalculate.",
-          link: "/payroll", actorName: "Payroll",
+          link: linkTo("payRun", run.id), actorName: "Payroll",
         });
       } catch { /* best effort */ }
     }

@@ -13,8 +13,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Search, CornerDownLeft, Clock, Database, ArrowRight } from "lucide-react";
-import { searchApp, SEARCH_INDEX } from "../lib/searchIndex";
-import { accessFor } from "../lib/access";
+import { searchApp, SEARCH_INDEX, canReach } from "../lib/searchIndex";
+import { accessFor, isAdminUser } from "../lib/access";
 import { useUser } from "../context/UserContext";
 import { search as searchApi } from "../services/api";
 
@@ -38,6 +38,7 @@ export default function CommandPalette() {
   const listRef = useRef(null);
 
   const allowed = useMemo(() => accessFor(user).sections, [user]);
+  const isAdmin = isAdminUser(user);
   const [records, setRecords] = useState([]);
   const [searching, setSearching] = useState(false);
 
@@ -94,11 +95,11 @@ export default function CommandPalette() {
       const byPath = new Map(SEARCH_INDEX.map((e) => [e.path, e]));
       return readRecents()
         .map((p) => byPath.get(p))
-        .filter((e) => e && (e.section == null || allowed.includes(e.section)))
+        .filter((e) => e && canReach(e, allowed, isAdmin))
         .map((e) => ({ ...e, recent: true }));
     }
 
-    const destinations = searchApp(term, allowed);
+    const destinations = searchApp(term, allowed, isAdmin);
     const found = records
       .filter((r) => r.link)
       .map((r) => ({
@@ -114,7 +115,7 @@ export default function CommandPalette() {
       ...found,
       { label: `Search everything for “${term}”`, group: "Global search", path: `/search?q=${encodeURIComponent(term)}`, everything: true },
     ];
-  }, [query, allowed, records]);
+  }, [query, allowed, isAdmin, records]);
 
   useEffect(() => setActive(0), [results.length, query]);
 

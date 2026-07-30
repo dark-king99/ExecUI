@@ -15,7 +15,7 @@ import crypto from "crypto";
 import prisma from "../../config/database.js";
 import * as storage from "../../lib/storage.js";
 import {
-  DOCUMENT_CATEGORIES, DOCUMENT_STATUSES, documentCategory,
+  DOCUMENT_CATEGORIES, DOCUMENT_STATUSES, documentCategory, CONTRACT_STATES, LIVE_STATUSES,
 } from "./documents.registry.js";
 
 const err = (message, status = 400) => { const e = new Error(message); e.status = status; return e; };
@@ -35,7 +35,22 @@ export const shapeVersion = (v) => ({
   uploaderName: v.uploaderName, uploadedById: v.uploadedById, createdAt: v.createdAt,
 });
 
-export const shape = (d, { versions, signatureCount = 0 } = {}) => ({
+/**
+ * The contracts a document is attached to, in the compact form the hub needs.
+ * A document that commits the company is not just a file, and the view that
+ * lists it should say so — and link there.
+ */
+export const shapeLink = (c) => ({
+  id: c.id,
+  title: c.title,
+  counterparty: c.counterparty,
+  status: c.status,
+  statusLabel: CONTRACT_STATES[c.status]?.label ?? c.status,
+  statusTone: CONTRACT_STATES[c.status]?.tone ?? "slate",
+  live: !!CONTRACT_STATES[c.status]?.countsAsLive,
+});
+
+export const shape = (d, { versions, signatureCount = 0, contracts, envelopes } = {}) => ({
   id: d.id,
   title: d.title,
   description: d.description,
@@ -56,6 +71,13 @@ export const shape = (d, { versions, signatureCount = 0 } = {}) => ({
   signatureCount,
   latest: versions?.length ? shapeVersion(versions[0]) : null,
   versions: versions ? versions.map(shapeVersion) : undefined,
+  // Relationships. `contracts` is always present (possibly empty) so a caller
+  // never has to guess whether the absence of the field means "not attached" or
+  // "not loaded".
+  contracts: (contracts ?? []).map(shapeLink),
+  envelopes: envelopes
+    ? envelopes.map((e) => ({ id: e.id, title: e.title, status: e.status, sentAt: e.sentAt, completedAt: e.completedAt }))
+    : undefined,
 });
 
 /** SHA-256 of a stored object — the fingerprint a signature binds to. */
@@ -104,9 +126,12 @@ export async function listDocuments({ category, status = "active", search, entit
     include: {
       versions: { orderBy: { version: "desc" }, take: 1 },
       _count: { select: { requests: true } },
+      contracts: { select: { id: true, title: true, counterparty: true, status: true } },
     },
   });
-  return rows.map((d) => shape(d, { versions: d.versions, signatureCount: d._count.requests }));
+  return rows.map((d) => shape(d, {
+    versions: d.versions, signatureCount: d._count.requests, contracts: d.contracts,
+  }));
 }
 
 export async function getDocument(id) {
@@ -115,10 +140,18 @@ export async function getDocument(id) {
     include: {
       versions: { orderBy: { version: "desc" } },
       _count: { select: { requests: true } },
+      contracts: { select: { id: true, title: true, counterparty: true, status: true } },
+      requests: {
+        orderBy: { createdAt: "desc" }, take: 20,
+        select: { id: true, title: true, status: true, sentAt: true, completedAt: true },
+      },
     },
   });
   if (!row) throw err("Document not found", 404);
-  return shape(row, { versions: row.versions, signatureCount: row._count.requests });
+  return shape(row, {
+    versions: row.versions, signatureCount: row._count.requests,
+    contracts: row.contracts, envelopes: row.requests,
+  });
 }
 
 /** The version a signature request or download should use (latest by default). */
@@ -276,6 +309,24 @@ export async function addGeneratedVersion(user, documentId, { buffer, fileName, 
  */
 export async function archiveDocument(user, id) {
   await mustEdit(user, id);
+
+  // Archiving hides a document from the hub and from search. Doing that to the
+  // paper behind a contract that is still in force loses the contract's own
+  // evidence from view while the obligation carries on — so it's refused, the
+  // same way deleting it is. A closed contract's document can be archived.
+  const live = await prisma.contract.findMany({
+    where: { documentId: id, status: { in: LIVE_STATUSES } },
+    select: { title: true },
+    take: 3,
+  });
+  if (live.length) {
+    throw err(
+      `This is the document for a contract that is still in force (${live.map((c) => c.title).join(", ")}). ` +
+      "Archiving it would hide the contract's own paperwork — close or replace the contract first.",
+      409,
+    );
+  }
+
   await prisma.document.update({ where: { id }, data: { status: "archived" } });
   return getDocument(id);
 }
@@ -290,7 +341,14 @@ export async function deleteDocument(user, id) {
     throw err("This document has signature requests against it. Archive it instead — deleting it would destroy signature evidence.", 409);
   }
   if (doc._count.contracts) {
-    throw err("This document is attached to a contract. Detach it from the contract first.", 409);
+    const attached = await prisma.contract.findMany({
+      where: { documentId: id }, select: { title: true }, take: 3,
+    });
+    throw err(
+      `This document is attached to ${attached.map((c) => `"${c.title}"`).join(", ")}. ` +
+      "Detach it from the contract first — a contract without its paperwork isn't a record of anything.",
+      409,
+    );
   }
 
   const versions = await prisma.documentVersion.findMany({ where: { documentId: id }, select: { url: true } });

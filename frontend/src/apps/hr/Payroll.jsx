@@ -1,7 +1,11 @@
 /**
- * Payroll console.
+ * Payroll console — the Payroll tab of HR (`/people?tab=payroll`).
  *
- * The page is organised around the run: create a period, calculate it, get it
+ * It renders `embedded` inside the HR page, which is why the page header is
+ * conditional: payroll is a section of people operations, not a separate product,
+ * and two stacked titles would say so twice. It still works standalone.
+ *
+ * The section is organised around the run: create a period, calculate it, get it
  * approved, record it paid, export the bank file. Two things the UI states
  * plainly rather than glossing over:
  *
@@ -11,10 +15,11 @@
  *  • **ExecUI doesn't move money.** The bank file is a payment instruction you
  *    give your bank. Nothing here claims to have paid anyone.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody } from "../../components/ui/Card";
 import { useApi } from "../../hooks/useApi";
+import useRecordParam from "../../hooks/useRecordParam";
 import { useToast } from "../../components/ui/Toast";
 import { hr, payroll } from "../../services/api";
 import {
@@ -221,8 +226,14 @@ function Runs({ catalog, toast }) {
   const { data: runs, refetch } = useApi(() => payroll.runs.list({ limit: 50 }), []);
   const { data: tables } = useApi(() => payroll.taxTables.list(), [], { cacheKey: "payroll:taxTables" });
   const [creating, setCreating] = useState(false);
-  const [openId, setOpenId] = useState(null);
+  // "Your pay run was approved" should open that run, not the list of runs.
+  const [openId, setOpenId] = useRecordParam("run");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!openId || !runs) return;
+    document.getElementById(`run-${openId}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [openId, runs]);
 
   const [form, setForm] = useState(() => {
     const now = new Date();
@@ -305,7 +316,9 @@ function Runs({ catalog, toast }) {
             hint="Create one for a period, calculate it, get it approved, then export the bank file." />
         )}
         {(runs ?? []).map((r) => (
-          <div key={r.id} className="rounded-xl border border-slate-200 dark:border-slate-700">
+          <div key={r.id} id={`run-${r.id}`}
+            className={cls("rounded-xl border dark:border-slate-700",
+              openId === r.id ? "border-indigo-300 ring-1 ring-indigo-200 dark:border-indigo-500/50 dark:ring-indigo-500/20" : "border-slate-200")}>
             <div className="flex flex-wrap items-start justify-between gap-2 p-3">
               <button className="min-w-0 flex-1 text-left" onClick={() => setOpenId(openId === r.id ? null : r.id)}>
                 <div className="flex flex-wrap items-center gap-2">
@@ -616,36 +629,50 @@ const TABS = [
   { id: "tax", label: "Tax", icon: FileText },
 ];
 
-export default function Payroll() {
+export default function Payroll({ embedded = false }) {
   const toast = useToast();
   const [tab, setTab] = useState("runs");
   const { data: catalog } = useApi(() => hr.catalog(), [], { cacheKey: "hr:catalog" });
   const { data: stats } = useApi(() => payroll.stats(), []);
 
+  const subNav = (
+    <div className="flex flex-wrap gap-1">
+      {TABS.map((t) => (
+        <button key={t.id} onClick={() => setTab(t.id)}
+          className={cls("inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition",
+            tab === t.id
+              ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+              : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800")}>
+          <t.icon size={13} /> {t.label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div>
-      <PageHeader
-        title="Payroll"
-        subtitle="Calculate pay, get it approved, and export the payment file. ExecUI records payroll — it doesn't move money."
-        actions={stats?.lastPaidRun && (
-          <div className="hidden text-right sm:block">
-            <p className="text-xs font-medium text-slate-700 dark:text-slate-200">Last paid</p>
-            <p className="text-[11px] text-slate-400">{stats.lastPaidRun.reference} · {day(stats.lastPaidRun.paidAt)}</p>
-          </div>
-        )}
-      >
-        <div className="flex flex-wrap gap-1">
-          {TABS.map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={cls("inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition",
-                tab === t.id
-                  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-                  : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800")}>
-              <t.icon size={13} /> {t.label}
-            </button>
-          ))}
+      {embedded ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          {subNav}
+          <p className="text-[11px] text-slate-400">
+            ExecUI records payroll — it doesn&apos;t move money.
+            {stats?.lastPaidRun ? ` Last paid: ${stats.lastPaidRun.reference} · ${day(stats.lastPaidRun.paidAt)}` : ""}
+          </p>
         </div>
-      </PageHeader>
+      ) : (
+        <PageHeader
+          title="Payroll"
+          subtitle="Calculate pay, get it approved, and export the payment file. ExecUI records payroll — it doesn't move money."
+          actions={stats?.lastPaidRun && (
+            <div className="hidden text-right sm:block">
+              <p className="text-xs font-medium text-slate-700 dark:text-slate-200">Last paid</p>
+              <p className="text-[11px] text-slate-400">{stats.lastPaidRun.reference} · {day(stats.lastPaidRun.paidAt)}</p>
+            </div>
+          )}
+        >
+          {subNav}
+        </PageHeader>
+      )}
 
       {stats && (
         <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

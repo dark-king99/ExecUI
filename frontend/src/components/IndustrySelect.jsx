@@ -20,8 +20,8 @@ import { useUser } from "../context/UserContext";
 import { useIndustry } from "../context/IndustryContext";
 import { entitlementsFor } from "../lib/plans";
 import { useToast } from "./ui/Toast";
+import { ADMIN_ROLES } from "../lib/access";
 
-const ADMIN_ROLES = ["enterprise_admin", "system_admin"];
 
 export default function IndustrySelect({
   variant = "card", // "card" (Executive Overview) | "banner" (Home)

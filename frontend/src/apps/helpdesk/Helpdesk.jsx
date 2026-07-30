@@ -12,7 +12,7 @@
  *    lie the customer discovers later.
  */
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import useRecordParam from "../../hooks/useRecordParam";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody } from "../../components/ui/Card";
 import { useApi } from "../../hooks/useApi";
@@ -603,14 +603,16 @@ function PortalSettings({ toast }) {
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function Helpdesk() {
   const toast = useToast();
-  const { user } = useUser();
-  const isAdmin = ["enterprise_admin", "system_admin"].includes(user?.role);
-  const [params, setParams] = useSearchParams();
+  const { isAdmin } = useUser();
 
-  // Deep links from search and notifications land straight on a record.
-  const [tab, setTab] = useState(params.get("article") ? "kb" : "queue");
-  const [openId, setOpenId] = useState(params.get("ticket"));
-  const [openArticle, setOpenArticle] = useState(params.get("article"));
+  // Deep links from search and notifications land straight on a record — and
+  // stay live. Reading the parameters into state once at mount meant that
+  // following a second link to this same page (a different ticket from the
+  // command palette, say) changed the URL and nothing else.
+  const [openId, setOpenId] = useRecordParam("ticket");
+  const [openArticle, setOpenArticle] = useRecordParam("article");
+  const [tabParam, setTabParam] = useRecordParam("tab");
+  const tab = tabParam ?? (openArticle ? "kb" : "queue");
 
   const { data: stats } = useApi(() => helpdesk.stats(), [], { pollingInterval: 60000 });
 
@@ -620,7 +622,13 @@ export default function Helpdesk() {
     ...(isAdmin ? [{ id: "portal", label: "Portal", icon: Globe }] : []),
   ];
 
-  const pick = (id) => { setTab(id); setParams({}); };
+  // Switching tab by hand clears the record the URL was pointing at, so the
+  // address bar never claims to be showing something it isn't.
+  const pick = (id) => {
+    setOpenId(null);
+    setOpenArticle(null);
+    setTabParam(id === "queue" ? null : id);
+  };
 
   return (
     <div>

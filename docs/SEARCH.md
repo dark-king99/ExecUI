@@ -92,6 +92,16 @@ label, a link, and the score. The registry builds the title and subtitle, so
 search output and the module's own list can't disagree about what a record is
 called.
 
+**A result opens the record, not the list it lives in.** Links are built with
+`linkTo` from the shared route table, which the SPA also reads — see
+[`docs/NAVIGATION.md`](./NAVIGATION.md). Documents, contracts, tickets, articles
+and people all land on the record you clicked.
+
+Sources are also **checked against the database schema**: matched fields and
+selected columns must exist and matched fields must be text. A broken source
+degrades to a warning at runtime, which meant one source had been throwing on
+every query since it was written without anybody noticing.
+
 ## 6. Operating notes
 
 - `SEARCH_RATE_LIMIT_PER_MIN` (default 120) limits searching per user — generous

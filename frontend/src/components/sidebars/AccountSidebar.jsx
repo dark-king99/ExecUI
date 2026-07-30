@@ -53,8 +53,8 @@ export default function AccountSidebar() {
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
-  const user = useUser().user ?? {};
-  const isAdmin = ["enterprise_admin", "system_admin"].includes(user.role);
+  const { user: signedIn, isAdmin } = useUser();
+  const user = signedIn ?? {};
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email || "Account";
 
   useEffect(() => {
