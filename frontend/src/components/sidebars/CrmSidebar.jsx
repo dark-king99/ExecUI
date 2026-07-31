@@ -113,8 +113,8 @@ export default function CrmSidebar() {
       {/* Header */}
       <div className="flex items-center h-14 px-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
         <div className={`flex items-center gap-2.5 flex-1 min-w-0 ${collapsed ? "justify-center" : ""}`}>
-          <div className="h-7 w-7 rounded-lg bg-orange-500 flex items-center justify-center shrink-0 shadow-sm shadow-orange-500/25">
-            <img src="/business-model.png" />
+          <div className="h-7 w-7 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-sm shadow-orange-500/25">
+            <img src="/remote.png" />
           </div>
           {!collapsed && (
             <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate leading-none">

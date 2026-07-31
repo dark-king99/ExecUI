@@ -112,7 +112,9 @@ export default function Sidebar() {
       >
         {!collapsed && (
           // Transparent-ground wordmark, animated with a light sweep.
-          <AnimatedLogo className="h-8" />
+          <button onClick={() => navigate("/home")} className="flex items-center transition-transform hover:scale-[1.03]">
+                      <AnimatedLogo className="h-8" />
+                    </button>
         )}
         <button
           onClick={toggleCollapse}
