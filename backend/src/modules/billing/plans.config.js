@@ -66,12 +66,12 @@ export const PLANS = [
   { id: "premium",    name: "Premium",    price: 999,  tagline: "Full CRM & Marketing + core Services", highlighted: true,
     crm: CRM_ALL, marketing: MKT_ALL, services: SVC_PREMIUM, network: false, industry: true, ai: AI_LIMITS.premium },
   { id: "enterprise", name: "Enterprise", price: 1999, tagline: "Everything in Premium + full Services",
-    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_ALL,     network: false, industry: true, sso: true, ai: AI_LIMITS.enterprise },
+    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_ALL,     network: false, industry: true, sso: true, branding: true, ai: AI_LIMITS.enterprise },
   // Executive includes Network Ops. The base price covers the small-office
   // network profile; the enterprise (datacenter) network profile is priced higher.
   { id: "executive",  name: "Executive",  price: 5099, networkDatacenterPrice: 5599,
     tagline: "The complete platform, including Network Ops",
-    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_ALL,     network: true,  industry: true, sso: true, ai: AI_LIMITS.executive },
+    crm: CRM_ALL, marketing: MKT_ALL, services: SVC_ALL,     network: true,  industry: true, sso: true, branding: true, ai: AI_LIMITS.executive },
 ];
 
 // Custom plans pick 8+ CRM/Marketing solutions ($49 each) and may add one
@@ -95,7 +95,7 @@ const parseCustom = (customSolutions = []) => {
   return { crm, marketing, industry: true };
 };
 
-function build({ crm = [], marketing = [], services = [], network = false, industry = false, sso = false }) {
+function build({ crm = [], marketing = [], services = [], network = false, industry = false, sso = false, branding = false }) {
   const sections = [];
   if (crm.length) sections.push("crm");
   if (marketing.length) sections.push("marketing");
@@ -112,6 +112,9 @@ function build({ crm = [], marketing = [], services = [], network = false, indus
     analyticsSlices,
     industry: !!industry,
     sso: !!sso,
+    // White-labelling: an upsell tier, like SSO. Gates only what a tenant may
+    // SET — an existing value simply stops being applied on a lesser plan.
+    branding: !!branding,
   };
 }
 

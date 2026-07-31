@@ -10,6 +10,7 @@ import { startRetentionScheduler, stopRetentionScheduler } from "./modules/gover
 import { startClmScheduler, stopClmScheduler } from "./modules/documents/contracts.scheduler.js";
 import { startHrScheduler, stopHrScheduler } from "./modules/hr/hr.scheduler.js";
 import { startHelpdeskScheduler, stopHelpdeskScheduler } from "./modules/helpdesk/helpdesk.scheduler.js";
+import { startTenantScheduler, stopTenantScheduler } from "./modules/tenants/tenants.scheduler.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -93,6 +94,9 @@ startHrScheduler();
 // Expire portal sign-in links and dead customer sessions.
 startHelpdeskScheduler();
 
+// Carry out organization deletions whose grace window has elapsed.
+startTenantScheduler();
+
 // Flush buffered analytics on graceful shutdown so nothing is lost.
 for (const sig of ["SIGTERM", "SIGINT"]) {
   process.on(sig, async () => {
@@ -103,6 +107,7 @@ for (const sig of ["SIGTERM", "SIGINT"]) {
     stopClmScheduler();
     stopHrScheduler();
     stopHelpdeskScheduler();
+    stopTenantScheduler();
     await shutdownAnalytics();
     process.exit(0);
   });

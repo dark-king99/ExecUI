@@ -23,10 +23,23 @@ import {
 const cls = (...a) => a.filter(Boolean).join(" ");
 const bytes = (n) => (!n ? "" : n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`);
 
-function Shell({ children }) {
+// The counterparty is signing the SENDER's document, so the page wears the
+// sender's brand where they've set one — not ours.
+function Shell({ branding, children }) {
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-10 dark:bg-slate-950">
-      <div className="mx-auto w-full max-w-2xl space-y-4">{children}</div>
+      <div className="mx-auto w-full max-w-2xl space-y-4">
+        {branding?.logoUrl && (
+          <img src={branding.logoUrl} alt={branding.organizationName ?? ""}
+            className="mx-auto h-8 max-w-[180px] object-contain" />
+        )}
+        {children}
+        {!branding?.hidePoweredBy && (
+          <p className="pt-2 text-center text-[11px] text-slate-400">
+            Powered by {branding?.productName ?? "ExecUI"}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -124,12 +137,12 @@ export default function SignPortal({ token }) {
     );
   }
 
-  const { request, document: doc, me, parties } = state.data;
+  const { request, document: doc, me, parties, branding } = state.data;
   const alreadyActed = ["signed", "declined"].includes(me.status);
   const isViewer = me.role === "viewer";
 
   return (
-    <Shell>
+    <Shell branding={branding}>
       <Panel>
         <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
           {request.organization ? `${request.organization} · ` : ""}Signature request

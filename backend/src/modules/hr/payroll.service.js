@@ -37,6 +37,7 @@ import {
 import { unpaidLeaveForPeriod } from "./leave.service.js";
 import { hoursForPeriod } from "./time.service.js";
 import { recordEvent } from "./people.service.js";
+import { brandingFor } from "../settings/settings.service.js";
 
 const err = (message, status = 400) => { const e = new Error(message); e.status = status; return e; };
 const str = (v, max) => (v == null || v === "" ? null : String(v).slice(0, max));
@@ -896,6 +897,8 @@ export async function bankExport(actorId, id) {
     }).catch(() => {});
   }
 
+  // The employer hands this file to their bank, so it carries their name.
+  const brand = await brandingFor(run.tenantId);
   return {
     filename: `payment-file-${run.reference.replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 50)}.csv`,
     // Explicit \uFEFF rather than a literal BOM character: a literal one is
@@ -905,7 +908,7 @@ export async function bankExport(actorId, id) {
     total: round2(rows.reduce((s, r) => s + Number(r.amount), 0)),
     currency: run.currency,
     missing,
-    note: "ExecUI does not transfer money. Upload this file to your bank, or use it to key the payments in.",
+    note: `${brand.productName} does not transfer money. Upload this file to your bank, or use it to key the payments in.`,
   };
 }
 
