@@ -29,6 +29,7 @@ import signRoutes      from "../modules/documents/sign.routes.js";
 import hrRoutes, { payrollRouter } from "../modules/hr/hr.routes.js";
 import searchRoutes   from "../modules/search/search.routes.js";
 import helpdeskRoutes from "../modules/helpdesk/helpdesk.routes.js";
+import tenantRoutes from "../modules/tenants/tenants.routes.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { requireModule } from "../middleware/access.middleware.js";
 import { rewardTracking } from "../middleware/rewardTracking.middleware.js";
@@ -83,5 +84,7 @@ router.use("/hr",         hrRoutes);
 router.use("/payroll",    payrollRouter);
 router.use("/search",     searchRoutes);
 router.use("/helpdesk",   helpdeskRoutes);
+// Organization-level settings (branding) and deleting the organization itself.
+router.use("/organization", tenantRoutes);
 
 export default router;

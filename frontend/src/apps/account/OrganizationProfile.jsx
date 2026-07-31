@@ -6,6 +6,8 @@ import { SkeletonCard } from "../../components/ui/Skeleton";
 import { useToast } from "../../components/ui/Toast";
 import { useApi, useMutation } from "../../hooks/useApi";
 import { enterprise } from "../../services/api";
+import BrandingCard from "./BrandingCard";
+import DangerZone from "./DangerZone";
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "—");
 
@@ -100,6 +102,10 @@ export default function OrganizationProfile() {
           </CardBody>
         </Card>
       </div>
+
+      <BrandingCard />
+
+      <DangerZone orgName={org?.name} />
     </div>
   );
 }

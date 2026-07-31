@@ -36,6 +36,7 @@ import {
   validateSigners, activeSigners, isEnvelopeComplete, ACTING_ROLES, SIGNER_ROLES,
 } from "./documents.registry.js";
 import { getDocument, getVersion } from "./documents.service.js";
+import { publicBranding, brandingFor } from "../settings/settings.service.js";
 
 const err = (message, status = 400) => { const e = new Error(message); e.status = status; return e; };
 
@@ -325,8 +326,12 @@ export async function viewByToken(token, { ip, userAgent } = {}) {
   const org = await runUnscoped(async () =>
     prisma.tenant.findFirst({ where: { id: tenantId }, select: { name: true } }),
   );
+  // A counterparty signing Acme's contract should be looking at Acme's page,
+  // not ours. Public-marked settings only.
+  const branding = await publicBranding(tenantId);
 
   return {
+    branding,
     request: {
       id: request.id,
       title: request.title,

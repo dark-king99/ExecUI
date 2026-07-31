@@ -201,6 +201,29 @@ export const enterprise = {
     get:    ()      => get('/users/admin/organization'),
     update: (data)  => put('/users/admin/organization', data),
   },
+  // Per-tenant configuration. `settings` is the general store; `branding` is the
+  // resolved view any signed-in user may read, already narrowed by plan.
+  settings: {
+    get:    ()      => get('/organization/settings'),
+    update: (data)  => put('/organization/settings', data),
+  },
+  branding: {
+    get:    ()      => get('/organization/branding'),
+    uploadLogo: (file) => {
+      const form = new FormData();
+      form.append('image', file);
+      return request('/organization/branding/logo', { method: 'POST', body: form, headers: {} });
+    },
+  },
+  // Deleting the organization. Nothing here destroys data — `request` only
+  // schedules it, and the purge runs from the server's own timer.
+  deletion: {
+    status:  ()      => get('/organization/deletion'),
+    preview: ()      => get('/organization/deletion/preview'),
+    request: (data)  => post('/organization/deletion', data),
+    cancel:  ()      => del('/organization/deletion'),
+    download: ()     => downloadFile('/organization/deletion/export', 'organization-export.json'),
+  },
   workspace: {
     stats:    ()           => get('/users/admin/workspace/stats'),
     sessions: ()           => get('/users/admin/workspace/sessions'),

@@ -3,6 +3,7 @@ import prisma from "../../config/database.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { sendEmail } from "../../lib/email.js";
+import { brandingFor, senderFor } from "../settings/settings.service.js";
 
 const handle = (fn) => async (req, res) => {
   try { res.json(await fn(req)); }
@@ -134,11 +135,15 @@ export const inviteUser = handle(async (req) => {
 
   // Send the invite email via Resend (no-op/skip if email isn't configured).
   const tenant = await prisma.tenant.findUnique({ where: { id: tid(req) }, select: { name: true, code: true } });
+  // The person being invited works for the tenant, not for us — the mail says
+  // whatever they've branded the product as.
+  const brand = await brandingFor(tid(req));
   sendEmail({
     tenantId: tid(req), userId: req.user.userId, to: email, context: "auth:invite",
-    subject: `You've been invited to ${tenant?.name ?? "your enterprise"} on ExecUI`,
+    from: senderFor(brand),
+    subject: `You've been invited to ${tenant?.name ?? "your enterprise"} on ${brand.productName}`,
     html: `<div style="font-family:system-ui,sans-serif;line-height:1.6">
-      <h2>Welcome to ${tenant?.name ?? "ExecUI"} 👋</h2>
+      <h2>Welcome to ${tenant?.name ?? brand.productName} 👋</h2>
       <p>Hi ${firstName}, an admin has created your account. Complete sign-up with:</p>
       <ul>
         <li><b>Enterprise code:</b> ${tenant?.code ?? "(ask your admin)"}</li>

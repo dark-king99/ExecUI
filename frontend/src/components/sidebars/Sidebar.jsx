@@ -8,6 +8,7 @@ import {
 import { visible } from "../../lib/visibility";
 import { useUser } from "../../context/UserContext";
 import AnimatedLogo from "../AnimatedLogo";
+import { useBranding } from "../../hooks/useBranding";
 
 /**
  * The whole primary nav, declared. Each entry says what it needs; `canSee`
@@ -85,6 +86,7 @@ export default function Sidebar() {
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const { user, role } = useUser();
+  const branding = useBranding();
   const modules = visible(user, MODULES, role);
 
   useEffect(() => {
@@ -111,8 +113,14 @@ export default function Sidebar() {
         }`}
       >
         {!collapsed && (
-          // Transparent-ground wordmark, animated with a light sweep.
-          <AnimatedLogo className="h-8" />
+          // A white-labelled tenant shows their own mark; everyone else gets the
+          // transparent-ground wordmark, animated with a light sweep. The
+          // fallback is the default, so an install that hasn't set a logo — or
+          // whose plan doesn't include branding — looks exactly as it did.
+          branding.logoUrl
+            ? <img src={branding.logoUrl} alt={branding.organizationName ?? branding.productName}
+                className="h-8 max-w-[150px] object-contain" />
+            : <AnimatedLogo className="h-8" />
         )}
         <button
           onClick={toggleCollapse}
