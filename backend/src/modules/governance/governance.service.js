@@ -16,6 +16,8 @@
  */
 import prisma from "../../config/database.js";
 import { log } from "../../lib/logger.js";
+import { currentTenantId } from "../../lib/tenantContext.js";
+import { brandingFor } from "../settings/settings.service.js";
 import {
   CATEGORIES, getCategory, subjectCategories, retainableCategories,
   subjectWhere, describeCategory, REDACTED,
@@ -152,11 +154,13 @@ export async function exportSubject(requestedById, rawEmail) {
     }
   }
 
+  // The regulator reading this sees the organization's product name, not ours.
+  const brand = await brandingFor(currentTenantId());
   const bundle = {
     subject: { email: subject.email, type: subject.subjectType, label: subject.label },
     generatedAt: new Date().toISOString(),
     categories: data,
-    notice: "Personal data held by this organization in ExecUI, exported for a data-subject access request.",
+    notice: `Personal data held by this organization in ${brand.productName}, exported for a data-subject access request.`,
   };
 
   const request = await prisma.dataRequest.create({

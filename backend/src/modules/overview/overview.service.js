@@ -5,6 +5,7 @@ import { entitlementsFor } from "../billing/plans.config.js";
 import * as messaging from "../messaging/messaging.service.js";
 import { sendEmail } from "../../lib/email.js";
 import { notify } from "../notifications/notifications.service.js";
+import { brandingFor, senderFor } from "../settings/settings.service.js";
 
 const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
 const money = (n) => Math.round(n || 0);
@@ -307,8 +308,10 @@ export async function emailReport(userId, tenantId) {
     </tr>`).join("");
 
   const today = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  const brand = await brandingFor(tenantId);
   const result = await sendEmail({
     tenantId, userId, to: user.email, context: "overview:report",
+    from: senderFor(brand),
     subject: `Your ${data.gauge.label} report — ${today}`,
     html: `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto">
       <h2 style="color:#0f172a">Executive Overview — ${today}</h2>
@@ -316,7 +319,7 @@ export async function emailReport(userId, tenantId) {
         (${data.identity.department ?? "Enterprise"}).</p>
       <p style="font-size:15px;color:#334155"><b>${data.gauge.label}:</b> ${data.gauge.value ?? "—"} · ${String(data.gauge.status ?? "").toUpperCase()}</p>
       <table style="border-collapse:collapse;width:100%;background:#f8fafc;border-radius:8px">${rows}</table>
-      <p style="color:#94a3b8;font-size:12px;margin-top:16px">Sent from your ExecUI Executive Overview.</p>
+      <p style="color:#94a3b8;font-size:12px;margin-top:16px">Sent from your ${brand.productName} Executive Overview.</p>
     </div>`,
   });
 
@@ -324,7 +327,7 @@ export async function emailReport(userId, tenantId) {
   // is a genuine operation even when no mail provider is configured.
   const topKpis = data.kpis.slice(0, 3).map((k) => `${k.label}: ${fmt(k)}`).join(" · ");
   await notify({
-    tenantId, userId, type: "system", actorName: "ExecUI",
+    tenantId, userId, type: "system", actorName: brand.productName,
     title: `${data.gauge.label} report — ${today}`,
     body: `${data.gauge.label}: ${data.gauge.value ?? "—"}${topKpis ? " · " + topKpis : ""}`,
     link: "/overview",

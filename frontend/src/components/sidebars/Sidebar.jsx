@@ -8,6 +8,7 @@ import {
 import { visible } from "../../lib/visibility";
 import { useUser } from "../../context/UserContext";
 import AnimatedLogo from "../AnimatedLogo";
+import { useBranding } from "../../hooks/useBranding";
 
 /**
  * The whole primary nav, declared. Each entry says what it needs; `canSee`
@@ -83,8 +84,10 @@ function SectionLabel({ label, collapsed }) {
 
 export default function Sidebar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const { user, role } = useUser();
+  const branding = useBranding();
   const modules = visible(user, MODULES, role);
 
   useEffect(() => {
@@ -111,10 +114,17 @@ export default function Sidebar() {
         }`}
       >
         {!collapsed && (
-          // Transparent-ground wordmark, animated with a light sweep.
           <button onClick={() => navigate("/home")} className="flex items-center transition-transform hover:scale-[1.03]">
-                      <AnimatedLogo className="h-8" />
-                    </button>
+            {branding.logoUrl ? (
+              <img
+                src={branding.logoUrl}
+                alt={branding.organizationName ?? branding.productName}
+                className="h-8 max-w-[150px] object-contain"
+              />
+            ) : (
+              <AnimatedLogo className="h-8" />
+            )}
+          </button>
         )}
         <button
           onClick={toggleCollapse}

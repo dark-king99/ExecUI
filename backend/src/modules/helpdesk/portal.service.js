@@ -28,6 +28,7 @@ import { sendEmail, emailConfigured } from "../../lib/email.js";
 import { log } from "../../lib/logger.js";
 import * as tickets from "./tickets.service.js";
 import * as kb from "./kb.service.js";
+import { publicBranding, brandingFor } from "../settings/settings.service.js";
 
 const err = (message, status = 400) => { const e = new Error(message); e.status = status; return e; };
 
@@ -68,6 +69,9 @@ export async function landing(slug) {
   const help = await runWithTenant({ tenantId: tenant.id }, async () => kb.publicIndex());
   return {
     organization: { name: tenant.name, slug: tenant.slug },
+    // The customers reading this page are the organization's, not ours. Only
+    // the registry's public-marked settings reach here — see settings.registry.
+    branding: await publicBranding(tenant.id),
     help,
     emailConfigured: emailConfigured(),
   };

@@ -40,12 +40,18 @@ const STATUS_TONE = {
   closed: "bg-slate-100 text-slate-500 dark:bg-slate-800",
 };
 
-function Shell({ org, email, onSignOut, children }) {
+function Shell({ org, branding, email, onSignOut, children }) {
+  // This page belongs to the organization, not to us. Where they've set a logo
+  // or a colour we use theirs; otherwise the neutral default is unchanged.
+  const accent = branding?.primaryColor || null;
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-3 px-4 py-4">
-          <LifeBuoy size={20} className="text-indigo-600 dark:text-indigo-400" />
+          {branding?.logoUrl
+            ? <img src={branding.logoUrl} alt={org ?? "Support"} className="h-7 max-w-[150px] shrink-0 object-contain" />
+            : <LifeBuoy size={20} style={accent ? { color: accent } : undefined}
+                className={accent ? "" : "text-indigo-600 dark:text-indigo-400"} />}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{org ?? "Support"}</p>
             <p className="text-[11px] text-slate-400">Help centre &amp; support requests</p>
@@ -63,7 +69,12 @@ function Shell({ org, email, onSignOut, children }) {
       </header>
       <main className="mx-auto max-w-3xl space-y-4 px-4 py-6">{children}</main>
       <footer className="mx-auto max-w-3xl px-4 pb-8 text-center text-[11px] text-slate-400">
-        Powered by ExecUI
+        {branding?.supportEmail && (
+          <p className="mb-1">
+            Need more help? <a href={`mailto:${branding.supportEmail}`} className="underline">{branding.supportEmail}</a>
+          </p>
+        )}
+        {!branding?.hidePoweredBy && `Powered by ${branding?.productName ?? "ExecUI"}`}
       </footer>
     </div>
   );
@@ -663,7 +674,7 @@ export default function Portal({ slug }) {
   const openArticle = (key) => { setArticleKey(key); setView("article"); };
 
   return (
-    <Shell org={landing?.organization?.name} email={email} onSignOut={signOut}>
+    <Shell org={landing?.organization?.name} branding={landing?.branding} email={email} onSignOut={signOut}>
       {notice && (
         <div className="flex items-start gap-2 rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-800 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200">
           <CheckCircle2 size={15} className="mt-0.5 shrink-0" />

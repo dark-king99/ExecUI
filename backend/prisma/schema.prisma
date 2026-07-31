@@ -118,6 +118,41 @@ model Tenant {
   ssoConnection           SsoConnection?
   scimTokens              ScimToken[]
   ssoLoginRequests        SsoLoginRequest[]
+  settings                TenantSetting[]
+
+  // ── Scheduled deletion ────────────────────────────────────────────────────
+  // Removing an organization is staged, never immediate: an admin requests it,
+  // and a scheduler carries it out once the grace window has passed. The window
+  // is what makes the action recoverable — a mistaken or malicious request can
+  // be cancelled right up until the purge runs.
+  deletionRequestedAt   DateTime?
+  deletionRequestedById String?
+  deletionScheduledFor  DateTime?
+  deletionReason        String?
+
+  @@index([deletionScheduledFor])
+}
+
+// Per-tenant configuration, one row per key.
+//
+// Everything an organization can configure used to become another column on
+// Tenant (plan, planSolutions, industry, networkProfile…), so every new setting
+// meant a migration. Keys live in modules/settings/settings.registry.js, which
+// declares each one's type, default, validation, plan entitlement and whether it
+// may be read without a session. Adding a setting is a registry entry now, not a
+// schema change.
+model TenantSetting {
+  id        String   @id @default(uuid())
+  tenantId  String
+  key       String
+  value     Json
+  updatedAt DateTime @updatedAt
+  updatedById String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
 }
 
 // An internet/WAN connection — the backbone of a small office's network. Lets a
@@ -309,7 +344,7 @@ model User {
   provisionedVia String  @default("manual")
 
   tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   roleId String
   role   Role   @relation(fields: [roleId], references: [id])
@@ -351,7 +386,7 @@ model UserSession {
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tenantId  String
-  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   ipAddress String?
   userAgent String?
   startedAt DateTime  @default(now())
@@ -364,7 +399,7 @@ model AuditLog {
   userId     String
   user       User     @relation(fields: [userId], references: [id])
   tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   action     String
   resource   String?
   resourceId String?
@@ -378,7 +413,7 @@ model Role {
   name String
 
   tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   rolePermissions RolePermission[]
   users           User[]
@@ -400,7 +435,7 @@ model Contact {
   email String
 
   tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 }
@@ -431,7 +466,7 @@ model CrmTask {
   updatedAt           DateTime  @updatedAt
 
   user   User   @relation(fields: [userId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model CrmTicket {
@@ -464,7 +499,7 @@ model CrmTicket {
   satisfaction        Int? // 1–5, set by the customer after resolution
   satisfactionComment String?
 
-  tenant   Tenant          @relation(fields: [tenantId], references: [id])
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   messages TicketMessage[]
 
   @@unique([ticket_number, tenantId])
@@ -484,7 +519,7 @@ model CrmFollowUp {
   createdAt      DateTime @default(now())
 
   user   User   @relation(fields: [userId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model CrmOpportunity {
@@ -501,7 +536,7 @@ model CrmOpportunity {
   updatedAt   DateTime @updatedAt
 
   owner  User   @relation(fields: [ownerId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model CrmServiceUsage {
@@ -517,7 +552,7 @@ model CrmServiceUsage {
   createdAt           DateTime @default(now())
 
   user   User   @relation(fields: [userId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([service_name, userId, tenantId])
 }
@@ -537,7 +572,7 @@ model MarketingTodo {
   updatedAt   DateTime  @updatedAt
 
   user   User   @relation(fields: [userId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model MarketingScheduleEvent {
@@ -552,7 +587,7 @@ model MarketingScheduleEvent {
   createdAt  DateTime  @default(now())
 
   user   User   @relation(fields: [userId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model MarketingActivity {
@@ -565,7 +600,7 @@ model MarketingActivity {
   timestamp DateTime @default(now())
 
   user   User   @relation(fields: [userId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 // -- Network Dashboard Models --------------------------------------------------
@@ -586,7 +621,7 @@ model NetworkDevice {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  tenant Tenant         @relation(fields: [tenantId], references: [id])
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   alerts NetworkAlert[]
 }
 
@@ -602,7 +637,7 @@ model NetworkAlert {
   resolvedAt DateTime?
 
   device NetworkDevice? @relation(fields: [deviceId], references: [id])
-  tenant Tenant         @relation(fields: [tenantId], references: [id])
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model NetworkIncident {
@@ -616,7 +651,7 @@ model NetworkIncident {
   resolvedAt  DateTime?
   updatedAt   DateTime  @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model NetworkChange {
@@ -629,7 +664,7 @@ model NetworkChange {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model NetworkBackup {
@@ -641,7 +676,7 @@ model NetworkBackup {
   tenantId    String
   createdAt   DateTime @default(now())
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model NetworkServer {
@@ -664,7 +699,7 @@ model NetworkServer {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model NetworkUserRestriction {
@@ -684,7 +719,7 @@ model NetworkUserRestriction {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model FirewallRule {
@@ -707,7 +742,7 @@ model FirewallRule {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model MarketingCampaign {
@@ -729,7 +764,7 @@ model MarketingCampaign {
   startDate   DateTime?
   endDate     DateTime?
   tenantId    String
-  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -742,7 +777,7 @@ model MarketingAudience {
   status      String   @default("draft")
   description String?
   tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -759,7 +794,7 @@ model MarketingExperiment {
   confidence Float?
   lift       Float?
   tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
@@ -775,7 +810,7 @@ model BizTransaction {
   date        String
   status      String   @default("completed") // completed | pending | cancelled
   tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
 }
 
@@ -788,7 +823,7 @@ model BizTaxPlan {
   strategy          String?
   notes             String?
   tenantId          String
-  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt         DateTime @default(now())
 }
 
@@ -801,7 +836,7 @@ model BizInvestment {
   status        String   @default("active") // active | closed
   notes         String?
   tenantId      String
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
 }
 
@@ -814,7 +849,7 @@ model BizSOP {
   status      String   @default("active") // active | inactive | draft
   version     String   @default("1.0")
   tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -829,7 +864,7 @@ model BizWorkflow {
   status       String   @default("active") // active | inactive
   is_automated Boolean  @default(false)
   tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt    DateTime @default(now())
 }
 
@@ -844,7 +879,7 @@ model BizGoal {
   status      String   @default("in_progress") // in_progress | completed | at_risk | planning
   priority    String   @default("medium")
   tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -859,7 +894,7 @@ model BizMarketAnalysis {
   threats       Json     @default("[]")
   status        String   @default("active")
   tenantId      String
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
 }
 
@@ -875,7 +910,7 @@ model BizCampaign {
   start_date  String?
   end_date    String?
   tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -891,7 +926,7 @@ model BizClient {
   contract_end String?
   industry     String?
   tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt    DateTime @default(now())
 }
 
@@ -905,7 +940,7 @@ model BizMember {
   skills     Json     @default("[]")
   avatar_url String?
   tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
 }
 
@@ -921,7 +956,7 @@ model BizProject {
   start_date   String?
   end_date     String?
   tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -936,7 +971,7 @@ model BizTask {
   assignee    String?
   due_date    String?
   tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
