@@ -207,6 +207,14 @@ export const enterprise = {
     get:    ()      => get('/organization/settings'),
     update: (data)  => put('/organization/settings', data),
   },
+  // Where and what this customer is — the two axes of the regional price book.
+  // `setSegment` exists for completeness but the API restricts it to
+  // system_admin: a tenant able to set its own segment would discount itself.
+  market: {
+    get:        ()   => get('/organization/market'),
+    setCountry: (c)  => put('/organization/market/country', { country: c }),
+    setSegment: (s)  => put('/organization/market/segment', { segment: s }),
+  },
   branding: {
     get:    ()      => get('/organization/branding'),
     uploadLogo: (file) => {

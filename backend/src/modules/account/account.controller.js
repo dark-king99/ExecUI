@@ -313,11 +313,16 @@ export const listRoles = async (req, res) => {
 
 // ── Billing ───────────────────────────────────────────────────────────────
 export const getBilling        = handle((req) => billing.getBilling(tid(req)));
-export const getPlans          = handle(()    => billing.getPlanCatalog());
+export const getPlans          = handle((req) => billing.getPlanCatalog(req.user.tenantId));
 export const selectPlan        = handle((req) => billing.selectPlan(tid(req), req.body, uid(req)));
 export const upgradePlan       = handle((req) => billing.upgradePlan(tid(req), req.body));
 export const getPaymentMethods = handle((req) => billing.getPaymentMethods(tid(req)));
 export const getInvoices       = handle((req) => billing.getInvoices(tid(req)));
+// Offline invoices the platform issued to this tenant (manual provider only).
+export const getPlatformInvoices = handle((req) => billing.listPlatformInvoices(tid(req)));
+// Confirming one takes money on the platform's behalf, so it is system_admin
+// only at the route — a tenant able to call it would grant itself any plan.
+export const confirmInvoice    = handle((req) => billing.confirmPlatformInvoice(req.params.reference, req.body ?? {}, uid(req)));
 export const createPortalSession = handle((req) => billing.createPortalSession(tid(req), req.body?.returnUrl));
 export const createSetupSession  = handle((req) => billing.createSetupSession(tid(req), req.body?.returnUrl));
 
