@@ -2,6 +2,13 @@
  * Subscription plans + entitlements (frontend mirror of
  * backend/src/modules/billing/plans.config.js).
  *
+ * PRICES here are the published list price — high-income market, SME segment —
+ * which is the right thing to show a visitor whose market we don't know yet.
+ * What a signed-in tenant actually pays comes from the API (`billing.plans()`),
+ * because the regional price book lives on the server ONLY. Mirroring a
+ * 200-country table into the browser would give money two sources of truth, and
+ * the client-side one would be the easy one to tamper with.
+ *
  * A tenant's plan caps which modules/solutions the ORG can access.
  * A user's department (access.js) further caps what that employee sees.
  * Effective access = plan entitlements ∩ department permissions.
@@ -41,12 +48,17 @@ const CRM_ALL = ids(CRM_SOLUTIONS);
 const MKT_ALL = ids(MKT_SOLUTIONS);
 const SVC_ALL = ids(SERVICES_SOLUTIONS);
 
+// Starter is deliberately thin — enough to run a pipeline, not enough to
+// cannibalise Standard.
+const CRM_MIN = ["leads", "accounts", "activities"];
+const MKT_MIN = ["engagement"];
 const CRM_STD = ["leads", "accounts", "opportunities", "forecasting", "activities"];
 const MKT_STD = ["engagement", "account-engagement", "personalization", "intelligence", "social"];
 const SVC_PREMIUM = ["financial", "operation", "strategic"];
 
 // Monthly AI-assist request allowance per plan (mirrors backend plans.config.js).
 export const AI_LIMITS = {
+  starter:    100,
   standard:   300,
   premium:    1_500,
   enterprise: 6_000,
@@ -55,6 +67,12 @@ export const AI_LIMITS = {
 };
 
 export const PLANS = [
+  // The long tail. $399 was the floor, which meant the smallest customer we
+  // could serve was one already spending real money on software — most of the
+  // market was priced out before the regional book even applied. Starter is a
+  // genuine entry point: the CRM and marketing basics, nothing else.
+  { id: "starter",    name: "Starter",    price: 99,   tagline: "The essentials for a small team",
+    crm: CRM_MIN, marketing: MKT_MIN, services: [],          network: false, industry: false, ai: AI_LIMITS.starter },
   { id: "standard",   name: "Standard",   price: 399,  tagline: "Core CRM & Marketing to get selling",
     crm: CRM_STD, marketing: MKT_STD, services: [],          network: false, industry: true, ai: AI_LIMITS.standard },
   { id: "premium",    name: "Premium",    price: 999,  tagline: "Full CRM & Marketing + core Services", highlighted: true,

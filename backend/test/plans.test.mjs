@@ -6,13 +6,19 @@ import {
   entitlementsFor, priceFor, planLabel,
 } from "../src/modules/billing/plans.config.js";
 
-test("four tiers exist with the agreed prices", () => {
+// These are LIST prices: high-income market, SME segment. What a given tenant
+// pays runs through the regional price book — see pricing.test.mjs.
+test("five tiers exist with the agreed list prices", () => {
   const prices = Object.fromEntries(PLANS.map((p) => [p.id, p.price]));
-  assert.deepEqual(prices, { standard: 399, premium: 999, enterprise: 1999, executive: 5099 });
+  assert.deepEqual(prices, { starter: 99, standard: 399, premium: 999, enterprise: 1999, executive: 5099 });
 });
 
-test("every tier includes industry customization", () => {
-  for (const p of PLANS) assert.equal(p.industry, true, `${p.id} should include industry`);
+// Industry customization is a paid add-on ($100 on Custom), so the entry tier
+// doesn't carry it — Starter at $99 cannot include a $100 capability.
+test("every tier above Starter includes industry customization", () => {
+  for (const p of PLANS) {
+    assert.equal(p.industry, p.id !== "starter", `${p.id} industry entitlement is wrong`);
+  }
 });
 
 test("executive costs more with the datacenter network profile", () => {
@@ -88,7 +94,7 @@ test("unknown plan falls back to the default", () => {
 
 test("every plan's entitlements expose industry customization", () => {
   for (const p of PLANS) {
-    assert.equal(entitlementsFor(p.id).industry, true, `${p.id} should include industry`);
+    assert.equal(entitlementsFor(p.id).industry, p.id !== "starter", `${p.id} industry entitlement is wrong`);
   }
   // Custom can always opt in (billed as a surcharge).
   assert.equal(entitlementsFor("custom", ["crm:leads"]).industry, true);

@@ -46,6 +46,19 @@ router.post("/branding/logo", ...admin, ...uploadImage, (req, res) => {
   res.json({ url: storage.urlFor(req.file.filename) });
 });
 
+// ── Market: where and what this customer is (the price book's two axes) ─────
+//
+// Split by authority on purpose. `country` an admin may set, because it has to
+// match their billing address and they are the ones who know it — but it is
+// audited, and it should be checked against the payment method's country before
+// a discount is honoured. `segment` is system_admin ONLY: a tenant that could
+// write its own segment would set itself to "sme" and pay a sixth of the price.
+router.get("/market", ...admin, handle((req) => tenants.getMarket(tid(req))));
+router.put("/market/country", ...admin,
+  handle((req) => tenants.setCountry(tid(req), req.user.userId, req.body?.country)));
+router.put("/market/segment", authenticate, requireRole("system_admin"),
+  handle((req) => tenants.setSegment(tid(req), req.user.userId, req.body?.segment)));
+
 // ── Deletion ─────────────────────────────────────────────────────────────────
 router.get("/deletion", ...admin, handle((req) => tenants.deletionStatus(tid(req))));
 router.get("/deletion/preview", ...admin, handle((req) => tenants.previewDeletion(tid(req))));

@@ -5,18 +5,21 @@ import { notifyMany } from "../notifications/notifications.service.js";
 import {
   PLANS as PLAN_TIERS, CUSTOM, DEFAULT_PLAN,
   CRM_SOLUTIONS, MKT_SOLUTIONS, SERVICES_SOLUTIONS,
-  entitlementsFor, priceFor, planLabel, aiLimitFor,
+  entitlementsFor, priceFor, listPriceFor, quoteFor, planLabel, aiLimitFor,
 } from "../billing/plans.config.js";
+import { SEGMENTS, BANDS, marketFor, displayPrice, currencyForCountry } from "../billing/pricing.book.js";
+import { provider, providerId, providerInfo, billingEnabled as providerEnabled } from "../billing/providers/index.js";
 import { INDUSTRIES } from "../crm/industries/registry.js";
 import { getUsage as getAiUsage } from "../../lib/aiQuota.js";
 
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY?.trim() || null;
 const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY, { apiVersion: "2024-04-10" }) : null;
 
-// When Stripe is configured we run in PAID mode: choosing a plan sends the admin
-// through Stripe Checkout and the plan activates on the paid webhook. Without a
-// key we run in FREE early-access mode: choosing a plan activates immediately.
-const BILLING_ENABLED = !!stripe;
+// PAID mode when the active payment provider is configured; FREE early-access
+// mode when it isn't — choosing a plan then activates immediately. Which
+// provider is active is a configuration choice (PAYMENT_PROVIDER), because
+// Stripe will not onboard merchants in every market we sell to.
+const BILLING_ENABLED = () => providerEnabled();
 const APP_URL = process.env.FRONTEND_URL?.replace(/\/$/, "") || "http://localhost:5173";
 
 // ── Plan catalogue + entitlements (new model) ────────────────────────────────
@@ -31,16 +34,38 @@ const planSummary = (p) => ({
 // Industries a Custom plan can bolt on (mirrors the industry registry).
 const INDUSTRY_OPTIONS = Object.entries(INDUSTRIES).map(([id, def]) => ({ id, name: def.name }));
 
-// What the Billing page renders: the 4 tiers, the custom config, the selectable
-// solution catalog (CRM + Marketing only for custom), and industry options.
-export const getPlanCatalog = () => Promise.resolve({
-  plans: PLAN_TIERS.map(planSummary),
-  custom: CUSTOM,
-  catalog: {
-    crm: CRM_SOLUTIONS, marketing: MKT_SOLUTIONS, services: SERVICES_SOLUTIONS,
-    industries: INDUSTRY_OPTIONS,
-  },
-});
+/**
+ * What the Billing page renders: the tiers, the custom config, the selectable
+ * solution catalog and industry options — priced for THIS tenant's market.
+ *
+ * Prices come from here rather than from the frontend's plan mirror because the
+ * regional price book is server-side only. A browser-side copy would be a second
+ * source of truth for money, and the easier one to tamper with.
+ */
+export const getPlanCatalog = async (tenantId) => {
+  const tenant = tenantId
+    ? await prisma.tenant.findUnique({ where: { id: tenantId }, select: { country: true, segment: true, networkProfile: true, industry: true } })
+    : null;
+  const opts = { country: tenant?.country ?? null, segment: tenant?.segment ?? null };
+
+  return {
+    plans: PLAN_TIERS.map((p) => ({
+      ...planSummary(p),
+      // `price` stays the published list price so the comparison table reads
+      // consistently; `quote` is what this tenant would actually pay.
+      quote: quoteFor(p.id, [], { ...opts, networkProfile: p.network ? tenant?.networkProfile : undefined }),
+    })),
+    custom: CUSTOM,
+    market: marketFor(opts),
+    segments: SEGMENTS.map(({ id, label, describe }) => ({ id, label, describe })),
+    bands: BANDS.map(({ id, label }) => ({ id, label })),
+    provider: providerInfo(),
+    catalog: {
+      crm: CRM_SOLUTIONS, marketing: MKT_SOLUTIONS, services: SERVICES_SOLUTIONS,
+      industries: INDUSTRY_OPTIONS,
+    },
+  };
+};
 
 // Current subscription state for a tenant. When Stripe is live, we enrich the
 // tenant's plan (the source of truth for access) with the real subscription
@@ -51,11 +76,21 @@ export const getBilling = async (tenantId) => {
   const planId = tenant.plan || DEFAULT_PLAN;
   const customSolutions = tenant.planSolutions || [];
 
-  const priceOpts = { networkProfile: tenant.networkProfile, industry: tenant.industry };
+  const priceOpts = {
+    networkProfile: tenant.networkProfile, industry: tenant.industry,
+    country: tenant.country, segment: tenant.segment,
+  };
+  const price = priceFor(planId, customSolutions, priceOpts);
   const base = {
     plan: planId,
     planName: planLabel(planId),
-    price: priceFor(planId, customSolutions, priceOpts),
+    price,
+    // What the list price is, what this market pays, and in what currency the
+    // figure is being shown — so no surface has to guess.
+    listPrice: listPriceFor(planId, customSolutions, priceOpts),
+    display: displayPrice(price, { country: tenant.country }),
+    market: marketFor({ country: tenant.country, segment: tenant.segment }),
+    provider: providerInfo(),
     interval: "month",
     customSolutions,
     industry: tenant.industry || "general",
@@ -64,8 +99,8 @@ export const getBilling = async (tenantId) => {
     ai: await getAiUsage(tenantId),
     status: "active",
     // Free early-access only when Stripe isn't configured yet.
-    freeEarlyAccess: !BILLING_ENABLED,
-    billingEnabled: BILLING_ENABLED,
+    freeEarlyAccess: !BILLING_ENABLED(),
+    billingEnabled: BILLING_ENABLED(),
     subscription: null,
     paymentMethod: null,
     nextRenewal: null,
@@ -167,26 +202,25 @@ async function activatePlan(tenantId, plan, solutions, extra = {}, actorId = nul
 
 // Build a Stripe Checkout line item from the plan config using inline
 // price_data — no pre-created Stripe Prices/Products required.
-function buildLineItems(plan, solutions) {
-  if (plan === "custom") {
-    return [{
-      quantity: solutions.length,
-      price_data: {
-        currency: "usd",
-        unit_amount: CUSTOM.unitPrice * 100,
-        recurring: { interval: "month" },
-        product_data: { name: "ExecUI Custom Plan", description: `${solutions.length} solutions × $${CUSTOM.unitPrice}/mo` },
-      },
-    }];
-  }
+function buildLineItems(plan, solutions, opts = {}) {
+  // The charged amount is the price-book amount, not the published list price —
+  // otherwise a Liberian SME would see a local price on the plan card and a very
+  // different number at checkout.
+  const amount = priceFor(plan, solutions, opts);
   const tier = PLAN_TIERS.find((p) => p.id === plan);
+  const name = plan === "custom" ? "ExecUI Custom Plan" : `ExecUI ${tier?.name ?? plan}`;
+  const description = plan === "custom"
+    ? `${solutions.length} solutions`
+    : (tier?.tagline ?? "");
   return [{
     quantity: 1,
     price_data: {
+      // USD is what we settle in. Local currency on the plan card is indicative
+      // and labelled as such — see pricing.book.js.
       currency: "usd",
-      unit_amount: tier.price * 100,
+      unit_amount: Math.round(amount * 100),
       recurring: { interval: "month" },
-      product_data: { name: `ExecUI ${tier.name}`, description: tier.tagline },
+      product_data: { name, description: description || undefined },
     },
   }];
 }
@@ -209,7 +243,7 @@ export const selectPlan = async (tenantId, { plan, customSolutions = [], industr
   if (planDef?.network) extra.networkProfile = networkProfile === "datacenter" ? "datacenter" : "office";
   else extra.networkProfile = "office";
 
-  if (!BILLING_ENABLED) {
+  if (!BILLING_ENABLED()) {
     return { ...(await activatePlan(tenantId, plan, solutions, extra, actorId)), freeEarlyAccess: true };
   }
 
@@ -218,22 +252,91 @@ export const selectPlan = async (tenantId, { plan, customSolutions = [], industr
   // Apply the industry + network-tier choices immediately (access layer); billing follows on the webhook.
   await prisma.tenant.update({ where: { id: tenantId }, data: { ...(industry != null ? { industry: String(industry) } : {}), networkProfile: extra.networkProfile } });
 
-  const customerId = await ensureStripeCustomer(tenant);
+  const priceOpts = {
+    networkProfile: extra.networkProfile, industry,
+    country: tenant.country, segment: tenant.segment,
+  };
+  const amountUsd = priceFor(plan, solutions, priceOpts);
+  const currency = currencyForCountry(tenant.country);
+  const shown = displayPrice(amountUsd, { country: tenant.country });
+
+  const active = provider();
   const metadata = { tenantId, plan, planSolutions: JSON.stringify(solutions), industry: industry ?? "", networkProfile: extra.networkProfile };
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    line_items: buildLineItems(plan, solutions),
-    metadata,
-    subscription_data: { metadata },
-    // Replace any existing subscription rather than stacking a second one.
-    allow_promotion_codes: true,
-    success_url: `${APP_URL}/account/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${APP_URL}/account/billing?checkout=cancelled`,
+  // Stripe alone needs a customer record created up front; asking the others for
+  // one would fail, so it stays behind the capability rather than the provider
+  // name.
+  const customerId = active.id === "stripe" ? await ensureStripeCustomer(tenant) : null;
+  const admin = await prisma.user.findFirst({
+    where: { tenantId, role: { name: "enterprise_admin" } },
+    select: { email: true, firstName: true, lastName: true },
   });
 
-  return { requiresPayment: true, checkoutUrl: session.url, plan, planName: planLabel(plan) };
+  const result = await active.createCheckout({
+    tenantId, plan, planSolutions: solutions,
+    amountUsd,
+    localAmount: shown.local,
+    currency,
+    lineItems: buildLineItems(plan, solutions, priceOpts),
+    customerId,
+    customerEmail: admin?.email ?? null,
+    customerName: [admin?.firstName, admin?.lastName].filter(Boolean).join(" ") || null,
+    metadata,
+    successUrl: `${APP_URL}/account/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${APP_URL}/account/billing?checkout=cancelled`,
+  });
+
+  // A provider that can't take money right now (nothing configured) activates
+  // the plan rather than stranding the customer on a dead checkout.
+  if (result.activateNow) {
+    return { ...(await activatePlan(tenantId, plan, solutions, extra, actorId)), freeEarlyAccess: true, reason: result.reason };
+  }
+
+  return {
+    requiresPayment: true,
+    provider: active.id,
+    checkoutUrl: result.url ?? null,
+    // Offline providers answer with an invoice and instructions instead of a URL.
+    invoice: result.invoice ?? null,
+    instructions: result.instructions ?? null,
+    amountUsd,
+    display: shown,
+    plan,
+    planName: planLabel(plan),
+  };
+};
+
+// ── Manual (offline) invoices ────────────────────────────────────────────────
+/** Invoices this tenant has been issued. Empty unless the manual provider is on. */
+export const listPlatformInvoices = async (tenantId) => {
+  const active = provider();
+  if (active.id !== "manual") return [];
+  return active.listInvoices(tenantId);
+};
+
+/**
+ * Confirm an offline payment and activate the plan it was for.
+ *
+ * Deliberately keyed on the invoice REFERENCE — that is the string the customer
+ * quotes on the transfer, so an operator confirming a payment works from the
+ * same identifier the money arrived with.
+ *
+ * Restricted to system_admin at the route: this is the platform taking money,
+ * not a tenant administering itself. A tenant able to call it would grant itself
+ * any plan for free.
+ */
+export const confirmPlatformInvoice = async (reference, { method, note } = {}, actorId = null) => {
+  const invoice = await prisma.platformInvoice.findFirst({ where: { reference: String(reference).trim().toUpperCase() } });
+  if (!invoice) throw new NotFoundError("No invoice with that reference");
+  if (invoice.status === "paid") throw new ValidationError("That invoice is already settled");
+  if (invoice.status === "void") throw new ValidationError("That invoice was voided");
+
+  const updated = await prisma.platformInvoice.update({
+    where: { id: invoice.id },
+    data: { status: "paid", paidAt: new Date(), method: method ?? null, note: note ?? null, confirmedById: actorId },
+  });
+  await activatePlan(invoice.tenantId, invoice.plan, invoice.planSolutions ?? [], {}, actorId);
+  return { reference: updated.reference, plan: updated.plan, tenantId: updated.tenantId, paidAt: updated.paidAt };
 };
 
 // Legacy plan catalogue (kept for the old Stripe path/webhook code below).

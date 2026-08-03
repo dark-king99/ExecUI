@@ -25,6 +25,15 @@ model Tenant {
   plan             String   @default("executive")
   planSolutions    String[] @default([])
 
+  // ── Where and what this customer is: the two axes of the price book ───────
+  // Deliberately columns rather than TenantSetting rows. Settings are
+  // tenant-editable by design, and a tenant that could set its own `segment`
+  // could set itself to "sme" and pay a sixth of the price. `country` is
+  // admin-settable (and audited) because it must match their billing address;
+  // `segment` is system_admin only. See modules/billing/pricing.book.js.
+  country          String?  // ISO-3166 alpha-2. null ⇒ the high-income default.
+  segment          String   @default("sme")
+
   // Selected industry vertical. "general" ⇒ core CRM only (unchanged behavior);
   // any other value additively unlocks that industry's modules.
   industry       String @default("general")
@@ -119,6 +128,7 @@ model Tenant {
   scimTokens              ScimToken[]
   ssoLoginRequests        SsoLoginRequest[]
   settings                TenantSetting[]
+  platformInvoices        PlatformInvoice[]
 
   // ── Scheduled deletion ────────────────────────────────────────────────────
   // Removing an organization is staged, never immediate: an admin requests it,
@@ -131,6 +141,37 @@ model Tenant {
   deletionReason        String?
 
   @@index([deletionScheduledFor])
+}
+
+// A bill the platform issued to a tenant.
+//
+// Only the `manual` payment provider writes these: where no processor will
+// onboard us, an invoice with a reference number that the customer pays by bank
+// transfer or mobile money IS the billing system, and a platform operator
+// confirms receipt. Stripe and Flutterwave are their own system of record, so
+// they never create rows here.
+model PlatformInvoice {
+  id          String    @id @default(uuid())
+  tenantId    String
+  reference   String    @unique
+  plan        String
+  planSolutions String[] @default([])
+  amountUsd   Int
+  localAmount Int?
+  currency    String    @default("USD")
+  status      String    @default("pending") // pending | paid | void
+  method      String?                        // how it was paid, recorded on confirmation
+  note        String?
+  issuedAt    DateTime  @default(now())
+  dueAt       DateTime?
+  paidAt      DateTime?
+  confirmedById String?
+  voidedAt    DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([status])
 }
 
 // Per-tenant configuration, one row per key.
