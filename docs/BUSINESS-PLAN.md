@@ -2,9 +2,38 @@
 
 **Version 1.0 · August 2026 · 5-year horizon (FY2026/27 → FY2030/31)**
 
-All figures in **USD** unless marked. Liberia operates a dual-currency economy; local
-costs incurred in **LRD** are converted at **L$195 = US$1** with a ±15% FX sensitivity
-applied in §12.
+### Currency basis — read this first
+
+**Every figure in this plan is US dollars.** Revenue, infrastructure, salaries, rent,
+CAC, capex — all USD. There are no LRD amounts anywhere in this document.
+
+| Flow | Currency | Why | FX exposure |
+|---|---|---|---|
+| **Subscription revenue in** | **USD** | Stripe is hardcoded to `currency: "usd"` (`billing.service.js:175,186`), so plan prices are US dollars | None |
+| **Cloud, third-party services out** | **USD** | Cloud providers, Stripe, Resend, PostHog and AI providers all bill in USD | None |
+| **Salaries, rent, fuel, security out** | **USD-denominated, locally incurred** | Liberian professional employment is customarily USD-denominated; some local supplier costs settle in LRD | Favourable — see below |
+
+**The one place FX enters, and it works in the company's favour.** Revenue is hard
+currency while a portion of operating cost is incurred locally. If the LRD depreciates,
+those local costs fall *in USD terms*. This is why §14.1 shows a 25% LRD depreciation
+**improving** Y5 EBITDA to +$1.97M. Where LRD conversion is needed for a local cost
+estimate, **L$195 = US$1** is used, with ±15% tested in §14.1.
+
+**On the `LRD` defaults in the schema.** `NetworkConnection.currency` and
+`IndustryRecord.currency` default to `LRD`. These are *the customer's own business data*
+— what a tenant pays their ISP, and the amounts on their loan applications, sales orders
+and subscriber records. They have nothing to do with what a tenant pays ExecUI. Those
+defaults are used in this plan **solely as evidence of the target market** (which is what
+justifies the West African salary, rent, power and bandwidth assumptions in §10), never
+as a unit of account.
+
+> **Related product inconsistency, logged here but out of scope for this plan.** The
+> schema defaults `NetworkConnection` and `IndustryRecord` to `LRD` while `Contract`,
+> `Compensation`, `PayComponent`, `TaxTable`, `PayRun` and `Payslip` default to `USD`.
+> The same tenant therefore gets different default currencies depending on which screen
+> they are on, with no setting governing it. A `locale.defaultCurrency` entry in the
+> existing `settings.registry.js`, read by all six models, resolves it in ~2–3
+> engineer-days.
 
 > **How to read this plan.** Every cost line traces to something that exists in the
 > codebase — the plan tiers in `billing/plans.config.js`, the AI quotas in
