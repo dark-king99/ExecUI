@@ -4,12 +4,13 @@ import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { useToast } from "../../components/ui/Toast";
 import {
-  CreditCard, AlertCircle, Check, Zap, Crown, Layers, Sparkles, Lock,
+  CreditCard, AlertCircle, Check, Zap, Crown, Layers, Sparkles, Lock, Sprout, Globe,
   Users, TrendingUp, Server, BarChart3, Sliders, ExternalLink, Download, Receipt, Building2,
 } from "lucide-react";
 import { useApi, useMutation } from "../../hooks/useApi";
 import { account } from "../../services/api";
 import { useUser } from "../../context/UserContext";
+import MarketCard from "./MarketCard";
 import { aiLimitFor } from "../../lib/plans";
 
 const STATUS_VARIANT = {
@@ -23,6 +24,7 @@ function isAdmin(u) {
 }
 
 const TIER_STYLE = {
+  starter:    { accent: "emerald", icon: Sprout,   badge: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" },
   standard:   { accent: "slate",   icon: Layers,   badge: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300" },
   premium:    { accent: "indigo",  icon: Zap,      badge: "bg-indigo-600 text-white" },
   enterprise: { accent: "violet",  icon: Sparkles, badge: "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300" },
@@ -60,7 +62,13 @@ function PlanCard({ plan, current, currentNetworkProfile = "office", onSelect, l
   // Plans with network (Executive) carry a tier toggle: the network profile is a
   // property of the plan, chosen here rather than inside Network Management.
   const hasNetworkTiers = !!plan.networkDatacenterPrice;
-  const price = hasNetworkTiers && networkProfile === "datacenter" ? plan.networkDatacenterPrice : plan.price;
+  // `plan.quote` is what THIS tenant would pay — the published list price run
+  // through the regional price book. Fall back to the list price only when the
+  // server didn't send a quote (an older API, or no session).
+  const quote = plan.quote ?? null;
+  const listPrice = hasNetworkTiers && networkProfile === "datacenter" ? plan.networkDatacenterPrice : plan.price;
+  const price = quote?.usd ?? listPrice;
+  const discounted = quote && quote.usd !== quote.listUsd;
   const isCurrentPlan = plan.id === current;
   // "Current" only when the tier also matches, so switching Executive's tier is a real change.
   const isCurrent = isCurrentPlan && (!hasNetworkTiers || networkProfile === currentNetworkProfile);
@@ -93,6 +101,23 @@ function PlanCard({ plan, current, currentNetworkProfile = "office", onSelect, l
         <p className="mt-3 text-3xl font-bold text-slate-900 dark:text-white">
           ${price.toLocaleString()}<span className="text-sm font-normal text-slate-500">/mo</span>
         </p>
+        {discounted && (
+          <p className="mt-0.5 text-xs">
+            <span className="text-slate-400 line-through">${quote.listUsd.toLocaleString()}</span>
+            <span className="ml-1.5 font-medium text-emerald-600 dark:text-emerald-400">
+              {quote.adjustment < 1
+                ? `${Math.round((1 - quote.adjustment) * 100)}% off in your market`
+                : `${quote.adjustment}× · ${quote.market.segmentLabel.toLowerCase()}`}
+            </span>
+          </p>
+        )}
+        {quote?.localFormatted && (
+          /* Labelled every time it is shown: this is NOT the amount charged. */
+          <p className="mt-0.5 text-xs text-slate-400"
+             title={`Indicative, at rates from ${quote.ratesAsOf}. You are charged in USD.`}>
+            ≈ {quote.localFormatted}/mo {quote.currency} · charged in USD
+          </p>
+        )}
         {hasNetworkTiers && (
           <div className="mt-2">
             <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5">
@@ -484,10 +509,15 @@ export default function Billing() {
         </CardBody>
       </Card>
 
-      {/* Plan tiers */}
+      {/* Where this org sits in the price book — shown above the tiers, because
+          it is what makes the numbers below make sense. */}
+      {admin && <MarketCard />}
+
+      {/* Plan tiers. Five columns now that Starter exists, so the grid steps to
+          5 at xl rather than wrapping one card onto its own row. */}
       <div>
         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Available plans</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
           {plans.map((p) => (
             <PlanCard
               key={p.id}

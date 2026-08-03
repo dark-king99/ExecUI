@@ -48,6 +48,10 @@ router.post("/billing/select",           auth, requireRole("enterprise_admin", "
 router.post("/billing/upgrade",          auth, c.upgradePlan);
 router.get("/billing/payment-methods",   auth, c.getPaymentMethods);
 router.get("/billing/invoices",          auth, c.getInvoices);
+// Offline billing. Listing is admin; confirming a payment is the PLATFORM
+// taking money, so it is restricted to system_admin.
+router.get("/billing/platform-invoices",  auth, adminOnly, c.getPlatformInvoices);
+router.post("/billing/platform-invoices/:reference/confirm", auth, requireRole("system_admin"), c.confirmInvoice);
 router.post("/billing/portal",           auth, c.createPortalSession);
 router.post("/billing/setup",            auth, c.createSetupSession);
 

@@ -25,6 +25,8 @@ import prisma from "../../config/database.js";
 import { runUnscoped, runWithTenant } from "../../lib/tenantContext.js";
 import { log } from "../../lib/logger.js";
 import { CATEGORIES } from "../governance/governance.registry.js";
+import { SEGMENTS, marketFor, bandForCountry } from "../billing/pricing.book.js";
+import { quoteFor } from "../billing/plans.config.js";
 
 const err = (message, status = 400) => Object.assign(new Error(message), { status });
 
@@ -282,4 +284,67 @@ export async function runScheduledPurges({ now = new Date() } = {}) {
     }
   }
   return { due: due.length, purged, blocked };
+}
+
+// ── Market placement ─────────────────────────────────────────────────────────
+/**
+ * Where and what this customer is — the two inputs to the regional price book.
+ *
+ * Kept here rather than in the settings store because settings are
+ * tenant-editable by design, and these decide what the customer pays. See
+ * modules/billing/pricing.book.js for how they combine.
+ */
+export async function getMarket(tenantId) {
+  const tenant = await runUnscoped(async () =>
+    prisma.tenant.findFirst({ where: { id: tenantId }, select: { country: true, segment: true, plan: true, planSolutions: true, networkProfile: true } }),
+  );
+  if (!tenant) throw err("Organization not found", 404);
+  const opts = { country: tenant.country, segment: tenant.segment };
+  return {
+    ...marketFor(opts),
+    // What this placement means in money, for the plan they're actually on.
+    quote: quoteFor(tenant.plan, tenant.planSolutions ?? [], { ...opts, networkProfile: tenant.networkProfile }),
+    segments: SEGMENTS.map(({ id, label, describe }) => ({ id, label, describe })),
+  };
+}
+
+export async function setCountry(tenantId, userId, raw) {
+  const country = raw == null || raw === "" ? null : String(raw).trim().toUpperCase();
+  if (country && !/^[A-Z]{2}$/.test(country)) throw err("Country must be a two-letter ISO code, e.g. LR");
+
+  const before = await runUnscoped(async () =>
+    prisma.tenant.findFirst({ where: { id: tenantId }, select: { country: true } }),
+  );
+  if (!before) throw err("Organization not found", 404);
+
+  await runUnscoped(async () => prisma.tenant.update({ where: { id: tenantId }, data: { country } }));
+  // Audited because it moves money: the band a country maps to can cut the bill
+  // by 80%, and the claim should be checkable against the billing address.
+  await prisma.auditLog.create({
+    data: {
+      userId, tenantId, action: "update_market_country", resource: "tenant", resourceId: tenantId,
+      detail: `Country ${before.country ?? "—"} → ${country ?? "—"} (band ${bandForCountry(country)})`,
+    },
+  });
+  return getMarket(tenantId);
+}
+
+export async function setSegment(tenantId, userId, raw) {
+  const segment = String(raw ?? "").trim();
+  if (!SEGMENTS.some((s) => s.id === segment)) {
+    throw err(`Segment must be one of: ${SEGMENTS.map((s) => s.id).join(", ")}`);
+  }
+  const before = await runUnscoped(async () =>
+    prisma.tenant.findFirst({ where: { id: tenantId }, select: { segment: true } }),
+  );
+  if (!before) throw err("Organization not found", 404);
+
+  await runUnscoped(async () => prisma.tenant.update({ where: { id: tenantId }, data: { segment } }));
+  await prisma.auditLog.create({
+    data: {
+      userId, tenantId, action: "update_market_segment", resource: "tenant", resourceId: tenantId,
+      detail: `Segment ${before.segment} → ${segment}`,
+    },
+  });
+  return getMarket(tenantId);
 }
