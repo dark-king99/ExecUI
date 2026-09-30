@@ -153,7 +153,7 @@ export default function IndustrySelect({
     return (
       <Shell tone="prompt">
         <div className="flex items-start gap-3">
-          <Sparkles size={18} className="text-indigo-500 shrink-0 mt-0.5" />
+          
           <div className="min-w-0 flex-1 space-y-2">
             <div>
               <p className="text-sm font-semibold text-slate-900 dark:text-white">Set your organization's industry</p>
