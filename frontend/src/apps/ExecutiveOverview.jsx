@@ -67,10 +67,10 @@ const SERVICES_SOLS = [
 ];
 
 const ACCENT = {
-  orange:  "bg-orange-500",  violet: "bg-violet-500", emerald: "bg-emerald-600",
-  sky:     "bg-sky-500",     indigo: "bg-indigo-500",
+  orange:  "bg-orange-700",  violet: "bg-violet-700", emerald: "bg-emerald-400",
+  sky:     "bg-sky-700",     indigo: "bg-indigo-700",
 };
-const GAUGE_STROKE = { orange: "#f97316", violet: "#8b5cf6", emerald: "#10b981", sky: "#0ea5e9", indigo: "#6366f1" };
+const GAUGE_STROKE = { orange: "#90562e", violet: "#554088", emerald: "#1d7457", sky: "#2c7293", indigo: "#44458f" };
 
 const SERVICE_META = {
   crm:       { name: "CRM · Sales Cloud",  icon: Users,     accent: "orange",  path: "/crm",       sols: solEntries(CRM), metric: (m) => ({ label: "Open Deals",       value: m.crm?.openDeals ?? 0 }) },
