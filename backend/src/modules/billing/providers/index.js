@@ -4,7 +4,7 @@
  * Billing was welded to Stripe, which is a problem the moment you sell somewhere
  * Stripe won't onboard you — Liberia among them. The processor is now a choice:
  * `PAYMENT_PROVIDER` names one, and every adapter answers the same interface.
- *
+ * I change the system to Paddle.
  * Providers differ in what they can actually do, and pretending otherwise
  * produces a UI full of buttons that fail. So an adapter DECLARES its
  * capabilities and the surfaces above it ask before offering:
@@ -20,12 +20,12 @@
  * error — it is a fact about that market, and the caller renders accordingly.
  */
 import { log } from "../../../lib/logger.js";
-import stripeProvider from "./stripe.provider.js";
+import paddleProvider from "./paddle.provider.js";
 import manualProvider from "./manual.provider.js";
 import flutterwaveProvider from "./flutterwave.provider.js";
 
 export const PROVIDERS = {
-  stripe: stripeProvider,
+  paddle: paddleProvider,
   manual: manualProvider,
   flutterwave: flutterwaveProvider,
 };
@@ -45,7 +45,7 @@ export function providerId() {
     log.warn("payment_provider_unknown", { requested: explicit, using: "manual" });
     return "manual";
   }
-  if (process.env.STRIPE_SECRET_KEY?.trim()) return "stripe";
+  if (process.env.PADDLE_API_KEY?.trim()) return "paddle";
   return "manual";
 }
 

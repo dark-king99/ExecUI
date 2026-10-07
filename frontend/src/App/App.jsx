@@ -37,8 +37,8 @@ const CrmSolutions        = lazy(() => import("../apps/crm/CrmSolutions"));
 
 
 
-const IndustryObjectPage  = lazy(() => import("../apps/crm/IndustryObjectPage"));
-const IndustrySetup       = lazy(() => import("../apps/crm/IndustrySetup"));
+const IndustryObjectPage  = lazy(() => import("../apps/industry/IndustryObjectPage"));
+const IndustrySetup       = lazy(() => import("../apps/industry/IndustrySetup"));
 import { CRM_ROUTES } from "../apps/crm/solutions.config";
 import { IndustryProvider } from "../context/IndustryContext";
 
@@ -250,7 +250,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
 
 
                 {/* Industry modules — additive layer (core CRM routes above unchanged) */}
-                <Route path="/crm/industry-setup" element={guard("crm", <IndustrySetup />)} />
+                <Route path="/industry/industry-setup" element={guard("crm", <IndustrySetup />)} />
                 <Route path="/crm/i/:industryId/:objectType" element={guard("crm", <IndustryObjectPage />)} />
 
 

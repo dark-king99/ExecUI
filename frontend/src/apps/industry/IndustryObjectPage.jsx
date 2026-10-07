@@ -6,10 +6,10 @@ import { useApi } from "../../hooks/useApi";
 import { useToast } from "../../components/ui/Toast";
 import { useIndustry } from "../../context/IndustryContext";
 import { schemaFor, industrySolutionFor } from "./industries.config";
-import { colorOf } from "./solutions.config";
+import { colorOf } from "../crm/solutions.config";
 import {
   Modal, Field, TextInput, SelectInput, PrimaryBtn, GhostBtn, Pill, Loading, ErrorNote, fmtNum, fmtDate,
-} from "./components/crm-ui";
+} from "../crm/components/crm-ui";
 
 const titleCase = (s) => String(s || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const BUILTINS = new Set(["name", "status", "amount", "currency", "stage", "ownerName"]);

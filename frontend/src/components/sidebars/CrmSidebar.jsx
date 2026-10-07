@@ -165,38 +165,12 @@ export default function CrmSidebar() {
         {collapsed && <div className="my-1.5 border-t border-slate-100 dark:border-slate-800/60" />}
 
         <div className="space-y-0.5">
-         <div>
-          {SOLUTIONS.filter((s) => canAccessSolution(user, "crm", s.id)).map((s) => (
-            <SolutionGroup key={s.id} solution={s} pathname={pathname} collapsed={collapsed} onNavigate={navigate} />
-          ))}
-        </div>
-
           {solutions
             .filter((s) => s.isIndustry || canAccessSolution(user, "crm", s.id))
             .map((s) => (
               <SolutionGroup key={s.id} solution={s} pathname={pathname} collapsed={collapsed} onNavigate={navigate} />
             ))}
         </div>
-
-        {/* Industry setup */}
-        {!collapsed && (
-          <p className="px-2.5 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-600 select-none">
-            Configure
-          </p>
-        )}
-        {collapsed && <div className="my-1.5 border-t border-slate-100 dark:border-slate-800/60" />}
-        <button
-          onClick={() => navigate("/crm/industry-setup")}
-          title={collapsed ? "Industry" : undefined}
-          className={`relative flex items-center ${collapsed ? "justify-center" : "gap-2.5"} w-full px-2.5 py-2 rounded-lg text-sm font-medium transition ${
-            pathname === "/crm/industry-setup"
-              ? "bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400"
-              : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/70"
-          }`}
-        >
-          <Building size={15} className={pathname === "/crm/industry-setup" ? "text-orange-500 dark:text-orange-400" : "text-slate-400 dark:text-slate-500"} />
-          {!collapsed && "Industry"}
-        </button>
       </nav>
     </aside>
   );

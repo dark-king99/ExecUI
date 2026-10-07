@@ -76,16 +76,13 @@ export default function CrmSolutions() {
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
-          {SOLUTIONS.filter((s) => canAccessSolution(user, "crm", s.id))
-            .map((s) => <SolutionCard key={s.id} solution={s} />)}
-
           {solutions
             .filter((s) => s.isIndustry || canAccessSolution(user, "crm", s.id))
             .map((s) => <SolutionCard key={s.id} solution={s} />)}
 
           {/* Industry setup entry */}
           <button
-            onClick={() => navigate("/crm/industry-setup")}
+            onClick={() => navigate("/industry/industry-setup")}
             className="group text-left bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-5 hover:border-orange-400 hover:shadow-md hover:-translate-y-0.5 transition-all"
           >
             <div className="flex items-start justify-between mb-4">

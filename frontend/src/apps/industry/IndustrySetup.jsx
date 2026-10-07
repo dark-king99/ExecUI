@@ -4,8 +4,8 @@ import { useIndustry } from "../../context/IndustryContext";
 import { useUser } from "../../context/UserContext";
 import { useToast } from "../../components/ui/Toast";
 import { INDUSTRY_UI } from "./industries.config";
-import { colorOf } from "./solutions.config";
-import { PrimaryBtn } from "./components/crm-ui";
+import { colorOf } from "../crm/solutions.config";
+import { PrimaryBtn } from "../crm/components/crm-ui";
 import { isAdminUser } from "../../lib/access";
 
 const GENERAL_CARD = {

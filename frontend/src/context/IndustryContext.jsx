@@ -11,7 +11,7 @@ import { useUser } from "./UserContext";
 import { accessFor } from "../lib/access";
 import { SOLUTIONS as CRM_SOLUTIONS } from "../apps/crm/solutions.config";
 import { SOLUTIONS as MKT_SOLUTIONS } from "../apps/marketing/solutions.config";
-import { industrySolutionFor } from "../apps/crm/industries.config";
+import { industrySolutionFor } from "../apps/industry/industries.config";
 
 const IndustryContext = createContext(null);
 

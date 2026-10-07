@@ -67,13 +67,13 @@ const SERVICES_SOLS = [
 ];
 
 const ACCENT = {
-  orange:  "bg-orange-700",  violet: "bg-violet-700", emerald: "bg-emerald-400",
-  sky:     "bg-sky-700",     indigo: "bg-indigo-700",
+  amber: "bg-amber-700",  violet: "bg-violet-900", emerald: "bg-emerald-800",
+  sky:     "bg-sky-900",     indigo: "bg-indigo-900",
 };
-const GAUGE_STROKE = { orange: "#90562e", violet: "#554088", emerald: "#1d7457", sky: "#2c7293", indigo: "#44458f" };
+const GAUGE_STROKE = { amber: "#90562e", violet: "#554088", emerald: "#1d7457", sky: "#2c7293", indigo: "#44458f" };
 
 const SERVICE_META = {
-  crm:       { name: "CRM · Sales Cloud",  icon: Users,     accent: "orange",  path: "/crm",       sols: solEntries(CRM), metric: (m) => ({ label: "Open Deals",       value: m.crm?.openDeals ?? 0 }) },
+  crm:       { name: "CRM · Sales Cloud",  icon: Users,     accent: "amber",  path: "/crm",       sols: solEntries(CRM), metric: (m) => ({ label: "Open Deals",       value: m.crm?.openDeals ?? 0 }) },
   marketing: { name: "Marketing Cloud",    icon: Megaphone, accent: "violet",  path: "/marketing", sols: solEntries(MKT), metric: (m) => ({ label: "Active Campaigns", value: m.marketing?.activeCampaigns ?? 0 }) },
   network:   { name: "Network Operations", icon: Network,   accent: "emerald", path: "/network",   sols: solEntries(NET), metric: (m) => ({ label: "Uptime",          value: (m.network?.uptimePct ?? 0) + "%" }) },
   services:  { name: "Business Services",  icon: Layers,    accent: "sky",     path: "/services",  sols: SERVICES_SOLS,   metric: (m) => ({ label: "Active Projects",  value: m.services?.activeProjects ?? 0 }) },
