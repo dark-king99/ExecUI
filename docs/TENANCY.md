@@ -93,7 +93,7 @@ Branded — surfaces belonging to the **tenant**:
 
 **Not** branded — surfaces belonging to **us**:
 
-- Billing and Stripe product names. The tenant is buying ExecUI; a white-label
+- Billing-provider product names. The tenant is buying ExecUI; a white-label
   invoice would be a lie.
 - The public API, OpenAPI document and SCIM service documents. Those describe
   *this* product to integrators.

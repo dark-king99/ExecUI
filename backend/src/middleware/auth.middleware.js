@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { runWithTenant } from "../lib/tenantContext.js";
+import { withAnalyticsContext } from "../lib/analytics.js";
 
 /**
  * Verify the bearer token, attach req.user, and enter the tenant context for
@@ -25,10 +26,20 @@ export const authenticate = (req, res, next) => {
     }
     req.user = decoded;
 
-    // Everything downstream runs inside this tenant's context.
-    return runWithTenant(
-      { tenantId: decoded.tenantId, userId: decoded.userId, role: decoded.role },
-      () => next(),
+    // Everything downstream inherits both the tenant boundary and the stable
+    // authenticated user ID, including any server-side error captured later.
+    const sessionId = req.headers["x-posthog-session-id"];
+    return withAnalyticsContext(
+      {
+        userId: decoded.userId,
+        tenantId: decoded.tenantId,
+        role: decoded.role,
+        sessionId: Array.isArray(sessionId) ? sessionId[0] : sessionId,
+      },
+      () => runWithTenant(
+        { tenantId: decoded.tenantId, userId: decoded.userId, role: decoded.role },
+        () => next(),
+      ),
     );
   } catch (error) {
     return res.status(401).json({ message: "Invalid or expired token" });

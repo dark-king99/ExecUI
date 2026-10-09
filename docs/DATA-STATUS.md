@@ -15,7 +15,7 @@ backend services, July 2026). "Real" = tenant-scoped Prisma queries.
 | Network — devices, servers, alerts, incidents, changes, backups, firewall rules, restrictions, automation jobs | heaviest Prisma usage in the app |
 | Services — transactions, tax plans, investments, SOPs, workflows, goals, projects, tasks, clients, members | feeds the Overview task workflow |
 | Messaging, notifications (incl. SSE stream), email log | |
-| Billing — plan/entitlements always real; subscription/invoices/cards real **when `STRIPE_SECRET_KEY` is set**, empty demo lists otherwise (by design) | |
+| Billing — plan/entitlements always real; subscription and invoices come from the configured payment provider | |
 | Integrations secret store | AES-256-GCM at rest |
 | Analytics module | rollups over the real CRM/network/services tables |
 
@@ -35,6 +35,6 @@ backend services, July 2026). "Real" = tenant-scoped Prisma queries.
 
 ## Graceful degradation (intentional, keyed on env)
 
-- **Stripe absent** → billing runs in free early-access mode; invoices/cards empty.
+- No payment provider is configured → billing runs in free early-access mode.
 - **Resend absent** → emails are recorded in `EmailLog` as `skipped`, never fail.
 - **AI keys absent** → assistant uses the `fallback` backend.

@@ -213,7 +213,7 @@ export default function PrivacyPolicy() {
               <li><strong>Service providers (subprocessors)</strong> that help us run the platform, under contract and only as needed:
                 <ul className="mt-1.5 list-[circle] space-y-1 pl-5">
                   <li>Cloud hosting &amp; database infrastructure.</li>
-                  <li><strong>Stripe</strong> — subscription billing and payment processing.</li>
+                  <li><strong>Paddle</strong> — subscription billing and payment processing.</li>
                   <li><strong>Resend</strong> — outbound transactional email, when enabled by your organization.</li>
                 </ul>
               </li>

@@ -1,7 +1,7 @@
-import Stripe from "stripe";
 import prisma from "../../config/database.js";
 import { ValidationError, NotFoundError } from "../../lib/errors.js";
 import { notifyMany } from "../notifications/notifications.service.js";
+import { log } from "../../lib/logger.js";
 import {
   PLANS as PLAN_TIERS, CUSTOM, DEFAULT_PLAN,
   CRM_SOLUTIONS, MKT_SOLUTIONS, SERVICES_SOLUTIONS,
@@ -12,15 +12,52 @@ import { provider, providerId, providerInfo, billingEnabled as providerEnabled }
 import { INDUSTRIES } from "../crm/industries/registry.js";
 import { getUsage as getAiUsage } from "../../lib/aiQuota.js";
 
-const STRIPE_KEY = process.env.STRIPE_SECRET_KEY?.trim() || null;
-const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY, { apiVersion: "2024-04-10" }) : null;
-
 // PAID mode when the active payment provider is configured; FREE early-access
 // mode when it isn't — choosing a plan then activates immediately. Which
 // provider is active is a configuration choice (PAYMENT_PROVIDER), because
-// Stripe will not onboard merchants in every market we sell to.
+// payment-provider availability varies by market.
 const BILLING_ENABLED = () => providerEnabled();
 const APP_URL = process.env.FRONTEND_URL?.replace(/\/$/, "") || "http://localhost:5173";
+const PADDLE_PRICE_ENV = {
+  starter: { month: "PADDLE_PRICE_STARTER_MONTH", year: "PADDLE_PRICE_STARTER_YEAR" },
+  standard: { month: "PADDLE_PRICE_STANDARD_MONTH", year: "PADDLE_PRICE_STANDARD_YEAR" },
+  premium: { month: "PADDLE_PRICE_PREMIUM_MONTH", year: "PADDLE_PRICE_PREMIUM_YEAR" },
+  enterprise: { month: "PADDLE_PRICE_ENTERPRISE_MONTH", year: "PADDLE_PRICE_ENTERPRISE_YEAR" },
+  executive: {
+    month: {
+      office: "PADDLE_PRICE_EXECUTIVE_SMALL_OFFICE_MONTH",
+      datacenter: "PADDLE_PRICE_EXECUTIVE_ENTERPRISE_MONTH",
+    },
+    year: {
+      office: "PADDLE_PRICE_EXECUTIVE_SMALL_OFFICE_YEAR",
+      datacenter: "PADDLE_PRICE_EXECUTIVE_ENTERPRISE_YEAR",
+    },
+  },
+};
+
+function paddlePriceIds(planId) {
+  const variables = PADDLE_PRICE_ENV[planId];
+  if (!variables) return null;
+  const value = (key) => process.env[key]?.trim() || null;
+  return Object.fromEntries(Object.entries(variables).map(([interval, entry]) => [
+    interval,
+    typeof entry === "string"
+      ? value(entry)
+      : Object.fromEntries(Object.entries(entry).map(([profile, envName]) => [profile, value(envName)])),
+  ]));
+}
+
+function paddlePriceIdFor(plan, interval, networkProfile) {
+  const configured = paddlePriceIds(plan);
+  const selected = plan === "executive"
+    ? configured?.[interval]?.[networkProfile === "datacenter" ? "datacenter" : "office"]
+    : configured?.[interval];
+  if (selected) return selected;
+  const variable = plan === "executive"
+    ? PADDLE_PRICE_ENV.executive[interval]?.[networkProfile === "datacenter" ? "datacenter" : "office"]
+    : PADDLE_PRICE_ENV[plan]?.[interval];
+  throw new ValidationError(`Paddle price is not configured. Set ${variable ?? `the ${interval} price ID for ${plan}`} in the backend environment.`);
+}
 
 // ── Plan catalogue + entitlements (new model) ────────────────────────────────
 const planSummary = (p) => ({
@@ -42,7 +79,7 @@ const INDUSTRY_OPTIONS = Object.entries(INDUSTRIES).map(([id, def]) => ({ id, na
  * regional price book is server-side only. A browser-side copy would be a second
  * source of truth for money, and the easier one to tamper with.
  */
-export const getPlanCatalog = async (tenantId) => {
+export const getPlanCatalog = async (tenantId, countryCode) => {
   const tenant = tenantId
     ? await prisma.tenant.findUnique({ where: { id: tenantId }, select: { country: true, segment: true, networkProfile: true, industry: true } })
     : null;
@@ -51,6 +88,7 @@ export const getPlanCatalog = async (tenantId) => {
   return {
     plans: PLAN_TIERS.map((p) => ({
       ...planSummary(p),
+      ...(providerId() === "paddle" ? { priceIds: paddlePriceIds(p.id) } : {}),
       // `price` stays the published list price so the comparison table reads
       // consistently; `quote` is what this tenant would actually pay.
       quote: quoteFor(p.id, [], { ...opts, networkProfile: p.network ? tenant?.networkProfile : undefined }),
@@ -60,6 +98,7 @@ export const getPlanCatalog = async (tenantId) => {
     segments: SEGMENTS.map(({ id, label, describe }) => ({ id, label, describe })),
     bands: BANDS.map(({ id, label }) => ({ id, label })),
     provider: providerInfo(),
+    ...(countryCode ? { countryCode } : {}),
     catalog: {
       crm: CRM_SOLUTIONS, marketing: MKT_SOLUTIONS, services: SERVICES_SOLUTIONS,
       industries: INDUSTRY_OPTIONS,
@@ -67,9 +106,7 @@ export const getPlanCatalog = async (tenantId) => {
   };
 };
 
-// Current subscription state for a tenant. When Stripe is live, we enrich the
-// tenant's plan (the source of truth for access) with the real subscription
-// status, renewal date, and default card.
+// Current subscription state for a tenant, enriched by the active provider.
 export const getBilling = async (tenantId) => {
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw new NotFoundError("Tenant not found");
@@ -97,42 +134,54 @@ export const getBilling = async (tenantId) => {
     networkProfile: tenant.networkProfile || "office",
     entitlements: entitlementsFor(planId, customSolutions),
     ai: await getAiUsage(tenantId),
-    status: "active",
-    // Free early-access only when Stripe isn't configured yet.
+    status: !BILLING_ENABLED() || tenant.providerPlanId === planId ? "active" : "none",
     freeEarlyAccess: !BILLING_ENABLED(),
     billingEnabled: BILLING_ENABLED(),
     subscription: null,
-    paymentMethod: null,
     nextRenewal: null,
+    pendingInvoice: null,
+    paymentInstructions: [],
   };
 
-  if (!stripe || !tenant.stripeCustomerId) return base;
-
+  const active = provider();
   try {
-    const subs = await stripe.subscriptions.list({
-      customer: tenant.stripeCustomerId, limit: 1, status: "all",
-      expand: ["data.default_payment_method"],
-    });
-    const sub = subs.data[0] ?? null;
-    if (!sub) return base;
-    const pm = sub.default_payment_method ?? null;
+    let subscription = tenant.providerSubscriptionId && active.getSubscription
+      ? await active.getSubscription(tenantId, {
+        customerId: tenant.providerCustomerId,
+        subscriptionId: tenant.providerSubscriptionId,
+      })
+      : null;
+    if (!subscription && active.findActiveSubscription && tenant.providerCustomerId) {
+      subscription = await active.findActiveSubscription(tenantId, { customerId: tenant.providerCustomerId });
+      if (subscription) {
+        await prisma.tenant.update({
+          where: { id: tenantId },
+          data: { providerSubscriptionId: subscription.id },
+        });
+      }
+    }
+    const invoices = active.id === "manual" ? await active.listInvoices(tenantId) : [];
+    const pendingInvoice = invoices.find((invoice) => invoice.status === "pending") ?? null;
+    if (!subscription) {
+      return {
+        ...base,
+        status: base.status === "none" && pendingInvoice ? "pending" : base.status,
+        pendingInvoice,
+        paymentInstructions: pendingInvoice ? active.getPaymentInstructions?.() ?? [] : [],
+      };
+    }
     return {
       ...base,
-      status: sub.status, // active | trialing | past_due | canceled | unpaid | incomplete
-      subscription: {
-        id: sub.id,
-        status: sub.status,
-        cancelAtPeriodEnd: sub.cancel_at_period_end,
-        currentPeriodEnd: sub.current_period_end
-          ? new Date(sub.current_period_end * 1000).toISOString().slice(0, 10) : null,
-      },
-      nextRenewal: sub.current_period_end
-        ? new Date(sub.current_period_end * 1000).toISOString().slice(0, 10) : null,
-      paymentMethod: pm ? fmtPaymentMethod(pm) : null,
+      status: subscription.status,
+      subscription,
+      interval: subscription.billingInterval ?? "month",
+      nextRenewal: subscription.currentPeriodEnd ?? null,
+      pendingInvoice,
+      paymentInstructions: pendingInvoice ? active.getPaymentInstructions?.() ?? [] : [],
     };
   } catch (err) {
-    console.error("Stripe getBilling error:", err.message);
-    return base;
+    log.error("billing_subscription_load_failed", { provider: active.id, error: err.message });
+    throw err;
   }
 };
 
@@ -153,7 +202,7 @@ function resolvePlan(plan, customSolutions = []) {
 }
 
 // Every plan change lands in the audit log. Webhook-driven changes have no
-// acting user, so they're attributed to a tenant admin with a "(Stripe)" note.
+// acting user, so they're attributed to a tenant admin with a provider note.
 async function auditPlanChange(tenantId, actorId, detail) {
   try {
     let userId = actorId;
@@ -186,9 +235,9 @@ async function activatePlan(tenantId, plan, solutions, extra = {}, actorId = nul
   const before = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } });
   const tenant = await prisma.tenant.update({
     where: { id: tenantId },
-    data: { plan, planSolutions: solutions, stripePlanId: plan, ...extra },
+    data: { plan, planSolutions: solutions, providerPlanId: plan, ...extra },
   });
-  auditPlanChange(tenantId, actorId, `Plan ${before?.plan ?? "?"} → ${plan}${actorId ? "" : " (Stripe)"}`);
+  auditPlanChange(tenantId, actorId, `Plan ${before?.plan ?? "?"} → ${plan}${actorId ? "" : ` (${providerId()})`}`);
   return {
     activated: true,
     plan: tenant.plan,
@@ -200,8 +249,7 @@ async function activatePlan(tenantId, plan, solutions, extra = {}, actorId = nul
   };
 }
 
-// Build a Stripe Checkout line item from the plan config using inline
-// price_data — no pre-created Stripe Prices/Products required.
+// Build a recurring line item from the plan config using inline price data.
 function buildLineItems(plan, solutions, opts = {}) {
   // The charged amount is the price-book amount, not the published list price —
   // otherwise a Liberian SME would see a local price on the plan card and a very
@@ -227,11 +275,13 @@ function buildLineItems(plan, solutions, opts = {}) {
 
 /**
  * Choose a plan.
- *  - FREE mode (no Stripe key): activates immediately.
- *  - PAID mode (Stripe configured): returns a Checkout URL; the plan is applied
- *    once payment succeeds (checkout.session.completed webhook).
+ *  - FREE mode activates immediately.
+ *  - PAID mode returns checkout or offline-invoice details; the plan is applied
+ *    only after the provider confirms payment.
  */
-export const selectPlan = async (tenantId, { plan, customSolutions = [], industry, networkProfile }, actorId = null) => {
+export const selectPlan = async (tenantId, {
+  plan, customSolutions = [], industry, networkProfile, billingInterval = "month",
+}, actorId = null) => {
   const { solutions } = resolvePlan(plan, customSolutions);
   // A chosen industry (e.g. the Custom plan's add-on) is applied to the tenant.
   const extra = industry != null ? { industry: String(industry) } : {};
@@ -261,29 +311,71 @@ export const selectPlan = async (tenantId, { plan, customSolutions = [], industr
   const shown = displayPrice(amountUsd, { country: tenant.country });
 
   const active = provider();
-  const metadata = { tenantId, plan, planSolutions: JSON.stringify(solutions), industry: industry ?? "", networkProfile: extra.networkProfile };
+  const metadata = {
+    tenantId, plan, planSolutions: JSON.stringify(solutions), industry: industry ?? "",
+    networkProfile: extra.networkProfile, billingInterval,
+  };
 
-  // Stripe alone needs a customer record created up front; asking the others for
-  // one would fail, so it stays behind the capability rather than the provider
-  // name.
-  const customerId = active.id === "stripe" ? await ensureStripeCustomer(tenant) : null;
-  const admin = await prisma.user.findFirst({
+  const customerUser = actorId
+    ? await prisma.user.findUnique({ where: { id: actorId }, select: { email: true, firstName: true, lastName: true } })
+    : null;
+  const admin = customerUser ?? await prisma.user.findFirst({
     where: { tenantId, role: { name: "enterprise_admin" } },
     select: { email: true, firstName: true, lastName: true },
   });
+
+  let lineItems = buildLineItems(plan, solutions, priceOpts);
+  if (active.id === "paddle") {
+    if (plan === "custom") throw new ValidationError("Custom plans are not available through Paddle checkout.");
+    lineItems = [{ priceId: paddlePriceIdFor(plan, billingInterval, extra.networkProfile), quantity: 1 }];
+  }
+
+  let subscriptionId = tenant.providerSubscriptionId;
+  if (active.id === "paddle" && !subscriptionId && tenant.providerCustomerId && active.findActiveSubscription) {
+    const existing = await active.findActiveSubscription(tenantId, { customerId: tenant.providerCustomerId });
+    if (existing) {
+      subscriptionId = existing.id;
+      await prisma.tenant.update({
+        where: { id: tenantId },
+        data: { providerSubscriptionId: existing.id },
+      });
+    }
+  }
+  if (active.id === "paddle" && subscriptionId && active.updateSubscription) {
+    const updated = await active.updateSubscription({
+      subscriptionId,
+      plan,
+      planSolutions: solutions,
+      amountUsd,
+      lineItems,
+      customData: metadata,
+    });
+    if (updated.status === "active" || updated.status === "trialing") {
+      const activated = await activatePlan(tenantId, plan, solutions, {
+        providerCustomerId: updated.customerId ?? tenant.providerCustomerId,
+        providerSubscriptionId: updated.id,
+        ...extra,
+      }, actorId);
+      return { ...activated, updatedSubscription: true };
+    }
+    throw new ValidationError(`Paddle did not confirm this subscription change (status: ${updated.status}). No second subscription was created.`);
+  }
 
   const result = await active.createCheckout({
     tenantId, plan, planSolutions: solutions,
     amountUsd,
     localAmount: shown.local,
     currency,
-    lineItems: buildLineItems(plan, solutions, priceOpts),
-    customerId,
+    lineItems,
+    customerId: tenant.providerCustomerId,
     customerEmail: admin?.email ?? null,
     customerName: [admin?.firstName, admin?.lastName].filter(Boolean).join(" ") || null,
+    billingInterval,
+    networkProfile: extra.networkProfile,
     metadata,
-    successUrl: `${APP_URL}/account/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    successUrl: `${APP_URL}/welcome`,
     cancelUrl: `${APP_URL}/account/billing?checkout=cancelled`,
+    checkoutPageUrl: `${APP_URL}/checkout`,
   });
 
   // A provider that can't take money right now (nothing configured) activates
@@ -296,6 +388,9 @@ export const selectPlan = async (tenantId, { plan, customSolutions = [], industr
     requiresPayment: true,
     provider: active.id,
     checkoutUrl: result.url ?? null,
+    successUrl: result.successUrl ?? null,
+    cancelUrl: result.cancelUrl ?? null,
+    sessionId: result.sessionId ?? null,
     // Offline providers answer with an invoice and instructions instead of a URL.
     invoice: result.invoice ?? null,
     instructions: result.instructions ?? null,
@@ -339,327 +434,116 @@ export const confirmPlatformInvoice = async (reference, { method, note } = {}, a
   return { reference: updated.reference, plan: updated.plan, tenantId: updated.tenantId, paidAt: updated.paidAt };
 };
 
-// Legacy plan catalogue (kept for the old Stripe path/webhook code below).
-export const LEGACY_PLANS = [
-  {
-    id: "starter",
-    name: "Starter",
-    monthlyPrice: 49,
-    yearlyPrice: 470,
-    monthlyCost: "$49",
-    yearlyCost: "$470",
-    description: "Perfect for small teams getting started",
-    features: [
-      "Up to 5 users",
-      "CRM & Sales Pipeline",
-      "Basic Analytics",
-      "2 API Keys",
-      "Email Support",
-    ],
-    highlighted: false,
-    stripePriceIdMonthly: process.env.STRIPE_PRICE_STARTER_MONTHLY ?? null,
-    stripePriceIdYearly:  process.env.STRIPE_PRICE_STARTER_YEARLY  ?? null,
-  },
-  {
-    id: "growth",
-    name: "Growth",
-    monthlyPrice: 149,
-    yearlyPrice: 1430,
-    monthlyCost: "$149",
-    yearlyCost: "$1,430",
-    description: "For growing businesses with advanced needs",
-    features: [
-      "Up to 25 users",
-      "Everything in Starter",
-      "Marketing Automation",
-      "Network Management",
-      "10 API Keys",
-      "Priority Support",
-    ],
-    highlighted: true,
-    stripePriceIdMonthly: process.env.STRIPE_PRICE_GROWTH_MONTHLY ?? null,
-    stripePriceIdYearly:  process.env.STRIPE_PRICE_GROWTH_YEARLY  ?? null,
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    monthlyPrice: 499,
-    yearlyPrice: 4790,
-    monthlyCost: "$499",
-    yearlyCost: "$4,790",
-    description: "Full platform for enterprise organisations",
-    features: [
-      "Unlimited users",
-      "Everything in Growth",
-      "Enterprise Workspace",
-      "Custom Integrations",
-      "Dedicated CSM",
-      "Audit Logs & Compliance",
-      "SLA Guarantee",
-      "Unlimited API Keys",
-    ],
-    highlighted: false,
-    stripePriceIdMonthly: process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY ?? null,
-    stripePriceIdYearly:  process.env.STRIPE_PRICE_ENTERPRISE_YEARLY  ?? null,
-  },
-];
-
-const planById = (id) => LEGACY_PLANS.find((p) => p.id === id) ?? LEGACY_PLANS[2];
-const fmtAmount = (cents) => `$${(cents / 100).toFixed(2)}`;
-
-// ── Demo data (used when no Stripe key is configured) ─────────────────────────
-const demoNextRenewal = () => {
-  const d = new Date();
-  d.setMonth(d.getMonth() + 1);
-  return d.toISOString().slice(0, 10);
-};
-
-// Default state when no Stripe subscription exists: no active plan, no history.
-const DEMO_BILLING = {
-  customerId: null,
-  plan: {
-    id: null,
-    name: "No active plan",
-    monthlyCost: "$0",
-    interval: "month",
-    status: "none",
-    features: [],
-    currentPeriodEnd: null,
-  },
-  status: "none",
-  nextRenewal: null,
-  paymentMethod: null,
-};
-
-const DEMO_INVOICES = [];
-
-const DEMO_PAYMENT_METHODS = [];
-
-// ── Stripe helpers ────────────────────────────────────────────────────────────
-
-async function ensureStripeCustomer(tenant) {
-  if (tenant.stripeCustomerId) return tenant.stripeCustomerId;
-  const customer = await stripe.customers.create({
-    name: tenant.name,
-    metadata: { tenantId: tenant.id, slug: tenant.slug },
-  });
-  await prisma.tenant.update({
-    where: { id: tenant.id },
-    data: { stripeCustomerId: customer.id },
-  });
-  return customer.id;
-}
-
-function fmtInvoice(inv) {
-  return {
-    id: inv.number ?? inv.id,
-    stripeId: inv.id,
-    date: new Date(inv.created * 1000).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
-    plan: inv.lines?.data?.[0]?.description ?? "Subscription",
-    amount: fmtAmount(inv.amount_due ?? inv.total ?? 0),
-    status: inv.status,
-    pdfUrl: inv.invoice_pdf ?? null,
-    hostedUrl: inv.hosted_invoice_url ?? null,
-  };
-}
-
-function fmtPaymentMethod(pm) {
-  return {
-    id: pm.id,
-    brand: pm.card?.brand ?? "card",
-    last4: pm.card?.last4 ?? "????",
-    expiry: pm.card ? `${String(pm.card.exp_month).padStart(2, "0")}/${String(pm.card.exp_year).slice(-2)}` : null,
-    isDefault: false,
-  };
-}
-
 // ── Public service functions ──────────────────────────────────────────────────
-
-export const getPaymentMethods = async (tenantId) => {
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  if (!stripe || !tenant?.stripeCustomerId) return DEMO_PAYMENT_METHODS;
-
-  try {
-    const { data } = await stripe.paymentMethods.list({ customer: tenant.stripeCustomerId, type: "card", limit: 10 });
-    const customer  = await stripe.customers.retrieve(tenant.stripeCustomerId);
-    const defaultPm = customer.invoice_settings?.default_payment_method;
-    return data.map((pm) => ({ ...fmtPaymentMethod(pm), isDefault: pm.id === defaultPm }));
-  } catch (err) {
-    console.error("Stripe getPaymentMethods error:", err.message);
-    return DEMO_PAYMENT_METHODS;
-  }
-};
 
 export const getInvoices = async (tenantId) => {
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  if (!stripe || !tenant?.stripeCustomerId) return DEMO_INVOICES;
-
-  try {
-    const { data } = await stripe.invoices.list({ customer: tenant.stripeCustomerId, limit: 24 });
-    return data.map(fmtInvoice);
-  } catch (err) {
-    console.error("Stripe getInvoices error:", err.message);
-    return DEMO_INVOICES;
-  }
+  if (!tenant) throw new NotFoundError("Tenant not found");
+  const active = provider();
+  return active.listInvoices(tenantId, { customerId: tenant.providerCustomerId });
 };
 
-export const upgradePlan = async (tenantId, data) => {
-  const { planId, interval = "month" } = data;
-  const plan = LEGACY_PLANS.find((p) => p.id === planId);
-  if (!plan) throw new Error("Unknown plan");
-
+export const createPortalSession = async (tenantId) => {
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw new NotFoundError("Tenant not found");
-
-  if (!stripe) {
-    await prisma.tenant.update({ where: { id: tenantId }, data: { stripePlanId: planId } });
-    return { upgraded: true, plan: planId };
-  }
-
-  try {
-    const priceId = interval === "year" ? plan.stripePriceIdYearly : plan.stripePriceIdMonthly;
-    if (!priceId) throw new Error("Stripe price ID not configured for this plan");
-
-    const customerId = await ensureStripeCustomer(tenant);
-    const existing   = await stripe.subscriptions.list({ customer: customerId, limit: 1, status: "active" });
-    let sub;
-
-    if (existing.data.length > 0) {
-      const current = existing.data[0];
-      sub = await stripe.subscriptions.update(current.id, {
-        items: [{ id: current.items.data[0].id, price: priceId }],
-        proration_behavior: "create_prorations",
-      });
-    } else {
-      sub = await stripe.subscriptions.create({
-        customer: customerId,
-        items: [{ price: priceId }],
-        payment_behavior: "default_incomplete",
-        expand: ["latest_invoice.payment_intent"],
-      });
-    }
-
-    await prisma.tenant.update({ where: { id: tenantId }, data: { stripePlanId: planId, stripeSubId: sub.id } });
-    return { upgraded: true, subscriptionId: sub.id, plan: planId, status: sub.status };
-  } catch (err) {
-    throw new Error(err.message);
-  }
+  const active = provider();
+  if (!active.capabilities?.customerPortal) return { supported: false, url: null };
+  return active.createPortalSession(tenantId, {
+    customerId: tenant.providerCustomerId,
+    subscriptionIds: tenant.providerSubscriptionId ? [tenant.providerSubscriptionId] : [],
+  });
 };
 
-export const createPortalSession = async (tenantId, returnUrl) => {
+export const getInvoicePdf = async (tenantId, invoiceId) => {
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  if (!stripe) return { url: null, demo: true };
-
-  try {
-    const customerId = await ensureStripeCustomer(tenant);
-    const session = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: returnUrl ?? `${process.env.FRONTEND_URL ?? "http://localhost:5173"}/account/billing`,
-    });
-    return { url: session.url };
-  } catch (err) {
-    throw new Error(err.message);
-  }
+  if (!tenant) throw new NotFoundError("Tenant not found");
+  const active = provider();
+  if (!active.getInvoicePdf) throw new NotFoundError("Invoice downloads are not supported by this provider");
+  const url = await active.getInvoicePdf(tenantId, invoiceId, { customerId: tenant.providerCustomerId });
+  if (!url) throw new NotFoundError("Invoice PDF is not available");
+  return { url };
 };
 
-export const createSetupSession = async (tenantId, returnUrl) => {
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  if (!stripe) return { url: null, clientSecret: null, demo: true };
-
-  try {
-    const customerId = await ensureStripeCustomer(tenant);
-    const intent = await stripe.setupIntents.create({
-      customer: customerId,
-      payment_method_types: ["card"],
-    });
-    return { clientSecret: intent.client_secret };
-  } catch (err) {
-    throw new Error(err.message);
+export const handleWebhook = async (payload, headers) => {
+  const active = provider();
+  if (!active.capabilities?.webhooks || !active.verifyWebhook) {
+    throw Object.assign(new Error("Webhooks are not supported by the active payment provider"), { status: 400 });
   }
-};
-
-export const handleWebhook = async (payload, sig) => {
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!stripe || !webhookSecret) return { received: true };
-
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(payload, sig, webhookSecret);
-  } catch (err) {
-    const e = new Error(`Webhook signature verification failed: ${err.message}`);
-    e.status = 400;
-    throw e;
+  const event = await active.verifyWebhook(payload, headers);
+  const eventId = event.eventId ?? event.id;
+  if (!eventId || !event.eventType) {
+    throw Object.assign(new Error("Payment webhook did not include an event id and type"), { status: 400 });
   }
 
-  // Idempotency: Stripe retries deliveries — record each event id and apply
-  // it exactly once (unique-PK insert doubles as the lock).
   try {
-    await prisma.webhookEvent.create({ data: { id: event.id, type: event.type } });
+    await prisma.webhookEvent.create({ data: { id: eventId, type: event.eventType } });
   } catch (err) {
     if (err.code === "P2002") return { received: true, duplicate: true };
     throw err;
   }
 
-  switch (event.type) {
-    // Payment succeeded → activate the chosen plan from the session metadata.
-    case "checkout.session.completed": {
-      const session = event.data.object;
-      const md = session.metadata || {};
-      if (md.tenantId && md.plan) {
-        let solutions = [];
-        try { solutions = JSON.parse(md.planSolutions || "[]"); } catch { solutions = []; }
-        await activatePlan(md.tenantId, md.plan, solutions, {
-          stripeCustomerId: session.customer,
-          stripeSubId: session.subscription,
+  const data = event.data ?? {};
+  const customData = data.customData ?? {};
+  const tenantId = customData.tenantId;
+  const customerId = data.customerId ?? null;
+  const subscriptionId = data.subscriptionId ?? null;
+
+  if (event.eventType === "transaction.completed") {
+    if (tenantId && customData.plan) {
+      let solutions = [];
+      try {
+        const values = customData.planSolutions;
+        solutions = Array.isArray(values) ? values : JSON.parse(values ?? "[]");
+      } catch (err) {
+        throw Object.assign(new Error(`Invalid planSolutions in payment metadata: ${err.message}`), { status: 400 });
+      }
+      await activatePlan(tenantId, customData.plan, solutions, {
+        providerCustomerId: customerId,
+        providerSubscriptionId: subscriptionId,
+      });
+    }
+  } else if (event.eventType === "subscription.created" || event.eventType === "subscription.updated") {
+    const tenant = tenantId
+      ? await prisma.tenant.findUnique({ where: { id: tenantId } })
+      : customerId
+        ? await prisma.tenant.findFirst({ where: { providerCustomerId: customerId } })
+        : null;
+    if (tenant) {
+      const providerFields = {
+        providerCustomerId: customerId ?? tenant.providerCustomerId,
+        providerSubscriptionId: subscriptionId ?? data.id ?? tenant.providerSubscriptionId,
+      };
+      if (data.status === "canceled") {
+        await activatePlan(tenant.id, "standard", [], {
+          ...providerFields,
+          providerSubscriptionId: null,
+          providerPlanId: null,
         });
-        // Cancel any older subscriptions so the customer isn't billed twice.
-        if (session.customer && session.subscription) {
-          try {
-            const subs = await stripe.subscriptions.list({ customer: session.customer, status: "active", limit: 10 });
-            for (const s of subs.data) {
-              if (s.id !== session.subscription) await stripe.subscriptions.cancel(s.id);
-            }
-          } catch (err) {
-            console.error("Stripe cleanup of old subscriptions failed:", err.message);
-          }
-        }
-      }
-      break;
-    }
-
-    // Payment trouble → warn the admins (the Billing page shows the banner).
-    case "customer.subscription.updated": {
-      const sub = event.data.object;
-      const tenant = await prisma.tenant.findFirst({ where: { stripeCustomerId: sub.customer } });
-      if (tenant) {
-        await prisma.tenant.update({ where: { id: tenant.id }, data: { stripeSubId: sub.id } });
-        if (["past_due", "unpaid"].includes(sub.status)) {
-          notifyAdmins(tenant.id, {
-            title: "Payment problem on your subscription",
-            body: "A payment failed. Update the card in Billing to keep your plan active.",
-          });
-        }
-      }
-      break;
-    }
-
-    // Full cancellation → downgrade to Standard once the paid period is over.
-    // (Stripe fires this at period end when cancel_at_period_end was set, so
-    // the org keeps what it paid for until then.)
-    case "customer.subscription.deleted": {
-      const sub = event.data.object;
-      const tenant = await prisma.tenant.findFirst({ where: { stripeCustomerId: sub.customer } });
-      if (tenant) {
-        await activatePlan(tenant.id, "standard", [], { stripeSubId: null });
         notifyAdmins(tenant.id, {
           title: "Subscription cancelled — plan set to Standard",
           body: "Your paid period ended. Choose a plan in Billing to restore full access.",
         });
+      } else {
+        if (customData.plan && ["active", "trialing"].includes(data.status)) {
+          let solutions = [];
+          try {
+            const values = customData.planSolutions;
+            solutions = Array.isArray(values) ? values : JSON.parse(values ?? "[]");
+          } catch (err) {
+            throw Object.assign(new Error(`Invalid planSolutions in subscription metadata: ${err.message}`), { status: 400 });
+          }
+          await activatePlan(tenant.id, customData.plan, solutions, providerFields);
+        } else {
+          await prisma.tenant.update({ where: { id: tenant.id }, data: providerFields });
+        }
+        if (["past_due", "paused"].includes(data.status)) {
+          notifyAdmins(tenant.id, {
+            title: "Payment problem on your subscription",
+            body: "Your subscription needs attention. Open Billing to review payment options.",
+          });
+        }
       }
-      break;
     }
-    default:
-      break;
   }
 
   return { received: true };

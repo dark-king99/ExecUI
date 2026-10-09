@@ -59,6 +59,8 @@ const Notifications       = lazy(() => import("../apps/account/Notifications"));
 const Messaging           = lazy(() => import("../apps/account/Messaging"));
 const TeamPermissions     = lazy(() => import("../apps/account/TeamPermissions"));
 const Billing             = lazy(() => import("../apps/account/Billing"));
+const Checkout            = lazy(() => import("../apps/account/Checkout"));
+const Welcome             = lazy(() => import("../apps/account/Welcome"));
 const AuditLogs           = lazy(() => import("../apps/account/AuditLogs"));
 const Developer           = lazy(() => import("../apps/account/Developer"));
 const Workflows           = lazy(() => import("../apps/account/Workflows"));
@@ -345,6 +347,13 @@ export default function App() {
   // because the whole point is that there is no session yet.
   if (typeof window !== "undefined" && window.location.pathname === "/sso/callback") {
     return <SsoCallback onLogin={setUser} />;
+  }
+
+  if (typeof window !== "undefined" && window.location.pathname === "/checkout") {
+    return <PageSuspense><Checkout /></PageSuspense>;
+  }
+  if (typeof window !== "undefined" && window.location.pathname === "/welcome") {
+    return <PageSuspense><Welcome /></PageSuspense>;
   }
 
   // The customer support portal is for customers, not employees: it renders

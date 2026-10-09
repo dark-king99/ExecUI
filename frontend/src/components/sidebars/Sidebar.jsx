@@ -155,15 +155,6 @@ export default function Sidebar() {
       </nav>
 
       {/* ── Bottom ────────────────────────────────────────────────────── */}
-      <div className="px-2 pb-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-        <NavBtn
-          icon={Settings}
-          label="Settings"
-          path="/account/security"
-          current={pathname}
-          collapsed={collapsed}
-        />
-      </div>
       {/* Industry setup */}
         {!collapsed && (
           <p className="px-2.5 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-600 select-none">
@@ -174,7 +165,7 @@ export default function Sidebar() {
         <button
           onClick={() => navigate("/industry/industry-setup")}
           title={collapsed ? "Industry" : undefined}
-          className={`relative flex items-center ${collapsed ? "justify-center" : "gap-2.5"} w-full px-2.5 py-2 rounded-lg text-sm font-medium transition ${
+          className={`relative flex items-center ${collapsed ? "justify-center" : "gap-2.5"} w-full px-4 py-2 rounded-lg text-sm font-medium transition ${
             pathname === "/industry/industry-setup"
               ? "bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400"
               : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/70"
@@ -183,6 +174,15 @@ export default function Sidebar() {
           <Building size={15} className={pathname === "/industry/industry-setup" ? "text-orange-500 dark:text-orange-400" : "text-slate-400 dark:text-slate-500"} />
           {!collapsed && "Industry"}
         </button>
+         <div className="px-2 pb-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+        <NavBtn
+          icon={Settings}
+          label="Settings"
+          path="/account/security"
+          current={pathname}
+          collapsed={collapsed}
+        />
+      </div>
     </aside>
   );
 }

@@ -67,19 +67,19 @@ export const AI_LIMITS = {
 };
 
 export const PLANS = [
-  // The long tail. $399 was the floor, which meant the smallest customer we
-  // could serve was one already spending real money on software — most of the
+  // The long tail. Standard was the floor, which meant the smallest customer
+  // we could serve was one already spending real money on software — most of the
   // market was priced out before the regional book even applied. Starter is a
   // genuine entry point: the CRM and marketing basics, nothing else.
-  { id: "starter",    name: "Starter",    price: 99,   tagline: "The essentials for a small team",
+  { id: "starter",    name: "Starter",    price: 129,  tagline: "The essentials for a small team",
     crm: CRM_MIN, marketing: MKT_MIN, services: [],          network: false, industry: false, ai: AI_LIMITS.starter },
-  { id: "standard",   name: "Standard",   price: 399,  tagline: "Core CRM & Marketing to get selling",
+  { id: "standard",   name: "Standard",   price: 449,  tagline: "Core CRM & Marketing to get selling",
     crm: CRM_STD, marketing: MKT_STD, services: [],          network: false, industry: true, ai: AI_LIMITS.standard },
-  { id: "premium",    name: "Premium",    price: 999,  tagline: "Full CRM & Marketing + core Services", highlighted: true,
+  { id: "premium",    name: "Premium",    price: 1099, tagline: "Full CRM & Marketing + core Services", highlighted: true,
     crm: CRM_ALL, marketing: MKT_ALL, services: SVC_PREMIUM, network: false, industry: true, ai: AI_LIMITS.premium },
-  { id: "enterprise", name: "Enterprise", price: 1999, tagline: "Everything in Premium + full Services",
+  { id: "enterprise", name: "Enterprise", price: 2199, tagline: "Everything in Premium + full Services",
     crm: CRM_ALL, marketing: MKT_ALL, services: SVC_ALL,     network: false, industry: true, sso: true, branding: true, ai: AI_LIMITS.enterprise },
-  { id: "executive",  name: "Executive",  price: 5099, networkDatacenterPrice: 5599,
+  { id: "executive",  name: "Executive",  price: 5599, networkDatacenterPrice: 6099,
     tagline: "The complete platform, including Network Ops",
     crm: CRM_ALL, marketing: MKT_ALL, services: SVC_ALL,     network: true,  industry: true, sso: true, branding: true, ai: AI_LIMITS.executive },
 ];

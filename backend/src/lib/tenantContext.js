@@ -6,7 +6,7 @@
  * into every query automatically, so cross-tenant reads/writes are impossible
  * by construction — no route can forget to scope, and new code is safe too.
  *
- * When there is NO context (unauthenticated routes: login, signup, the Stripe
+ * When there is NO context (unauthenticated routes: login, signup, payment
  * webhook, SSE bootstrap before auth), nothing is injected — those flows keep
  * working exactly as before.
  */
@@ -31,7 +31,7 @@ export function currentContext() {
 
 /**
  * Escape hatch: run a block WITHOUT tenant scoping (e.g. a system_admin doing a
- * legitimately cross-tenant operation, or lookups keyed on a Stripe customer id).
+ * legitimately cross-tenant operation, or lookups keyed on a provider customer id).
  * Use sparingly and deliberately.
  */
 export function runUnscoped(fn) {

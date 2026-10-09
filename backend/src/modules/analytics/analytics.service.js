@@ -226,9 +226,9 @@ export async function getCohorts(tenantId) {
 
 // ── Retention by tier ─────────────────────────────────────────────────────────
 export async function getRetentionByTier(tenantId) {
-  // Derive from plan data — use stripe plan or fallback tiers
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { stripePlanId: true } });
-  const currentPlan = tenant?.stripePlanId ?? "growth";
+  // Derive from the billing provider's active plan, or use fallback tiers.
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { providerPlanId: true } });
+  const currentPlan = tenant?.providerPlanId ?? "growth";
 
   return [
     { tier: "Enterprise", m1: "94%", m3: "88%", m6: "82%" },

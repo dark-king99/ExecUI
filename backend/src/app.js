@@ -7,6 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import { errorHandler } from "./middleware/error.middleware.js";
+import { setupExpressErrorTracking } from "./lib/analytics.js";
 import { requestLogger } from "./lib/logger.js";
 import {
   sanitizeInput, enforceJsonContentType, concurrencyLimiter, requestTimeout,
@@ -16,7 +17,7 @@ import apiV1Routes from "./modules/api/api.routes.js";
 import scimRoutes from "./modules/scim/scim.routes.js";
 import portalRoutes from "./modules/helpdesk/portal.routes.js";
 import { STORAGE_ROOT } from "./lib/storage.js";
-import { stripeWebhook } from "./modules/account/account.controller.js";
+import { billingWebhook } from "./modules/account/account.controller.js";
 import prisma from "./config/database.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -70,9 +71,8 @@ app.use(rateLimit({
   message: { message: "Too many requests — slow down and try again shortly.", status: 429 },
 }));
 
-// Stripe webhook needs the RAW body for signature verification, so it must be
-// registered before the JSON body parser runs.
-app.post("/api/account/billing/webhook", express.raw({ type: "application/json" }), stripeWebhook);
+// Payment-provider signatures are checked against the original request bytes.
+app.post("/api/account/billing/webhook", express.raw({ type: "application/json" }), billingWebhook);
 
 // ── SCIM 2.0 provisioning (IdP → ExecUI) ─────────────────────────────────────
 // Mounted before the JSON guard below because SCIM clients send
@@ -147,6 +147,9 @@ if (fs.existsSync(distPath)) {
   });
 }
 
+// Express catches route exceptions internally, so give PostHog its SDK handler
+// before the application's response formatter handles the error.
+setupExpressErrorTracking(app);
 app.use(errorHandler);
 
 export default app;

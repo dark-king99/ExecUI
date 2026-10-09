@@ -283,7 +283,7 @@ export const getOrganization = handle(async (req) => {
     name: tenant.name,
     slug: tenant.slug,
     code: tenant.code,
-    plan: tenant.stripePlanId ? "Active subscription" : "Free",
+    plan: tenant.providerPlanId ? "Active plan" : "Free",
     createdAt: tenant.createdAt,
     members: { total: totalMembers, active: activeMembers, invited: invitedMembers, admins },
   };

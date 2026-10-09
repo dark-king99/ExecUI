@@ -10,11 +10,11 @@ import {
 // pays runs through the regional price book — see pricing.test.mjs.
 test("five tiers exist with the agreed list prices", () => {
   const prices = Object.fromEntries(PLANS.map((p) => [p.id, p.price]));
-  assert.deepEqual(prices, { starter: 99, standard: 399, premium: 999, enterprise: 1999, executive: 5099 });
+  assert.deepEqual(prices, { starter: 129, standard: 449, premium: 1099, enterprise: 2199, executive: 5599 });
 });
 
 // Industry customization is a paid add-on ($100 on Custom), so the entry tier
-// doesn't carry it — Starter at $99 cannot include a $100 capability.
+// doesn't carry it.
 test("every tier above Starter includes industry customization", () => {
   for (const p of PLANS) {
     assert.equal(p.industry, p.id !== "starter", `${p.id} industry entitlement is wrong`);
@@ -22,9 +22,9 @@ test("every tier above Starter includes industry customization", () => {
 });
 
 test("executive costs more with the datacenter network profile", () => {
-  assert.equal(priceFor("executive"), 5099);
-  assert.equal(priceFor("executive", [], { networkProfile: "office" }), 5099);
-  assert.equal(priceFor("executive", [], { networkProfile: "datacenter" }), 5599);
+  assert.equal(priceFor("executive"), 5599);
+  assert.equal(priceFor("executive", [], { networkProfile: "office" }), 5599);
+  assert.equal(priceFor("executive", [], { networkProfile: "datacenter" }), 6099);
 });
 
 test("custom plan adds $100 for an industry customization", () => {

@@ -13,7 +13,7 @@ import ExecUIBackground from "../components/ExecUIBackground";
 import AnimatedLogo from "../components/AnimatedLogo";
 import Footer from "../components/Footer";
 import IndustrySelect from "../components/IndustrySelect";
-import { PLANS, CUSTOM, CRM_SOLUTIONS, MKT_SOLUTIONS, SERVICES_SOLUTIONS } from "../lib/plans";
+import { PLANS, CRM_SOLUTIONS, MKT_SOLUTIONS, SERVICES_SOLUTIONS } from "../lib/plans";
 import { SOLUTIONS as NET_SOLUTIONS } from "./network/solutions.config";
 import { SOLUTIONS as ANA_SOLUTIONS } from "./analytics/solutions.config";
 
@@ -171,7 +171,7 @@ const HOW_IT_WORKS = [
   },
   {
     icon: CreditCard, step: "03", title: "Pick the plan that fits",
-    text: "Four tiers from Standard to Executive — or compose a Custom plan from individual CRM and Marketing solutions. Your plan caps what the org can reach; departments shape it per person.",
+    text: "Choose from five tiers, including two Executive profiles. View Paddle's localized totals and subscribe from Billing. Your plan caps what the org can reach; departments shape it per person.",
   },
 ];
 
@@ -578,7 +578,7 @@ export default function HomeView() {
           <FadeUp className="mx-auto mb-10 max-w-2xl text-center">
             <h2 className="text-3xl font-bold italic tracking-tight sm:text-4xl">A plan for every stage</h2>
             <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-              Free during early access — upgrade paths are ready when you are.
+              View country-localized totals and subscribe from Billing.
             </p>
           </FadeUp>
           <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" gap={0.1}>
@@ -599,8 +599,8 @@ export default function HomeView() {
                       <span className="flex items-center gap-2 text-sm font-semibold">
                         <Icon size={15} className="text-indigo-500" /> {p.name}
                       </span>
-                      <p className="mt-3 text-3xl font-bold tracking-tight">
-                        ${p.price.toLocaleString()}<span className="text-sm font-normal text-slate-400">/mo</span>
+                      <p className="mt-3 text-sm font-semibold tracking-tight text-indigo-600 dark:text-indigo-400">
+                        View localized pricing <ArrowRight size={14} className="inline" />
                       </p>
                       <p className="mt-2 min-h-[38px] text-xs leading-relaxed text-slate-500 dark:text-slate-400">{p.tagline}</p>
                       <ul className="mt-4 space-y-1.5">
@@ -636,9 +636,9 @@ export default function HomeView() {
               className={`group flex w-full items-center justify-between p-5 text-left transition hover:border-indigo-300 ${cardBase} !rounded-2xl`}
             >
               <div>
-                <p className="text-sm font-semibold">Or compose a Custom plan</p>
+                <p className="text-sm font-semibold">More billing options</p>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  Pick any {CUSTOM.minUnits}+ CRM & Marketing solutions at ${CUSTOM.unitPrice} each — only pay for what you use.
+                  View provider-supported plans and billing options.
                 </p>
               </div>
               <ArrowRight size={16} className="shrink-0 text-slate-300 transition group-hover:translate-x-1 group-hover:text-indigo-500" />

@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, useLocation } from "react-router-dom";
 import App from "./App/App";
 import "./styles/App.css";
-import { initAnalytics, trackPageview } from "./lib/analytics";
+import { initAnalytics, logInfo, trackPageview } from "./lib/analytics";
 
 // Load the analytics provider once (safe no-op without a key).
 initAnalytics();
@@ -11,7 +11,10 @@ initAnalytics();
 // Emit an SPA pageview on every route change — the basis for drop-off funnels.
 function AnalyticsPageviews() {
   const { pathname } = useLocation();
-  useEffect(() => { trackPageview(pathname); }, [pathname]);
+  useEffect(() => {
+    trackPageview(pathname);
+    logInfo("spa_navigation_observed", { router: "react_router" });
+  }, [pathname]);
   return null;
 }
 

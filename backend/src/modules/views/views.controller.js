@@ -1,4 +1,5 @@
 import prisma from "../../config/database.js";
+import { planLabel } from "../billing/plans.config.js";
 
 const handle = (fn) => async (req, res) => {
   try {
@@ -352,7 +353,7 @@ export const getAccountView = handle(async (req) => {
   ] = await Promise.all([
     prisma.tenant.findUnique({
       where:  { id: tenantId },
-      select: { name: true, slug: true, stripePlanId: true, stripeSubId: true, createdAt: true },
+      select: { name: true, slug: true, providerPlanId: true, createdAt: true },
     }),
     prisma.user.count({ where: { tenantId } }),
     prisma.user.count({ where: { tenantId, isActive: true } }),
@@ -366,9 +367,7 @@ export const getAccountView = handle(async (req) => {
     }),
   ]);
 
-  const planName = tenant?.stripePlanId
-    ? { starter: "Starter", growth: "Growth", enterprise: "Enterprise" }[tenant.stripePlanId] ?? tenant.stripePlanId
-    : "Growth";
+  const planName = tenant?.providerPlanId ? planLabel(tenant.providerPlanId) : "Free";
 
   return {
     module: "account",

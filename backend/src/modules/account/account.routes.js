@@ -45,17 +45,14 @@ router.get("/billing",                   auth, c.getBilling);
 router.get("/billing/plans",             auth, c.getPlans);
 // Selecting/changing the org plan is an admin action (it caps everyone's access).
 router.post("/billing/select",           auth, requireRole("enterprise_admin", "system_admin"), validate(selectPlanSchema), c.selectPlan);
-router.post("/billing/upgrade",          auth, c.upgradePlan);
-router.get("/billing/payment-methods",   auth, c.getPaymentMethods);
 router.get("/billing/invoices",          auth, c.getInvoices);
+router.get("/billing/invoices/:id/pdf",  auth, c.getInvoicePdf);
 // Offline billing. Listing is admin; confirming a payment is the PLATFORM
 // taking money, so it is restricted to system_admin.
 router.get("/billing/platform-invoices",  auth, adminOnly, c.getPlatformInvoices);
 router.post("/billing/platform-invoices/:reference/confirm", auth, requireRole("system_admin"), c.confirmInvoice);
 router.post("/billing/portal",           auth, c.createPortalSession);
-router.post("/billing/setup",            auth, c.createSetupSession);
-
-// NOTE: the Stripe webhook (POST /api/account/billing/webhook) is registered
+// NOTE: the payment webhook (POST /api/account/billing/webhook) is registered
 // directly in app.js with a raw body parser, ahead of express.json(), because
 // signature verification needs the unparsed request body.
 

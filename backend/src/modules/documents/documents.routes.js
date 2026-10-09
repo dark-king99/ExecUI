@@ -19,6 +19,7 @@ import * as templates from "./templates.service.js";
 import * as signatures from "./signatures.service.js";
 import * as contracts from "./contracts.service.js";
 import { catalog } from "./documents.registry.js";
+import { capture } from "../../lib/analytics.js";
 
 const router = express.Router();
 
@@ -29,6 +30,12 @@ const handle = (fn, status = 200) => async (req, res) => {
   try { res.status(status).json(await fn(req)); }
   catch (err) { res.status(err.status ?? 500).json({ message: err.message }); }
 };
+
+const captureAction = (event, fn, status = 200, properties = () => ({})) => handle(async (req) => {
+  const result = await fn(req);
+  await capture(undefined, event, { area: "documents", ...properties(req) });
+  return result;
+}, status);
 
 router.use(authenticate);
 
@@ -49,7 +56,12 @@ router.post("/templates/:id/generate", admin, handle((req) => templates.generate
 router.get("/signatures", admin, handle((req) => signatures.listRequests({ status: req.query.status, documentId: req.query.documentId, limit: req.query.limit })));
 router.post("/signatures", admin, handle((req) => signatures.createRequest(actor(req), req.body), 201));
 router.get("/signatures/:id", admin, handle((req) => signatures.getRequest(req.params.id)));
-router.post("/signatures/:id/send", admin, handle((req) => signatures.sendRequest(actor(req), req.params.id, { resend: !!req.body?.resend })));
+router.post("/signatures/:id/send", admin, captureAction(
+  "signature_request_sent",
+  (req) => signatures.sendRequest(actor(req), req.params.id, { resend: !!req.body?.resend }),
+  200,
+  (req) => ({ resend: !!req.body?.resend })
+));
 router.post("/signatures/:id/cancel", admin, handle((req) => signatures.cancelRequest(actor(req), req.params.id, { reason: req.body?.reason })));
 
 // Certificate: JSON (with a live integrity check) or PDF.
@@ -81,11 +93,16 @@ contractRouter.get("/", handle((req) => contracts.listContracts({
   expiringDays: req.query.expiringDays, limit: req.query.limit,
 })));
 contractRouter.get("/portfolio", handle(() => contracts.portfolio()));
-contractRouter.post("/", handle((req) => contracts.createContract(actor(req), req.body), 201));
+contractRouter.post("/", captureAction("contract_created", (req) => contracts.createContract(actor(req), req.body), 201));
 contractRouter.get("/:id", handle((req) => contracts.getContract(req.params.id)));
 contractRouter.put("/:id", handle((req) => contracts.updateContract(actor(req), req.params.id, req.body)));
 contractRouter.delete("/:id", handle((req) => contracts.deleteContract(actor(req), req.params.id)));
-contractRouter.post("/:id/status", handle((req) => contracts.transition(actor(req), req.params.id, req.body?.status, { note: req.body?.note })));
+contractRouter.post("/:id/status", captureAction(
+  "contract_status_changed",
+  (req) => contracts.transition(actor(req), req.params.id, req.body?.status, { note: req.body?.note }),
+  200,
+  (req) => ({ status: req.body?.status })
+));
 contractRouter.post("/:id/note", handle((req) => contracts.addNote(actor(req), req.params.id, req.body?.note), 201));
 contractRouter.post("/:id/approval", handle((req) => contracts.requestApproval(actor(req), req.params.id, req.body), 201));
 contractRouter.post("/:id/signature", handle((req) => contracts.sendForSignature(actor(req), req.params.id, req.body), 201));
@@ -98,7 +115,7 @@ router.get("/", handle((req) => docs.listDocuments({
   entityType: req.query.entityType, entityId: req.query.entityId,
   mine: req.query.mine === "true", userId: req.user.userId, limit: req.query.limit,
 })));
-router.post("/", handle((req) => docs.createDocument(actor(req), req.body), 201));
+router.post("/", captureAction("document_created", (req) => docs.createDocument(actor(req), req.body), 201));
 router.get("/:id", handle((req) => docs.getDocument(req.params.id)));
 router.put("/:id", handle((req) => docs.updateDocument(actor(req), req.params.id, req.body)));
 router.post("/:id/archive", handle((req) => docs.archiveDocument(actor(req), req.params.id)));

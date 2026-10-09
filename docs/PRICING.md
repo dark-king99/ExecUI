@@ -1,14 +1,9 @@
 # Pricing
 
-One flat price list cannot serve both ends of this market.
+Pricing depends on the billing provider: Paddle supplies localized, tax-aware
+totals, while the other providers continue to use the regional price book.
 
-- **$399/mo ≈ L$78,000** is several times what a Liberian SME will ever pay for
-  software. The long tail was priced out before it saw a feature.
-- **$5,099/mo** is a rounding error to a telecom or a bank, which buys the same
-  platform and derives far more from it.
-
-So price moves on two independent axes that compose, and the entry price is no
-longer $399.
+The regional price book moves on two independent axes that compose.
 
 ---
 
@@ -73,54 +68,43 @@ In Liberia (band 0.20):
 
 ## 2. The tiers
 
-List prices — high income, SME. What anyone actually pays runs through the book.
+Paddle is the pricing source of truth for Paddle billing. Its `PricePreview`
+response supplies the displayed, country-localized total; the frontend does not
+calculate or reformat prices. Configure the monthly and yearly Paddle price IDs
+for each tier on the backend. The expected monthly list prices are:
 
-| Tier | List | What it is |
+| Tier | Monthly list price | What it is |
 | --- | --- | --- |
-| **Starter** | $99 | New. CRM and marketing basics. |
-| Standard | $399 | Core CRM & Marketing. |
-| Premium | $999 | Full CRM & Marketing + core Services. |
-| Enterprise | $1,999 | + full Services, SSO, white-labelling. |
-| Executive | $5,099 | + Network Ops. |
+| **Starter** | $129 | CRM and marketing basics. |
+| Standard | $449 | Core CRM & Marketing. |
+| Premium | $1,099 | Full CRM & Marketing + core Services. |
+| Enterprise | $2,199 | + full Services, SSO, white-labelling. |
+| Executive — small office | $5,599 | + Network Ops. |
+| Executive — enterprise | $6,099 | Executive with the enterprise network profile. |
 
-**Starter** exists because $399 was the *floor*, so the smallest customer we
-could serve was one already spending real money on software. It is deliberately
+Yearly totals are set by the yearly Paddle prices and are not derived in the
+frontend. Set each Paddle price's tax mode to internal/inclusive if the listed
+amount is intended to include taxes. Paddle preview totals are what the UI
+displays and what is sent to checkout.
+
+**Starter** exists because $449 was the former floor, so the smallest customer
+we could serve was one already spending real money on software. It is deliberately
 thin — three CRM solutions and one marketing solution, no Services, no Network,
-no SSO, no branding, and no industry customization (that is a $100 add-on, and a
-$99 tier cannot include it). A test asserts Starter's solutions are a strict
+no SSO, no branding, and no industry customization (that is a $100 add-on). A
+test asserts Starter's solutions are a strict
 subset of Standard's, so upgrading only ever adds.
-
-### What this actually produces
-
-| Customer | Tier | Price |
-| --- | --- | --- |
-| Liberian shop | Starter | **$20/mo** ≈ L$4,000 |
-| Liberian SME | Standard | **$80/mo** ≈ L$15,500 |
-| Ghanaian mid-market | Premium | $560/mo |
-| South African corporate | Executive | $12,238/mo |
-| Liberian bank | Executive | **$24,475/mo** |
-| Global bank | Executive | **$30,594/mo** |
-
-Same platform, 1,500× between the ends of it, in the right order.
 
 ---
 
 ## 3. Currency
 
-**Local prices are displayed. USD is charged.** Every surface showing a local
-figure says so.
+Paddle PricePreview provides country-localized totals. The request uses a
+server-detected ISO country code only when a trusted request header provides
+one; otherwise the browser omits the country and lets Paddle detect the
+visitor's location. Paddle's formatted total is displayed verbatim.
 
-The price book stores an indicative rate per currency with an `asOf` date —
-because a rate with no date is one nobody can tell is stale. Past
-`STALE_AFTER_DAYS` (120) the UI warns rather than quietly showing a wrong number.
-
-Amounts round to a tidy local step (L$500, ₦1,000, GH₵5) and round to **nearest,
-never up** — quoting more than you charge is the one direction a price may not
-be wrong in. A test asserts the error can never exceed half a step.
-
-To refresh rates: edit `CURRENCIES` in `pricing.book.js` and move `RATES_AS_OF`.
-The World Bank revises income classifications each July; `COUNTRY_BANDS` should
-be checked then.
+The regional price book continues to serve providers that do not supply their
+own localized Paddle-style preview.
 
 ---
 
@@ -144,20 +128,79 @@ reason: settings are tenant-editable by design.
 
 ## 5. Payment providers
 
-Billing was welded to Stripe, which fails the moment you sell somewhere Stripe
-won't onboard you — **Liberia among them**. The processor is now a choice.
+Billing uses provider adapters because payment availability and capabilities
+vary by market.
 
-`PAYMENT_PROVIDER` selects one. With it unset, a Stripe key means Stripe and no
-key means `manual`, so existing deployments are untouched.
+Set `PAYMENT_PROVIDER` explicitly. For sandbox testing use `PAYMENT_PROVIDER=paddle`
+and `PADDLE_ENV=sandbox`; do not rely on automatic provider or environment
+detection. Without an explicit Paddle provider, this application may use its
+manual early-access behavior.
 
 | Provider | Methods | Recurring | Notes |
 | --- | --- | --- | --- |
-| `stripe` | Card, Apple/Google Pay | ✅ | Unchanged. Not available to Liberian merchants. |
+| `paddle` | Card, PayPal, Apple/Google Pay | ✅ | Merchant of record; seller onboarding required. |
 | `manual` | Bank transfer, mobile money, cash | ❌ | **Works anywhere.** No onboarding needed. |
 | `flutterwave` | Card, bank transfer, USSD, mobile money | ❌ | Africa-wide rails. ⚠️ see below. |
 
 Providers **declare capabilities** rather than pretending to a common
 denominator, so the UI never offers a button that will fail.
+
+### `paddle` — checkout and webhook setup
+
+Set these on the **backend only**:
+
+- `PAYMENT_PROVIDER=paddle`, `PADDLE_ENV=sandbox`,
+  `PADDLE_API_KEY=pdl_sdbx_…`, `PADDLE_WEBHOOK_SECRET`, and `FRONTEND_URL`.
+- The server API key needs permission to create transactions. The application
+  does not create Paddle customers through the customer API; checkout collects
+  the email and Paddle associates the customer with the completed transaction.
+- Monthly and yearly price IDs for Starter, Standard, Premium, and Enterprise:
+  `PADDLE_PRICE_<TIER>_MONTH` and `PADDLE_PRICE_<TIER>_YEAR`.
+- Executive price IDs:
+  `PADDLE_PRICE_EXECUTIVE_SMALL_OFFICE_MONTH`,
+  `PADDLE_PRICE_EXECUTIVE_SMALL_OFFICE_YEAR`,
+  `PADDLE_PRICE_EXECUTIVE_ENTERPRISE_MONTH`, and
+  `PADDLE_PRICE_EXECUTIVE_ENTERPRISE_YEAR`.
+
+Set `VITE_PADDLE_ENV=sandbox` and the sandbox **client-side** token
+(`VITE_PADDLE_CLIENT_TOKEN=test_…`) in the frontend environment. Never put the
+server API key in frontend configuration. Restart Vite after changing frontend
+environment values. Configure Paddle prices as tax-inclusive when the listed
+monthly amounts should include taxes.
+
+For hosted payment links, in the Paddle dashboard go to **Checkout > Checkout
+configuration** and set the default payment link to your app's `/checkout`
+page (for local sandbox testing, `http://localhost:5173/checkout`). The app page
+loads Paddle.js and opens the transaction in a one-page overlay. The Billing
+page also opens Paddle Checkout directly as an overlay. Successful checkouts
+redirect to `/welcome`. A live payment link must use a real, Paddle-approved
+domain; localhost is only appropriate for sandbox testing.
+
+Create a Paddle notification destination for
+`POST https://<your-api>/api/account/billing/webhook`, using the same webhook
+secret as `PADDLE_WEBHOOK_SECRET`. Subscribe to `transaction.completed`,
+`subscription.created`, and `subscription.updated`. The route is registered
+before JSON parsing so Paddle's signature is verified against the raw request
+body. Customer and subscription IDs are stored as provider-neutral fields.
+
+Plan changes update an existing Paddle subscription rather than opening a
+second recurring checkout. The customer portal is only offered when Paddle
+returns direct subscription links. Invoice PDF URLs are
+requested only when a user opens an invoice because Paddle's signed links expire.
+
+Paddle does not migrate existing Stripe subscriptions. Cancel any legacy Stripe
+subscriptions in Stripe before removing its credentials; the provider-neutral
+database migration deliberately discards Stripe customer/subscription IDs rather
+than trying to send those IDs to Paddle.
+
+Set `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, and `PADDLE_ENV=sandbox` in the
+backend environment. `PADDLE_API_KEY` is the server API key from Paddle
+Developer tools → Authentication; `VITE_PADDLE_CLIENT_TOKEN` is the separate
+browser token. Do not swap these credentials. The backend requires an explicit
+sandbox environment and a sandbox API key; it does not infer an environment
+from the key. The backend loads `backend/.env` by path before initializing
+modules that read environment variables; `.env.example` is a template and is
+not loaded automatically.
 
 ### `manual` — the one that works today
 
@@ -175,6 +218,9 @@ system.
    able to call it would grant itself any plan free.
 
 With nothing configured this degrades to free early access, exactly as before.
+When payment instructions are configured, selecting a plan creates a pending
+invoice and shows the transfer instructions in Billing; access changes only
+after a system administrator confirms receipt.
 
 ```
 PAY_BANK_NAME, PAY_BANK_ACCOUNT_NAME, PAY_BANK_ACCOUNT_NUMBER, PAY_BANK_SWIFT
@@ -203,11 +249,12 @@ Other providers with Liberia coverage worth evaluating: **Rapyd**, **Novalnet**,
 
 ## 6. Changing a price
 
-Everything lives in `backend/src/modules/billing/pricing.book.js` and the `PLANS`
-array in `plans.config.js`. `pricing.test.mjs` pins every number, so a change
-shows up as a changed expectation rather than as a surprise on an invoice.
+The regional prices for non-Paddle providers live in
+`backend/src/modules/billing/pricing.book.js` and the `PLANS` array in
+`plans.config.js`. Paddle amounts live in the Paddle catalog; update the backend
+price-ID environment variables when changing Paddle products or prices.
+`pricing.test.mjs` pins the regional list values.
 
-The frontend deliberately has **no copy of the price book**. Its `lib/plans.js`
-mirror carries list prices only — for visitors whose market we don't know — and
-real prices come from the API. Money gets one source of truth, and it isn't the
-one in the browser.
+The frontend `lib/plans.js` mirrors plan entitlements and base values for
+non-Paddle surfaces. Paddle plan totals always come from Paddle PricePreview;
+they are never calculated from that mirror.

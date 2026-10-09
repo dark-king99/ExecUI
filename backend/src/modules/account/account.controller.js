@@ -313,25 +313,26 @@ export const listRoles = async (req, res) => {
 
 // ── Billing ───────────────────────────────────────────────────────────────
 export const getBilling        = handle((req) => billing.getBilling(tid(req)));
-export const getPlans          = handle((req) => billing.getPlanCatalog(req.user.tenantId));
+export const getPlans          = handle((req) => {
+  const country = [req.get("x-vercel-ip-country"), req.get("cf-ipcountry"), req.get("cloudfront-viewer-country")]
+    .find((value) => typeof value === "string" && /^[A-Za-z]{2}$/.test(value) && !["XX", "ZZ"].includes(value.toUpperCase()));
+  return billing.getPlanCatalog(req.user.tenantId, country?.toUpperCase());
+});
 export const selectPlan        = handle((req) => billing.selectPlan(tid(req), req.body, uid(req)));
-export const upgradePlan       = handle((req) => billing.upgradePlan(tid(req), req.body));
-export const getPaymentMethods = handle((req) => billing.getPaymentMethods(tid(req)));
 export const getInvoices       = handle((req) => billing.getInvoices(tid(req)));
+export const getInvoicePdf    = handle((req) => billing.getInvoicePdf(tid(req), req.params.id));
 // Offline invoices the platform issued to this tenant (manual provider only).
 export const getPlatformInvoices = handle((req) => billing.listPlatformInvoices(tid(req)));
 // Confirming one takes money on the platform's behalf, so it is system_admin
 // only at the route — a tenant able to call it would grant itself any plan.
 export const confirmInvoice    = handle((req) => billing.confirmPlatformInvoice(req.params.reference, req.body ?? {}, uid(req)));
-export const createPortalSession = handle((req) => billing.createPortalSession(tid(req), req.body?.returnUrl));
-export const createSetupSession  = handle((req) => billing.createSetupSession(tid(req), req.body?.returnUrl));
-
-export const stripeWebhook = async (req, res) => {
+export const createPortalSession = handle((req) => billing.createPortalSession(tid(req)));
+export const billingWebhook = async (req, res) => {
   try {
-    const result = await billing.handleWebhook(req.body, req.headers["stripe-signature"]);
+    const result = await billing.handleWebhook(req.body, req.headers);
     res.json(result);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(err.status ?? 500).json({ message: err.message });
   }
 };
 

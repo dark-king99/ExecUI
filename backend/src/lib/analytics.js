@@ -13,43 +13,83 @@
  *
  * Swapping providers later means changing only this file.
  */
+import "dotenv/config";
+import { PostHog, setupExpressErrorHandler } from "posthog-node";
 import { log } from "./logger.js";
 
 const KEY = process.env.POSTHOG_KEY;
-const HOST = process.env.POSTHOG_HOST || "https://us.i.posthog.com";
+const HOST = process.env.POSTHOG_HOST;
+
+if (process.env.NODE_ENV !== "production" && !KEY) {
+  throw new Error("POSTHOG_KEY variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once POSTHOG_KEY is configured");
+}
+if (process.env.NODE_ENV !== "production" && !HOST) {
+  throw new Error("POSTHOG_HOST variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once POSTHOG_HOST is configured");
+}
 
 let client = null;
-let loading = null;
 
 export function analyticsEnabled() {
-  return !!KEY;
+  return !!KEY && !!HOST;
 }
 
-async function getClient() {
-  if (!KEY) return null;
+function getClient() {
+  if (!analyticsEnabled()) return null;
   if (client) return client;
-  if (!loading) {
-    loading = (async () => {
-      try {
-        const { PostHog } = await import("posthog-node");
-        client = new PostHog(KEY, { host: HOST, flushAt: 20, flushInterval: 10_000 });
-        log.info?.("analytics_enabled", { host: HOST });
-      } catch (err) {
-        log.warn?.("analytics_init_failed", { error: String(err?.message || err).slice(0, 200) });
-        client = null;
-      }
-      return client;
-    })();
+  try {
+    client = new PostHog(KEY, {
+      host: HOST,
+      flushAt: 20,
+      flushInterval: 10_000,
+      enableExceptionAutocapture: true,
+    });
+    log.info?.("analytics_enabled", { host: HOST });
+  } catch (err) {
+    log.warn?.("analytics_init_failed", { error: String(err?.message || err).slice(0, 200) });
+    client = null;
   }
-  return loading;
+  return client;
 }
 
-/** Fire a named server event. distinctId should be the user id (or "server"). */
+/** Mount the SDK's Express handler before the app's response error middleware. */
+export function setupExpressErrorTracking(app) {
+  try {
+    const c = getClient();
+    if (c) setupExpressErrorHandler(c, app);
+  } catch {
+    /* never break application setup */
+  }
+}
+
+/** Run work inside the authenticated request's analytics identity. */
+export function withAnalyticsContext({ userId, sessionId, tenantId, role }, fn) {
+  let c;
+  try {
+    c = getClient();
+  } catch {
+    return fn();
+  }
+  if (!c || !userId) return fn();
+  return c.withContext({
+    distinctId: String(userId),
+    ...(sessionId ? { sessionId: String(sessionId) } : {}),
+    properties: {
+      $groups: tenantId ? { company: String(tenantId) } : undefined,
+      role,
+    },
+  }, fn);
+}
+
+/** Fire a named server event, inheriting the authenticated request context. */
 export async function capture(distinctId, event, properties = {}) {
   try {
-    const c = await getClient();
+    const c = getClient();
     if (!c) return;
-    c.capture({ distinctId: distinctId ? String(distinctId) : "server", event, properties });
+    c.capture({
+      ...(distinctId ? { distinctId: String(distinctId) } : {}),
+      event,
+      properties,
+    });
   } catch {
     /* never break the caller */
   }
@@ -60,15 +100,8 @@ export async function captureError(error, ctx = {}) {
   try {
     const c = await getClient();
     if (!c) return;
-    c.capture({
-      distinctId: ctx.userId ? String(ctx.userId) : "server",
-      event: "$exception",
-      properties: {
-        $exception_message: error?.message || String(error),
-        $exception_type: error?.name || "Error",
-        stack: typeof error?.stack === "string" ? error.stack.slice(0, 4000) : undefined,
-        ...ctx,
-      },
+    c.captureException(error, ctx.userId ? String(ctx.userId) : "server", {
+      ...ctx,
       groups: ctx.tenantId ? { company: String(ctx.tenantId) } : undefined,
     });
   } catch {

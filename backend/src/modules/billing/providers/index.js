@@ -1,10 +1,8 @@
 /**
  * Payment providers.
  *
- * Billing was welded to Stripe, which is a problem the moment you sell somewhere
- * Stripe won't onboard you — Liberia among them. The processor is now a choice:
+ * Billing is provider-neutral because processor availability varies by market.
  * `PAYMENT_PROVIDER` names one, and every adapter answers the same interface.
- * I change the system to Paddle.
  * Providers differ in what they can actually do, and pretending otherwise
  * produces a UI full of buttons that fail. So an adapter DECLARES its
  * capabilities and the surfaces above it ask before offering:
@@ -33,9 +31,8 @@ export const PROVIDERS = {
 /**
  * Which provider is in force.
  *
- * Explicit configuration wins. Failing that we infer, so an existing deployment
- * that only ever set STRIPE_SECRET_KEY keeps working untouched: a Stripe key
- * means Stripe, and no key at all means free early-access mode (`manual` with
+ * Explicit configuration wins. Failing that we infer from supported provider
+ * keys. No key means free early-access mode (`manual` with
  * nothing configured activates plans immediately, exactly as before).
  */
 export function providerId() {
@@ -61,7 +58,12 @@ export const supports = (capability) => !!provider().capabilities?.[capability];
  * That is a deliberate state, not a misconfiguration — it is how the product
  * ships before a merchant account exists.
  */
-export const billingEnabled = () => !!provider().configured?.();
+export const billingEnabled = () => {
+  const active = provider();
+  // An explicitly selected Paddle provider must fail with a configuration
+  // error, never fall through to free activation when credentials are absent.
+  return active.id === "paddle" || !!active.configured?.();
+};
 
 /** What the admin UI shows about payment configuration. */
 export function providerInfo() {

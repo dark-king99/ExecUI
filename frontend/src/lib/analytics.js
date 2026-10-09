@@ -17,8 +17,23 @@
  * the SDK.
  */
 const KEY = import.meta.env.VITE_POSTHOG_KEY;
-const HOST = import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com";
+const HOST = import.meta.env.VITE_POSTHOG_HOST;
 const CAPTURE_PII = import.meta.env.VITE_ANALYTICS_CAPTURE_PII === "true";
+const API_HOST = (() => {
+  if (typeof window === "undefined") return undefined;
+  try {
+    return new URL(import.meta.env.VITE_API_BASE_URL || "/api", window.location.origin).hostname;
+  } catch {
+    return window.location.hostname;
+  }
+})();
+
+if (import.meta.env.DEV && !KEY) {
+  throw new Error("VITE_POSTHOG_KEY variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once VITE_POSTHOG_KEY is configured");
+}
+if (import.meta.env.DEV && !HOST) {
+  throw new Error("VITE_POSTHOG_HOST variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once VITE_POSTHOG_HOST is configured");
+}
 
 let client = null; // the posthog instance once loaded
 let ready = false;
@@ -37,7 +52,7 @@ function optedOut() {
 
 /** True when a provider is configured and the user hasn't opted out. */
 export function analyticsEnabled() {
-  return !!KEY && !optedOut();
+  return !!KEY && !!HOST && !optedOut();
 }
 
 /** Load + initialise the provider once. Safe no-op without a key / on opt-out. */
@@ -48,21 +63,32 @@ export async function initAnalytics() {
     const { default: posthog } = await import("posthog-js");
     posthog.init(KEY, {
       api_host: HOST,
+      // The SDK adds PostHog's distinct/session headers to API requests so the
+      // backend can associate server-side errors with the browser session.
+      tracing_headers: API_HOST ? [API_HOST] : [],
       capture_pageview: false, // SPA pageviews are sent manually (see trackPageview)
       autocapture: true, // clicks / inputs → "what did they interact with"
       capture_performance: true, // page + resource timings → slow-UI signals
+      logs: {
+        serviceName: "exec-ui-web",
+        environment: import.meta.env.MODE,
+      },
       persistence: "localStorage+cookie",
       session_recording: {
         maskAllInputs: true, // never record what users type
         maskTextSelector: "[data-private]",
       },
       respect_dnt: true,
+      // Use the SDK's global handlers for uncaught browser errors and rejections.
+      capture_exceptions: {
+        capture_unhandled_errors: true,
+        capture_unhandled_rejections: true,
+        capture_console_errors: false,
+      },
     });
     client = posthog;
     ready = true;
-    // Global error capture so UI crashes show up as $exception events.
-    window.addEventListener("error", (e) => captureError(e?.error || e?.message, { source: "window.onerror" }));
-    window.addEventListener("unhandledrejection", (e) => captureError(e?.reason, { source: "unhandledrejection" }));
+    logInfo("browser_analytics_initialized", { runtime: "web" });
     for (const [method, args] of queue.splice(0)) {
       try { client[method]?.(...args); } catch { /* ignore */ }
     }
@@ -82,10 +108,20 @@ function call(method, ...args) {
   }
 }
 
+/** Send an explicit operational log without forwarding browser console output. */
+export function logInfo(body, attributes = {}) {
+  if (!analyticsEnabled() || !ready || !client) return;
+  try {
+    client.logger?.info(body, attributes);
+  } catch {
+    /* logging must never affect the UI */
+  }
+}
+
 /** Tie events to a user (id only by default; role/plan as properties). */
 export function identify(user) {
   if (!user) return;
-  const id = user.id || user.userId || user.email;
+  const id = user.id || user.userId;
   if (!id) return;
   const props = { role: user.role, plan: user.plan };
   if (CAPTURE_PII) {
@@ -115,16 +151,7 @@ export function trackPageview(path) {
 export function captureError(error, context = {}) {
   if (!error || !analyticsEnabled() || !ready || !client) return;
   try {
-    if (typeof client.captureException === "function") {
-      client.captureException(error instanceof Error ? error : new Error(String(error)), context);
-    } else {
-      client.capture("$exception", {
-        $exception_message: error?.message || String(error),
-        $exception_type: error?.name,
-        stack: error?.stack,
-        ...context,
-      });
-    }
+    client.captureException(error instanceof Error ? error : new Error(String(error)), context);
   } catch {
     /* ignore */
   }

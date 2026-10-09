@@ -89,32 +89,32 @@ test("no country and no segment leaves the list price untouched", () => {
 
 // ── The numbers that matter commercially ─────────────────────────────────────
 test("the SME long tail is reachable in a low-income market", () => {
-  // The complaint that started this: $399 ≈ L$78,000/mo prices out the long tail.
+  // Starter reduces the entry point while Standard remains within reach.
   const before = listPriceFor("standard");
-  assert.equal(before, 399);
-  assert.equal(localAmount(before, "LRD"), 78_000, "the original price really is L$78,000");
+  assert.equal(before, 449);
+  assert.equal(localAmount(before, "LRD"), 87_500);
 
-  // Starter exists so the floor isn't $399 anywhere.
+  // Starter exists so the floor isn't Standard's list price.
   const starter = priceFor("starter", [], { country: "LR", segment: "sme" });
-  assert.equal(starter, 20, "a Liberian SME entry price");
-  assert.equal(formatLocal(starter, "LRD"), "L$4,000");
+  assert.equal(starter, 26, "a Liberian SME entry price");
+  assert.equal(formatLocal(starter, "LRD"), "L$5,000");
 
   // And Standard itself is now within reach.
   const standard = priceFor("standard", [], { country: "LR", segment: "sme" });
-  assert.equal(standard, 80);
-  assert.equal(formatLocal(standard, "LRD"), "L$15,500");
+  assert.equal(standard, 90);
+  assert.equal(formatLocal(standard, "LRD"), "L$17,500");
 });
 
 test("a telecom or bank is charged like one", () => {
-  // The other half of the complaint: $5,099 materially under-charges these.
+  // The regulated-segment multiplier still prices the largest tier accordingly.
   const listed = listPriceFor("executive");
-  assert.equal(listed, 5_099);
+  assert.equal(listed, 5_599);
 
   const globalBank = priceFor("executive", [], { country: "US", segment: "regulated" });
-  assert.equal(globalBank, 30_594, "6× list for a regulated operator in a high-income market");
+  assert.equal(globalBank, 33_594, "6× list for a regulated operator in a high-income market");
 
   const localBank = priceFor("executive", [], { country: "LR", segment: "regulated" });
-  assert.equal(localBank, 24_475, "still a serious number in a low-income market");
+  assert.equal(localBank, 26_875, "still a serious number in a low-income market");
   assert.ok(localBank > listed * 4, "must be far above the old flat price");
 });
 
@@ -124,7 +124,7 @@ test("the same platform spans three orders of magnitude, in the right order", ()
   const corp = priceFor("executive", [], { country: "ZA", segment: "enterprise" });
   const bank = priceFor("executive", [], { country: "US", segment: "regulated" });
   assert.ok(shop < mid && mid < corp && corp < bank, `${shop} < ${mid} < ${corp} < ${bank}`);
-  assert.equal(shop, 20);
+  assert.equal(shop, 26);
   assert.ok(bank / shop > 1000, "the long tail and the carrier are not the same customer");
 });
 
@@ -242,12 +242,12 @@ test("every currency is usable", () => {
 test("a quote explains itself", () => {
   const q = quoteFor("standard", [], { country: "LR", segment: "sme" });
   assert.equal(q.plan, "standard");
-  assert.equal(q.listUsd, 399);
-  assert.equal(q.usd, 80);
+  assert.equal(q.listUsd, 449);
+  assert.equal(q.usd, 90);
   assert.equal(q.adjustment, 0.2, "a fifth of list, which is what the buyer should be told");
   assert.equal(q.market.band, "low");
   assert.equal(q.market.segment, "sme");
-  assert.equal(q.localFormatted, "L$15,500");
+  assert.equal(q.localFormatted, "L$17,500");
 });
 
 test("marketFor describes an unplaced tenant without inventing anything", () => {

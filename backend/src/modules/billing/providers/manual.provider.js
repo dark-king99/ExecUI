@@ -6,7 +6,7 @@
  * onboard the merchant anyway — an invoice with a reference number the customer
  * quotes when they pay IS the billing system. Liberia is exactly that market:
  * Orange Money and Lonestar/MTN Mobile Money carry the majority of digital
- * transactions, and Stripe does not accept Liberian merchants at all.
+ * transactions.
  *
  * The flow:
  *   1. The tenant picks a plan → an invoice is issued with a unique reference
@@ -28,7 +28,7 @@ const env = (k) => process.env[k]?.trim() || null;
 /** Payment instructions, assembled from configuration. */
 export function instructions() {
   const methods = [];
-  if (env("PAY_BANK_NAME")) {
+  if (env("PAY_BANK_NAME") && env("PAY_BANK_ACCOUNT_NUMBER")) {
     methods.push({
       id: "bank",
       label: "Bank transfer",
@@ -82,6 +82,7 @@ export default {
   },
   configured,
   get methods() { return instructions().map((m) => m.label); },
+  getPaymentInstructions: instructions,
   notes:
     "Payments are confirmed by an operator after the money arrives. Nothing is " +
     "charged automatically, so each renewal is invoiced again.",
@@ -109,8 +110,7 @@ export default {
 
     return {
       activateNow: false,
-      // No URL — the UI renders the instructions inline rather than sending the
-      // buyer to a page that doesn't exist.
+      // No URL — the UI renders the instructions inline.
       url: null,
       invoice: shape(invoice),
       instructions: instructions(),

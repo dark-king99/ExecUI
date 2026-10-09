@@ -1164,11 +1164,9 @@ export const account = {
     get:             ()          => get('/account/billing'),
     plans:           ()          => get('/account/billing/plans'),
     select:          (data)      => post('/account/billing/select', data),
-    upgrade:         (data)      => post('/account/billing/upgrade', data),
-    paymentMethods:  ()          => get('/account/billing/payment-methods'),
     invoices:        ()          => get('/account/billing/invoices'),
+    invoicePdf:      (id)        => get(`/account/billing/invoices/${encodeURIComponent(id)}/pdf`),
     portal:          (data)      => post('/account/billing/portal', data),
-    setup:           (data)      => post('/account/billing/setup', data),
   },
   auditLogs: {
     list: (params) => get('/account/audit-logs', params),

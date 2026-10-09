@@ -1,10 +1,10 @@
 /**
  * Regional price book.
  *
- * One flat list price cannot serve both ends of this market. $399/mo is roughly
- * L$78,000 — several times what a Liberian SME will ever pay for software — while
- * $5,099/mo is a rounding error to a telecom or a bank. Charging both the same
- * number loses the long tail and leaves most of the enterprise value on the table.
+ * One flat list price cannot serve both ends of this market. The entry plan must
+ * stay within reach of local SMEs, while regulated enterprise customers pay in
+ * proportion to the platform's value. Charging both the same number loses the
+ * long tail and leaves most of the enterprise value on the table.
  *
  * So price moves on two independent axes, and they compose:
  *

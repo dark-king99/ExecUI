@@ -19,9 +19,9 @@ model Tenant {
   slug             String   @unique
   code             String?  @unique
   createdAt        DateTime @default(now())
-  stripeCustomerId String?
-  stripePlanId     String?
-  stripeSubId      String?
+  providerCustomerId      String?
+  providerPlanId           String?
+  providerSubscriptionId   String?
   plan             String   @default("executive")
   planSolutions    String[] @default([])
 
@@ -148,7 +148,7 @@ model Tenant {
 // Only the `manual` payment provider writes these: where no processor will
 // onboard us, an invoice with a reference number that the customer pays by bank
 // transfer or mobile money IS the billing system, and a platform operator
-// confirms receipt. Stripe and Flutterwave are their own system of record, so
+// confirms receipt. Paddle and Flutterwave are their own system of record, so
 // they never create rows here.
 model PlatformInvoice {
   id          String    @id @default(uuid())
@@ -1133,8 +1133,7 @@ model Attachment {
   @@index([tenantId, entityType, entityId])
 }
 
-// Processed Stripe webhook event ids — makes webhook handling idempotent
-// (Stripe retries deliveries; each event must apply exactly once).
+// Processed payment webhook event ids — makes webhook handling idempotent.
 model WebhookEvent {
   id        String   @id
   type      String

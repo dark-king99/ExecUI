@@ -1,5 +1,6 @@
 import * as svc from "./crm.service.js";
 import * as dash from "./crm.dashboard.service.js";
+import { capture } from "../../lib/analytics.js";
 
 const tid  = (req) => req.user.tenantId;
 const uid  = (req) => req.user.userId;
@@ -11,6 +12,12 @@ const handle = (fn) => async (req, res) => {
     res.status(err.status ?? 500).json({ message: err.message });
   }
 };
+
+const captureAction = (event, fn) => handle(async (req) => {
+  const result = await fn(req);
+  await capture(undefined, event, { area: "crm" });
+  return result;
+});
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export const getDashboardProfile  = handle((req) => dash.getDashboardProfile(uid(req), tid(req)));
@@ -42,14 +49,14 @@ export const trackService       = handle((req) => dash.trackService(uid(req), ti
 // Customers
 export const listCustomers   = handle((req) => svc.listCustomers(tid(req), req.query));
 export const getCustomer     = handle((req) => svc.getCustomer(tid(req), req.params.id));
-export const createCustomer  = handle((req) => svc.createCustomer(tid(req), req.body));
+export const createCustomer  = captureAction("customer_created", (req) => svc.createCustomer(tid(req), req.body));
 export const updateCustomer  = handle((req) => svc.updateCustomer(tid(req), req.params.id, req.body));
 export const deleteCustomer  = handle(async (req, res) => { await svc.deleteCustomer(tid(req), req.params.id); res.status(204).end(); });
 
 // Deals
 export const listDeals       = handle((req) => svc.listDeals(tid(req), req.query));
 export const getDeal         = handle((req) => svc.getDeal(tid(req), req.params.id));
-export const createDeal      = handle((req) => svc.createDeal(tid(req), { ...req.body, ownerId: req.body.ownerId ?? req.user.userId }));
+export const createDeal      = captureAction("deal_created", (req) => svc.createDeal(tid(req), { ...req.body, ownerId: req.body.ownerId ?? req.user.userId }));
 export const updateDeal      = handle((req) => svc.updateDeal(tid(req), req.params.id, req.body));
 export const getDealTimeline = handle((req) => svc.getDealTimeline(tid(req), req.params.id));
 export const getDealTasks    = handle((req) => svc.getDealTasks(tid(req), req.params.id));
@@ -61,7 +68,7 @@ export const getDealAudit    = handle((req) => svc.getDealAudit(tid(req), req.pa
 export const listLeads       = handle((req) => svc.listLeads(tid(req), req.query));
 export const getLead         = handle((req) => svc.getLead(tid(req), req.params.id));
 export const createLead      = handle((req) => svc.createLead(tid(req), { ...req.body, ownerId: req.body.ownerId ?? req.user.userId }));
-export const convertLead     = handle((req) => svc.convertLead(tid(req), req.params.id, uid(req)));
+export const convertLead     = captureAction("lead_converted", (req) => svc.convertLead(tid(req), req.params.id, uid(req)));
 export const updateLead      = handle((req) => svc.updateLead(tid(req), req.params.id, req.body));
 export const getLeadActivity = handle((req) => svc.getLeadActivity(tid(req), req.query));
 
@@ -69,7 +76,7 @@ export const getLeadActivity = handle((req) => svc.getLeadActivity(tid(req), req
 export const listTasks       = handle((req) => svc.listTasks(tid(req), req.query));
 export const createTask      = handle((req) => svc.createTask(tid(req), req.body, uid(req)));
 export const updateTask      = handle((req) => svc.updateTask(tid(req), req.params.id, req.body));
-export const completeTask    = handle((req) => svc.completeTask(tid(req), req.params.id));
+export const completeTask    = captureAction("task_completed", (req) => svc.completeTask(tid(req), req.params.id));
 
 // Sequences
 export const listSequences   = handle((req) => svc.listSequences(tid(req)));

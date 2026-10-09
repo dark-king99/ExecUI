@@ -8,6 +8,7 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import * as svc from "./approvals.service.js";
+import { capture } from "../../lib/analytics.js";
 
 const router = express.Router();
 const uid = (req) => req.user.userId;
@@ -17,6 +18,12 @@ const handle = (fn, status = 200) => async (req, res) => {
   try { res.status(status).json(await fn(req)); }
   catch (err) { res.status(err.status ?? 500).json({ message: err.message }); }
 };
+
+const captureAction = (event, fn) => handle(async (req) => {
+  const result = await fn(req);
+  await capture(undefined, event, { area: "approvals" });
+  return result;
+});
 
 router.get("/", authenticate, handle((req) =>
   svc.listRequests({
@@ -31,7 +38,7 @@ router.post("/", authenticate, handle((req) =>
   svc.createRequest({ ...req.body, tenantId: req.user.tenantId, requestedById: uid(req) }), 201));
 
 router.get("/:id", authenticate, handle((req) => svc.getRequest(req.params.id)));
-router.post("/:id/decide", authenticate, handle((req) => svc.decide(uid(req), req.params.id, req.body || {})));
+router.post("/:id/decide", authenticate, captureAction("approval_decided", (req) => svc.decide(uid(req), req.params.id, req.body || {})));
 router.post("/:id/cancel", authenticate, handle((req) => svc.cancelRequest(uid(req), req.params.id, { isAdmin: isAdmin(req) })));
 
 export default router;

@@ -4,22 +4,21 @@
  *
  * Paddle acts as merchant of record, so it handles sales tax/VAT and renews
  * subscriptions itself, keeps payment methods on file and hosts a customer
- * portal — the same capability set the Stripe adapter declared.
+ * portal — provider capabilities are surfaced to the billing UI.
  *
  * Env:
  *   PADDLE_API_KEY         server-side API key (pdl_sdbx_… or pdl_live_…)
  *   PADDLE_WEBHOOK_SECRET  secret of the notification destination
- *   PADDLE_ENV             optional: "sandbox" | "production"
- *                          (inferred from the key prefix when unset)
+ *   PADDLE_ENV             required: "sandbox" for this integration
  *
- * Differences from Stripe that callers should know about:
+ * Differences from other hosted-checkout providers that callers should know about:
  *   - Checkout is a Paddle *transaction*. Its `checkout.url` points at your
  *     "default payment link" (Paddle dashboard → Checkout → Checkout settings),
  *     which must be a page of yours that loads Paddle.js. successUrl/cancelUrl
  *     are set there via Paddle.Checkout.open({ settings: { successUrl } }),
  *     not on the server, so they are returned here for the page to use.
  *   - `customerId` is a Paddle customer id (ctm_…), `sessionId` a transaction
- *     id (txn_…). Webhook payloads have a different shape from Stripe's.
+ *     id (txn_…). Webhook payloads use provider-specific fields.
  *   - verifyWebhook is async — callers must await it.
  */
 import { Paddle, Environment } from "@paddle/paddle-node-sdk";
@@ -29,9 +28,13 @@ const KEY = () => process.env.PADDLE_API_KEY?.trim() || null;
 
 function environment(key) {
   const explicit = process.env.PADDLE_ENV?.trim().toLowerCase();
-  if (explicit === "production") return Environment.production;
-  if (explicit === "sandbox") return Environment.sandbox;
-  return key.startsWith("pdl_live_") ? Environment.production : Environment.sandbox;
+  if (explicit !== "sandbox") {
+    throw Object.assign(new Error("PADDLE_ENV must be explicitly set to sandbox; Paddle will not infer an environment."), { status: 503 });
+  }
+  if (!key.startsWith("pdl_sdbx_")) {
+    throw Object.assign(new Error("PADDLE_ENV is sandbox but PADDLE_API_KEY is not a Paddle sandbox API key."), { status: 503 });
+  }
+  return Environment.sandbox;
 }
 
 let cached = null;
@@ -48,7 +51,7 @@ export function client() {
 }
 
 /**
- * Accepts the line items the callers already build for Stripe
+ * Accepts the line items produced by the billing service
  * ({ price, quantity } or { price_data, quantity }) as well as native Paddle
  * items ({ priceId, quantity }).
  */
@@ -82,15 +85,6 @@ function toPaddleItems(lineItems = []) {
   });
 }
 
-/** Paddle transactions take a customer id, not an email — find or create one. */
-async function customerIdForEmail(paddle, email) {
-  if (!email) return undefined;
-  const page = await paddle.customers.list({ email: [email] }).next();
-  if (page?.length) return page[0].id;
-  const created = await paddle.customers.create({ email });
-  return created.id;
-}
-
 const STATUS = {
   completed: "paid",
   paid: "paid",
@@ -111,34 +105,51 @@ export default {
     invoiceHistory: true,
     webhooks: true,
     recurring: true,
+    subscriptionUpdates: true,
   },
-  configured: () => !!KEY(),
+  configured: () => !!KEY() && process.env.PADDLE_ENV?.trim().toLowerCase() === "sandbox" && KEY().startsWith("pdl_sdbx_"),
   methods: ["Card", "PayPal", "Apple Pay", "Google Pay"],
   notes:
     "Paddle is merchant of record and pays out to approved sellers; check that your " +
     "business country is on Paddle's supported-sellers list before going live.",
 
-  async createCheckout({ tenantId, plan, amountUsd, lineItems, successUrl, cancelUrl, customerEmail }) {
+  async createCheckout({
+    tenantId, plan, planSolutions = [], lineItems, successUrl, cancelUrl,
+    checkoutPageUrl, customerId, billingInterval = "month", networkProfile, metadata,
+  }) {
     const paddle = client();
-    if (!paddle) return { activateNow: true, reason: "paddle_not_configured" };
+    if (!paddle) throw Object.assign(new Error("Paddle is selected but PADDLE_API_KEY is not configured."), { status: 503 });
 
-    const customerId = await customerIdForEmail(paddle, customerEmail);
-    const txn = await paddle.transactions.create({
-      items: toPaddleItems(lineItems),
-      customerId,
-      // Copied onto the subscription Paddle creates from this transaction.
-      customData: { tenantId, plan, amountUsd: String(amountUsd) },
-    });
+    let resolvedCustomerId = customerId;
+    let txn;
+    try {
+      txn = await paddle.transactions.create({
+        items: toPaddleItems(lineItems),
+        ...(resolvedCustomerId ? { customerId: resolvedCustomerId } : {}),
+        // Copied onto the subscription Paddle creates from this transaction.
+        customData: metadata ?? { tenantId, plan, planSolutions, billingInterval, networkProfile },
+      });
+    } catch (error) {
+      throw normalizePaddleError(error);
+    }
 
-    if (!txn.checkout?.url) {
+    if (!txn.id || !checkoutPageUrl) {
       throw Object.assign(
-        new Error("Paddle returned no checkout URL — set a default payment link in Checkout settings"),
+        new Error("Paddle checkout needs a transaction id and a public checkout page URL"),
         { status: 500 },
       );
     }
-    // Paddle appends ?_ptxn=<id> to the payment-link page; that page opens
-    // Paddle.js and should use successUrl/cancelUrl.
-    return { activateNow: false, url: txn.checkout.url, sessionId: txn.id, successUrl, cancelUrl };
+    const checkoutUrl = new URL(checkoutPageUrl);
+    checkoutUrl.searchParams.set("_ptxn", txn.id);
+    return {
+      activateNow: false,
+      // Always route through the first-party page so it can initialize Paddle.js.
+      url: checkoutUrl.toString(),
+      sessionId: txn.id,
+      successUrl,
+      cancelUrl,
+      customerId: resolvedCustomerId ?? null,
+    };
   },
 
   async listInvoices(_tenantId, { customerId } = {}) {
@@ -156,32 +167,24 @@ export default {
 
       return Promise.all(
         txns.map(async (t) => {
-          let url = null;
-          if (t.invoiceNumber) {
-            try {
-              // Signed link, valid for about an hour.
-              url = (await paddle.transactions.getInvoicePDF(t.id)).url;
-            } catch {
-              url = null;
-            }
-          }
           const total = Number(t.details?.totals?.grandTotal ?? t.details?.totals?.total ?? 0);
           const paid = t.payments?.find((p) => p.status === "captured");
           return {
             id: t.id,
             reference: t.invoiceNumber ?? null,
-            amountUsd: Math.round(total / 100),
+            amountUsd: total / 100,
             currency: (t.currencyCode ?? "USD").toUpperCase(),
             status: STATUS[t.status] ?? t.status,
             issuedAt: t.billedAt ? new Date(t.billedAt) : t.createdAt ? new Date(t.createdAt) : null,
             paidAt: paid?.capturedAt ? new Date(paid.capturedAt) : null,
-            url,
+            plan: t.customData?.plan ?? null,
+            downloadable: !!t.invoiceNumber,
           };
         }),
       );
     } catch (e) {
       log.warn("paddle_invoices_failed", { error: e.message });
-      return [];
+      throw e;
     }
   },
 
@@ -209,15 +212,77 @@ export default {
     }
   },
 
+  async getInvoicePdf(_tenantId, transactionId, { customerId } = {}) {
+    const paddle = client();
+    if (!paddle || !customerId) return null;
+    const transaction = await paddle.transactions.get(transactionId);
+    if (transaction.customerId !== customerId || !transaction.invoiceNumber) return null;
+    return (await paddle.transactions.getInvoicePDF(transactionId)).url ?? null;
+  },
+
+  async getSubscription(_tenantId, { subscriptionId } = {}) {
+    const paddle = client();
+    if (!paddle || !subscriptionId) return null;
+    try {
+      const sub = await paddle.subscriptions.get(subscriptionId);
+      return shapeSubscription(sub);
+    } catch (error) {
+      throw normalizePaddleError(error);
+    }
+  },
+
+  async findActiveSubscription(_tenantId, { customerId } = {}) {
+    const paddle = client();
+    if (!paddle || !customerId) return null;
+    try {
+      const subscriptions = await paddle.subscriptions
+        .list({
+          customerId: [customerId],
+          status: ["active", "trialing", "past_due", "paused"],
+          orderBy: "created_at[DESC]",
+          perPage: 1,
+        })
+        .next();
+      return subscriptions[0] ? shapeSubscription(subscriptions[0]) : null;
+    } catch (error) {
+      throw normalizePaddleError(error);
+    }
+  },
+
+  async updateSubscription({ subscriptionId, lineItems, customData }) {
+    const paddle = client();
+    if (!paddle) throw Object.assign(new Error("Paddle is not configured"), { status: 503 });
+    try {
+      const sub = await paddle.subscriptions.update(subscriptionId, {
+        items: toPaddleItems(lineItems),
+        customData,
+        prorationBillingMode: "prorated_immediately",
+      });
+      return { id: sub.id, status: sub.status, customerId: sub.customerId };
+    } catch (error) {
+      throw normalizePaddleError(error);
+    }
+  },
+
   /**
    * Paddle's portal has no return URL; it links back via the business website
    * set in the dashboard. Pass subscriptionIds to get deep links per subscription.
    */
   async createPortalSession(_tenantId, { customerId, subscriptionIds = [] } = {}) {
     const paddle = client();
-    if (!paddle || !customerId) return { supported: true, url: null };
+    if (!paddle || !customerId || !subscriptionIds.length) return { supported: true, url: null };
     const session = await paddle.customerPortalSessions.create(customerId, subscriptionIds);
-    return { supported: true, url: session.urls?.general?.overview ?? null };
+    const subscriptionUrls = session.urls.subscriptions.map((subscription) => ({
+      id: subscription.id,
+      updatePaymentMethodUrl: subscription.updateSubscriptionPaymentMethod,
+      cancelUrl: subscription.cancelSubscription,
+    }));
+    const directLink = subscriptionUrls.find((subscription) => subscription.id === subscriptionIds[0]);
+    return {
+      supported: true,
+      url: directLink?.updatePaymentMethodUrl ?? session.urls.general?.overview ?? null,
+      subscriptionUrls,
+    };
   },
 
   /** Verify and parse a webhook. Rejects if the signature doesn't check out. */
@@ -227,7 +292,7 @@ export default {
     if (!paddle || !secret) throw Object.assign(new Error("Paddle webhooks are not configured"), { status: 400 });
     const sig = headers["paddle-signature"] ?? headers["Paddle-Signature"];
     if (!sig) throw Object.assign(new Error("Missing Paddle-Signature header"), { status: 400 });
-    // payload must be the raw request body as a string, as with Stripe.
+    // payload must be the raw request body as a string.
     const raw = Buffer.isBuffer(payload) ? payload.toString("utf8") : payload;
     try {
       return await paddle.webhooks.unmarshal(raw, secret, sig);
@@ -236,3 +301,28 @@ export default {
     }
   },
 };
+
+function normalizePaddleError(error) {
+  const status = error.status ?? error.statusCode;
+  const message = String(error.message ?? "");
+  if (status === 401 || status === 403 || /authorization|authentication|unauthorized|not authorized/i.test(message)) {
+    return Object.assign(
+      new Error("Paddle rejected the server API key or it lacks permission for this operation. Verify that PADDLE_API_KEY is a server API key for the configured sandbox account and has permission to create transactions."),
+      { status: 502 },
+    );
+  }
+  return error;
+}
+
+function shapeSubscription(sub) {
+  const periodEnd = sub.currentBillingPeriod?.endsAt;
+  const billingCycle = sub.items?.[0]?.price?.billingCycle;
+  return {
+    id: sub.id,
+    status: sub.status,
+    cancelAtPeriodEnd: sub.scheduledChange?.action === "cancel",
+    currentPeriodEnd: periodEnd ? new Date(periodEnd).toISOString().slice(0, 10) : null,
+    billingInterval: billingCycle?.interval === "year" ? "year" : "month",
+    customerId: sub.customerId,
+  };
+}

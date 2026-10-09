@@ -12,12 +12,26 @@ import { account } from "../../services/api";
 import { useUser } from "../../context/UserContext";
 import MarketCard from "./MarketCard";
 import { aiLimitFor } from "../../lib/plans";
+import { initializePaddleClient, paddleConfigurationError } from "../../lib/paddle";
 
 const STATUS_VARIANT = {
   active: "success", trialing: "success",
-  past_due: "warning", unpaid: "warning", incomplete: "warning",
-  canceled: "neutral", incomplete_expired: "neutral",
+  past_due: "warning", paused: "warning", pending: "warning",
+  none: "neutral", canceled: "neutral",
 };
+
+const CHECKOUT_CONTEXT_KEY = "paddle-checkout-context";
+
+function invoiceDate(value) {
+  return value ? new Date(value).toLocaleDateString() : "Date unavailable";
+}
+
+function invoiceAmount(invoice) {
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: invoice.currency || "USD",
+  }).format(Number(invoice.localAmount ?? invoice.amountUsd) || 0);
+}
 
 function isAdmin(u) {
   return u?.role === "enterprise_admin" || u?.role === "system_admin";
@@ -55,7 +69,19 @@ function planFeatures(plan) {
   return lines;
 }
 
-function PlanCard({ plan, current, currentNetworkProfile = "office", onSelect, loading, canSelect, networkProfile = "office", onNetworkProfileChange }) {
+function planPriceId(plan, interval, networkProfile) {
+  const intervalPrice = plan.priceIds?.[interval];
+  return typeof intervalPrice === "string"
+    ? intervalPrice
+    : intervalPrice?.[networkProfile === "datacenter" ? "datacenter" : "office"] ?? null;
+}
+
+function PlanCard({
+  plan, current, currentNetworkProfile = "office", onSelect, loading, canSelect,
+  networkProfile = "office", onNetworkProfileChange, billingInterval = "month",
+  paddleMode = false, pricePreview = null, priceReady = true, currentBillingInterval = "month",
+  selectionDisabledLabel = "Unavailable",
+}) {
   const s = TIER_STYLE[plan.id] ?? TIER_STYLE.standard;
   const Icon = s.icon;
   const features = planFeatures(plan);
@@ -71,7 +97,9 @@ function PlanCard({ plan, current, currentNetworkProfile = "office", onSelect, l
   const discounted = quote && quote.usd !== quote.listUsd;
   const isCurrentPlan = plan.id === current;
   // "Current" only when the tier also matches, so switching Executive's tier is a real change.
-  const isCurrent = isCurrentPlan && (!hasNetworkTiers || networkProfile === currentNetworkProfile);
+  const isCurrent = isCurrentPlan
+    && (!hasNetworkTiers || networkProfile === currentNetworkProfile)
+    && (!paddleMode || billingInterval === currentBillingInterval);
 
   return (
     <div className={`relative flex flex-col rounded-2xl border-2 p-5 transition ${
@@ -99,9 +127,15 @@ function PlanCard({ plan, current, currentNetworkProfile = "office", onSelect, l
           <Icon size={12} /> {plan.name}
         </span>
         <p className="mt-3 text-3xl font-bold text-slate-900 dark:text-white">
-          ${price.toLocaleString()}<span className="text-sm font-normal text-slate-500">/mo</span>
+          {paddleMode
+            ? pricePreview?.formattedTotals?.total ?? "Price unavailable"
+            : <>${price.toLocaleString()}<span className="text-sm font-normal text-slate-500">/mo</span></>}
         </p>
-        {discounted && (
+        {paddleMode ? (
+          <p className="mt-0.5 text-xs text-slate-400">
+            {billingInterval === "year" ? "Billed yearly" : "Billed monthly"} · tax-inclusive Paddle total
+          </p>
+        ) : discounted && (
           <p className="mt-0.5 text-xs">
             <span className="text-slate-400 line-through">${quote.listUsd.toLocaleString()}</span>
             <span className="ml-1.5 font-medium text-emerald-600 dark:text-emerald-400">
@@ -111,7 +145,7 @@ function PlanCard({ plan, current, currentNetworkProfile = "office", onSelect, l
             </span>
           </p>
         )}
-        {quote?.localFormatted && (
+        {!paddleMode && quote?.localFormatted && (
           /* Labelled every time it is shown: this is NOT the amount charged. */
           <p className="mt-0.5 text-xs text-slate-400"
              title={`Indicative, at rates from ${quote.ratesAsOf}. You are charged in USD.`}>
@@ -152,19 +186,19 @@ function PlanCard({ plan, current, currentNetworkProfile = "office", onSelect, l
       </ul>
 
       <button
-        onClick={() => !isCurrent && canSelect && onSelect(plan.id, [], undefined, hasNetworkTiers ? networkProfile : undefined)}
-        disabled={isCurrent || loading || !canSelect}
+        onClick={() => !isCurrent && canSelect && onSelect(plan.id, [], undefined, hasNetworkTiers ? networkProfile : undefined, billingInterval)}
+        disabled={isCurrent || loading || !canSelect || (paddleMode && !priceReady)}
         className={`w-full py-2 rounded-lg text-sm font-medium transition ${
           isCurrent
             ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 cursor-default"
-            : !canSelect
+            : !canSelect || (paddleMode && !priceReady)
             ? "border border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed"
             : plan.highlighted
             ? "bg-indigo-600 hover:bg-indigo-700 text-white"
             : "border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400"
         }`}
       >
-        {isCurrent ? "Active" : !canSelect ? "Admin only" : loading ? "Switching…" : (isCurrentPlan && hasNetworkTiers) ? "Switch tier" : "Choose plan"}
+        {isCurrent ? "Active" : !canSelect ? selectionDisabledLabel : paddleMode && !priceReady ? "Price unavailable" : loading ? "Switching…" : (isCurrentPlan && hasNetworkTiers) ? "Switch tier" : "Choose plan"}
       </button>
     </div>
   );
@@ -294,34 +328,140 @@ export default function Billing() {
   const billing = billingData ?? null;
 
   const { data: catalogData } = useApi(() => account.billing.plans(), []);
-  const plans   = catalogData?.plans ?? [];
+  const plans   = useMemo(() => catalogData?.plans ?? [], [catalogData?.plans]);
   const custom  = catalogData?.custom ?? { id: "custom", unitPrice: 49, minUnits: 8, industryPrice: 100 };
   const catalog = catalogData?.catalog ?? { crm: [], marketing: [], services: [], industries: [] };
-
-  const currentPlan = billing?.plan ?? "executive";
-  const currentSolutions = billing?.customSolutions ?? [];
-  const currentIndustry = billing?.industry ?? "general";
+  const paddleMode = catalogData?.provider?.id === "paddle";
+  const [paddle, setPaddle] = useState(null);
+  const [paddleInitError, setPaddleInitError] = useState("");
+  const [pricePreviews, setPricePreviews] = useState({});
+  const [pricePreviewError, setPricePreviewError] = useState("");
+  const [billingInterval, setBillingInterval] = useState("month");
   const currentNetworkProfile = billing?.networkProfile ?? "office";
-  const billingEnabled = billing?.billingEnabled ?? false;
+  const [networkProfile, setNetworkProfile] = useState(null);
+  const selectedNetworkProfile = networkProfile ?? currentNetworkProfile;
+  const countryCode = catalogData?.countryCode;
+  const priceTargets = useMemo(() => plans.map((plan) => ({
+    planId: plan.id,
+    priceId: planPriceId(plan, billingInterval, selectedNetworkProfile),
+  })), [plans, billingInterval, selectedNetworkProfile]);
+  const pricePreviewScope = `${countryCode ?? "auto"}:${billingInterval}:${selectedNetworkProfile}:${priceTargets.map(({ priceId }) => priceId ?? "-").join(",")}`;
+  const activePricePreviewError = pricePreviewError?.scope === pricePreviewScope ? pricePreviewError.message : "";
+  const missingPaddlePrice = paddleMode && priceTargets.some(({ priceId }) => !priceId);
+  const availablePriceTargets = useMemo(() => priceTargets.filter(({ priceId }) => priceId), [priceTargets]);
+  const pricePreviewLoading = paddleMode
+    && !!paddle
+    && availablePriceTargets.length > 0
+    && availablePriceTargets.some(({ priceId }) => !pricePreviews[`${countryCode ?? "auto"}:${priceId}`])
+    && !activePricePreviewError;
 
-  // Executive's network tier (office | datacenter) — mirrors the current plan,
-  // and is the ONLY place it's chosen (Network Management just reflects it).
-  const [networkProfile, setNetworkProfile] = useState("office");
-  useEffect(() => { setNetworkProfile(currentNetworkProfile); }, [currentNetworkProfile]);
+  useEffect(() => {
+    if (!paddleMode) return undefined;
+    let cancelled = false;
+    initializePaddleClient()
+      .then((instance) => { if (!cancelled) setPaddle(instance); })
+      .catch((error) => { if (!cancelled) setPaddleInitError(error.message); });
+    return () => { cancelled = true; };
+  }, [paddleMode]);
 
-  const { data: invoicesData } = useApi(
+  const currentPlan = billing && ["active", "trialing", "past_due", "paused"].includes(billing.status)
+    ? billing.plan
+    : null;
+  const currentSolutions = currentPlan ? billing.customSolutions ?? [] : [];
+  const currentIndustry = billing?.industry ?? "general";
+  const billingEnabled = billing?.billingEnabled === true;
+  const selectionDisabledLabel = !admin
+    ? "Admin only"
+    : billingLoading
+      ? "Loading billing…"
+      : billingError || !billing
+        ? "Billing unavailable"
+        : paddleMode && !paddle
+          ? "Paddle unavailable"
+          : "Unavailable";
+  const [manualInvoice, setManualInvoice] = useState(null);
+  const [paymentInstructions, setPaymentInstructions] = useState([]);
+  const displayedManualInvoice = manualInvoice ?? billing?.pendingInvoice ?? null;
+  const displayedPaymentInstructions = paymentInstructions.length ? paymentInstructions : billing?.paymentInstructions ?? [];
+
+  useEffect(() => {
+    if (!paddleMode || !paddle) return undefined;
+    let cancelled = false;
+    Promise.all(availablePriceTargets.map(async ({ planId, priceId }) => {
+      const request = { items: [{ priceId, quantity: 1 }] };
+      if (countryCode) request.address = { countryCode };
+      const preview = await paddle.PricePreview(request);
+      const lineItem = preview.data.details.lineItems[0];
+      if (!lineItem?.formattedTotals?.total) {
+        throw new Error(`Paddle did not return a formatted total for ${planId}.`);
+      }
+      const actualInterval = lineItem.price.billingCycle?.interval;
+      if (actualInterval !== billingInterval) {
+        throw new Error(`The configured ${planId} price is ${actualInterval ?? "non-recurring"}, not ${billingInterval}.`);
+      }
+      return [`${countryCode ?? "auto"}:${priceId}`, { ...lineItem, priceId }];
+    })).then((entries) => {
+      if (!cancelled) {
+        setPricePreviews((previous) => ({ ...previous, ...Object.fromEntries(entries) }));
+      }
+    }).catch((error) => {
+      if (!cancelled) setPricePreviewError({
+        scope: pricePreviewScope,
+        message: `Paddle could not load localized prices: ${error.message}`,
+      });
+    });
+    return () => { cancelled = true; };
+  }, [paddleMode, paddle, availablePriceTargets, countryCode, billingInterval, pricePreviewScope]);
+
+  const { data: invoicesData, error: invoicesError } = useApi(
     () => (billingEnabled ? account.billing.invoices() : Promise.resolve([])), [billingEnabled]
   );
   const invoices = invoicesData ?? [];
 
   const selectMut = useMutation(
-    ({ plan, customSolutions, industry, networkProfile }) => account.billing.select({ plan, customSolutions, industry, networkProfile }),
+    ({ plan, customSolutions, industry, networkProfile, billingInterval }) =>
+      account.billing.select({ plan, customSolutions, industry, networkProfile, billingInterval }),
     {
       onSuccess: (data) => {
-        // PAID mode: Stripe returns a Checkout URL — send the admin to pay.
+        if (data.requiresPayment && data.provider === "paddle" && data.sessionId) {
+          if (!paddle) {
+            toast({ message: paddleConfigurationError() ?? "Paddle checkout is still loading. Please try again.", type: "error" });
+            return;
+          }
+          try {
+            paddle.Checkout.open({
+              transactionId: data.sessionId,
+              ...(me?.email ? { customer: { email: me.email } } : {}),
+              settings: {
+                displayMode: "overlay",
+                variant: "one-page",
+                successUrl: `${window.location.origin}/welcome`,
+              },
+            });
+          } catch (error) {
+            toast({ message: `Could not open Paddle checkout: ${error.message}`, type: "error" });
+          }
+          return;
+        }
         if (data.requiresPayment && data.checkoutUrl) {
+          sessionStorage.setItem(CHECKOUT_CONTEXT_KEY, JSON.stringify({
+            successUrl: data.successUrl,
+            cancelUrl: data.cancelUrl,
+            plan: data.plan,
+          }));
           toast({ message: "Redirecting to secure checkout…", type: "info" });
           window.location.href = data.checkoutUrl;
+          return;
+        }
+        if (data.requiresPayment) {
+          if (data.invoice) {
+            setManualInvoice(data.invoice);
+            setPaymentInstructions(data.instructions ?? []);
+            refetchBilling();
+            toast({ message: "Invoice created. Your plan activates after payment is confirmed.", type: "info" });
+            return;
+          }
+          toast({ message: "The payment provider did not return checkout details. Please try again.", type: "error" });
           return;
         }
         // FREE mode: the plan is active immediately. Patching the shared user
@@ -339,39 +479,67 @@ export default function Billing() {
   const portalMut = useMutation(() => account.billing.portal({}), {
     onSuccess: (data) => {
       if (data.url) window.location.href = data.url;
-      else toast({ message: "The customer portal needs a live Stripe key.", type: "info" });
+      else toast({ message: "A customer portal link is not available for this subscription.", type: "info" });
     },
     onError: (e) => toast({ message: e.message, type: "error" }),
   });
 
-  // Handle the return trip from Stripe Checkout.
+  // Poll while Paddle's asynchronous webhook activates the selected plan.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const checkout = params.get("checkout");
     if (!checkout) return;
+    let cancelled = false;
     if (checkout === "success") {
       toast({ message: "Payment received — your plan is being activated.", type: "success" });
-      // The webhook applies the plan; refetch a moment later and sync gating.
-      setTimeout(async () => {
-        refetchBilling();
-        try {
-          const b = await account.billing.get();
-          updateUser({ plan: b.plan, planSolutions: b.customSolutions ?? [] });
-        } catch { /* billing poll will catch up */ }
-      }, 2500);
+      const context = (() => {
+        try { return JSON.parse(sessionStorage.getItem(CHECKOUT_CONTEXT_KEY) || "{}"); }
+        catch { return {}; }
+      })();
+      const delays = [1000, 2000, 3000, 5000, 8000, 12000, 15000, 15000];
+      const refreshUntilActive = async () => {
+        let refreshError = null;
+        for (const delay of delays) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          if (cancelled) return;
+          try {
+            const latest = await account.billing.get();
+            refreshError = null;
+            refetchBilling();
+            if (["active", "trialing"].includes(latest.status) && (!context.plan || latest.plan === context.plan)) {
+              updateUser({ plan: latest.plan, planSolutions: latest.customSolutions ?? [] });
+              sessionStorage.removeItem(CHECKOUT_CONTEXT_KEY);
+              return;
+            }
+          } catch (error) {
+            refreshError = error;
+          }
+        }
+        if (!cancelled) {
+          toast({
+            message: refreshError
+              ? `Payment status could not be refreshed: ${refreshError.message}`
+              : "Payment is still processing. Billing will update when the provider confirms it.",
+            type: refreshError ? "warning" : "info",
+          });
+          refetchBilling();
+        }
+      };
+      refreshUntilActive();
     } else if (checkout === "cancelled") {
+      sessionStorage.removeItem(CHECKOUT_CONTEXT_KEY);
       toast({ message: "Checkout cancelled — no changes were made.", type: "info" });
     }
     window.history.replaceState({}, "", "/account/billing");
+    return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelect = (plan, customSolutions = [], industry, netProfile) =>
-    selectMut.mutate({ plan, customSolutions, industry, networkProfile: netProfile });
+    selectMut.mutate({ plan, customSolutions, industry, networkProfile: netProfile, billingInterval });
 
-  const activeEnt = billing?.entitlements ?? { sections: [], solutions: {}, analyticsSlices: [] };
   const activeModules = useMemo(
-    () => (activeEnt.sections ?? []).filter((s) => MODULE_META[s]),
-    [activeEnt]
+    () => (currentPlan ? billing?.entitlements?.sections ?? [] : []).filter((s) => MODULE_META[s]),
+    [billing?.entitlements, currentPlan]
   );
 
   return (
@@ -386,7 +554,7 @@ export default function Billing() {
             <span className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
               <Sparkles size={12} /> Free during early access
             </span>
-          ) : (admin && billing?.subscription) ? (
+          ) : (admin && billing?.subscription && billing?.provider?.capabilities?.customerPortal) ? (
             <button
               onClick={() => portalMut.mutate()}
               disabled={portalMut.loading}
@@ -404,19 +572,17 @@ export default function Billing() {
         </div>
       )}
 
-      {/* Dunning: a failed payment puts the subscription in past_due/unpaid —
-          surface it loudly with a one-click path to fix the card. */}
-      {["past_due", "unpaid", "incomplete"].includes(billing?.status) && (
+      {/* Dunning: surface payment problems only when the provider reports them. */}
+      {["past_due", "paused"].includes(billing?.status) && (
         <div className="flex flex-wrap items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-800 rounded-xl text-sm">
           <AlertCircle size={18} className="text-red-600 dark:text-red-400 shrink-0" />
           <div className="flex-1 min-w-[220px]">
             <p className="font-semibold text-red-700 dark:text-red-300">There's a problem with your payment</p>
             <p className="text-red-600/80 dark:text-red-400/80 text-xs mt-0.5">
-              Your last charge didn't go through. Update your payment method to keep the {billing?.planName} plan active —
-              otherwise the subscription will be cancelled and the plan drops to Standard at the end of the paid period.
+              Your subscription needs attention. Open the customer portal to review payment options.
             </p>
           </div>
-          {admin && (
+          {admin && billing?.provider?.capabilities?.customerPortal && (
             <button
               onClick={() => portalMut.mutate()}
               disabled={portalMut.loading}
@@ -434,20 +600,68 @@ export default function Billing() {
         </div>
       )}
 
+      {billing?.pendingInvoice && (
+        <Card>
+          <CardHeader title="Payment pending" />
+          <CardBody>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Invoice <strong>{billing.pendingInvoice.reference}</strong>
+              {` for ${plans.find((plan) => plan.id === billing.pendingInvoice.plan)?.name ?? billing.pendingInvoice.plan}`}
+              {" is awaiting payment. Your selected plan will not activate until payment is confirmed."}
+            </p>
+          </CardBody>
+        </Card>
+      )}
+
+      {displayedManualInvoice && (
+        <Card>
+          <CardHeader title="Pay by bank transfer or mobile money" />
+          <CardBody className="space-y-4">
+            <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-900/20 dark:text-amber-200">
+              <p className="font-semibold">Invoice reference: {displayedManualInvoice.reference}</p>
+              <p className="mt-1">
+                Amount due: {invoiceAmount(displayedManualInvoice)}
+                {displayedManualInvoice.dueAt ? ` · due ${invoiceDate(displayedManualInvoice.dueAt)}` : ""}
+              </p>
+              <p className="mt-2">Include the reference with your transfer. Access activates after the payment is verified.</p>
+            </div>
+            {displayedPaymentInstructions.map((method) => (
+              <div key={method.id} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                <h3 className="font-medium text-slate-900 dark:text-white">{method.label}</h3>
+                <dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {method.fields.map(([label, value]) => (
+                    <div key={label}>
+                      <dt className="text-xs text-slate-500">{label}</dt>
+                      <dd className="text-sm text-slate-800 dark:text-slate-200">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ))}
+          </CardBody>
+        </Card>
+      )}
+
       {/* Current plan summary */}
       <Card>
         <CardHeader title="Your current plan" />
         <CardBody>
           {billingLoading ? (
             <div className="animate-pulse h-16 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+          ) : !billing ? (
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Billing details are unavailable. Plan status and available actions are hidden until they load.
+            </p>
           ) : (
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="text-lg font-bold text-slate-900 dark:text-white">{billing?.planName ?? "—"}</p>
+                  <p className="text-lg font-bold text-slate-900 dark:text-white">
+                    {currentPlan ? billing.planName : billing.status === "pending" ? "Payment pending" : "No active plan"}
+                  </p>
                   <StatusBadge
-                    variant={STATUS_VARIANT[billing?.status] ?? "success"}
-                    label={(billing?.status ?? "active").replace(/_/g, " ")}
+                    variant={STATUS_VARIANT[billing.status] ?? "neutral"}
+                    label={billing.status.replace(/_/g, " ")}
                     dot
                   />
                   {billing?.subscription?.cancelAtPeriodEnd && (
@@ -455,16 +669,12 @@ export default function Billing() {
                   )}
                 </div>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  ${(billing?.price ?? 0).toLocaleString()}/month
+                  {currentPlan
+                    ? paddleMode ? "Subscription billing is managed by Paddle" : `$${billing.price.toLocaleString()}/month`
+                    : "Select a plan to get started"}
                   {billing?.freeEarlyAccess && <span className="text-emerald-600 dark:text-emerald-400"> · billed $0 during early access</span>}
                   {billing?.nextRenewal && <span> · renews {billing.nextRenewal}</span>}
                 </p>
-                {billing?.paymentMethod?.last4 && (
-                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
-                    <CreditCard size={12} /> {billing.paymentMethod.brand?.toUpperCase()} ···· {billing.paymentMethod.last4}
-                    {billing.paymentMethod.expiry && ` · exp ${billing.paymentMethod.expiry}`}
-                  </p>
-                )}
                 <div className="flex flex-wrap gap-1.5 mt-3">
                   {activeModules.map((m) => {
                     const M = MODULE_META[m];
@@ -511,31 +721,70 @@ export default function Billing() {
 
       {/* Where this org sits in the price book — shown above the tiers, because
           it is what makes the numbers below make sense. */}
-      {admin && <MarketCard />}
+      {admin && !paddleMode && <MarketCard />}
 
       {/* Plan tiers. Five columns now that Starter exists, so the grid steps to
           5 at xl rather than wrapping one card onto its own row. */}
       <div>
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Available plans</h3>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Available plans</h3>
+          {paddleMode && (
+            <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5" aria-label="Billing interval">
+              {[["month", "Monthly"], ["year", "Yearly"]].map(([interval, label]) => (
+                <button
+                  key={interval}
+                  type="button"
+                  onClick={() => setBillingInterval(interval)}
+                  aria-pressed={billingInterval === interval}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium ${
+                    billingInterval === interval
+                      ? "bg-indigo-600 text-white"
+                      : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {paddleMode && (paddleInitError || activePricePreviewError || missingPaddlePrice) && (
+          <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200" role="alert">
+            {paddleInitError || activePricePreviewError || "Configure monthly and yearly Paddle price IDs for all tiers in the backend environment."}
+          </p>
+        )}
+        {paddleMode && pricePreviewLoading && (
+          <p className="mb-3 text-xs text-slate-500 dark:text-slate-400" role="status">Loading country-localized Paddle prices…</p>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
-          {plans.map((p) => (
-            <PlanCard
-              key={p.id}
-              plan={p}
-              current={currentPlan}
-              currentNetworkProfile={currentNetworkProfile}
-              networkProfile={networkProfile}
-              onNetworkProfileChange={setNetworkProfile}
-              onSelect={handleSelect}
-              loading={selectMut.loading}
-              canSelect={admin}
-            />
-          ))}
+          {plans.map((p) => {
+            const priceId = planPriceId(p, billingInterval, selectedNetworkProfile);
+            const preview = priceId ? pricePreviews[`${countryCode ?? "auto"}:${priceId}`] : null;
+            return (
+              <PlanCard
+                key={p.id}
+                plan={p}
+                current={currentPlan}
+                currentNetworkProfile={currentNetworkProfile}
+                networkProfile={selectedNetworkProfile}
+                onNetworkProfileChange={setNetworkProfile}
+                onSelect={handleSelect}
+                loading={selectMut.loading}
+                billingInterval={billingInterval}
+                paddleMode={paddleMode}
+                pricePreview={preview ?? null}
+                priceReady={!paddleMode || (!!paddle && !!preview)}
+                currentBillingInterval={billing?.subscription?.billingInterval ?? billing?.interval ?? "month"}
+                selectionDisabledLabel={selectionDisabledLabel}
+                canSelect={admin && !billingLoading && !billingError && !!billing && (!paddleMode || !!paddle)}
+              />
+            );
+          })}
         </div>
       </div>
 
       {/* Custom builder */}
-      <CustomBuilder
+      {!paddleMode && <CustomBuilder
         custom={custom}
         catalog={catalog}
         current={currentPlan}
@@ -543,10 +792,15 @@ export default function Billing() {
         currentIndustry={currentIndustry}
         onSelect={handleSelect}
         loading={selectMut.loading}
-        canSelect={admin}
-      />
+        canSelect={admin && !billingLoading && !billingError && !!billing}
+      />}
 
-      {/* Invoices (paid mode only) */}
+      {/* Invoice history is loaded from the active billing provider. */}
+      {invoicesError && (
+        <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+          Could not load invoices: {invoicesError}
+        </p>
+      )}
       {billingEnabled && invoices.length > 0 && (
         <Card>
           <CardHeader title={<span className="flex items-center gap-2"><Receipt size={15} /> Invoices</span>} />
@@ -554,16 +808,30 @@ export default function Billing() {
             {invoices.map((inv) => (
               <div key={inv.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800">
                 <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">{inv.id}</p>
-                  <p className="text-xs text-slate-400">{inv.date}{inv.plan ? ` · ${inv.plan}` : ""}</p>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white">{inv.reference || inv.id}</p>
+                  <p className="text-xs text-slate-400">{invoiceDate(inv.issuedAt)}{inv.plan ? ` · ${inv.plan}` : ""}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="font-semibold text-sm text-slate-900 dark:text-white">{inv.amount}</span>
-                  <StatusBadge label={inv.status} variant={inv.status === "paid" ? "success" : inv.status === "open" ? "warning" : "neutral"} dot />
-                  {(inv.hostedUrl || inv.pdfUrl) && (
+                  <span className="font-semibold text-sm text-slate-900 dark:text-white">{invoiceAmount(inv)}</span>
+                  <StatusBadge label={inv.status} variant={inv.status === "paid" ? "success" : ["open", "pending", "past_due"].includes(inv.status) ? "warning" : "neutral"} dot />
+                  {inv.downloadable && (
                     <button
-                      onClick={() => window.open(inv.hostedUrl || inv.pdfUrl, "_blank")}
-                      title="View invoice"
+                      onClick={async () => {
+                        const tab = window.open("about:blank", "_blank");
+                        if (!tab) {
+                          toast({ message: "Allow pop-ups to open the invoice PDF.", type: "error" });
+                          return;
+                        }
+                        tab.opener = null;
+                        try {
+                          const { url } = await account.billing.invoicePdf(inv.id);
+                          tab.location.href = url;
+                        } catch (error) {
+                          tab.close();
+                          toast({ message: error.message, type: "error" });
+                        }
+                      }}
+                      title="Download invoice PDF"
                       className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition"
                     >
                       <Download size={14} />
@@ -577,9 +845,13 @@ export default function Billing() {
       )}
 
       <p className="text-xs text-slate-400 dark:text-slate-500 text-center">
-        {billingEnabled
-          ? "All plans include analytics for the modules they unlock. Plans are billed monthly and can be changed or cancelled anytime."
-          : "All plans include analytics for the modules they unlock. Sign-up is free during early distribution; payment will be collected once early access ends."}
+        {billingLoading
+          ? "Loading billing information…"
+          : !billing
+            ? "Billing information is unavailable. Plan prices and payment status may not be current."
+            : billing.freeEarlyAccess
+              ? "All plans include analytics for the modules they unlock. Sign-up is free during early access."
+              : "All plans include analytics for the modules they unlock. Plans are billed monthly and can be changed or cancelled anytime."}
       </p>
     </div>
   );

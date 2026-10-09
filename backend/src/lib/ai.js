@@ -16,11 +16,32 @@
  *   AI_MODEL     – default llama-3.1-8b-instant (cheap/fast; free on Groq)
  *   AI_MAX_TOKENS, AI_MAX_INPUT_CHARS, AI_MAX_HISTORY – cost knobs (see below)
  */
+import { randomUUID } from "crypto";
+import { capture } from "./analytics.js";
 import { log } from "./logger.js";
 
 const AI_KEY   = process.env.AI_API_KEY?.trim() || null;
 const AI_BASE  = (process.env.AI_BASE_URL?.trim() || "https://api.groq.com/openai/v1").replace(/\/$/, "");
 const AI_MODEL = process.env.AI_MODEL?.trim() || "llama-3.1-8b-instant";
+
+function providerForBaseUrl(baseUrl) {
+  try {
+    const hostname = new URL(baseUrl).hostname;
+    if (hostname.endsWith("groq.com")) return "groq";
+    if (hostname.endsWith("openai.com")) return "openai";
+    if (hostname.endsWith("openrouter.ai")) return "openrouter";
+    if (hostname.endsWith("together.xyz")) return "together";
+    if (hostname.endsWith("mistral.ai")) return "mistral";
+    if (hostname.endsWith("deepseek.com")) return "deepseek";
+    if (hostname.endsWith("x.ai")) return "xai";
+    if (hostname === "localhost" || hostname === "127.0.0.1") return "ollama";
+  } catch {
+    // Let the existing request path report an invalid provider URL.
+  }
+  return null;
+}
+
+const AI_PROVIDER = providerForBaseUrl(AI_BASE);
 
 // Cost knobs — deliberately small. Raise via env only if you accept the cost.
 const MAX_OUTPUT_TOKENS = Number(process.env.AI_MAX_TOKENS) || 320;
@@ -37,6 +58,39 @@ const clamp = (s, n) => {
   const str = String(s ?? "");
   return str.length > n ? str.slice(0, n) : str;
 };
+
+async function captureGeneration({ traceId, messages, outputLimit, started, data, response, error }) {
+  const usage = data?.usage ?? {};
+  const properties = {
+    $ai_trace_id: traceId,
+    // No conversation identifier exists, so the process run is the session.
+    $ai_session_id: `ai-process-${process.pid}`,
+    $ai_model: AI_MODEL,
+    $ai_input: messages,
+    $ai_input_tokens: usage.prompt_tokens ?? usage.input_tokens,
+    $ai_output_tokens: usage.completion_tokens ?? usage.output_tokens,
+    $ai_latency: (Date.now() - started) / 1_000,
+    $ai_http_status: response?.status,
+    $ai_temperature: 0.3,
+    $ai_max_tokens: outputLimit,
+    $ai_stream: false,
+  };
+
+  if (AI_PROVIDER) properties.$ai_provider = AI_PROVIDER;
+  if (data?.choices?.[0]?.message?.content) {
+    properties.$ai_output_choices = [{
+      role: "assistant",
+      content: data.choices[0].message.content,
+    }];
+  }
+  if (data?.choices?.[0]?.finish_reason) properties.$ai_stop_reason = data.choices[0].finish_reason;
+  if (error) {
+    properties.$ai_is_error = true;
+    properties.$ai_error = response ? `HTTP ${response.status}` : (error.name || "AI request failed");
+  }
+
+  await capture(undefined, "$ai_generation", properties);
+}
 
 /**
  * Run a single chat completion. Returns the model's text.
@@ -61,31 +115,38 @@ export async function complete({ system, user, history = [], maxTokens } = {}) {
   messages.push(...trimmedHistory);
   messages.push({ role: "user", content: clamp(user, MAX_INPUT_CHARS) });
 
+  const outputLimit = Math.min(Number(maxTokens) || MAX_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS);
+  const traceId = randomUUID();
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   const started = Date.now();
+  let response;
   try {
-    const resp = await fetch(`${AI_BASE}/chat/completions`, {
+    response = await fetch(`${AI_BASE}/chat/completions`, {
       method: "POST",
       signal: ctrl.signal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${AI_KEY}` },
       body: JSON.stringify({
         model: AI_MODEL,
         messages,
-        max_tokens: Math.min(Number(maxTokens) || MAX_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS),
+        max_tokens: outputLimit,
         temperature: 0.3,
         stream: false,
       }),
     });
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => "");
-      throw new Error(`AI provider ${resp.status}: ${body.slice(0, 200)}`);
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`AI provider ${response.status}: ${body.slice(0, 200)}`);
     }
-    const data = await resp.json();
+    const data = await response.json();
     const text = data?.choices?.[0]?.message?.content?.trim();
     if (!text) throw new Error("AI returned an empty response");
+    await captureGeneration({ traceId, messages, outputLimit, started, data, response });
     log.info("ai_complete", { model: AI_MODEL, ms: Date.now() - started, usage: data?.usage ?? null });
     return text;
+  } catch (error) {
+    await captureGeneration({ traceId, messages, outputLimit, started, response, error });
+    throw error;
   } finally {
     clearTimeout(timer);
   }

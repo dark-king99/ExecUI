@@ -40,7 +40,7 @@ const basePrisma = new PrismaClient({
  * cross-tenant access is impossible by construction — every one of the ~450
  * routes is covered, and new code is safe automatically.
  *
- * No active context (login, signup, Stripe webhook) or an explicit runUnscoped
+ * No active context (login, signup, payment webhook) or an explicit runUnscoped
  * block ⇒ no injection, so system flows are unaffected.
  */
 const inject = (op) => async ({ model, args, query }) => {

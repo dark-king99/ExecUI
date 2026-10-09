@@ -1,8 +1,10 @@
+import "./load-env.js";
 import { execSync } from "child_process";
 import app from "./app.js";
 import prisma from "./config/database.js";
 import { log } from "./lib/logger.js";
 import { shutdownAnalytics } from "./lib/analytics.js";
+import { posthogLog, shutdownPostHogLogs } from "./lib/posthogLogs.js";
 import { startReportScheduler, stopReportScheduler } from "./modules/reports/reports.schedule.js";
 import { startWebhookWorker, stopWebhookWorker } from "./modules/webhooks/webhooks.service.js";
 import { startWorkflowEngine, stopWorkflowEngine } from "./modules/workflows/workflows.engine.js";
@@ -11,9 +13,6 @@ import { startClmScheduler, stopClmScheduler } from "./modules/documents/contrac
 import { startHrScheduler, stopHrScheduler } from "./modules/hr/hr.scheduler.js";
 import { startHelpdeskScheduler, stopHelpdeskScheduler } from "./modules/helpdesk/helpdesk.scheduler.js";
 import { startTenantScheduler, stopTenantScheduler } from "./modules/tenants/tenants.scheduler.js";
-import dotenv from "dotenv";
-dotenv.config();
-
 const PORT = process.env.PORT || 5555;
 
 // ── Apply pending migrations on boot ──────────────────────────────────────────
@@ -47,6 +46,7 @@ async function ensureDatabase(attempt = 1) {
   try {
     await prisma.$connect();
     console.log("✅ Database connected");
+    posthogLog("info", "database_connection_established", { component: "postgres" });
   } catch (err) {
     if (attempt <= 2) {
       // Try to start PostgreSQL, then retry
@@ -69,6 +69,7 @@ applyMigrations();
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  posthogLog("info", "api_listening", { transport: "http" });
 });
 
 ensureDatabase();
@@ -109,6 +110,7 @@ for (const sig of ["SIGTERM", "SIGINT"]) {
     stopHelpdeskScheduler();
     stopTenantScheduler();
     await shutdownAnalytics();
+    await shutdownPostHogLogs();
     process.exit(0);
   });
 }
