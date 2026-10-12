@@ -132,9 +132,10 @@ Billing uses provider adapters because payment availability and capabilities
 vary by market.
 
 Set `PAYMENT_PROVIDER` explicitly. For sandbox testing use `PAYMENT_PROVIDER=paddle`
-and `PADDLE_ENV=sandbox`; do not rely on automatic provider or environment
-detection. Without an explicit Paddle provider, this application may use its
-manual early-access behavior.
+and `PADDLE_ENV=sandbox`; for approved live operation use
+`PADDLE_ENV=production`. The backend key prefix and frontend token prefix must
+match that explicit choice. Without an explicit Paddle provider, this application
+may use its manual early-access behavior.
 
 | Provider | Methods | Recurring | Notes |
 | --- | --- | --- | --- |
@@ -149,8 +150,9 @@ denominator, so the UI never offers a button that will fail.
 
 Set these on the **backend only**:
 
-- `PAYMENT_PROVIDER=paddle`, `PADDLE_ENV=sandbox`,
-  `PADDLE_API_KEY=pdl_sdbx_…`, `PADDLE_WEBHOOK_SECRET`, and `FRONTEND_URL`.
+- `PAYMENT_PROVIDER=paddle`, an explicit matching `PADDLE_ENV`, the corresponding
+  server API key (`pdl_sdbx_…` in sandbox or `pdl_live_…` in production),
+  `PADDLE_WEBHOOK_SECRET`, and `FRONTEND_URL`.
 - The server API key needs permission to create transactions. The application
   does not create Paddle customers through the customer API; checkout collects
   the email and Paddle associates the customer with the completed transaction.
@@ -162,11 +164,13 @@ Set these on the **backend only**:
   `PADDLE_PRICE_EXECUTIVE_ENTERPRISE_MONTH`, and
   `PADDLE_PRICE_EXECUTIVE_ENTERPRISE_YEAR`.
 
-Set `VITE_PADDLE_ENV=sandbox` and the sandbox **client-side** token
-(`VITE_PADDLE_CLIENT_TOKEN=test_…`) in the frontend environment. Never put the
-server API key in frontend configuration. Restart Vite after changing frontend
-environment values. Configure Paddle prices as tax-inclusive when the listed
-monthly amounts should include taxes.
+Set `VITE_PADDLE_ENV=sandbox` with the sandbox **client-side** token
+(`VITE_PADDLE_CLIENT_TOKEN=test_…`) in the frontend environment. For live, use
+`VITE_PADDLE_ENV=production` and a live client-side token
+(`VITE_PADDLE_CLIENT_TOKEN=live_…`). Never put the server API key in frontend
+configuration. Restart Vite after changing frontend environment values.
+Configure Paddle prices as tax-inclusive when the listed monthly amounts should
+include taxes.
 
 For hosted payment links, in the Paddle dashboard go to **Checkout > Checkout
 configuration** and set the default payment link to your app's `/checkout`
@@ -182,6 +186,10 @@ secret as `PADDLE_WEBHOOK_SECRET`. Subscribe to `transaction.completed`,
 `subscription.created`, and `subscription.updated`. The route is registered
 before JSON parsing so Paddle's signature is verified against the raw request
 body. Customer and subscription IDs are stored as provider-neutral fields.
+When `PADDLE_ENV=production`, the webhook route fetches Paddle's live IPv4
+`/32` addresses from `https://api.paddle.com/ips`, caches them for five minutes,
+and rejects requests outside that current allowlist. A failed or invalid
+refresh fails closed with HTTP 503.
 
 Plan changes update an existing Paddle subscription rather than opening a
 second recurring checkout. The customer portal is only offered when Paddle
@@ -193,14 +201,12 @@ subscriptions in Stripe before removing its credentials; the provider-neutral
 database migration deliberately discards Stripe customer/subscription IDs rather
 than trying to send those IDs to Paddle.
 
-Set `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, and `PADDLE_ENV=sandbox` in the
-backend environment. `PADDLE_API_KEY` is the server API key from Paddle
+Set `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, and an explicit `PADDLE_ENV` in
+the backend environment. `PADDLE_API_KEY` is the server API key from Paddle
 Developer tools → Authentication; `VITE_PADDLE_CLIENT_TOKEN` is the separate
-browser token. Do not swap these credentials. The backend requires an explicit
-sandbox environment and a sandbox API key; it does not infer an environment
-from the key. The backend loads `backend/.env` by path before initializing
-modules that read environment variables; `.env.example` is a template and is
-not loaded automatically.
+browser token. Do not swap these credentials. The backend loads `backend/.env`
+by path before initializing modules that read environment variables;
+`.env.example` is a template and is not loaded automatically.
 
 ### `manual` — the one that works today
 

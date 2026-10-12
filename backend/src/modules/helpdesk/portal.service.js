@@ -41,8 +41,13 @@ const normEmail = (e) => String(e ?? "").trim().toLowerCase();
 export const newToken = () => crypto.randomBytes(32).toString("base64url");
 export const hashToken = (token) => crypto.createHash("sha256").update(String(token)).digest("hex");
 
-const appUrl = () => (process.env.APP_URL || process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
-export const portalUrl = (slug) => `${appUrl()}/portal/${encodeURIComponent(slug)}`;
+const portalBaseUrl = () => (
+  process.env.HELPDESK_PORTAL_URL
+  || process.env.FRONTEND_URL
+  || process.env.APP_URL
+  || "http://localhost:5173"
+).replace(/\/$/, "");
+export const portalUrl = (slug) => `${portalBaseUrl()}/portal/${encodeURIComponent(slug)}`;
 export const magicUrl = (slug, token) => `${portalUrl(slug)}?t=${encodeURIComponent(token)}`;
 
 /**
@@ -94,7 +99,7 @@ export async function requestLink(slug, email, { ip } = {}) {
     await prisma.portalMagicLink.updateMany({
       where: { email: address, usedAt: null }, data: { usedAt: new Date() },
     });
-    await prisma.portalMagicLink.create({
+    const link = await prisma.portalMagicLink.create({
       data: {
         email: address,
         tokenHash: hashToken(token),
@@ -104,7 +109,7 @@ export async function requestLink(slug, email, { ip } = {}) {
     });
 
     try {
-      await sendEmail({
+      const delivery = await sendEmail({
         tenantId: tenant.id,
         to: address,
         subject: `Your ${tenant.name} support sign-in link`,
@@ -121,8 +126,22 @@ export async function requestLink(slug, email, { ip } = {}) {
         ].join("\n"),
         context: "portal_magic_link",
       });
-      return emailConfigured();
+      if (delivery?.sent === true) return true;
+      await prisma.portalMagicLink.update({
+        where: { id: link.id },
+        data: { usedAt: new Date() },
+      });
+      log.warn?.("portal_link_email_not_delivered", {
+        tenantId: tenant.id,
+        emailConfigured: emailConfigured(),
+        skipped: delivery?.skipped === true,
+      });
+      return false;
     } catch (e) {
+      await prisma.portalMagicLink.update({
+        where: { id: link.id },
+        data: { usedAt: new Date() },
+      });
       log.warn?.("portal_link_email_failed", { error: e.message });
       return false;
     }
@@ -136,6 +155,7 @@ export async function requestLink(slug, email, { ip } = {}) {
       : "We couldn't send the email — this portal has no email provider configured yet. Please contact support directly, and ask them to send you a link.",
     delivered: sent,
     expiresInMinutes: LINK_TTL_MINUTES,
+    portalUrl: portalUrl(tenant.slug),
   };
 }
 

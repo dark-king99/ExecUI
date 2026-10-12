@@ -256,20 +256,20 @@ export default function Login({ onLogin }) {
         <div className="relative z-10 flex flex-col h-full px-10 py-12">
           <div className="mb-14 animate-slide-up">
             <AnimatedLogo className="h-10" float />
-            <p className="text-[11px] text-indigo-500 dark:text-indigo-300/70 mt-2 ml-1 tracking-wide">Enterprise Platform</p>
+            <p className="text-[11px] text-teal-800 dark:text-teal-00/70 mt-2 ml-1 tracking-wide">Enterprise Platform</p>
           </div>
           <div className="mb-10">
             <h1 className="text-3xl xl:text-4xl font-semibold text-slate-900 dark:text-white leading-tight mb-4 animate-slide-up delay-75">
               Your enterprise<br />
-              <span className="bg-gradient-to-r from-indigo-600 via-violet-500 to-indigo-600 bg-clip-text text-transparent animate-gradient dark:from-indigo-300 dark:via-white dark:to-violet-300">command center.</span>
+              <span className="bg-gradient-to-r from-cyan-600 via-teal-500 to-cyan-600 bg-clip-text text-transparent animate-gradient dark:from-cyan-300 dark:via-white dark:to-teal-300">command center.</span>
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed max-w-xs animate-slide-up delay-150">One organization, every team — CRM, marketing, network operations, and AI-powered analytics, together.</p>
           </div>
           <div className="flex flex-col gap-5 mb-auto">
             {features.map(({ icon: Icon, label, desc }, i) => (
               <div key={label} className="flex items-start gap-4 animate-slide-right" style={{ animationDelay: `${260 + i * 90}ms` }}>
-                <div className="h-9 w-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 mt-0.5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-md dark:bg-slate-800/80 dark:border-slate-700/50 dark:hover:border-indigo-500/50">
-                  <Icon size={16} className="text-indigo-500 dark:text-indigo-400" />
+                <div className="h-9 w-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 mt-0.5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan-400 hover:shadow-md dark:bg-slate-800/80 dark:border-slate-700/50 dark:hover:border-cyan-500/50">
+                  <Icon size={16} className="text-cyan-500 dark:text-cyan-400" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-800 dark:text-slate-200 leading-none mb-1">{label}</p>
@@ -301,7 +301,7 @@ export default function Login({ onLogin }) {
             /* ── Enterprise created success ── */
             <div className="animate-scale-in">
               <div className="h-12 w-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mb-5 animate-scale-in">
-                <CheckCircle2 size={24} className="text-emerald-500 dark:text-emerald-400" />
+                <CheckCircle2 size={24} className="text-emerald-500 dark:text-emerald-600" />
               </div>
               <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-1 animate-slide-up delay-75">Enterprise created</h2>
               <p className="text-sm text-slate-500 mb-6 animate-slide-up delay-150">Save these — your team needs the enterprise code to join, and you'll sign in with your employee ID.</p>
@@ -339,7 +339,7 @@ export default function Login({ onLogin }) {
               {/* Mode tabs with a sliding indicator */}
               <div className="relative grid grid-cols-3 bg-slate-100 dark:bg-slate-800/50 rounded-xl p-1 mb-7 border border-slate-200 dark:border-slate-700/40">
                 <span
-                  className="absolute top-1 bottom-1 rounded-lg bg-indigo-600 shadow-sm shadow-indigo-900/40 transition-transform duration-300 ease-out"
+                  className="absolute top-1 bottom-1 rounded-lg bg-teal-600 shadow-sm shadow-cyan-900/40 transition-transform duration-300 ease-out"
                   style={{ left: "0.25rem", width: "calc((100% - 0.5rem) / 3)", transform: `translateX(${activeIndex * 100}%)` }}
                 />
                 {MODES.map((m) => (
@@ -395,7 +395,7 @@ export default function Login({ onLogin }) {
                 )}
 
                 <button type="button" onClick={handleSubmit} disabled={submitting}
-                  className="group relative mt-1 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold transition-all duration-150 disabled:opacity-50 shadow-lg shadow-indigo-900/30 hover:-translate-y-0.5 overflow-hidden">
+                  className="group relative mt-1 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-teal-600 hover:bg-cyan-500 active:bg-cyan-700 text-white text-sm font-semibold transition-all duration-150 disabled:opacity-50 shadow-lg shadow-cyan-900/30 hover:-translate-y-0.5 overflow-hidden">
                   <span className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-white/25 blur-md -translate-x-full transition-transform duration-700 ease-out group-hover:translate-x-[400%]" />
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : (
                     <>

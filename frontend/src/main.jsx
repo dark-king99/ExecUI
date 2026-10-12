@@ -5,6 +5,9 @@ import App from "./App/App";
 import "./styles/App.css";
 import { initAnalytics, logInfo, trackPageview } from "./lib/analytics";
 
+
+// ...existing code...
+
 // Load the analytics provider once (safe no-op without a key).
 initAnalytics();
 

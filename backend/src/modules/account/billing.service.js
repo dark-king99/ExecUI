@@ -137,6 +137,7 @@ export const getBilling = async (tenantId) => {
     status: !BILLING_ENABLED() || tenant.providerPlanId === planId ? "active" : "none",
     freeEarlyAccess: !BILLING_ENABLED(),
     billingEnabled: BILLING_ENABLED(),
+    ...(providerId() === "paddle" ? { paddleCustomerId: tenant.providerCustomerId ?? null } : {}),
     subscription: null,
     nextRenewal: null,
     pendingInvoice: null,

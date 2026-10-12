@@ -9,7 +9,7 @@
  * Env:
  *   PADDLE_API_KEY         server-side API key (pdl_sdbx_… or pdl_live_…)
  *   PADDLE_WEBHOOK_SECRET  secret of the notification destination
- *   PADDLE_ENV             required: "sandbox" for this integration
+ *   PADDLE_ENV             required: "sandbox" or "production"
  *
  * Differences from other hosted-checkout providers that callers should know about:
  *   - Checkout is a Paddle *transaction*. Its `checkout.url` points at your
@@ -28,13 +28,12 @@ const KEY = () => process.env.PADDLE_API_KEY?.trim() || null;
 
 function environment(key) {
   const explicit = process.env.PADDLE_ENV?.trim().toLowerCase();
-  if (explicit !== "sandbox") {
-    throw Object.assign(new Error("PADDLE_ENV must be explicitly set to sandbox; Paddle will not infer an environment."), { status: 503 });
+  if (explicit === "sandbox" && key.startsWith("pdl_sdbx_")) return Environment.sandbox;
+  if (explicit === "production" && key.startsWith("pdl_live_")) return Environment.production;
+  if (explicit !== "sandbox" && explicit !== "production") {
+    throw Object.assign(new Error("PADDLE_ENV must explicitly be sandbox or production; Paddle will not infer an environment."), { status: 503 });
   }
-  if (!key.startsWith("pdl_sdbx_")) {
-    throw Object.assign(new Error("PADDLE_ENV is sandbox but PADDLE_API_KEY is not a Paddle sandbox API key."), { status: 503 });
-  }
-  return Environment.sandbox;
+  throw Object.assign(new Error(`PADDLE_ENV is ${explicit} but PADDLE_API_KEY does not match that Paddle environment.`), { status: 503 });
 }
 
 let cached = null;
@@ -107,7 +106,11 @@ export default {
     recurring: true,
     subscriptionUpdates: true,
   },
-  configured: () => !!KEY() && process.env.PADDLE_ENV?.trim().toLowerCase() === "sandbox" && KEY().startsWith("pdl_sdbx_"),
+  configured: () => {
+    const key = KEY();
+    const env = process.env.PADDLE_ENV?.trim().toLowerCase();
+    return !!key && ((env === "sandbox" && key.startsWith("pdl_sdbx_")) || (env === "production" && key.startsWith("pdl_live_")));
+  },
   methods: ["Card", "PayPal", "Apple Pay", "Google Pay"],
   notes:
     "Paddle is merchant of record and pays out to approved sellers; check that your " +
@@ -307,7 +310,7 @@ function normalizePaddleError(error) {
   const message = String(error.message ?? "");
   if (status === 401 || status === 403 || /authorization|authentication|unauthorized|not authorized/i.test(message)) {
     return Object.assign(
-      new Error("Paddle rejected the server API key or it lacks permission for this operation. Verify that PADDLE_API_KEY is a server API key for the configured sandbox account and has permission to create transactions."),
+      new Error("Paddle rejected the server API key or it lacks permission for this operation. Verify that PADDLE_API_KEY is a server API key for the account selected by PADDLE_ENV and has permission to create transactions."),
       { status: 502 },
     );
   }

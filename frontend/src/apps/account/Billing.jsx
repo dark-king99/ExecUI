@@ -358,11 +358,11 @@ export default function Billing() {
   useEffect(() => {
     if (!paddleMode) return undefined;
     let cancelled = false;
-    initializePaddleClient()
+    initializePaddleClient(billing?.paddleCustomerId)
       .then((instance) => { if (!cancelled) setPaddle(instance); })
       .catch((error) => { if (!cancelled) setPaddleInitError(error.message); });
     return () => { cancelled = true; };
-  }, [paddleMode]);
+  }, [paddleMode, billing?.paddleCustomerId]);
 
   const currentPlan = billing && ["active", "trialing", "past_due", "paused"].includes(billing.status)
     ? billing.plan

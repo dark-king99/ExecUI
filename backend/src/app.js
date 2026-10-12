@@ -18,6 +18,7 @@ import scimRoutes from "./modules/scim/scim.routes.js";
 import portalRoutes from "./modules/helpdesk/portal.routes.js";
 import { STORAGE_ROOT } from "./lib/storage.js";
 import { billingWebhook } from "./modules/account/account.controller.js";
+import { paddleWebhookIpAllowlist } from "./modules/billing/paddle-webhook-ips.js";
 import prisma from "./config/database.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -72,7 +73,12 @@ app.use(rateLimit({
 }));
 
 // Payment-provider signatures are checked against the original request bytes.
-app.post("/api/account/billing/webhook", express.raw({ type: "application/json" }), billingWebhook);
+app.post(
+  "/api/account/billing/webhook",
+  paddleWebhookIpAllowlist,
+  express.raw({ type: "application/json" }),
+  billingWebhook,
+);
 
 // ── SCIM 2.0 provisioning (IdP → ExecUI) ─────────────────────────────────────
 // Mounted before the JSON guard below because SCIM clients send
