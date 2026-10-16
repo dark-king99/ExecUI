@@ -168,7 +168,12 @@ Set `VITE_PADDLE_ENV=sandbox` with the sandbox **client-side** token
 (`VITE_PADDLE_CLIENT_TOKEN=test_…`) in the frontend environment. For live, use
 `VITE_PADDLE_ENV=production` and a live client-side token
 (`VITE_PADDLE_CLIENT_TOKEN=live_…`). Never put the server API key in frontend
-configuration. Restart Vite after changing frontend environment values.
+configuration. Restart Vite after changing frontend environment values. Vite
+embeds these values at build time; when building the Docker image, pass
+`--build-arg VITE_PADDLE_ENV=production` and
+`--build-arg VITE_PADDLE_CLIENT_TOKEN=live_…` (or the matching sandbox values).
+Changing environment variables on a running static frontend container does not
+change the already-built bundle.
 Configure Paddle prices as tax-inclusive when the listed monthly amounts should
 include taxes.
 

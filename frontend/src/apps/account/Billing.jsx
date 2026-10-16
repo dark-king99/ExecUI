@@ -37,6 +37,23 @@ function isAdmin(u) {
   return u?.role === "enterprise_admin" || u?.role === "system_admin";
 }
 
+function paddleErrorMessage(error) {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "string" && error.trim()) return error;
+  if (error && typeof error === "object") {
+    const details = [error.message, error.detail, error.error?.message, error.error?.detail]
+      .find((value) => typeof value === "string" && value.trim());
+    if (details) return details;
+    try {
+      const serialized = JSON.stringify(error);
+      if (serialized && serialized !== "{}") return serialized;
+    } catch {
+      // Some SDK error objects may contain circular references.
+    }
+  }
+  return "Paddle returned no error details. Check that the live client token and live price IDs belong to the same Paddle account.";
+}
+
 const TIER_STYLE = {
   starter:    { accent: "emerald", icon: Sprout,   badge: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" },
   standard:   { accent: "slate",   icon: Layers,   badge: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300" },
@@ -332,6 +349,10 @@ export default function Billing() {
   const custom  = catalogData?.custom ?? { id: "custom", unitPrice: 49, minUnits: 8, industryPrice: 100 };
   const catalog = catalogData?.catalog ?? { crm: [], marketing: [], services: [], industries: [] };
   const paddleMode = catalogData?.provider?.id === "paddle";
+  const paddleBackendConfigured = catalogData?.provider?.configured === true;
+  const paddleBackendError = paddleMode && catalogData?.provider && !paddleBackendConfigured
+    ? "Paddle backend configuration does not match its environment. For production, set PADDLE_ENV=production with a Live pdl_live_ server API key, then restart the backend."
+    : "";
   const [paddle, setPaddle] = useState(null);
   const [paddleInitError, setPaddleInitError] = useState("");
   const [pricePreviews, setPricePreviews] = useState({});
@@ -351,6 +372,7 @@ export default function Billing() {
   const availablePriceTargets = useMemo(() => priceTargets.filter(({ priceId }) => priceId), [priceTargets]);
   const pricePreviewLoading = paddleMode
     && !!paddle
+    && paddleBackendConfigured
     && availablePriceTargets.length > 0
     && availablePriceTargets.some(({ priceId }) => !pricePreviews[`${countryCode ?? "auto"}:${priceId}`])
     && !activePricePreviewError;
@@ -385,7 +407,7 @@ export default function Billing() {
   const displayedPaymentInstructions = paymentInstructions.length ? paymentInstructions : billing?.paymentInstructions ?? [];
 
   useEffect(() => {
-    if (!paddleMode || !paddle) return undefined;
+    if (!paddleMode || !paddle || !paddleBackendConfigured) return undefined;
     let cancelled = false;
     Promise.all(availablePriceTargets.map(async ({ planId, priceId }) => {
       const request = { items: [{ priceId, quantity: 1 }] };
@@ -405,13 +427,16 @@ export default function Billing() {
         setPricePreviews((previous) => ({ ...previous, ...Object.fromEntries(entries) }));
       }
     }).catch((error) => {
-      if (!cancelled) setPricePreviewError({
-        scope: pricePreviewScope,
-        message: `Paddle could not load localized prices: ${error.message}`,
-      });
+      if (!cancelled) {
+        console.error("Paddle PricePreview failed", error);
+        setPricePreviewError({
+          scope: pricePreviewScope,
+          message: `Paddle could not load localized prices: ${paddleErrorMessage(error)}`,
+        });
+      }
     });
     return () => { cancelled = true; };
-  }, [paddleMode, paddle, availablePriceTargets, countryCode, billingInterval, pricePreviewScope]);
+  }, [paddleMode, paddle, paddleBackendConfigured, availablePriceTargets, countryCode, billingInterval, pricePreviewScope]);
 
   const { data: invoicesData, error: invoicesError } = useApi(
     () => (billingEnabled ? account.billing.invoices() : Promise.resolve([])), [billingEnabled]
@@ -748,9 +773,9 @@ export default function Billing() {
             </div>
           )}
         </div>
-        {paddleMode && (paddleInitError || activePricePreviewError || missingPaddlePrice) && (
+        {paddleMode && (paddleInitError || paddleBackendError || activePricePreviewError || missingPaddlePrice) && (
           <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200" role="alert">
-            {paddleInitError || activePricePreviewError || "Configure monthly and yearly Paddle price IDs for all tiers in the backend environment."}
+            {paddleInitError || paddleBackendError || activePricePreviewError || "Configure monthly and yearly Paddle price IDs for all tiers in the backend environment."}
           </p>
         )}
         {paddleMode && pricePreviewLoading && (
@@ -773,10 +798,10 @@ export default function Billing() {
                 billingInterval={billingInterval}
                 paddleMode={paddleMode}
                 pricePreview={preview ?? null}
-                priceReady={!paddleMode || (!!paddle && !!preview)}
+                priceReady={!paddleMode || (paddleBackendConfigured && !!paddle && !!preview)}
                 currentBillingInterval={billing?.subscription?.billingInterval ?? billing?.interval ?? "month"}
                 selectionDisabledLabel={selectionDisabledLabel}
-                canSelect={admin && !billingLoading && !billingError && !!billing && (!paddleMode || !!paddle)}
+                canSelect={admin && !billingLoading && !billingError && !!billing && (!paddleMode || (paddleBackendConfigured && !!paddle))}
               />
             );
           })}

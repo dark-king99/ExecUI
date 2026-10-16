@@ -1,19 +1,18 @@
-<<<<<<< HEAD
 
-=======
 # ═══════════════════════════════════════════════════════════════════════════════
->>>>>>> c1158262580c276452387e64907295563fdbd3fc
+
 #  ExecUI  ·  Kubernetes Deployment
 #
 #  Resources (top-to-bottom):
 #    1. Namespace
-#    2. Secret          – DATABASE_URL, JWT/SECRETS keys, Stripe, Resend, AI
+#    2. Secret          – DATABASE_URL, JWT/SECRETS keys, Paddle, Resend, AI
 #    3. ConfigMap       – non-sensitive runtime config
 #    4. PostgreSQL      – StatefulSet + Service (postgres-svc :5432) + PVC
-#    5. Uploads PVC     – object storage for avatars & attachments
-#    6. Backend         – Deployment + Service (ClusterIP :5555)
-#    7. Frontend        – Deployment + Service (ClusterIP :80)
-#    8. Ingress         – all traffic enters via the frontend; its nginx
+#    5. StorageClass    – EKS Auto Mode EBS gp3, used by both PVCs
+#    6. Uploads PVC     – object storage for avatars & attachments
+#    7. Backend         – Deployment + Service (ClusterIP :5555)
+#    8. Frontend        – Deployment + Service (ClusterIP :80)
+#    9. Ingress         – all traffic enters via the frontend; its nginx
 #                         proxies /api (incl. the SSE stream) to the backend
 #
 #  Before applying:
@@ -21,8 +20,12 @@
 #      generate keys with `openssl rand -hex 32`).
 #    • Replace image references with your registry paths. Build them with:
 #        docker build -t <registry>/execui-backend:TAG  backend/
-#        docker build -t <registry>/execui-frontend:TAG frontend/
-#    • Stripe webhook endpoint to register:
+#        docker build --build-arg VITE_PADDLE_ENV=production \
+#          --build-arg VITE_PADDLE_CLIENT_TOKEN=<live_client_token> \
+#          -t <registry>/execui-frontend:TAG frontend/
+#      VITE values are embedded in the static bundle at build time. The client
+#      token is public; never pass PADDLE_API_KEY or webhook secrets to frontend.
+#    • Paddle webhook endpoint to register:
 #        POST https://<your-host>/api/account/billing/webhook
 #
 #  Apply:
@@ -37,11 +40,8 @@
 #      is in-memory, so the backend runs as a SINGLE replica. To scale it out,
 #      move the SSE registry + rate limiter to Redis first. The stateless
 #      frontend scales freely.
-<<<<<<< HEAD
-=======
-# ═══════════════════════════════════════════════════════════════════════════════
->>>>>>> c1158262580c276452387e64907295563fdbd3fc
 
+# ═══════════════════════════════════════════════════════════════════════════════
 # ── 1. Namespace ──────────────────────────────────────────────────────────────
 apiVersion: v1
 kind: Namespace
@@ -52,6 +52,7 @@ metadata:
 
 # ── 2. Secret ─────────────────────────────────────────────────────────────────
 # stringData takes plain text (Kubernetes encodes it) — replace before applying.
+---
 apiVersion: v1
 kind: Secret
 metadata:
@@ -67,9 +68,10 @@ stringData:
   JWT_SECRET: "REPLACE_ME_LONG_RANDOM"
   # Dedicated AES-256 key for the outbound-integration secret store.
   SECRETS_KEY: "REPLACE_ME_LONG_RANDOM"
-  # Stripe — leave empty to run in FREE early-access mode (no payments).
-  STRIPE_SECRET_KEY: ""
-  STRIPE_WEBHOOK_SECRET: ""
+  # Replace both with credentials from the Paddle Live account before enabling
+  # live billing. Keep the API key server-side only.
+  PADDLE_API_KEY: "pdl_live_REPLACE_ME"
+  PADDLE_WEBHOOK_SECRET: "REPLACE_ME"
   # Resend — leave empty and outbound email is logged as "skipped".
   RESEND_API_KEY: ""
   RESEND_FROM: ""
@@ -78,6 +80,7 @@ stringData:
   AI_API_KEY: ""
 
 # ── 3. ConfigMap ──────────────────────────────────────────────────────────────
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -90,8 +93,22 @@ data:
   LOG_LEVEL: "info"
   # Object storage path inside the pod (backed by the uploads PVC).
   STORAGE_DIR: "/data/uploads"
-  # Public URL of the app — used for Stripe Checkout return links.
-  FRONTEND_URL: "http://execui.example.com"
+  PAYMENT_PROVIDER: "paddle"
+  PADDLE_ENV: "production"
+  # Replace with the approved public HTTPS domain serving the frontend.
+  FRONTEND_URL: "https://execui.example.com"
+  PADDLE_PRICE_STARTER_MONTH: "pri_REPLACE_ME"
+  PADDLE_PRICE_STARTER_YEAR: "pri_REPLACE_ME"
+  PADDLE_PRICE_STANDARD_MONTH: "pri_REPLACE_ME"
+  PADDLE_PRICE_STANDARD_YEAR: "pri_REPLACE_ME"
+  PADDLE_PRICE_PREMIUM_MONTH: "pri_REPLACE_ME"
+  PADDLE_PRICE_PREMIUM_YEAR: "pri_REPLACE_ME"
+  PADDLE_PRICE_ENTERPRISE_MONTH: "pri_REPLACE_ME"
+  PADDLE_PRICE_ENTERPRISE_YEAR: "pri_REPLACE_ME"
+  PADDLE_PRICE_EXECUTIVE_SMALL_OFFICE_MONTH: "pri_REPLACE_ME"
+  PADDLE_PRICE_EXECUTIVE_SMALL_OFFICE_YEAR: "pri_REPLACE_ME"
+  PADDLE_PRICE_EXECUTIVE_ENTERPRISE_MONTH: "pri_REPLACE_ME"
+  PADDLE_PRICE_EXECUTIVE_ENTERPRISE_YEAR: "pri_REPLACE_ME"
   # AI assist — provider-agnostic, OpenAI-compatible. Defaults to Groq's free
   # tier. Only used when AI_API_KEY (in the Secret above) is set; otherwise the
   # app returns deterministic template responses at no cost. Per-plan monthly
@@ -105,6 +122,7 @@ data:
 # ── 4a. PostgreSQL StatefulSet ────────────────────────────────────────────────
 # Simple in-cluster Postgres 16. For production scale, prefer a managed
 # database and delete 4a/4b (keep DATABASE_URL pointing at it).
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -173,6 +191,7 @@ spec:
 
 
 # ── 4b. PostgreSQL Service ────────────────────────────────────────────────────
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -189,8 +208,24 @@ spec:
       targetPort: 5432
   clusterIP: None
 
-# ── 5. Uploads PVC ────────────────────────────────────────────────────────────
+# ── 5a. EKS Auto Mode EBS StorageClass ────────────────────────────────────────
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: execui-ebs
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: ebs.csi.eks.amazonaws.com
+parameters:
+  type: gp3
+  encrypted: "true"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+
+# ── 5b. Uploads PVC ───────────────────────────────────────────────────────────
 # Object storage for avatars and cross-module attachments (STORAGE_DIR).
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -205,6 +240,7 @@ spec:
 
 
 # ── 6a. Backend Deployment ────────────────────────────────────────────────────
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -233,7 +269,7 @@ spec:
       containers:
         - name: backend
           # Replace with your registry image, e.g. ghcr.io/your-org/execui-backend:1.0.0
-          image: execui/backend:latest
+          image: 638593101211.dkr.ecr.us-east-1.amazonaws.com/execui-backend:1.0.0
           imagePullPolicy: Always
           ports:
             - name: http
@@ -290,6 +326,7 @@ spec:
 
 # ── 6b. Backend Service ───────────────────────────────────────────────────────
 # ClusterIP — only reachable inside the cluster (nginx proxies from frontend).
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -308,6 +345,7 @@ spec:
 
 
 # ── 7a. Frontend Deployment ───────────────────────────────────────────────────
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -345,7 +383,7 @@ spec:
       containers:
         - name: frontend
           # Replace with your registry image, e.g. ghcr.io/your-org/execui-frontend:1.0.0
-          image: execui/frontend:latest
+          image: 638593101211.dkr.ecr.us-east-1.amazonaws.com/execui-frontend:1.0.0
           imagePullPolicy: Always
           ports:
             - name: http
@@ -383,6 +421,7 @@ spec:
 
 
 # ── 7b. Frontend Service ──────────────────────────────────────────────────────
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -404,6 +443,7 @@ spec:
 # Requires an Ingress controller (e.g. ingress-nginx) in your cluster.
 # All traffic enters via the frontend service; nginx inside the pod proxies
 # /api/* (and the SSE stream) to the backend ClusterIP service.
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
