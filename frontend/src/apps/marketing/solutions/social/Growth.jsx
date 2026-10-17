@@ -21,13 +21,13 @@ function TrendChart({ series }) {
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-40" preserveAspectRatio="none">
       <defs>
         <linearGradient id="growthFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgb(139 92 246)" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="rgb(139 92 246)" stopOpacity="0" />
+          <stop offset="0%" stopColor="#8a6b10" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="#8a6b10" stopOpacity="0" />
         </linearGradient>
       </defs>
       <path d={area} fill="url(#growthFill)" />
-      <path d={line} fill="none" stroke="rgb(139 92 246)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={x(series.length - 1)} cy={y(series[series.length - 1].followers)} r="3.5" fill="rgb(139 92 246)" />
+      <path d={line} fill="none" stroke="#8a6b10" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={x(series.length - 1)} cy={y(series[series.length - 1].followers)} r="3.5" fill="#8a6b10" />
     </svg>
   );
 }

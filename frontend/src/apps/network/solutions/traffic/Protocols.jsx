@@ -3,7 +3,7 @@ import { useApi } from "../../../../hooks/useApi";
 import { network } from "../../../../services/api";
 import { SolutionShell, Section, BarList, Loading } from "../../components/net-ui";
 
-const COLORS = ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#14b8a6", "#94a3b8"];
+const COLORS = ["#8a6b10", "#0e688a", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#14b8a6", "#94a3b8"];
 
 export default function Protocols() {
   const { data: protocols, loading } = useApi(() => network.traffic.protocols(), [], { pollingInterval: 60000 });

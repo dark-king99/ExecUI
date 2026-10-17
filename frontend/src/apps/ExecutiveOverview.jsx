@@ -70,7 +70,7 @@ const ACCENT = {
   amber: "bg-amber-700",  violet: "bg-violet-900", emerald: "bg-emerald-800",
   sky:     "bg-sky-900",     indigo: "bg-indigo-900",
 };
-const GAUGE_STROKE = { amber: "#90562e", violet: "#554088", emerald: "#1d7457", sky: "#2c7293", indigo: "#44458f" };
+const GAUGE_STROKE = { amber: "#90562e", violet: "#8a6b10", emerald: "#1d7457", sky: "#2c7293", indigo: "#0e688a" };
 
 const SERVICE_META = {
   crm:       { name: "CRM · Sales Cloud",  icon: Users,     accent: "amber",  path: "/crm",       sols: solEntries(CRM), metric: (m) => ({ label: "Open Deals",       value: m.crm?.openDeals ?? 0 }) },

@@ -195,7 +195,7 @@ export default function BotWidget() {
       <button
         onClick={() => { setOpen((v) => !v); setMinimized(false); }}
         className="h-14 w-14 rounded-full shadow-xl flex items-center justify-center
-          bg-linear-to-br from-cyan-500 to-fuchsia-600 hover:scale-105 active:scale-95
+          bg-linear-to-br from-cyan-300 to-teal-800 hover:scale-105 active:scale-95
           transition-transform duration-150"
         aria-label="Open AI Assistant"
       >

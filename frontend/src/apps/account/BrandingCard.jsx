@@ -46,10 +46,10 @@ function Field({ def, value, onChange }) {
       </label>
       {def.type === "color" ? (
         <div className="flex items-center gap-2">
-          <input id={id} type="color" disabled={disabled} value={value || "#4f46e5"}
+          <input id={id} type="color" disabled={disabled} value={value || "#0e688a"}
             onChange={(e) => onChange(e.target.value)}
             className="h-9 w-12 shrink-0 cursor-pointer rounded border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 disabled:opacity-60" />
-          <input type="text" disabled={disabled} value={value || ""} placeholder="#4f46e5"
+          <input type="text" disabled={disabled} value={value || ""} placeholder="#0e688a"
             onChange={(e) => onChange(e.target.value)} className={input} />
         </div>
       ) : (
