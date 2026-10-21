@@ -4,6 +4,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-
 import { UserProvider } from "../context/UserContext";
 import Login from "../auth/Login";
 import SsoCallback from "../auth/SsoCallback";
+import EnterpriseOnboarding from "../auth/EnterpriseOnboarding";
 import { SidebarProvider } from "../components/SidebarContext";
 import SidebarInset from "../components/SidebarInset";
 import Navbar from "../components/Navbar";
@@ -362,7 +363,10 @@ export default function App() {
     return <PageSuspense><Checkout /></PageSuspense>;
   }
   if (typeof window !== "undefined" && window.location.pathname === "/welcome") {
-    return <PageSuspense><Welcome /></PageSuspense>;
+    return <PageSuspense><Welcome onEnter={setUser} /></PageSuspense>;
+  }
+  if (typeof window !== "undefined" && window.location.pathname === "/onboarding") {
+    return <EnterpriseOnboarding onEnter={setUser} />;
   }
 
   // The customer support portal is for customers, not employees: it renders

@@ -140,6 +140,7 @@ export const getBilling = async (tenantId) => {
       : tenant.trialEndsAt
         ? new Date(tenant.trialEndsAt) > new Date() ? "trialing" : "expired"
         : "none",
+    planConfirmed: !BILLING_ENABLED() || tenant.providerPlanId === planId,
     trialEndsAt: tenant.trialEndsAt,
     trialDurationDays: tenant.trialEndsAt ? TRIAL_DURATION_DAYS : null,
     freeEarlyAccess: !BILLING_ENABLED(),

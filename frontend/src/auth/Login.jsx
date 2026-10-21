@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  ArrowRight, Building2, CheckCircle2, BarChart3, Network, Users,
-  Megaphone, AlertCircle, Loader2, Eye, EyeOff, Shield, Copy, KeyRound, Sun, Moon,
+  ArrowRight, BarChart3, Network, Users,
+  Megaphone, AlertCircle, Loader2, Eye, EyeOff, Shield, KeyRound, Sun, Moon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { auth, sso, setToken } from "../services/api";
 import { track } from "../lib/analytics";
 import ExecUIBackground from "../components/ExecUIBackground";
 import AnimatedLogo from "../components/AnimatedLogo";
+import { ENTERPRISE_ONBOARDING_KEY } from "./EnterpriseOnboarding";
 
 // ─── Brand panel data ────────────────────────────────────────────────────────
 const features = [
@@ -133,8 +134,6 @@ export default function Login({ onLogin }) {
 
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
-  const [created, setCreated] = useState(null); // enterprise-created success state
-  const [copied, setCopied] = useState(false);
   const [mfaStep, setMfaStep] = useState(false); // password OK, awaiting TOTP code
   const [mfaCode, setMfaCode] = useState("");
   const [ssoBusy, setSsoBusy] = useState(false);
@@ -183,7 +182,15 @@ export default function Login({ onLogin }) {
         }
         setSubmitting(true);
         const res = await auth.signup({ company, email, password, firstName, lastName });
-        setCreated({ token: res.token, user: res.user, enterpriseCode: res.enterpriseCode ?? res.user?.enterpriseCode, employeeId: res.user?.employeeId });
+        const onboarding = {
+          token: res.token,
+          user: res.user,
+          enterpriseCode: res.enterpriseCode ?? res.user?.enterpriseCode,
+          employeeId: res.user?.employeeId,
+        };
+        setToken(res.token);
+        sessionStorage.setItem(ENTERPRISE_ONBOARDING_KEY, JSON.stringify(onboarding));
+        navigate("/onboarding", { replace: true });
       } else {
         if (!enterpriseCode.trim() || !employeeId.trim() || !email.trim() || !password.trim()) {
           return setApiError("Enterprise code, employee ID, email and password are required.");
@@ -299,46 +306,7 @@ export default function Login({ onLogin }) {
             <AnimatedLogo className="h-8" />
           </div>
 
-          {created ? (
-            /* ── Enterprise created success ── */
-            <div className="animate-scale-in">
-              <div className="h-12 w-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mb-5 animate-scale-in">
-                <CheckCircle2 size={24} className="text-emerald-500 dark:text-emerald-600" />
-              </div>
-              <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-1 animate-slide-up delay-75">Enterprise created</h2>
-              <p className="text-sm text-slate-500 mb-6 animate-slide-up delay-150">Save these — your team needs the enterprise code to join, and you'll sign in with your employee ID. Choose a plan next to continue to secure payment; your 14-day trial keeps the workspace available.</p>
-
-              <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 divide-y divide-slate-200 dark:divide-slate-700/50 mb-6 animate-slide-up delay-200">
-                <div className="flex items-center justify-between px-4 py-3">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wider text-slate-500">Enterprise Code</p>
-                    <p className="text-lg font-semibold text-slate-900 dark:text-white font-mono">{created.enterpriseCode}</p>
-                  </div>
-                  <button
-                    onClick={() => { navigator.clipboard?.writeText(created.enterpriseCode); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition"
-                  >
-                    {copied ? <CheckCircle2 size={13} className="text-emerald-500" /> : <Copy size={13} />}{copied ? "Copied" : "Copy"}
-                  </button>
-                </div>
-                <div className="px-4 py-3">
-                  <p className="text-[11px] uppercase tracking-wider text-slate-500">Your Admin Employee ID</p>
-                  <p className="text-lg font-semibold text-slate-900 dark:text-white font-mono">{created.employeeId}</p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  finish(created);
-                  navigate("/account/billing?onboarding=1", { replace: true });
-                }}
-                className="group w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition animate-slide-up delay-300"
-              >
-                Choose a plan & start trial <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
-              </button>
-            </div>
-          ) : (
-            <>
+          <>
               <div key={`head-${mode}`} className="mb-7 animate-slide-up">
                 <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-1">{heading.title}</h2>
                 <p className="text-sm text-slate-500">{heading.sub}</p>
