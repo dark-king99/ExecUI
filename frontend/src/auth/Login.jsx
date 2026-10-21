@@ -306,112 +306,109 @@ export default function Login({ onLogin }) {
             <AnimatedLogo className="h-8" />
           </div>
 
-          <>
-              <div key={`head-${mode}`} className="mb-7 animate-slide-up">
-                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-1">{heading.title}</h2>
-                <p className="text-sm text-slate-500">{heading.sub}</p>
-              </div>
+          <div key={`head-${mode}`} className="mb-7 animate-slide-up">
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-1">{heading.title}</h2>
+            <p className="text-sm text-slate-500">{heading.sub}</p>
+          </div>
 
-              {/* Mode tabs with a sliding indicator */}
-              <div className="relative grid grid-cols-3 bg-slate-100 dark:bg-slate-800/50 rounded-xl p-1 mb-7 border border-slate-200 dark:border-slate-700/40">
-                <span
-                  className="absolute top-1 bottom-1 rounded-lg bg-teal-600 shadow-sm shadow-cyan-900/40 transition-transform duration-300 ease-out"
-                  style={{ left: "0.25rem", width: "calc((100% - 0.5rem) / 3)", transform: `translateX(${activeIndex * 100}%)` }}
+          {/* Mode tabs with a sliding indicator */}
+          <div className="relative grid grid-cols-3 bg-slate-100 dark:bg-slate-800/50 rounded-xl p-1 mb-7 border border-slate-200 dark:border-slate-700/40">
+            <span
+              className="absolute top-1 bottom-1 rounded-lg bg-teal-600 shadow-sm shadow-cyan-900/40 transition-transform duration-300 ease-out"
+              style={{ left: "0.25rem", width: "calc((100% - 0.5rem) / 3)", transform: `translateX(${activeIndex * 100}%)` }}
+            />
+            {MODES.map((m) => (
+              <button key={m.id} type="button" onClick={() => switchMode(m.id)}
+                className={`relative z-10 py-2 rounded-lg text-xs font-medium transition-colors duration-200 ${mode === m.id ? "text-white" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <div key={`fields-${mode}`} className="flex flex-col gap-4 stagger">
+              {mode === "enterprise" && (
+                <>
+                  <InputField label="Company name" value={company} onChange={(e) => setCompany(e.target.value)} onKeyDown={handleKeyDown} placeholder="Acme Corporation" autoComplete="organization" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <InputField label="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} onKeyDown={handleKeyDown} placeholder="Jane" />
+                    <InputField label="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} onKeyDown={handleKeyDown} placeholder="Doe" />
+                  </div>
+                </>
+              )}
+
+              {mode === "employee" && (
+                <InputField label="Enterprise code" value={enterpriseCode} onChange={(e) => setEnterpriseCode(e.target.value.toUpperCase())} onKeyDown={handleKeyDown} placeholder="ACME-9F3K" hint="Ask your enterprise admin for this code." />
+              )}
+
+              <InputField label="Work email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={handleKeyDown} placeholder="name@company.com" autoComplete="email" />
+
+              {(mode === "signin" || mode === "employee") && (
+                <InputField label="Employee ID" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} onKeyDown={handleKeyDown} placeholder="Your Employee ID"
+                  hint={mode === "employee" ? "The ID your admin assigned you." : undefined} />
+              )}
+
+              <InputField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={handleKeyDown} placeholder="••••••••" autoComplete={mode === "signin" ? "current-password" : "new-password"} />
+
+              {mode === "signin" && mfaStep && (
+                <InputField
+                  label="Two-factor code"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onKeyDown={handleKeyDown}
+                  placeholder="123456"
+                  autoComplete="one-time-code"
+                  hint="Enter the 6-digit code from your authenticator app."
                 />
-                {MODES.map((m) => (
-                  <button key={m.id} type="button" onClick={() => switchMode(m.id)}
-                    className={`relative z-10 py-2 rounded-lg text-xs font-medium transition-colors duration-200 ${mode === m.id ? "text-white" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}>
-                    {m.label}
-                  </button>
-                ))}
+              )}
+            </div>
+
+            {apiError && (
+              <div className="flex items-start gap-2.5 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-sm text-red-600 dark:text-red-400 animate-shake">
+                <AlertCircle size={15} className="shrink-0 mt-0.5" /><span>{apiError}</span>
               </div>
+            )}
 
-              <div className="flex flex-col gap-4">
-                <div key={`fields-${mode}`} className="flex flex-col gap-4 stagger">
-                  {mode === "enterprise" && (
-                    <>
-                      <InputField label="Company name" value={company} onChange={(e) => setCompany(e.target.value)} onKeyDown={handleKeyDown} placeholder="Acme Corporation" autoComplete="organization" />
-                      <div className="grid grid-cols-2 gap-3">
-                        <InputField label="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} onKeyDown={handleKeyDown} placeholder="Jane" />
-                        <InputField label="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} onKeyDown={handleKeyDown} placeholder="Doe" />
-                      </div>
-                    </>
-                  )}
+            <button type="button" onClick={handleSubmit} disabled={submitting}
+              className="group relative mt-1 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-teal-600 hover:bg-cyan-500 active:bg-cyan-700 text-white text-sm font-semibold transition-all duration-150 disabled:opacity-50 shadow-lg shadow-cyan-900/30 hover:-translate-y-0.5 overflow-hidden">
+              <span className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-white/25 blur-md -translate-x-full transition-transform duration-700 ease-out group-hover:translate-x-[400%]" />
+              {submitting ? <Loader2 size={16} className="animate-spin" /> : (
+                <>
+                  {mode === "signin" ? (mfaStep ? "Verify code" : "Sign in") : mode === "enterprise" ? "Create enterprise" : "Activate account"}
+                  <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
+                </>
+              )}
+            </button>
 
-                  {mode === "employee" && (
-                    <InputField label="Enterprise code" value={enterpriseCode} onChange={(e) => setEnterpriseCode(e.target.value.toUpperCase())} onKeyDown={handleKeyDown} placeholder="ACME-9F3K" hint="Ask your enterprise admin for this code." />
-                  )}
-
-                  <InputField label="Work email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={handleKeyDown} placeholder="name@company.com" autoComplete="email" />
-
-                  {(mode === "signin" || mode === "employee") && (
-                    <InputField label="Employee ID" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} onKeyDown={handleKeyDown} placeholder="Your Employee ID"
-                      hint={mode === "employee" ? "The ID your admin assigned you." : undefined} />
-                  )}
-
-                  <InputField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={handleKeyDown} placeholder="••••••••" autoComplete={mode === "signin" ? "current-password" : "new-password"} />
-
-                  {mode === "signin" && mfaStep && (
-                    <InputField
-                      label="Two-factor code"
-                      value={mfaCode}
-                      onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      onKeyDown={handleKeyDown}
-                      placeholder="123456"
-                      autoComplete="one-time-code"
-                      hint="Enter the 6-digit code from your authenticator app."
-                    />
-                  )}
+            {/* Enterprise Single Sign-On — resolves the org's IdP from the
+                work email domain (or enterprise code), then hands off to it. */}
+            {mode === "signin" && !mfaStep && (
+              <div className="pt-1">
+                <div className="flex items-center gap-3 py-1">
+                  <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+                  <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-600">or</span>
+                  <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
                 </div>
-
-                {apiError && (
-                  <div className="flex items-start gap-2.5 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-sm text-red-600 dark:text-red-400 animate-shake">
-                    <AlertCircle size={15} className="shrink-0 mt-0.5" /><span>{apiError}</span>
-                  </div>
-                )}
-
-                <button type="button" onClick={handleSubmit} disabled={submitting}
-                  className="group relative mt-1 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-teal-600 hover:bg-cyan-500 active:bg-cyan-700 text-white text-sm font-semibold transition-all duration-150 disabled:opacity-50 shadow-lg shadow-cyan-900/30 hover:-translate-y-0.5 overflow-hidden">
-                  <span className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-white/25 blur-md -translate-x-full transition-transform duration-700 ease-out group-hover:translate-x-[400%]" />
-                  {submitting ? <Loader2 size={16} className="animate-spin" /> : (
-                    <>
-                      {mode === "signin" ? (mfaStep ? "Verify code" : "Sign in") : mode === "enterprise" ? "Create enterprise" : "Activate account"}
-                      <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
-                    </>
-                  )}
+                <button
+                  type="button"
+                  onClick={startSso}
+                  disabled={ssoBusy}
+                  className="mt-1 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition disabled:opacity-50"
+                >
+                  {ssoBusy ? <Loader2 size={15} className="animate-spin" /> : <Shield size={15} className="text-indigo-500" />}
+                  {ssoBusy ? "Checking…" : "Sign in with SSO"}
                 </button>
-
-                {/* Enterprise Single Sign-On — resolves the org's IdP from the
-                    work email domain (or enterprise code) and hands off to it. */}
-                {mode === "signin" && !mfaStep && (
-                  <div className="pt-1">
-                    <div className="flex items-center gap-3 py-1">
-                      <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
-                      <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-600">or</span>
-                      <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={startSso}
-                      disabled={ssoBusy}
-                      className="mt-1 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition disabled:opacity-50"
-                    >
-                      {ssoBusy ? <Loader2 size={15} className="animate-spin" /> : <Shield size={15} className="text-indigo-500" />}
-                      {ssoBusy ? "Checking…" : "Sign in with SSO"}
-                    </button>
-                    {ssoNote && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{ssoNote}</p>}
-                  </div>
-                )}
+                {ssoNote && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{ssoNote}</p>}
               </div>
+            )}
 
-              <div className="mt-6 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-600">
-                <KeyRound size={12} className="text-slate-400 dark:text-slate-500" />
-                {mode === "signin" && <span>Every account signs in with email + password + employee ID.</span>}
-                {mode === "enterprise" && <span>Already have an enterprise? <button onClick={() => switchMode("signin")} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 font-medium">Sign in</button></span>}
-                {mode === "employee" && <span>Don't have an ID yet? Ask your admin to add you.</span>}
-              </div>
-            </>
-          )}
+            <div className="mt-6 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-600">
+              <KeyRound size={12} className="text-slate-400 dark:text-slate-500" />
+              {mode === "signin" && <span>Every account signs in with email + password + employee ID.</span>}
+              {mode === "enterprise" && <span>Already have an enterprise? <button onClick={() => switchMode("signin")} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 font-medium">Sign in</button></span>}
+              {mode === "employee" && <span>Don't have an ID yet? Ask your admin to add you.</span>}
+            </div>
+          </div>
         </Reveal>
       </div>
     </div>

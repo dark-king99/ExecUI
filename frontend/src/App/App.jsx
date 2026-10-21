@@ -366,7 +366,7 @@ export default function App() {
     return <PageSuspense><Welcome onEnter={setUser} /></PageSuspense>;
   }
   if (typeof window !== "undefined" && window.location.pathname === "/onboarding") {
-    return <EnterpriseOnboarding onEnter={setUser} />;
+    return <EnterpriseOnboarding />;
   }
 
   // The customer support portal is for customers, not employees: it renders

@@ -23,14 +23,14 @@ function priceIdFor(plan, interval, networkProfile) {
     : value?.[networkProfile === "datacenter" ? "datacenter" : "office"] ?? null;
 }
 
-export default function EnterpriseOnboarding({ onEnter }) {
+export default function EnterpriseOnboarding() {
   const navigate = useNavigate();
   const [onboarding] = useState(readOnboarding);
   const [catalog, setCatalog] = useState(null);
   const [paddle, setPaddle] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(onboarding));
   const [selectedPlan, setSelectedPlan] = useState(() => readOnboarding()?.selectedPlan ?? "starter");
   const [billingInterval, setBillingInterval] = useState(() => readOnboarding()?.billingInterval ?? "month");
   const [networkProfile, setNetworkProfile] = useState(() => readOnboarding()?.networkProfile ?? "office");
@@ -40,10 +40,7 @@ export default function EnterpriseOnboarding({ onEnter }) {
   const [pricePreviewError, setPricePreviewError] = useState("");
 
   useEffect(() => {
-    if (!onboarding) {
-      setLoading(false);
-      return;
-    }
+    if (!onboarding) return undefined;
 
     setToken(onboarding.token);
     let cancelled = false;
@@ -76,6 +73,12 @@ export default function EnterpriseOnboarding({ onEnter }) {
   const paddleError = paddleMode && !paddle
     ? paddleConfigurationError() ?? "Paddle checkout is not available."
     : "";
+  const checkoutConfigurationError = !paddleMode
+    ? "Paddle checkout is not enabled for this environment. The workspace stays locked until checkout is configured."
+    : !configured
+      ? "Paddle's server configuration is incomplete. The workspace stays locked until checkout is configured."
+      : paddleError;
+  const checkoutReady = paddleMode && configured && !!paddle && !!selectedPriceId;
 
   useEffect(() => {
     if (!paddleMode || !paddle || !catalog?.plans?.length) return undefined;
@@ -108,15 +111,15 @@ export default function EnterpriseOnboarding({ onEnter }) {
     setActionError("");
     setSubmitting(true);
     try {
+      if (!checkoutReady) {
+        throw new Error(checkoutConfigurationError || "Select a configured Paddle plan before continuing.");
+      }
       sessionStorage.setItem(ENTERPRISE_ONBOARDING_KEY, JSON.stringify({
         ...onboarding,
         selectedPlan,
         billingInterval,
         networkProfile,
       }));
-      if (paddleMode && (!configured || !paddle || !selectedPriceId)) {
-        throw new Error(paddleError || "This plan is missing its Paddle price configuration.");
-      }
 
       const result = await account.billing.select({
         plan: selectedPlan,
@@ -148,9 +151,7 @@ export default function EnterpriseOnboarding({ onEnter }) {
         throw new Error("The payment provider did not return checkout details. Please try again.");
       }
 
-      sessionStorage.removeItem(ENTERPRISE_ONBOARDING_KEY);
-      onEnter({ ...onboarding.user, token: onboarding.token, plan: result.plan });
-      navigate("/home", { replace: true });
+      throw new Error("Checkout was not started. Your workspace remains locked until Paddle confirms your selected plan.");
     } catch (error) {
       setActionError(error.message || "Could not start checkout.");
       setSubmitting(false);
@@ -182,7 +183,7 @@ export default function EnterpriseOnboarding({ onEnter }) {
         ) : (
           <>
             <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-              <h1 className="text-2xl font-semibold">Choose your plan</h1>
+              <h1 className="text-2xl font-semibold">Checkout: choose your plan</h1>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Select a plan to start your subscription. Paddle won’t charge you during the 14-day free trial.
               </p>
@@ -213,9 +214,9 @@ export default function EnterpriseOnboarding({ onEnter }) {
                 Checkout was cancelled. Your 14-day trial is still available; choose a plan whenever you’re ready.
               </p>
             )}
-            {(loadError || actionError || paddleError || (paddleMode && !configured && !loading)) && (
+            {(loadError || actionError || (!loading && checkoutConfigurationError)) && (
               <p className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-200" role="alert">
-                {loadError || actionError || paddleError || "Paddle backend configuration is incomplete. Please contact support."}
+                {loadError || actionError || checkoutConfigurationError || "Paddle backend configuration is incomplete. Please contact support."}
               </p>
             )}
 
@@ -315,10 +316,10 @@ export default function EnterpriseOnboarding({ onEnter }) {
                   <button
                     type="button"
                     onClick={choosePlan}
-                    disabled={submitting || !selectedPlanData || (paddleMode && (!configured || !paddle || !selectedPriceId))}
+                    disabled={submitting || !selectedPlanData || !checkoutReady}
                     className="inline-flex min-w-56 items-center justify-center gap-2 rounded-lg bg-cyan-800 px-6 py-3 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {submitting ? <Loader2 size={16} className="animate-spin" /> : <>Continue to secure checkout <ArrowRight size={15} /></>}
+                    {submitting ? <Loader2 size={16} className="animate-spin" /> : <>Start free trial & continue to checkout <ArrowRight size={15} /></>}
                   </button>
                 </div>
               </>
