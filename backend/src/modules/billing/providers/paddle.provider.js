@@ -23,6 +23,7 @@
  */
 import { Paddle, Environment } from "@paddle/paddle-node-sdk";
 import { log } from "../../../lib/logger.js";
+import { hasPaddleTrialPeriod, TRIAL_DURATION_DAYS } from "../trial.config.js";
 
 const KEY = () => process.env.PADDLE_API_KEY?.trim() || null;
 
@@ -123,11 +124,30 @@ export default {
     const paddle = client();
     if (!paddle) throw Object.assign(new Error("Paddle is selected but PADDLE_API_KEY is not configured."), { status: 503 });
 
+    const paddleItems = toPaddleItems(lineItems);
+    for (const item of paddleItems) {
+      if (!item.priceId) {
+        throw Object.assign(new Error("Paddle trial checkout requires a catalog price with a configured trial period."), { status: 400 });
+      }
+      let price;
+      try {
+        price = await paddle.prices.get(item.priceId);
+      } catch (error) {
+        throw normalizePaddleError(error);
+      }
+      if (!hasPaddleTrialPeriod(price.trialPeriod)) {
+        throw Object.assign(
+          new Error(`Paddle price ${item.priceId} must have a ${TRIAL_DURATION_DAYS}-day trial period configured before checkout can start.`),
+          { status: 400 },
+        );
+      }
+    }
+
     let resolvedCustomerId = customerId;
     let txn;
     try {
       txn = await paddle.transactions.create({
-        items: toPaddleItems(lineItems),
+        items: paddleItems,
         ...(resolvedCustomerId ? { customerId: resolvedCustomerId } : {}),
         // Copied onto the subscription Paddle creates from this transaction.
         customData: metadata ?? { tenantId, plan, planSolutions, billingInterval, networkProfile },

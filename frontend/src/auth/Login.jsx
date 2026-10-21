@@ -3,6 +3,7 @@ import {
   ArrowRight, Building2, CheckCircle2, BarChart3, Network, Users,
   Megaphone, AlertCircle, Loader2, Eye, EyeOff, Shield, Copy, KeyRound, Sun, Moon,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { auth, sso, setToken } from "../services/api";
 import { track } from "../lib/analytics";
 import ExecUIBackground from "../components/ExecUIBackground";
@@ -117,6 +118,7 @@ function InputField({ label, type = "text", value, onChange, onKeyDown, placehol
 }
 
 export default function Login({ onLogin }) {
+  const navigate = useNavigate();
   const [theme, toggleTheme] = useTheme();
   const [mode, setMode] = useState("signin");
 
@@ -304,7 +306,7 @@ export default function Login({ onLogin }) {
                 <CheckCircle2 size={24} className="text-emerald-500 dark:text-emerald-600" />
               </div>
               <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-1 animate-slide-up delay-75">Enterprise created</h2>
-              <p className="text-sm text-slate-500 mb-6 animate-slide-up delay-150">Save these — your team needs the enterprise code to join, and you'll sign in with your employee ID.</p>
+              <p className="text-sm text-slate-500 mb-6 animate-slide-up delay-150">Save these — your team needs the enterprise code to join, and you'll sign in with your employee ID. Choose a plan next to continue to secure payment; your 14-day trial keeps the workspace available.</p>
 
               <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 divide-y divide-slate-200 dark:divide-slate-700/50 mb-6 animate-slide-up delay-200">
                 <div className="flex items-center justify-between px-4 py-3">
@@ -325,8 +327,14 @@ export default function Login({ onLogin }) {
                 </div>
               </div>
 
-              <button onClick={() => finish(created)} className="group w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition animate-slide-up delay-300">
-                Continue to workspace <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
+              <button
+                onClick={() => {
+                  finish(created);
+                  navigate("/account/billing?onboarding=1", { replace: true });
+                }}
+                className="group w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition animate-slide-up delay-300"
+              >
+                Choose a plan & start trial <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
               </button>
             </div>
           ) : (

@@ -2,22 +2,35 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { runWithTenant } from "../../lib/tenantContext.js";
+import { tenantHasTrialAccess } from "../../middleware/access.middleware.js";
 import * as svc from "./notifications.service.js";
 import { sseHandler } from "../../lib/sse.js";
 
 // EventSource cannot set an Authorization header, so the live stream
 // authenticates with the same JWT passed as a query parameter.
-function authenticateFromQuery(req, res, next) {
+async function authenticateFromQuery(req, res, next) {
+  let decoded;
   try {
-    const decoded = jwt.verify(String(req.query.token ?? ""), process.env.JWT_SECRET);
+    decoded = jwt.verify(String(req.query.token ?? ""), process.env.JWT_SECRET);
     if (!decoded?.tenantId) return res.status(401).json({ message: "Unauthorized" });
+  } catch {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    if (!(await tenantHasTrialAccess(decoded.tenantId))) {
+      return res.status(403).json({
+        message: "Your free trial has ended. Choose a plan in Billing to restore workspace access.",
+        code: "TRIAL_EXPIRED",
+      });
+    }
     req.user = decoded;
     return runWithTenant(
       { tenantId: decoded.tenantId, userId: decoded.userId, role: decoded.role },
       () => next(),
     );
-  } catch {
-    res.status(401).json({ message: "Unauthorized" });
+  } catch (error) {
+    next(error);
   }
 }
 

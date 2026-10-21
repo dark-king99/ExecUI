@@ -11,6 +11,7 @@ import { SEGMENTS, BANDS, marketFor, displayPrice, currencyForCountry } from "..
 import { provider, providerId, providerInfo, billingEnabled as providerEnabled } from "../billing/providers/index.js";
 import { INDUSTRIES } from "../crm/industries/registry.js";
 import { getUsage as getAiUsage } from "../../lib/aiQuota.js";
+import { TRIAL_DURATION_DAYS } from "../billing/trial.config.js";
 
 // PAID mode when the active payment provider is configured; FREE early-access
 // mode when it isn't — choosing a plan then activates immediately. Which
@@ -134,7 +135,13 @@ export const getBilling = async (tenantId) => {
     networkProfile: tenant.networkProfile || "office",
     entitlements: entitlementsFor(planId, customSolutions),
     ai: await getAiUsage(tenantId),
-    status: !BILLING_ENABLED() || tenant.providerPlanId === planId ? "active" : "none",
+    status: !BILLING_ENABLED() || tenant.providerPlanId === planId
+      ? "active"
+      : tenant.trialEndsAt
+        ? new Date(tenant.trialEndsAt) > new Date() ? "trialing" : "expired"
+        : "none",
+    trialEndsAt: tenant.trialEndsAt,
+    trialDurationDays: tenant.trialEndsAt ? TRIAL_DURATION_DAYS : null,
     freeEarlyAccess: !BILLING_ENABLED(),
     billingEnabled: BILLING_ENABLED(),
     ...(providerId() === "paddle" ? { paddleCustomerId: tenant.providerCustomerId ?? null } : {}),
@@ -301,7 +308,15 @@ export const selectPlan = async (tenantId, {
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw new NotFoundError("Tenant not found");
   // Apply the industry + network-tier choices immediately (access layer); billing follows on the webhook.
-  await prisma.tenant.update({ where: { id: tenantId }, data: { ...(industry != null ? { industry: String(industry) } : {}), networkProfile: extra.networkProfile } });
+  const trialIsActive = tenant.trialEndsAt && new Date(tenant.trialEndsAt) > new Date();
+  await prisma.tenant.update({
+    where: { id: tenantId },
+    data: {
+      ...(trialIsActive ? { plan, planSolutions: solutions } : {}),
+      ...(industry != null ? { industry: String(industry) } : {}),
+      networkProfile: extra.networkProfile,
+    },
+  });
 
   const priceOpts = {
     networkProfile: extra.networkProfile, industry,

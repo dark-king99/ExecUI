@@ -24,6 +24,7 @@ model Tenant {
   providerSubscriptionId   String?
   plan             String   @default("executive")
   planSolutions    String[] @default([])
+  trialEndsAt      DateTime?
 
   // ── Where and what this customer is: the two axes of the price book ───────
   // Deliberately columns rather than TenantSetting rows. Settings are

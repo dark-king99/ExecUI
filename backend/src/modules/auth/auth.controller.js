@@ -54,6 +54,7 @@ export const registerEnterprise = async (req, res) => {
         tenantId:   result.adminUser.tenantId,
         enterprise: result.tenant.name,
         enterpriseCode: result.tenant.code,
+        trialEndsAt: result.tenant.trialEndsAt,
         role:       "enterprise_admin"
       }
     });

@@ -7,6 +7,7 @@
  */
 import express from "express";
 import { authenticateApiToken, requireScope, apiRateLimit, apiError } from "../../middleware/apiAuth.middleware.js";
+import { tenantHasTrialAccess } from "../../middleware/access.middleware.js";
 import { RESOURCES, SCOPES, SCOPE_LABELS, describeResource, eventTypes } from "./api.resources.js";
 import { buildOpenApi } from "./openapi.js";
 import * as api from "./api.service.js";
@@ -23,7 +24,19 @@ router.get("/openapi.json", (req, res) => {
 });
 
 // ── Everything below requires a token ────────────────────────────────────────
-router.use(authenticateApiToken, apiRateLimit);
+router.use(authenticateApiToken, async (req, res, next) => {
+  try {
+    if (await tenantHasTrialAccess(req.tenantId)) return next();
+    return apiError(
+      res,
+      403,
+      "TRIAL_EXPIRED",
+      "Your free trial has ended. Choose a plan in Billing to restore workspace access.",
+    );
+  } catch (error) {
+    next(error);
+  }
+}, apiRateLimit);
 
 /** Index — what this token can reach. */
 router.get("/", (req, res) => {

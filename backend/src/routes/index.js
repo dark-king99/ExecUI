@@ -31,7 +31,7 @@ import searchRoutes   from "../modules/search/search.routes.js";
 import helpdeskRoutes from "../modules/helpdesk/helpdesk.routes.js";
 import tenantRoutes from "../modules/tenants/tenants.routes.js";
 import { authenticate } from "../middleware/auth.middleware.js";
-import { requireModule } from "../middleware/access.middleware.js";
+import { requireModule, requireTrialAccess } from "../middleware/access.middleware.js";
 import { rewardTracking } from "../middleware/rewardTracking.middleware.js";
 
 const router = express.Router();
@@ -50,6 +50,12 @@ router.use("/sign", signRoutes);
 router.use(rewardTracking);
 
 router.use("/auth",       authRoutes);
+router.use(
+  (req, res, next) => req.path === "/notifications/stream"
+    ? next()
+    : authenticate(req, res, next),
+  requireTrialAccess,
+);
 router.use("/users",      userRoutes);
 router.use("/roles",      roleRoutes);
 router.use("/overview",   overviewRoutes);

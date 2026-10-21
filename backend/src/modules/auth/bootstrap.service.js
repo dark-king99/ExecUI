@@ -1,6 +1,9 @@
 import prisma from "../../config/database.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+import { billingEnabled } from "../billing/providers/index.js";
+import { DEFAULT_PLAN } from "../billing/plans.config.js";
+import { trialEndsAtFrom } from "../billing/trial.config.js";
 
 // Opaque 7-character employee ID (lowercase letters + digits) — see users.controller.
 const EMP_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -46,7 +49,9 @@ export async function bootstrapEnterprise({
       data: {
         name: companyName,
         slug: companySlug,
-        code
+        code,
+        plan: billingEnabled() ? "starter" : DEFAULT_PLAN,
+        trialEndsAt: billingEnabled() ? trialEndsAtFrom() : null,
       }
     });
 

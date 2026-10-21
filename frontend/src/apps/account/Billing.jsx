@@ -17,7 +17,7 @@ import { initializePaddleClient, paddleConfigurationError } from "../../lib/padd
 const STATUS_VARIANT = {
   active: "success", trialing: "success",
   past_due: "warning", paused: "warning", pending: "warning",
-  none: "neutral", canceled: "neutral",
+  none: "neutral", expired: "warning", canceled: "neutral",
 };
 
 const CHECKOUT_CONTEXT_KEY = "paddle-checkout-context";
@@ -97,7 +97,7 @@ function PlanCard({
   plan, current, currentNetworkProfile = "office", onSelect, loading, canSelect,
   networkProfile = "office", onNetworkProfileChange, billingInterval = "month",
   paddleMode = false, pricePreview = null, priceReady = true, currentBillingInterval = "month",
-  selectionDisabledLabel = "Unavailable",
+  selectionDisabledLabel = "Unavailable", trialing = false,
 }) {
   const s = TIER_STYLE[plan.id] ?? TIER_STYLE.standard;
   const Icon = s.icon;
@@ -117,6 +117,7 @@ function PlanCard({
   const isCurrent = isCurrentPlan
     && (!hasNetworkTiers || networkProfile === currentNetworkProfile)
     && (!paddleMode || billingInterval === currentBillingInterval);
+  const canStartSubscription = isCurrent && trialing;
 
   return (
     <div className={`relative flex flex-col rounded-2xl border-2 p-5 transition ${
@@ -203,10 +204,10 @@ function PlanCard({
       </ul>
 
       <button
-        onClick={() => !isCurrent && canSelect && onSelect(plan.id, [], undefined, hasNetworkTiers ? networkProfile : undefined, billingInterval)}
-        disabled={isCurrent || loading || !canSelect || (paddleMode && !priceReady)}
+        onClick={() => (!isCurrent || canStartSubscription) && canSelect && onSelect(plan.id, [], undefined, hasNetworkTiers ? networkProfile : undefined, billingInterval)}
+        disabled={(isCurrent && !canStartSubscription) || loading || !canSelect || (paddleMode && !priceReady)}
         className={`w-full py-2 rounded-lg text-sm font-medium transition ${
-          isCurrent
+          isCurrent && !canStartSubscription
             ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 cursor-default"
             : !canSelect || (paddleMode && !priceReady)
             ? "border border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed"
@@ -215,7 +216,7 @@ function PlanCard({
             : "border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400"
         }`}
       >
-        {isCurrent ? "Active" : !canSelect ? selectionDisabledLabel : paddleMode && !priceReady ? "Price unavailable" : loading ? "Switching…" : (isCurrentPlan && hasNetworkTiers) ? "Switch tier" : "Choose plan"}
+        {isCurrent && !canStartSubscription ? "Active" : !canSelect ? selectionDisabledLabel : paddleMode && !priceReady ? "Price unavailable" : loading ? "Opening checkout…" : canStartSubscription ? "Choose paid plan" : (isCurrentPlan && hasNetworkTiers) ? "Switch tier" : "Choose plan"}
       </button>
     </div>
   );
@@ -497,7 +498,10 @@ export default function Billing() {
         // Tell the Network module its plan-derived profile may have changed.
         window.dispatchEvent(new Event("network:profile-changed"));
       },
-      onError: (e) => toast({ message: e.message, type: "error" }),
+      onError: (e) => {
+        refetchBilling();
+        toast({ message: e.message, type: "error" });
+      },
     }
   );
 
@@ -559,8 +563,8 @@ export default function Billing() {
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSelect = (plan, customSolutions = [], industry, netProfile) =>
-    selectMut.mutate({ plan, customSolutions, industry, networkProfile: netProfile, billingInterval });
+  const handleSelect = (plan, customSolutions = [], industry, netProfile, selectedInterval = billingInterval) =>
+    selectMut.mutate({ plan, customSolutions, industry, networkProfile: netProfile, billingInterval: selectedInterval });
 
   const activeModules = useMemo(
     () => (currentPlan ? billing?.entitlements?.sections ?? [] : []).filter((s) => MODULE_META[s]),
@@ -590,6 +594,27 @@ export default function Billing() {
           ) : null
         }
       />
+
+      {billing?.status === "trialing" && billing.trialEndsAt && (
+        <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4 text-sm text-cyan-900 dark:border-cyan-800 dark:bg-cyan-900/20 dark:text-cyan-100">
+          <p className="font-semibold">Your 14-day trial is active</p>
+          <p className="mt-1 text-cyan-800 dark:text-cyan-200">
+            Workspace access is available through {new Date(billing.trialEndsAt).toLocaleDateString()}.
+            Choose a plan to open Paddle checkout and continue after your trial.
+          </p>
+        </div>
+      )}
+      {billing?.status === "expired" && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100" role="alert">
+          <p className="font-semibold">Your free trial has ended</p>
+          <p className="mt-1">Your account and data are safe. Choose a plan and complete checkout to restore workspace access.</p>
+        </div>
+      )}
+      {new URLSearchParams(window.location.search).get("onboarding") === "1" && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+          Select a plan below to start your subscription. Paddle checkout opens after you choose.
+        </div>
+      )}
 
       {billingError && (
         <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
@@ -696,7 +721,12 @@ export default function Billing() {
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   {currentPlan
                     ? paddleMode ? "Subscription billing is managed by Paddle" : `$${billing.price.toLocaleString()}/month`
-                    : "Select a plan to get started"}
+                    : billing.status === "expired" ? "Trial ended" : "Select a plan to get started"}
+                  {billing?.status === "trialing" && billing.trialEndsAt && (
+                    <span className="text-cyan-700 dark:text-cyan-300">
+                      {" "}· trial ends {new Date(billing.trialEndsAt).toLocaleDateString()}
+                    </span>
+                  )}
                   {billing?.freeEarlyAccess && <span className="text-emerald-600 dark:text-emerald-400"> · billed $0 during early access</span>}
                   {billing?.nextRenewal && <span> · renews {billing.nextRenewal}</span>}
                 </p>
@@ -800,6 +830,7 @@ export default function Billing() {
                 pricePreview={preview ?? null}
                 priceReady={!paddleMode || (paddleBackendConfigured && !!paddle && !!preview)}
                 currentBillingInterval={billing?.subscription?.billingInterval ?? billing?.interval ?? "month"}
+                trialing={billing?.status === "trialing"}
                 selectionDisabledLabel={selectionDisabledLabel}
                 canSelect={admin && !billingLoading && !billingError && !!billing && (!paddleMode || (paddleBackendConfigured && !!paddle))}
               />

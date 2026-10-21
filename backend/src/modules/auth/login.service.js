@@ -102,6 +102,7 @@ export async function loginUser({ email, password, employeeId, mfaCode }, meta =
       avatarUrl: user.avatarUrl ?? null,
       plan: user.tenant?.plan ?? "executive",
       planSolutions: user.tenant?.planSolutions ?? [],
+      trialEndsAt: user.tenant?.trialEndsAt ?? null,
     },
   };
 }

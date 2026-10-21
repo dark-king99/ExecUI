@@ -1,6 +1,6 @@
 import { useState, useEffect, Suspense, lazy } from "react";
 import { setToken, clearToken } from "../services/api";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { UserProvider } from "../context/UserContext";
 import Login from "../auth/Login";
 import SsoCallback from "../auth/SsoCallback";
@@ -292,6 +292,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function App() {
+  const navigate = useNavigate();
   const [user, setUser] = useState(() => {
     try {
       const stored = localStorage.getItem("user");
@@ -342,6 +343,14 @@ export default function App() {
     window.addEventListener('auth:expired', handleAuthExpired);
     return () => window.removeEventListener('auth:expired', handleAuthExpired);
   }, []);
+
+  useEffect(() => {
+    function handleTrialExpired() {
+      navigate("/account/billing?trial=expired", { replace: true });
+    }
+    window.addEventListener("trial:expired", handleTrialExpired);
+    return () => window.removeEventListener("trial:expired", handleTrialExpired);
+  }, [navigate]);
 
   // The IdP redirects here after SSO — it must render before the login gate,
   // because the whole point is that there is no session yet.

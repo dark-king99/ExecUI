@@ -129,6 +129,9 @@ async function request(path, options = {}) {
       localStorage.removeItem('user');
       window.dispatchEvent(new CustomEvent('auth:expired'));
     }
+    if (response.status === 403 && json?.code === 'TRIAL_EXPIRED') {
+      window.dispatchEvent(new CustomEvent('trial:expired'));
+    }
     // Prefer the API's own message; otherwise a clean status-based message
     // (never surface a raw HTML body).
     const message = (isJson && (json?.message ?? json?.error)) || friendlyError(response.status);

@@ -1,12 +1,23 @@
 import prisma from "../config/database.js";
 import { accessFor, intersectWithPlan } from "../modules/access/access.policy.js";
 import { entitlementsFor } from "../modules/billing/plans.config.js";
+import { billingEnabled } from "../modules/billing/providers/index.js";
+import { hasPlanAccess } from "../modules/billing/trial.config.js";
 
 // Short-lived caches so the guard doesn't hit the DB on every request
 // for tokens minted before department was embedded in the JWT.
 const deptCache = new Map(); // userId -> { department, t }
 const planCache = new Map(); // tenantId -> { plan, planSolutions, t }
 const TTL = 30_000;
+
+export async function tenantHasTrialAccess(tenantId) {
+  if (!billingEnabled()) return true;
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { plan: true, providerPlanId: true, trialEndsAt: true },
+  });
+  return !tenant || hasPlanAccess(tenant);
+}
 
 async function departmentOf(req) {
   if (req.user.department !== undefined && req.user.department !== null) return req.user.department;
@@ -37,6 +48,21 @@ export async function attachAccess(req, _res, next) {
     const ent = entitlementsFor(plan.plan, plan.planSolutions);
     req.access = intersectWithPlan(base, ent);
     next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Keep expired trial accounts signed in, but limit their API access to billing. */
+export async function requireTrialAccess(req, res, next) {
+  if (req.path === "/notifications/stream" || req.path.startsWith("/account/billing")) return next();
+
+  try {
+    if (await tenantHasTrialAccess(req.user.tenantId)) return next();
+    return res.status(403).json({
+      message: "Your free trial has ended. Choose a plan in Billing to restore workspace access.",
+      code: "TRIAL_EXPIRED",
+    });
   } catch (err) {
     next(err);
   }

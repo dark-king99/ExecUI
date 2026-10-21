@@ -177,6 +177,16 @@ change the already-built bundle.
 Configure Paddle prices as tax-inclusive when the listed monthly amounts should
 include taxes.
 
+New Paddle-billed organizations receive a 14-day workspace trial while they
+choose a plan and complete checkout. Set a 14-day trial period on every
+monthly and yearly catalog price (including both Executive network profiles)
+in Paddle. The backend checks the selected price before creating checkout and
+rejects prices without the matching trial; configuring a local account trial
+does not change when Paddle charges the selected price. If Paddle's website
+approval remains pending, resolve it in the Paddle seller dashboard or with
+Paddle support—the approval state cannot be changed by this application. Trial
+access is restricted to Billing after its end unless a plan is confirmed.
+
 For hosted payment links, in the Paddle dashboard go to **Checkout > Checkout
 configuration** and set the default payment link to your app's `/checkout`
 page (for local sandbox testing, `http://localhost:5173/checkout`). The app page

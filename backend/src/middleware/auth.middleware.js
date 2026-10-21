@@ -10,6 +10,7 @@ import { withAnalyticsContext } from "../lib/analytics.js";
  * is impossible even if a handler forgets to filter.
  */
 export const authenticate = (req, res, next) => {
+  if (req.user) return next();
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
