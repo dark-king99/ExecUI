@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "skills": {
+    "paddle-billing-history": {
+      "source": "developer.paddle.com",
+      "sourceUrl": "https://developer.paddle.com/",
+      "sourceType": "well-known",
+      "computedHash": "544ac7e306ebd5d8e903f7074cc3b944c4cc0b71fea93bdd0b7d1789bc9e776d",
+      "wellKnownDigest": "sha256:c871c229980ab29625d153a6062f6402a9910da56ad64573f480d4d42e45d658"
+    },
+    "paddle-catalog-setup": {
+      "source": "developer.paddle.com",
+      "sourceUrl": "https://developer.paddle.com/",
+      "sourceType": "well-known",
+      "computedHash": "70584a8b8e87a0d45d371f81c9538ff02e7117da694c93d2422502f94dfe1ef6",
+      "wellKnownDigest": "sha256:df2090b528fc405dac69bd045ca7d8b25fdefb61d7834b07b15bd2f3af1c7657"
+    },
+    "paddle-checkout-web": {
+      "source": "developer.paddle.com",
+      "sourceUrl": "https://developer.paddle.com/",
+      "sourceType": "well-known",
+      "computedHash": "e8e3bf9a5694a98af6ffbbc7af796daaddd1100e5bbdb8da20b8f2cb5ac0d429",
+      "wellKnownDigest": "sha256:04fd77e66232488641600e3e3492b919d792fb14e407ffb8457dbc59eb492e58"
+    },
+    "paddle-customer-portal": {
+      "source": "developer.paddle.com",
+      "sourceUrl": "https://developer.paddle.com/",
+      "sourceType": "well-known",
+      "computedHash": "be5d1ffc55522f2407dc008219734755e29980a0818ba2a59fd60f989e41d189",
+      "wellKnownDigest": "sha256:eb817ddadc2bc1a359f04742f675e7b3a8012bf50669a04dc394162f953100aa"
+    },
+    "paddle-onboarding": {
+      "source": "developer.paddle.com",
+      "sourceUrl": "https://developer.paddle.com/",
+      "sourceType": "well-known",
+      "computedHash": "2de6152eb7e68574f94a16c594f8cbbea13791e70482bc4bbfac95aed4fd138c",
+      "wellKnownDigest": "sha256:c67f1e0293cf828023a0b3417f38a4ae4ed53321fec0d5458c813f03128ac5a8"
+    },
+    "paddle-pricing-pages": {
+      "source": "developer.paddle.com",
+      "sourceUrl": "https://developer.paddle.com/",
+      "sourceType": "well-known",
+      "computedHash": "3e406afede6261b3a15dcc31ba977e236f560b5aa5500341cc51a574d9f157f4",
+      "wellKnownDigest": "sha256:00123ba88f8ef4ea9c395c34ae41666c7d816163d4cf181b862b521d641f1152"
+    },
+    "paddle-sandbox-testing": {
+      "source": "developer.paddle.com",
+      "sourceUrl": "https://developer.paddle.com/",
+      "sourceType": "well-known",
+      "computedHash": "4f55e581d5ceee52a1e44041e5d12b4d701c90882d7e4897081a937d5525a022",
+      "wellKnownDigest": "sha256:abd1b1a1f179369ca16d57122c0f043ce2ff2bec3d9118bdb5dc1d434dcca8f0"
+    },
+    "paddle-subscription-cancel": {
+      "source": "developer.paddle.com",
+      "sourceUrl": "https://developer.paddle.com/",
+      "sourceType": "well-known",
+      "computedHash": "78a505acb9948e780a6abf9f59a91d2134c50c1958f510e15d4b862e754a320f",
+      "wellKnownDigest": "sha256:764d8f111459a64838e4fa62d909d4365649940a6d4d0cce73527e3d8642f670"
+    },
+    "paddle-subscription-sync": {
+      "source": "developer.paddle.com",
+      "sourceUrl": "https://developer.paddle.com/",
+      "sourceType": "well-known",
+      "computedHash": "b02afd4fc8100793b021c242540fdf4d44f91cbd9ee31d8115dc6bf0bb0eeea6",
+      "wellKnownDigest": "sha256:8b54a76d86d7966a90b81e767cdcb0c932044e61bf2e1048ca5711fa2910827f"
+    },
+    "paddle-subscription-update": {
+      "source": "developer.paddle.com",
+      "sourceUrl": "https://developer.paddle.com/",
+      "sourceType": "well-known",
+      "computedHash": "1c2d236213467ee0a40317d2503c7449382a1ec4cabb632e385cee0e3d0cf648",
+      "wellKnownDigest": "sha256:d7b105bb7bd8c6d76a06a5a03fc1a8a2976277f48fa16c34af71261f604ec6a5"
+    },
+    "paddle-usage-based-billing": {
+      "source": "developer.paddle.com",
+      "sourceUrl": "https://developer.paddle.com/",
+      "sourceType": "well-known",
+      "computedHash": "d896fb85b87d2a1d2d0c8b6bf6dafb252fe601532cd37b8ad5372b1d8292a2d2",
+      "wellKnownDigest": "sha256:83f9d288782d148b7a247c75ff011314a52806ac2f7e951b7064ea764effdd61"
+    },
+    "paddle-webhooks": {
+      "source": "developer.paddle.com",
+      "sourceUrl": "https://developer.paddle.com/",
+      "sourceType": "well-known",
+      "computedHash": "a8b682f5340444818684f2fb7ebd9a428f6fcfb48149ae131499aa44fc1eb1b7",
+      "wellKnownDigest": "sha256:3a3a77b87977266db461b84dea86a996f33594e42ff6a51ecec1b93e481e52a8"
+    }
+  }
+}
