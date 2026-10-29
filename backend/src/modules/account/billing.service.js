@@ -11,7 +11,7 @@ import { SEGMENTS, BANDS, marketFor, displayPrice, currencyForCountry } from "..
 import { provider, providerId, providerInfo, billingEnabled as providerEnabled } from "../billing/providers/index.js";
 import { INDUSTRIES } from "../crm/industries/registry.js";
 import { getUsage as getAiUsage } from "../../lib/aiQuota.js";
-import { TRIAL_DURATION_DAYS } from "../billing/trial.config.js";
+import { trialDurationDays } from "../billing/trial.config.js";
 
 // PAID mode when the active payment provider is configured; FREE early-access
 // mode when it isn't — choosing a plan then activates immediately. Which
@@ -63,6 +63,7 @@ function paddlePriceIdFor(plan, interval, networkProfile) {
 // ── Plan catalogue + entitlements (new model) ────────────────────────────────
 const planSummary = (p) => ({
   id: p.id, name: p.name, price: p.price, tagline: p.tagline, highlighted: !!p.highlighted,
+  trialDurationDays: trialDurationDays(p.id),
   crm: p.crm, marketing: p.marketing, services: p.services, network: p.network,
   industry: !!p.industry, networkDatacenterPrice: p.networkDatacenterPrice ?? null,
   ai: aiLimitFor(p.id),
@@ -142,7 +143,7 @@ export const getBilling = async (tenantId) => {
         : "none",
     planConfirmed: !BILLING_ENABLED() || tenant.providerPlanId === planId,
     trialEndsAt: tenant.trialEndsAt,
-    trialDurationDays: tenant.trialEndsAt ? TRIAL_DURATION_DAYS : null,
+    trialDurationDays: tenant.trialEndsAt ? trialDurationDays(planId) : null,
     freeEarlyAccess: !BILLING_ENABLED(),
     billingEnabled: BILLING_ENABLED(),
     ...(providerId() === "paddle" ? { paddleCustomerId: tenant.providerCustomerId ?? null } : {}),
@@ -541,6 +542,9 @@ export const handleWebhook = async (payload, headers) => {
           body: "Your paid period ended. Choose a plan in Billing to restore full access.",
         });
       } else {
+        const trialFields = data.status === "trialing" && data.nextBilledAt
+          ? { trialEndsAt: new Date(data.nextBilledAt) }
+          : {};
         if (customData.plan && ["active", "trialing"].includes(data.status)) {
           let solutions = [];
           try {
@@ -549,9 +553,18 @@ export const handleWebhook = async (payload, headers) => {
           } catch (err) {
             throw Object.assign(new Error(`Invalid planSolutions in subscription metadata: ${err.message}`), { status: 400 });
           }
-          await activatePlan(tenant.id, customData.plan, solutions, providerFields);
+          await activatePlan(tenant.id, customData.plan, solutions, {
+            ...providerFields,
+            ...trialFields,
+          });
         } else {
-          await prisma.tenant.update({ where: { id: tenant.id }, data: providerFields });
+          await prisma.tenant.update({
+            where: { id: tenant.id },
+            data: {
+              ...providerFields,
+              ...trialFields,
+            },
+          });
         }
         if (["past_due", "paused"].includes(data.status)) {
           notifyAdmins(tenant.id, {

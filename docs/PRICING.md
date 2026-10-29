@@ -177,19 +177,23 @@ change the already-built bundle.
 Configure Paddle prices as tax-inclusive when the listed monthly amounts should
 include taxes.
 
-New Paddle-billed organizations receive a 14-day workspace trial while they
+New Paddle-billed organizations receive a workspace trial while they
 choose a plan and complete checkout. Enterprise creation leads directly to a
 pre-app plan selector; the admin must complete Paddle checkout before entering
 the workspace. On return, the app waits for the subscription webhook to confirm
-the selected plan. Cancelling checkout returns to plan selection. Set a 14-day
-trial period on every monthly and yearly catalog price (including both
-Executive network profiles) in Paddle. The backend checks the selected price
-before creating checkout and rejects prices without the matching trial;
-configuring a local account trial does not change when Paddle charges the
-selected price. If Paddle's website approval remains pending, resolve it in
-the Paddle seller dashboard or with Paddle support—the approval state cannot
-be changed by this application. Trial access is restricted to Billing after
-its end unless a plan is confirmed.
+the selected plan. Cancelling checkout returns to plan selection. Configure
+14-day trials on Starter and Standard monthly/yearly prices, and one-month
+trials on Premium, Enterprise, and both Executive profiles' monthly/yearly
+prices in Paddle. The backend checks the selected price before creating
+checkout and rejects prices without the matching plan trial. The local
+workspace trial end follows Paddle's subscription date when the webhook arrives.
+The refund request period is separate: it opens after the first successfully
+captured subscription charge and lasts 30 days, and covers that first charge
+only. Refunds are reviewed and issued manually in Paddle; the application does
+not send refund commands. If Paddle's website approval remains pending, resolve
+it in the Paddle seller dashboard or with Paddle support—the approval state
+cannot be changed by this application. Trial access is restricted to Billing
+after its end unless a plan is confirmed.
 
 For hosted payment links, in the Paddle dashboard go to **Checkout > Checkout
 configuration** and set the default payment link to your app's `/checkout`

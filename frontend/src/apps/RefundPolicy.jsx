@@ -1,7 +1,7 @@
 import LegalPage, { LegalSection } from "./LegalPage";
+import { Link } from "react-router-dom";
 
-const EFFECTIVE_DATE = "October 28, 2026";
-const REFUND_REQUEST_URL = "https://executiveui.com/refunds";
+const EFFECTIVE_DATE = "October 29, 2026";
 
 const SECTIONS = [
   { id: "trial", label: "Free trials" },
@@ -21,8 +21,9 @@ export default function RefundPolicy() {
     >
       <LegalSection id="trial" title="1. Free trials">
         <p>
-          Some plans may include a free trial of up to one month. The trial
-          duration, end date, selected plan, and price that will apply afterward
+          Plans include different free trial periods: Starter and Standard
+          provide 14 days; Premium, Enterprise, and Executive provide one month.
+          The exact end date, selected plan, and price that will apply afterward
           are shown during checkout. No subscription fee is charged during the
           trial period. Unless you cancel before the displayed trial end date,
           the subscription may convert to the paid plan selected at checkout.
@@ -37,16 +38,16 @@ export default function RefundPolicy() {
 
       <LegalSection id="request-window" title="2. Refund request window">
         <p>
-          You may submit a refund request within 14 calendar days of the first
-          paid subscription charge. Requests must identify the account and
-          transaction, and are reviewed based on the circumstances, payment
-          provider requirements, and applicable law. Submitting a request does
-          not by itself cancel your subscription.
+          The refund request window begins only after the free trial ends and
+          Paddle successfully captures the first subscription payment. You may
+          submit a request within 30 days of that first paid charge. This
+          initial-subscription refund window applies to the first paid charge
+          only; it does not restart for later renewal charges.
         </p>
         <p>
-          Refund requests for later renewal charges are not covered by this
-          initial-charge request window. We may review exceptional cases, and
-          nothing in this policy limits a refund or other right that applicable
+          Requests are reviewed by SUL TECH. A request does not automatically
+          qualify for a refund and does not by itself cancel the subscription.
+          Nothing in this policy limits a refund or other right that applicable
           law requires us to provide.
         </p>
       </LegalSection>
@@ -68,28 +69,27 @@ export default function RefundPolicy() {
 
       <LegalSection id="processing" title="4. How refunds are processed">
         <p>
-          Approved refunds are returned through the original payment method
-          where supported. The time it takes for a refund to appear depends on
-          the payment provider and financial institution. Taxes, currency
-          conversion, and payment-provider processing are handled according to
-          the information shown at checkout and applicable law.
+          Refund requests are reviewed by SUL TECH and, when needed, coordinated
+          with Paddle support. Refunds are processed manually in Paddle; this
+          website does not issue a refund automatically when a request is
+          submitted or approved. If approved and issued, the refund is returned
+          through the original payment method where supported. Posting times
+          depend on Paddle and the financial institution.
         </p>
       </LegalSection>
 
       <LegalSection id="contact" title="5. Submit a request">
         <p>
-          Submit refund requests and include the account email, transaction or
-          invoice reference, charge date, and a short explanation:
+          Enterprise administrators can submit a request from their signed-in
+          workspace. The form looks up the first captured subscription charge
+          and its deadline from Paddle, so you do not need to enter payment
+          details. Never submit card or bank credentials.
         </p>
         <p>
-          <a
-            href={REFUND_REQUEST_URL}
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            to="/account/refunds"
             className="font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-400"
-          >
-            Open the SUL TECH refund request page
-          </a>
+          >Sign in to submit a refund request</Link>
         </p>
       </LegalSection>
     </LegalPage>

@@ -23,7 +23,7 @@
  */
 import { Paddle, Environment } from "@paddle/paddle-node-sdk";
 import { log } from "../../../lib/logger.js";
-import { hasPaddleTrialPeriod, TRIAL_DURATION_DAYS } from "../trial.config.js";
+import { hasPaddleTrialPeriod, trialDurationLabel } from "../trial.config.js";
 
 const KEY = () => process.env.PADDLE_API_KEY?.trim() || null;
 
@@ -94,6 +94,12 @@ const STATUS = {
   draft: "draft",
   ready: "draft",
 };
+const ZERO_DECIMAL_CURRENCIES = new Set(["JPY", "KRW", "VND", "CLP"]);
+
+function amountFromLowestUnit(amount, currencyCode) {
+  const places = ZERO_DECIMAL_CURRENCIES.has(currencyCode) ? 0 : 2;
+  return Number(amount ?? 0) / (10 ** places);
+}
 
 export default {
   id: "paddle",
@@ -135,9 +141,9 @@ export default {
       } catch (error) {
         throw normalizePaddleError(error);
       }
-      if (!hasPaddleTrialPeriod(price.trialPeriod)) {
+      if (!hasPaddleTrialPeriod(price.trialPeriod, plan)) {
         throw Object.assign(
-          new Error(`Paddle price ${item.priceId} must have a ${TRIAL_DURATION_DAYS}-day trial period configured before checkout can start.`),
+          new Error(`Paddle price ${item.priceId} must have the ${trialDurationLabel(plan)} trial period configured for the ${plan} plan before checkout can start.`),
           { status: 400 },
         );
       }
@@ -195,11 +201,12 @@ export default {
           return {
             id: t.id,
             reference: t.invoiceNumber ?? null,
-            amountUsd: total / 100,
+            amountUsd: amountFromLowestUnit(total, (t.currencyCode ?? "USD").toUpperCase()),
             currency: (t.currencyCode ?? "USD").toUpperCase(),
             status: STATUS[t.status] ?? t.status,
             issuedAt: t.billedAt ? new Date(t.billedAt) : t.createdAt ? new Date(t.createdAt) : null,
             paidAt: paid?.capturedAt ? new Date(paid.capturedAt) : null,
+            subscriptionId: t.subscriptionId ?? null,
             plan: t.customData?.plan ?? null,
             downloadable: !!t.invoiceNumber,
           };
@@ -208,6 +215,51 @@ export default {
     } catch (e) {
       log.warn("paddle_invoices_failed", { error: e.message });
       throw e;
+    }
+  },
+
+  async findFirstPaidSubscriptionTransaction(_tenantId, { customerId, subscriptionId } = {}) {
+    const paddle = client();
+    if (!paddle || !customerId || !subscriptionId) return null;
+    try {
+      const collection = paddle.transactions.list({
+        customerId: [customerId],
+        status: ["completed", "paid"],
+        orderBy: "billed_at[ASC]",
+        perPage: 30,
+      });
+
+      do {
+        const transactions = await collection.next();
+        const firstPaid = transactions.find((transaction) => {
+          if (transaction.subscriptionId !== subscriptionId) return false;
+          const amount = Number(
+            transaction.details?.totals?.grandTotal
+              ?? transaction.details?.totals?.total
+              ?? 0,
+          );
+          return amount > 0
+            && transaction.payments?.some((payment) => payment.status === "captured" && payment.capturedAt);
+        });
+        if (firstPaid) {
+          const payment = firstPaid.payments.find((entry) => entry.status === "captured" && entry.capturedAt);
+          return {
+            transactionId: firstPaid.id,
+            paidAt: new Date(payment.capturedAt),
+            amount: amountFromLowestUnit(
+              firstPaid.details?.totals?.grandTotal ?? firstPaid.details?.totals?.total,
+              (firstPaid.currencyCode ?? "USD").toUpperCase(),
+            ),
+            currency: (firstPaid.currencyCode ?? "USD").toUpperCase(),
+            plan: firstPaid.customData?.plan ?? null,
+          };
+        }
+      } while (collection.hasMore);
+
+      return null;
+    } catch (error) {
+      log.warn("paddle_first_paid_transaction_lookup_failed", { error: error.message });
+      throw error;
     }
   },
 

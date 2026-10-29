@@ -1169,6 +1169,9 @@ export const account = {
     select:          (data)      => post('/account/billing/select', data),
     invoices:        ()          => get('/account/billing/invoices'),
     invoicePdf:      (id)        => get(`/account/billing/invoices/${encodeURIComponent(id)}/pdf`),
+    refundRequests:  ()          => get('/account/billing/refund-requests'),
+    submitRefundRequest: (data)  => post('/account/billing/refund-requests', data),
+    updateRefundRequest: (id, data) => patch(`/account/billing/refund-requests/${encodeURIComponent(id)}`, data),
     portal:          (data)      => post('/account/billing/portal', data),
   },
   auditLogs: {

@@ -1,7 +1,7 @@
 import LegalPage, { LegalSection } from "./LegalPage";
+import { Link } from "react-router-dom";
 
-const EFFECTIVE_DATE = "October 28, 2026";
-const REFUND_POLICY_URL = "https://executiveui.com/refunds";
+const EFFECTIVE_DATE = "October 29, 2026";
 
 const SECTIONS = [
   { id: "agreement", label: "Agreement & eligibility" },
@@ -80,8 +80,9 @@ export default function TermsOfService() {
           checkout processes the transaction and may apply its own terms.
         </p>
         <p>
-          Some subscriptions include a free trial of up to one month. The
-          applicable trial period and end date are shown at checkout. No
+          Starter and Standard plans include a 14-day free trial; Premium,
+          Enterprise, and Executive plans include a one-month free trial. The
+          applicable trial end date and price are shown at checkout. No
           subscription fee is charged during that displayed trial. Unless the
           subscription is canceled before the trial ends, it may convert to the
           paid plan selected at checkout, and recurring charges will begin as
@@ -90,9 +91,9 @@ export default function TermsOfService() {
         <p>
           Cancellation stops future renewals but does not automatically refund
           a charge already made. Refund requests are governed by our{" "}
-          <a href={REFUND_POLICY_URL} className="font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-400">
+          <Link to="/refunds" className="font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-400">
             Refund Policy
-          </a>
+          </Link>
           , subject to rights that applicable law does not allow us to limit.
         </p>
       </LegalSection>
@@ -220,14 +221,9 @@ export default function TermsOfService() {
         </p>
         <p>
           For legal or billing questions, contact SUL TECH through the{" "}
-          <a
-            href={REFUND_POLICY_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-400"
-          >
-            SUL TECH contact page
-          </a>
+          <Link to="/refunds#contact" className="font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-400">
+            SUL TECH refund and billing contact
+          </Link>
           .
         </p>
       </LegalSection>

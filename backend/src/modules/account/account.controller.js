@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import prisma from "../../config/database.js";
 import * as billing from "./billing.service.js";
+import * as refunds from "./refunds.service.js";
 import * as storage from "../../lib/storage.js";
 import { generateSecret, verifyTotp, otpauthUri } from "../../lib/totp.js";
 
@@ -321,6 +322,9 @@ export const getPlans          = handle((req) => {
 export const selectPlan        = handle((req) => billing.selectPlan(tid(req), req.body, uid(req)));
 export const getInvoices       = handle((req) => billing.getInvoices(tid(req)));
 export const getInvoicePdf    = handle((req) => billing.getInvoicePdf(tid(req), req.params.id));
+export const getRefundCenter = handle((req) => refunds.getRefundCenter(tid(req), req.user.role === "system_admin"));
+export const submitRefundRequest = handle((req) => refunds.submitRefundRequest(tid(req), uid(req), req.body));
+export const updateRefundRequest = handle((req) => refunds.updateRefundRequest(req.params.id, uid(req), req.body));
 // Offline invoices the platform issued to this tenant (manual provider only).
 export const getPlatformInvoices = handle((req) => billing.listPlatformInvoices(tid(req)));
 // Confirming one takes money on the platform's behalf, so it is system_admin

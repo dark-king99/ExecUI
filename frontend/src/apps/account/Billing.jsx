@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { Link } from "react-router-dom";
 import PageHeader from "../../components/ui/PageHeader";
 import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import StatusBadge from "../../components/ui/StatusBadge";
@@ -579,25 +580,35 @@ export default function Billing() {
         icon={CreditCard}
         iconColor="indigo"
         actions={
-          billing?.freeEarlyAccess ? (
-            <span className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
-              <Sparkles size={12} /> Free during early access
-            </span>
-          ) : (admin && billing?.subscription && billing?.provider?.capabilities?.customerPortal) ? (
-            <button
-              onClick={() => portalMut.mutate()}
-              disabled={portalMut.loading}
-              className="flex items-center gap-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm px-4 py-2 rounded-lg hover:border-indigo-400 transition"
-            >
-              <ExternalLink size={14} /> {portalMut.loading ? "Opening…" : "Manage subscription"}
-            </button>
-          ) : null
+          <div className="flex flex-wrap items-center gap-2">
+            {admin && (
+              <Link
+                to="/account/refunds"
+                className="flex items-center gap-2 border border-slate-200 px-3 py-2 text-sm text-slate-600 transition hover:border-teal-500 dark:border-slate-700 dark:text-slate-300"
+              >
+                Refund requests
+              </Link>
+            )}
+            {billing?.freeEarlyAccess ? (
+              <span className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                <Sparkles size={12} /> Free during early access
+              </span>
+            ) : (admin && billing?.subscription && billing?.provider?.capabilities?.customerPortal) ? (
+              <button
+                onClick={() => portalMut.mutate()}
+                disabled={portalMut.loading}
+                className="flex items-center gap-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm px-4 py-2 rounded-lg hover:border-indigo-400 transition"
+              >
+                <ExternalLink size={14} /> {portalMut.loading ? "Opening…" : "Manage subscription"}
+              </button>
+            ) : null}
+          </div>
         }
       />
 
       {billing?.status === "trialing" && billing.trialEndsAt && (
         <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4 text-sm text-cyan-900 dark:border-cyan-800 dark:bg-cyan-900/20 dark:text-cyan-100">
-          <p className="font-semibold">Your 14-day trial is active</p>
+          <p className="font-semibold">Your {billing.trialDurationDays === 30 ? "1-month" : `${billing.trialDurationDays ?? 14}-day`} trial is active</p>
           <p className="mt-1 text-cyan-800 dark:text-cyan-200">
             Workspace access is available through {new Date(billing.trialEndsAt).toLocaleDateString()}.
             Choose a plan to open Paddle checkout and continue after your trial.

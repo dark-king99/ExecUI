@@ -38,6 +38,17 @@ export const selectPlanSchema = z.object({
   billingInterval: z.enum(["month", "year"]).optional(),
 });
 
+export const refundRequestSchema = z.object({
+  reason: z.enum(["not_a_fit", "missing_features", "billing_issue", "technical_issue", "other"]),
+  details: z.string().trim().min(20).max(2000),
+});
+
+export const refundRequestUpdateSchema = z.object({
+  status: z.enum(["submitted", "under_review", "needs_information", "approved", "declined", "refunded"]),
+  adminNote: z.string().trim().max(2000).optional(),
+  paddleRefundReference: z.string().trim().max(120).optional(),
+});
+
 export const inviteSchema = z.object({
   email: z.string().email(),
   firstName: z.string().min(1).max(60),

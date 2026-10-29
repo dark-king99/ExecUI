@@ -4,7 +4,10 @@ import { requireRole } from "../../middleware/role.middleware.js";
 import { uploadImage } from "../../middleware/upload.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import { rateLimit } from "../../middleware/ratelimit.middleware.js";
-import { changePasswordSchema, selectPlanSchema, inviteSchema } from "../auth/auth.schema.js";
+import {
+  changePasswordSchema, selectPlanSchema, inviteSchema,
+  refundRequestSchema, refundRequestUpdateSchema,
+} from "../auth/auth.schema.js";
 import * as c from "./account.controller.js";
 import { inviteUser, updateUser, deleteUser } from "../users/users.controller.js";
 
@@ -47,6 +50,9 @@ router.get("/billing/plans",             auth, c.getPlans);
 router.post("/billing/select",           auth, requireRole("enterprise_admin", "system_admin"), validate(selectPlanSchema), c.selectPlan);
 router.get("/billing/invoices",          auth, c.getInvoices);
 router.get("/billing/invoices/:id/pdf",  auth, c.getInvoicePdf);
+router.get("/billing/refund-requests",   auth, adminOnly, c.getRefundCenter);
+router.post("/billing/refund-requests",  auth, adminOnly, rateLimit({ windowMs: 60 * 60_000, max: 3 }), validate(refundRequestSchema), c.submitRefundRequest);
+router.patch("/billing/refund-requests/:id", auth, requireRole("system_admin"), validate(refundRequestUpdateSchema), c.updateRefundRequest);
 // Offline billing. Listing is admin; confirming a payment is the PLATFORM
 // taking money, so it is restricted to system_admin.
 router.get("/billing/platform-invoices",  auth, adminOnly, c.getPlatformInvoices);

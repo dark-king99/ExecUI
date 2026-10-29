@@ -43,6 +43,7 @@ model Tenant {
   networkProfile String @default("office")
 
   users                   User[]
+  refundRequests          RefundRequest[]
   roles                   Role[]
   contacts                Contact[]
   crmTasks                CrmTask[]
@@ -404,6 +405,7 @@ model User {
   activities       MarketingActivity[]
   sessions         UserSession[]
   auditLogs        AuditLog[]
+  submittedRefundRequests RefundRequest[] @relation("RefundRequestSubmitter")
   rewardEvents     RewardEvent[]
   rewardStat       RewardStat?
   reports          Report[]
@@ -448,6 +450,31 @@ model AuditLog {
   detail     String?
   ipAddress  String?
   createdAt  DateTime @default(now())
+}
+
+model RefundRequest {
+  id                    String   @id @default(uuid())
+  tenantId              String
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  submittedById         String?
+  submittedBy           User?    @relation("RefundRequestSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
+  transactionId         String
+  amount                Decimal  @db.Decimal(12, 2)
+  currency              String   @default("USD")
+  firstPaidAt           DateTime
+  reason                String
+  details               String
+  status                String   @default("submitted")
+  adminNote             String?
+  paddleRefundReference String?
+  reviewedById          String?
+  resolvedAt            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([tenantId, transactionId])
+  @@index([status, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 model Role {

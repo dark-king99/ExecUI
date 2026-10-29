@@ -65,6 +65,9 @@ export default function EnterpriseOnboarding() {
     () => catalog?.plans?.find((plan) => plan.id === selectedPlan) ?? null,
     [catalog, selectedPlan],
   );
+  const selectedTrialLabel = selectedPlanData?.trialDurationDays === 30
+    ? "1-month"
+    : `${selectedPlanData?.trialDurationDays ?? 14}-day`;
   const selectedPriceId = selectedPlanData
     ? priceIdFor(selectedPlanData, billingInterval, networkProfile)
     : null;
@@ -167,7 +170,7 @@ export default function EnterpriseOnboarding() {
           <AnimatedLogo className="h-8" />
           {onboarding && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-              <ShieldCheck size={14} /> Your 14-day trial is included
+              <ShieldCheck size={14} /> Your {selectedTrialLabel} trial is included
             </span>
           )}
         </div>
@@ -185,7 +188,7 @@ export default function EnterpriseOnboarding() {
             <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
               <h1 className="text-2xl font-semibold">Checkout: choose your plan</h1>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Select a plan to start your subscription. Paddle won’t charge you during the 14-day free trial.
+                Select a plan to start your subscription. Paddle won’t charge you during the selected plan’s free trial.
               </p>
               <div className="mt-4 flex flex-wrap gap-x-8 gap-y-3 text-sm">
                 <div>
@@ -211,7 +214,7 @@ export default function EnterpriseOnboarding() {
 
             {checkoutCancelled && (
               <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-                Checkout was cancelled. Your 14-day trial is still available; choose a plan whenever you’re ready.
+                Checkout was cancelled. Your free trial is still available; choose a plan whenever you’re ready.
               </p>
             )}
             {(loadError || actionError || (!loading && checkoutConfigurationError)) && (
@@ -275,7 +278,7 @@ export default function EnterpriseOnboarding() {
                         </p>
                         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{plan.tagline}</p>
                         <p className="mt-4 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                          $0 today · starts billing after 14 days
+                          $0 today · starts billing after {plan.trialDurationDays === 30 ? "1 month" : `${plan.trialDurationDays ?? 14} days`}
                         </p>
                         {networkPlan && (
                           <span className="mt-3 inline-flex rounded-md bg-slate-100 p-0.5 dark:bg-slate-800">
@@ -306,7 +309,7 @@ export default function EnterpriseOnboarding() {
 
                 <div className="mt-6 flex flex-col items-center gap-3">
                   <p className="max-w-2xl text-center text-xs text-slate-500 dark:text-slate-400">
-                    A payment method may be requested to activate the subscription. No subscription charge is due today; billing begins after the 14-day trial.
+                    A payment method may be requested to activate the subscription. No subscription charge is due today; billing begins after the selected plan’s trial.
                   </p>
                   {pricePreviewError && (
                     <p className="text-center text-xs text-amber-700 dark:text-amber-300" role="status">
