@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowUpRight, ShieldCheck } from "lucide-react";
 
-// Marketing-site footer, shared by the Home landing page and the Privacy Policy
-// page. Groups the real product surfaces + the legal/account links, and closes
-// with a copyright bar. Every link points at a route that actually exists.
+// Marketing-site footer, shared by the Home landing page and legal pages.
+// Groups the real product surfaces + the legal/account links, and closes with
+// a copyright bar. Every link points at a route that actually exists.
 const COLUMNS = [
   {
     heading: "Product",
@@ -37,6 +37,8 @@ const COLUMNS = [
     heading: "Legal",
     links: [
       { label: "Privacy Policy", to: "/privacy" },
+      { label: "Refund Policy", to: "/refunds" },
+      { label: "Terms of Service", to: "/terms" },
       { label: "Data & Security", to: "/privacy#security" },
       { label: "Employee Privacy", to: "/privacy#employees" },
     ],
@@ -105,9 +107,15 @@ export default function Footer() {
           <p className="text-xs text-slate-400 dark:text-slate-500">
             © {year} ExecUI. All rights reserved.
           </p>
-          <div className="flex items-center gap-5 text-xs text-slate-400 dark:text-slate-500">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-400 dark:text-slate-500">
             <button onClick={() => navigate("/privacy")} className="transition hover:text-slate-700 dark:hover:text-slate-200">
               Privacy Policy
+            </button>
+            <button onClick={() => navigate("/refunds")} className="transition hover:text-slate-700 dark:hover:text-slate-200">
+              Refund Policy
+            </button>
+            <button onClick={() => navigate("/terms")} className="transition hover:text-slate-700 dark:hover:text-slate-200">
+              Terms of Service
             </button>
             <button onClick={() => navigate("/privacy#security")} className="transition hover:text-slate-700 dark:hover:text-slate-200">
               Security

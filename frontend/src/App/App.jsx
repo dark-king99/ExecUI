@@ -25,6 +25,8 @@ import { identify, resetAnalytics } from "../lib/analytics";
 // ── Lazy-loaded mini-app route groups ─────────────────────────────────────────
 const HomeView            = lazy(() => import("../apps/HomeView"));
 const PrivacyPolicy       = lazy(() => import("../apps/PrivacyPolicy"));
+const RefundPolicy        = lazy(() => import("../apps/RefundPolicy"));
+const TermsOfService      = lazy(() => import("../apps/TermsOfService"));
 const ExecutiveOverview   = lazy(() => import("../apps/ExecutiveOverview"));
 const NotFound            = lazy(() => import("../apps/NotFound"));
 
@@ -120,9 +122,8 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
   const section = location.pathname.split("/")[1];
   const hideNavbar = ["network", "crm", "marketing", "analytics"].includes(section);
 
-  // Home + Privacy are full-screen marketing/legal views — no app chrome at all
-  // (sidebar/navbar only belong to the main system).
-  const isStandalone = section === "home" || section === "privacy";
+  // Marketing and legal pages render without app chrome.
+  const isStandalone = ["home", "privacy", "refunds", "terms"].includes(section);
 
   // Organization (enterprise account) views are restricted to admins — by the
   // *effective* role. A system admin previewing the product as Sales previously
@@ -143,6 +144,8 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
         <Routes>
           <Route path="/home" element={<HomeView />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/refunds" element={<RefundPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
         </Routes>
       </PageSuspense>
     );
@@ -174,6 +177,8 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/" element={<Navigate to="/home" replace />} />
                 <Route path="/home" element={<HomeView />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/refunds" element={<RefundPolicy />} />
+                <Route path="/terms" element={<TermsOfService />} />
 
                 {/* Executive Overview — entry to the main system */}
                 <Route path="/overview" element={<ExecutiveOverview />} />
@@ -395,6 +400,21 @@ export default function App() {
         </PageSuspense>
       );
     }
+  }
+
+  if (
+    typeof window !== "undefined" &&
+    ["/privacy", "/refunds", "/terms"].includes(window.location.pathname)
+  ) {
+    return (
+      <PageSuspense>
+        <Routes>
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/refunds" element={<RefundPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
+        </Routes>
+      </PageSuspense>
+    );
   }
 
   if (!user) return <Login onLogin={setUser} />;
