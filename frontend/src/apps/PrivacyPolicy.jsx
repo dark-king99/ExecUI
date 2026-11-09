@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowUpRight, ShieldCheck, Building2, Users, Lock, Database,
 import Footer from "../components/Footer";
 
 // Effective date — bump when the policy materially changes.
-const EFFECTIVE_DATE = "July 11, 2026";
+const EFFECTIVE_DATE = "November 9, 2026";
 const CONTACT_EMAIL = "privacy@execui.app";
 
 function Section({ id, title, icon: Icon, children }) {
@@ -136,7 +136,10 @@ export default function PrivacyPolicy() {
               <strong>data processor</strong> that handles that data on the
               organization's instructions under our customer agreement. For a
               limited set of data (account provisioning, billing, security logs,
-              and running the service itself), ExecUI is the controller.
+              and running the service itself), ExecUI is the controller. A
+              payment provider may separately act as controller, merchant of
+              record, or seller for payment data, as described in its own
+              privacy notice.
             </p>
             <p className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-slate-600 dark:text-slate-300">
               <strong>If you are an employee:</strong> your employer chose ExecUI
@@ -154,7 +157,7 @@ export default function PrivacyPolicy() {
               <li><strong>Authentication &amp; security</strong> — hashed passwords (we never store them in plain text), multi-factor (TOTP) settings, active sessions, and login/audit events.</li>
               <li><strong>Content you create</strong> — records you enter into CRM, marketing, network, analytics and services modules; messages you send in the in-app directory and department channels; files you attach to entities.</li>
               <li><strong>Configuration &amp; integrations</strong> — connection settings and outbound API secrets you configure (secrets are encrypted at rest; see §6).</li>
-              <li><strong>Billing</strong> — plan selection and billing status. Card details are handled by our payment processor, not stored by ExecUI.</li>
+              <li><strong>Billing</strong> — plan selection, billing status, transaction identifiers, and payment-provider responses. Payment-card details are collected and handled by the provider’s checkout, not stored by ExecUI.</li>
               <li><strong>Usage &amp; technical data</strong> — IP address, device/browser information, request logs, and product interactions used to operate, secure, and improve the service.</li>
             </ul>
             <p>
@@ -176,23 +179,43 @@ export default function PrivacyPolicy() {
             <p>
               We process this data to perform our contract with your organization,
               to pursue our legitimate interests in operating a secure and
-              reliable service, and to meet legal obligations. In-app messages and
-              content are used to run the product for your organization —{" "}
-              <strong>we do not sell personal data, and we do not use your
-              organization's content to train external models.</strong>
+              reliable service, and to meet legal obligations. We do not sell
+              personal data.
+            </p>
+            <p>
+              When a live AI provider is configured, prompts and limited
+              conversation or feature context may be sent to the AI service
+              configured by SUL TECH so it can generate a response. The
+              provider and its processing terms depend on the deployment
+              configuration. Do not submit confidential or sensitive personal
+              information to AI features unless your organization has
+              authorization and an appropriate agreement. If no live AI
+              provider is configured, AI features use a deterministic fallback
+              instead of sending a prompt to an AI service.
+            </p>
+            <p>
+              When product analytics is enabled, analytics providers may
+              receive page paths, interaction and performance events, technical
+              diagnostics, and account identifiers and roles. Name and email
+              collection may be enabled by configuration. Session recordings
+              mask form inputs, but may show other interface text; users should
+              avoid displaying or entering sensitive data in analytics-enabled
+              views. Server-side AI telemetry is limited to operational
+              metadata such as model, token counts, latency, and request status;
+              it does not include prompts or generated responses.
             </p>
           </Section>
 
           <Section id="isolation" title="4. Multi-tenant data isolation" icon={Lock}>
             <p>
               ExecUI is multi-tenant: many organizations use the same platform,
-              but each organization's data is <strong>logically isolated</strong>.
-              Every record is tagged with its organization ("tenant") and every
-              database query is automatically scoped to the tenant of the
-              signed-in user. This scoping is enforced centrally, so a request
-              can only ever read or change data belonging to its own
-              organization — cross-tenant access is prevented by construction, not
-              left to individual features to remember.
+              with workspace data <strong>logically separated through tenant and permission controls</strong>.
+              Records are associated with an organization ("tenant"), and the
+              application uses tenant-scoped access controls to limit users to
+              authorized workspace data. We apply role and permission checks
+              throughout the service. No software design can eliminate every
+              risk, so we also maintain security safeguards and audit relevant
+              administrative activity.
             </p>
             <p>
               Within an organization, access is further limited by{" "}
@@ -210,11 +233,12 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-disc space-y-1.5 pl-5">
               <li><strong>Within your organization</strong> — with other authorized users, according to role and department permissions your administrators configure.</li>
-              <li><strong>Service providers (subprocessors)</strong> that help us run the platform, under contract and only as needed:
+              <li><strong>Service providers</strong> that help us run the platform, as applicable:
                 <ul className="mt-1.5 list-[circle] space-y-1 pl-5">
-                  <li>Cloud hosting &amp; database infrastructure.</li>
-                  <li><strong>Paddle</strong> — subscription billing and payment processing.</li>
-                  <li><strong>Resend</strong> — outbound transactional email, when enabled by your organization.</li>
+                  <li>Cloud hosting and database infrastructure.</li>
+                  <li>The payment provider identified at checkout (which may be Paddle, Dodo Payments, PayPro Global, or another provider). Depending on the transaction, that provider may act as a payment processor, merchant of record, or seller, and may process information under its own privacy notice and terms.</li>
+                  <li>Transactional email and other integrations when enabled for the service or selected by your organization.</li>
+                  <li>Product analytics and diagnostic services when configured.</li>
                 </ul>
               </li>
               <li><strong>Legal &amp; safety</strong> — when required by law, to enforce our terms, or to protect the rights and safety of users and the public.</li>
@@ -290,8 +314,10 @@ export default function PrivacyPolicy() {
             <p>
               ExecUI and its subprocessors may process data in countries other
               than where you are located. Where we transfer personal data across
-              borders, we rely on appropriate safeguards (such as standard
-              contractual clauses) as required by applicable law.
+              borders, we use safeguards required by applicable law and
+              agreements that apply to the relevant service provider. The
+              payment provider may process payment and transaction data in
+              accordance with its own terms and privacy notice.
             </p>
           </Section>
 

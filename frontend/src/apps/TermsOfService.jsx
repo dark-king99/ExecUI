@@ -1,7 +1,7 @@
 import LegalPage, { LegalSection } from "./LegalPage";
 import { Link } from "react-router-dom";
 
-const EFFECTIVE_DATE = "October 29, 2026";
+const EFFECTIVE_DATE = "November 9, 2026";
 
 const SECTIONS = [
   { id: "agreement", label: "Agreement & eligibility" },
@@ -9,6 +9,7 @@ const SECTIONS = [
   { id: "accounts", label: "Accounts & administrators" },
   { id: "plans", label: "Plans, trials & payment" },
   { id: "acceptable-use", label: "Acceptable use" },
+  { id: "payment-provider", label: "Payment provider terms" },
   { id: "customer-data", label: "Customer data & privacy" },
   { id: "intellectual-property", label: "Intellectual property" },
   { id: "availability", label: "Availability & changes" },
@@ -76,8 +77,9 @@ export default function TermsOfService() {
           Plan features, billing interval, price, currency, and applicable taxes
           are disclosed at checkout or in a written order. Subscription plans
           renew automatically for the stated billing interval unless canceled
-          before the next renewal date. The payment provider identified at
-          checkout processes the transaction and may apply its own terms.
+          before the next renewal date. The checkout will identify the payment
+          provider and the seller for the transaction. The provider may be a
+          merchant of record and may act as the seller to you for that purchase.
         </p>
         <p>
           Starter and Standard plans include a 14-day free trial; Premium,
@@ -86,7 +88,8 @@ export default function TermsOfService() {
           subscription fee is charged during that displayed trial. Unless the
           subscription is canceled before the trial ends, it may convert to the
           paid plan selected at checkout, and recurring charges will begin as
-          disclosed there.
+          disclosed there. Trial lengths can vary by plan and are shown in
+          checkout before you subscribe.
         </p>
         <p>
           Cancellation stops future renewals but does not automatically refund
@@ -100,7 +103,13 @@ export default function TermsOfService() {
 
       <LegalSection id="acceptable-use" title="5. Acceptable use">
         <p>
-          You must not, and must not allow others to:
+          You must comply with the{" "}
+          <Link to="/acceptable-use" className="font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-400">
+            Acceptable Use Policy
+          </Link>
+          , applicable law, and the restrictions that apply to the payment
+          provider and seller identified at checkout. In particular, you must
+          not, and must not allow others to:
         </p>
         <ul className="list-disc space-y-1.5 pl-5">
           <li>use ExecUI unlawfully, deceptively, or to violate another person's rights;</li>
@@ -116,7 +125,27 @@ export default function TermsOfService() {
         </p>
       </LegalSection>
 
-      <LegalSection id="customer-data" title="6. Customer data & privacy">
+      <LegalSection id="payment-provider" title="6. Payment provider terms">
+        <p>
+          A payment provider may process payment information, provide customer
+          support for the transaction, issue receipts, administer renewals, or
+          handle refunds. Where the provider is the merchant of record or seller
+          for a transaction, its checkout terms and refund rules also apply to
+          that purchase. Your use of ExecUI remains subject to these Terms, and
+          nothing here limits rights that applicable law requires.
+        </p>
+        <p>
+          The provider’s terms do not replace our commitment to receive and
+          review refund requests under the{" "}
+          <Link to="/refunds" className="font-medium text-teal-700 underline-offset-2 hover:underline dark:text-teal-400">
+            Refund Policy
+          </Link>
+          . A request is not a guarantee of approval or payment, and ExecUI
+          cannot override a payment provider’s transaction rules.
+        </p>
+      </LegalSection>
+
+      <LegalSection id="customer-data" title="7. Customer data & privacy">
         <p>
           As between you and SUL TECH, your organization retains its rights to
           the data and content it submits to ExecUI ("Customer Data"). You grant
@@ -137,7 +166,7 @@ export default function TermsOfService() {
         </p>
       </LegalSection>
 
-      <LegalSection id="intellectual-property" title="7. Intellectual property">
+      <LegalSection id="intellectual-property" title="8. Intellectual property">
         <p>
           SUL TECH and its licensors retain all rights in ExecUI, including its
           software, design, documentation, and branding. These Terms grant you
@@ -151,7 +180,7 @@ export default function TermsOfService() {
         </p>
       </LegalSection>
 
-      <LegalSection id="availability" title="8. Availability & changes">
+      <LegalSection id="availability" title="9. Availability & changes">
         <p>
           SUL TECH will use reasonable efforts to operate and maintain ExecUI.
           Unless an applicable written agreement says otherwise, the service is
@@ -168,7 +197,7 @@ export default function TermsOfService() {
         </p>
       </LegalSection>
 
-      <LegalSection id="suspension" title="9. Suspension & termination">
+      <LegalSection id="suspension" title="10. Suspension & termination">
         <p>
           You may stop using ExecUI and cancel a subscription through the
           available account billing controls, subject to the cancellation terms
@@ -189,7 +218,7 @@ export default function TermsOfService() {
         </p>
       </LegalSection>
 
-      <LegalSection id="warranties" title="10. Warranties & liability">
+      <LegalSection id="warranties" title="11. Warranties & liability">
         <p>
           To the extent permitted by law, ExecUI is provided "as available" and
           without warranties not expressly stated in a written agreement.
@@ -207,7 +236,7 @@ export default function TermsOfService() {
         </p>
       </LegalSection>
 
-      <LegalSection id="general" title="11. General terms & contact">
+      <LegalSection id="general" title="12. General terms & contact">
         <p>
           We may update these Terms from time to time. For material changes, we
           will update the effective date and provide notice through the service

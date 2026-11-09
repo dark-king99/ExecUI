@@ -27,6 +27,8 @@ const HomeView            = lazy(() => import("../apps/HomeView"));
 const PrivacyPolicy       = lazy(() => import("../apps/PrivacyPolicy"));
 const RefundPolicy        = lazy(() => import("../apps/RefundPolicy"));
 const TermsOfService      = lazy(() => import("../apps/TermsOfService"));
+const AcceptableUsePolicy = lazy(() => import("../apps/AcceptableUsePolicy"));
+const SecurityPolicy      = lazy(() => import("../apps/SecurityPolicy"));
 const ExecutiveOverview   = lazy(() => import("../apps/ExecutiveOverview"));
 const NotFound            = lazy(() => import("../apps/NotFound"));
 
@@ -124,7 +126,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
   const hideNavbar = ["network", "crm", "marketing", "analytics"].includes(section);
 
   // Marketing and legal pages render without app chrome.
-  const isStandalone = ["home", "privacy", "refunds", "terms"].includes(section);
+  const isStandalone = ["home", "privacy", "refunds", "terms", "acceptable-use", "security"].includes(section);
 
   // Organization (enterprise account) views are restricted to admins — by the
   // *effective* role. A system admin previewing the product as Sales previously
@@ -147,6 +149,8 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/refunds" element={<RefundPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/acceptable-use" element={<AcceptableUsePolicy />} />
+          <Route path="/security" element={<SecurityPolicy />} />
         </Routes>
       </PageSuspense>
     );
@@ -180,6 +184,8 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/refunds" element={<RefundPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/acceptable-use" element={<AcceptableUsePolicy />} />
+                <Route path="/security" element={<SecurityPolicy />} />
 
                 {/* Executive Overview — entry to the main system */}
                 <Route path="/overview" element={<ExecutiveOverview />} />
@@ -406,7 +412,7 @@ export default function App() {
 
   if (
     typeof window !== "undefined" &&
-    ["/privacy", "/refunds", "/terms"].includes(window.location.pathname)
+    ["/privacy", "/refunds", "/terms", "/acceptable-use", "/security"].includes(window.location.pathname)
   ) {
     return (
       <PageSuspense>
@@ -414,6 +420,8 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/refunds" element={<RefundPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/acceptable-use" element={<AcceptableUsePolicy />} />
+          <Route path="/security" element={<SecurityPolicy />} />
         </Routes>
       </PageSuspense>
     );

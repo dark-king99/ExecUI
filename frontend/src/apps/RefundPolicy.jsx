@@ -1,13 +1,13 @@
 import LegalPage, { LegalSection } from "./LegalPage";
 import { Link } from "react-router-dom";
 
-const EFFECTIVE_DATE = "October 29, 2026";
+const EFFECTIVE_DATE = "November 9, 2026";
 
 const SECTIONS = [
   { id: "trial", label: "Free trials" },
   { id: "request-window", label: "Refund request window" },
-  { id: "not-covered", label: "Renewals, cancellation & exceptions" },
-  { id: "processing", label: "How refunds are processed" },
+  { id: "not-covered", label: "Renewals, cancellation & legal rights" },
+  { id: "processing", label: "How requests are reviewed" },
   { id: "contact", label: "Submit a request" },
 ];
 
@@ -38,52 +38,58 @@ export default function RefundPolicy() {
 
       <LegalSection id="request-window" title="2. Refund request window">
         <p>
-          The refund request window begins only after the free trial ends and
-          Paddle successfully captures the first subscription payment. You may
-          submit a request within 30 days of that first paid charge. This
-          initial-subscription refund window applies to the first paid charge
-          only; it does not restart for later renewal charges.
+          After the free trial ends and the first subscription payment is
+          successfully captured, you may submit a refund request within 30 days
+          of that charge. This request window applies to the first paid charge
+          only and does not restart for later renewals. A free trial is not a
+          refund and does not start the request window.
         </p>
         <p>
-          Requests are reviewed by SUL TECH. A request does not automatically
-          qualify for a refund and does not by itself cancel the subscription.
-          Nothing in this policy limits a refund or other right that applicable
-          law requires us to provide.
+          This is a window to request and receive a review; it is not a promise
+          that every request will be approved or that a refund is guaranteed.
+          Requests are assessed under the transaction terms, the payment
+          provider’s applicable rules, and mandatory legal rights. Submitting a
+          request does not by itself cancel a subscription.
         </p>
       </LegalSection>
 
       <LegalSection id="not-covered" title="3. Renewals, cancellation & exceptions">
         <p>
-          Subscriptions renew at the billing interval and price disclosed at
-          checkout until canceled. Canceling stops future renewals; it does not
+          Subscriptions renew at the interval and price disclosed at checkout
+          until canceled. Canceling stops future renewals; it does not
           automatically refund a charge already made or provide a prorated
-          refund for unused time in a billing period.
+          refund for unused time in a billing period. Use the cancellation
+          controls provided for your subscription or contact the payment
+          provider identified at checkout.
         </p>
         <p>
-          This policy does not limit rights that cannot be waived under
-          applicable consumer or other mandatory laws. If you believe a charge
-          was unauthorized, duplicated, or incorrect, please identify that in
-          your request so it can be reviewed promptly.
+          Nothing in this policy limits rights or remedies that cannot be
+          waived under applicable law. If you believe a charge was unauthorized,
+          duplicated, or incorrect, contact the payment provider and SUL TECH
+          promptly so the issue can be investigated.
         </p>
       </LegalSection>
 
       <LegalSection id="processing" title="4. How refunds are processed">
         <p>
-          Refund requests are reviewed by SUL TECH and, when needed, coordinated
-          with Paddle support. Refunds are processed manually in Paddle; this
-          website does not issue a refund automatically when a request is
-          submitted or approved. If approved and issued, the refund is returned
-          through the original payment method where supported. Posting times
-          depend on Paddle and the financial institution.
+          Submit a request through the in-product refund form where available,
+          or through the payment provider’s support process. SUL TECH reviews
+          requests and may coordinate with the provider. The provider identified
+          at checkout determines how an approved refund can be issued and
+          returned; ExecUI does not promise that submitting a form automatically
+          issues a refund. Processing and posting times depend on the provider
+          and the financial institution. Do not send card or bank credentials
+          with a request.
         </p>
       </LegalSection>
 
       <LegalSection id="contact" title="5. Submit a request">
         <p>
           Enterprise administrators can submit a request from their signed-in
-          workspace. The form looks up the first captured subscription charge
-          and its deadline from Paddle, so you do not need to enter payment
-          details. Never submit card or bank credentials.
+          workspace. Where available, the signed-in form uses billing
+          information on file to identify the relevant first paid charge.
+          Otherwise, contact the payment provider shown at checkout and SUL
+          TECH for assistance. Do not send card or bank credentials.
         </p>
         <p>
           <Link

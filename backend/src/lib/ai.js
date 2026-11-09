@@ -66,7 +66,6 @@ async function captureGeneration({ traceId, messages, outputLimit, started, data
     // No conversation identifier exists, so the process run is the session.
     $ai_session_id: `ai-process-${process.pid}`,
     $ai_model: AI_MODEL,
-    $ai_input: messages,
     $ai_input_tokens: usage.prompt_tokens ?? usage.input_tokens,
     $ai_output_tokens: usage.completion_tokens ?? usage.output_tokens,
     $ai_latency: (Date.now() - started) / 1_000,
@@ -77,12 +76,6 @@ async function captureGeneration({ traceId, messages, outputLimit, started, data
   };
 
   if (AI_PROVIDER) properties.$ai_provider = AI_PROVIDER;
-  if (data?.choices?.[0]?.message?.content) {
-    properties.$ai_output_choices = [{
-      role: "assistant",
-      content: data.choices[0].message.content,
-    }];
-  }
   if (data?.choices?.[0]?.finish_reason) properties.$ai_stop_reason = data.choices[0].finish_reason;
   if (error) {
     properties.$ai_is_error = true;

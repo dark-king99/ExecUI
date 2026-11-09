@@ -39,7 +39,8 @@ const COLUMNS = [
       { label: "Privacy Policy", to: "/privacy" },
       { label: "Refund Policy", to: "/refunds" },
       { label: "Terms of Service", to: "/terms" },
-      { label: "Data & Security", to: "/privacy#security" },
+      { label: "Acceptable Use Policy", to: "/acceptable-use" },
+      { label: "Security Policy", to: "/security" },
       { label: "Employee Privacy", to: "/privacy#employees" },
     ],
   },
@@ -72,7 +73,7 @@ export default function Footer() {
             </p>
             <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
               <ShieldCheck size={13} />
-              Tenant-isolated · encrypted · SOC-style controls
+              Tenant-isolated · security controls
             </div>
           </div>
 
@@ -117,7 +118,10 @@ export default function Footer() {
             <button onClick={() => navigate("/terms")} className="transition hover:text-slate-700 dark:hover:text-slate-200">
               Terms of Service
             </button>
-            <button onClick={() => navigate("/privacy#security")} className="transition hover:text-slate-700 dark:hover:text-slate-200">
+            <button onClick={() => navigate("/acceptable-use")} className="transition hover:text-slate-700 dark:hover:text-slate-200">
+              Acceptable Use
+            </button>
+            <button onClick={() => navigate("/security")} className="transition hover:text-slate-700 dark:hover:text-slate-200">
               Security
             </button>
             <button onClick={() => navigate("/account/billing")} className="transition hover:text-slate-700 dark:hover:text-slate-200">
