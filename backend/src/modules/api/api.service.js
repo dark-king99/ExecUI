@@ -160,6 +160,12 @@ export async function list(resourceId, query = {}) {
   };
 }
 
+/** Count a tenant-scoped resource without selecting or exposing record fields. */
+export async function count(resourceId) {
+  const resource = resolve(resourceId);
+  return prisma[resource.model].count({ where: {} });
+}
+
 export async function retrieve(resourceId, id) {
   const resource = resolve(resourceId);
   const select = Object.fromEntries(readableFields(resource).map((k) => [k, true]));
@@ -168,26 +174,26 @@ export async function retrieve(resourceId, id) {
   return serialize(resource, row);
 }
 
-export async function create(resourceId, body) {
+export async function create(resourceId, body, db = prisma) {
   const resource = resolve(resourceId);
   const data = validateBody(resource, body);
   const select = Object.fromEntries(readableFields(resource).map((k) => [k, true]));
   try {
-    const row = await prisma[resource.model].create({ data, select });
+    const row = await db[resource.model].create({ data, select });
     return serialize(resource, row);
   } catch (e) {
     throw translatePrismaError(e, resource);
   }
 }
 
-export async function update(resourceId, id, body) {
+export async function update(resourceId, id, body, db = prisma) {
   const resource = resolve(resourceId);
   const data = validateBody(resource, body, { partial: true });
-  const exists = await prisma[resource.model].findFirst({ where: { id }, select: { id: true } });
+  const exists = await db[resource.model].findFirst({ where: { id }, select: { id: true } });
   if (!exists) throw err(`No ${resource.name} with id "${id}"`, 404, "not_found");
   const select = Object.fromEntries(readableFields(resource).map((k) => [k, true]));
   try {
-    const row = await prisma[resource.model].update({ where: { id }, data, select });
+    const row = await db[resource.model].update({ where: { id }, data, select });
     return serialize(resource, row);
   } catch (e) {
     throw translatePrismaError(e, resource);

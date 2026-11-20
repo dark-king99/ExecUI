@@ -95,6 +95,7 @@ model Tenant {
   webhookDeliveries       WebhookDelivery[]
   workflows               Workflow[]
   workflowRuns            WorkflowRun[]
+  assistantRuns           AssistantRun[]
   approvalRequests        ApprovalRequest[]
   approvalDecisions       ApprovalDecision[]
   retentionPolicies       RetentionPolicy[]
@@ -1569,6 +1570,28 @@ model WorkflowRun {
 
   @@index([tenantId, createdAt])
   @@index([workflowId, recordId])
+}
+
+model AssistantRun {
+  id          String    @id @default(uuid())
+  tenantId    String
+  userId      String?
+  request     String
+  status      String    @default("running")
+  summary     String?
+  response    String?
+  result      Json?
+  steps       Json      @default("[]")
+  modelRoute  String?
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, createdAt])
+  @@index([tenantId, status])
 }
 
 // A multi-step sign-off on a record. Steps are resolved to real approvers at

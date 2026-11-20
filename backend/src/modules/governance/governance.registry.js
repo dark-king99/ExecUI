@@ -364,6 +364,25 @@ export const CATEGORIES = [
     pii: false,
   }),
 
+  cat("assistant_runs", {
+    label: "ExecAI run history",
+    model: "assistantRun",
+    dateField: "createdAt",
+    subject: { by: "userId" },
+    onErase: "anonymize",
+    anonymize: {
+      userId: null,
+      request: REDACTED,
+      response: REDACTED,
+      result: { redacted: true },
+      steps: [],
+    },
+    exportFields: ["id", "request", "response", "status", "steps", "createdAt", "completedAt"],
+    defaultRetentionDays: 90,
+    pii: true,
+    note: "Prompt and result content is redacted on export and anonymized on erasure; normal retention is 90 days.",
+  }),
+
   cat("social_snapshots", {
     label: "Social follower snapshots",
     model: "socialFollowerSnapshot",

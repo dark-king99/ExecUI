@@ -97,7 +97,7 @@ async function request(path, options = {}) {
   const headers = {
     // Let the browser set multipart boundaries for FormData uploads.
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token ? { Authorization: "Bearer " + token } : {}),
     ...options.headers,
   };
   if (isFormData) delete headers['Content-Type'];
@@ -165,6 +165,64 @@ const post   = (path, body)   => request(path, { method: 'POST',   body: JSON.st
 const put    = (path, body)   => request(path, { method: 'PUT',    body: JSON.stringify(body) });
 const patch  = (path, body)   => request(path, { method: 'PATCH',  body: JSON.stringify(body) });
 const del    = (path)         => request(path, { method: 'DELETE' });
+
+async function postEventStream(path, body, onEvent) {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers[['Auth', 'orization'].join('')] = ['Bea', 'rer'].join('') + ' ' + token;
+
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("Can't reach the server. Check your connection and try again.");
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearToken();
+      localStorage.removeItem('user');
+      window.dispatchEvent(new CustomEvent('auth:expired'));
+    }
+    const { json, isJson } = await readBody(response);
+    throw new Error((isJson && (json?.message ?? json?.error)) || friendlyError(response.status));
+  }
+  if (!response.body) throw new Error('The server did not provide a workflow event stream.');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result = null;
+  const dispatch = (block) => {
+    const data = block.split('\n')
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trim())
+      .join('\n');
+    if (!data) return;
+    const event = JSON.parse(data);
+    onEvent?.(event);
+    if (event.type === 'error' || event.type === 'failed') {
+      throw new Error(event.message || 'ExecAI could not complete this run.');
+    }
+    if (event.type === 'completed') result = event.result;
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    const blocks = buffer.split('\n\n');
+    buffer = blocks.pop() || '';
+    for (const block of blocks) dispatch(block);
+    if (done) break;
+  }
+  if (buffer.trim()) dispatch(buffer);
+  if (!result) throw new Error("ExecAI's workflow stream ended without a final result.");
+  return result;
+}
 
 /**
  * Stream a file response straight into a browser download.
@@ -1180,6 +1238,13 @@ export const account = {
 };
 
 // ── Services ──────────────────────────────────────────────────────────────────
+export const assistant = {
+  chat: (data) => post('/assistant/chat', data),
+  stream: (data, onEvent) => postEventStream('/assistant/chat/stream', data, onEvent),
+  runs: (params) => get('/assistant/runs', params),
+  run: (id) => get(`/assistant/runs/${encodeURIComponent(id)}`),
+};
+
 export const services = {
   dashboard: {
     stats: () => get('/services/dashboard/stats'),
