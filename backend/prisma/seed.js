@@ -6,6 +6,14 @@ const permissions = [
   { key: "crm.contact.read", description: "Read CRM contacts" },
   { key: "crm.contact.write", description: "Create and update CRM contacts" },
   { key: "crm.pipeline.manage", description: "Manage CRM pipelines" },
+  // ExecAI workspace actions (see assistant.actions.js and the
+  // add_execai_action_permissions migration, which creates these in production).
+  { key: "crm.activity.write", description: "Create or complete CRM tasks and meetings for other people" },
+  { key: "marketing.audience.write", description: "Create draft marketing audiences" },
+  { key: "marketing.experiment.write", description: "Create draft marketing experiments" },
+  { key: "network.alerts.manage", description: "Acknowledge network alerts" },
+  { key: "network.incidents.manage", description: "Open network incidents" },
+  { key: "network.changes.request", description: "Submit network change requests for approval" },
 
   { key: "user.read", description: "Read tenant users" },
   { key: "user.invite", description: "Invite tenant users" },

@@ -129,6 +129,58 @@ function RecordsCanvas({ view }) {
   );
 }
 
+const isScalar = (value) => value === null || ["string", "number", "boolean"].includes(typeof value);
+const formatScalar = (value) =>
+  typeof value === "number" ? value.toLocaleString() : value === null || value === "" ? "—" : String(value);
+
+function StatTiles({ entries }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      {entries.map(([key, value]) => (
+        <article key={key} className="min-w-0 rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+          <p className="truncate text-xs capitalize text-slate-500">{label(key)}</p>
+          <p className="mt-1 truncate text-xl font-semibold tabular-nums">{formatScalar(value)}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * A read-only solution view that returns a summary object rather than a list —
+ * pipeline by stage, capacity, the services dashboard. Scalars become tiles,
+ * one level of nested objects becomes its own group of tiles, and lists of rows
+ * reuse the records table.
+ */
+function SummaryCanvas({ view }) {
+  const entries = Object.entries(view.data || {});
+  if (!entries.length) return <EmptyCanvas />;
+  const scalars = entries.filter(([, value]) => isScalar(value));
+  const groups = entries.filter(([, value]) => value && typeof value === "object" && !Array.isArray(value));
+  const tables = entries.filter(([, value]) => Array.isArray(value) && value.some((row) => row && typeof row === "object"));
+
+  return (
+    <div className="space-y-4">
+      <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+        <h4 className="mb-3 font-semibold">{view.title}</h4>
+        {scalars.length ? <StatTiles entries={scalars} /> : null}
+        {groups.map(([key, value]) => {
+          const inner = Object.entries(value).filter(([, item]) => isScalar(item));
+          return inner.length ? (
+            <div key={key} className="mt-4">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">{label(key)}</p>
+              <StatTiles entries={inner} />
+            </div>
+          ) : null;
+        })}
+      </section>
+      {tables.map(([key, rows]) => (
+        <RecordsCanvas key={key} view={{ title: label(key), rows, total: rows.length }} />
+      ))}
+    </div>
+  );
+}
+
 function RecordCanvas({ view }) {
   const record = view.record || {};
   return (
@@ -502,6 +554,7 @@ export default function ExecAIWorkbench() {
                       <div key={`${view.kind}-${view.resource || index}`}>
                         {view.kind === "overview" && <OverviewCanvas modules={view.data?.modules} />}
                         {view.kind === "records" && <RecordsCanvas view={view} />}
+                        {view.kind === "summary" && <SummaryCanvas view={view} />}
                         {view.kind === "record" && <RecordCanvas view={view} />}
                         {view.kind === "python" && <PythonCanvas view={view} />}
                         {view.kind === "policies" && <PoliciesCanvas documents={view.documents} />}

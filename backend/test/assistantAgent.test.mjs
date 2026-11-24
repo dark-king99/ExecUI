@@ -11,35 +11,53 @@ import {
   writableResources,
 } from "../src/modules/assistant/assistant.policy.js";
 import { searchPolicyDocuments } from "../src/modules/assistant/policyCorpus.js";
+import { intersectWithPlan } from "../src/modules/access/access.policy.js";
+import { entitlementsFor } from "../src/modules/billing/plans.config.js";
+
+// Access exactly as attachAccess builds it: department sections narrowed by the
+// plan, with the plan's entitlements attached. The solution gates read
+// `access.plan`, so a hand-written { sections } object is a request no real
+// user can make — which is why these tests went red when the gates arrived.
+const planned = (sections, plan = "executive") =>
+  intersectWithPlan({ sections, slices: [] }, entitlementsFor(plan));
 
 test("overview catalog exposes only allowed modules and excludes personal records", () => {
   assert.deepEqual(
-    overviewCatalog({ sections: ["crm"] }).map(({ id }) => id),
+    overviewCatalog(planned(["crm"])).map(({ id }) => id),
     ["contacts", "opportunities", "tasks", "tickets"],
   );
-  assert.deepEqual(overviewCatalog({ sections: ["hr", "people", "billing"] }), []);
+  assert.deepEqual(overviewCatalog(planned(["hr", "people", "billing"])), []);
 });
 
 test("agent tool catalog exposes only authorized resources and no delete or arbitrary-code tool", () => {
-  const access = { sections: ["crm"] };
+  const access = planned(["crm"]);
   const writable = writableResources(access, { role: "enterprise_admin" });
-  const tools = assistantTools(access, { writable });
+  const tools = assistantTools(access, { writable, role: "enterprise_admin" });
   const byName = Object.fromEntries(tools.map(({ function: fn }) => [fn.name, fn]));
 
   assert.deepEqual(Object.keys(byName).sort(), [
     "create_record",
     "get_workspace_overview",
+    "list_automation_workflows",
+    "read_industry_records",
+    "read_solution",
+    "run_action",
     "search_execui_policy",
     "search_records",
     "update_record",
   ]);
+  // No tool name or offered action may delete, approve, or run code.
+  const actionNames = byName.run_action.parameters.properties.action.enum;
+  for (const name of [...Object.keys(byName), ...actionNames]) {
+    assert.doesNotMatch(name, /delete|remove|approve|reject|python|execute/);
+  }
   assert.deepEqual(byName.search_records.parameters.properties.resource.enum, [
     "contacts", "opportunities", "tasks", "tickets",
   ]);
   assert.deepEqual(byName.create_record.parameters.properties.resource.enum, [
     "contacts", "opportunities", "tasks", "tickets",
   ]);
-  const noWorkspaceAccess = assistantTools({ sections: ["hr"] });
+  const noWorkspaceAccess = assistantTools(planned(["hr"]));
   assert.deepEqual(noWorkspaceAccess.map(({ function: fn }) => fn.name), ["search_execui_policy"]);
   const adminTools = assistantTools(access, { role: "enterprise_admin" });
   assert.ok(adminTools.some(({ function: fn }) => fn.name === "list_automation_workflows"));
@@ -60,7 +78,7 @@ test("policy retrieval ranks relevant current ExecUI policy excerpts and include
 });
 
 test("non-admin write tools require explicit resource-level role permissions", () => {
-  const access = { sections: ["crm", "marketing"] };
+  const access = planned(["crm", "marketing"]);
   const none = writableResources(access, { role: "sales_rep" });
   assert.deepEqual(none, []);
 

@@ -101,7 +101,7 @@ export const listAccounts       = handle((req) => svc.listAccounts(tid(req), req
 export const getAccount         = handle((req) => svc.getAccount(tid(req), req.params.id));
 export const getAccountDeals    = handle((req) => svc.getAccountDeals(tid(req), req.params.id));
 export const getAccountTimeline = handle((req) => svc.getAccountTimeline(tid(req), req.params.id));
-export const addAccountNote     = handle((req) => svc.addAccountNote(tid(req), req.params.id, req.body));
+export const addAccountNote     = handle((req) => svc.addAccountNote(tid(req), req.params.id, req.body, uid(req)));
 
 // Resolutions
 export const listResolutions = handle((req) => svc.listResolutions(tid(req)));
@@ -146,7 +146,7 @@ export const getPartner   = handle((req) => svc.getPartner(tid(req), req.params.
 
 // Meetings
 export const listMeetings  = handle((req) => svc.listMeetings(tid(req), req.query));
-export const createMeeting = handle((req) => svc.createMeeting(tid(req), req.body));
+export const createMeeting = handle((req) => svc.createMeeting(tid(req), req.body, uid(req)));
 
 // Reps
 export const listReps       = handle((req) => svc.listReps(tid(req), req.query));

@@ -7,7 +7,8 @@ process.env.NODE_ENV = "production";
 const { complete, completeWithTools } = await import("../src/lib/ai.js");
 const prisma = (await import("../src/config/database.js")).default;
 const { consume, release } = await import("../src/lib/aiQuota.js");
-const { aiLimitFor } = await import("../src/modules/billing/plans.config.js");
+const { aiLimitFor, entitlementsFor } = await import("../src/modules/billing/plans.config.js");
+const { intersectWithPlan } = await import("../src/modules/access/access.policy.js");
 const { chat } = await import("../src/modules/assistant/assistant.service.js");
 const controller = await import("../src/modules/assistant/assistant.controller.js");
 
@@ -59,7 +60,9 @@ const request = {
   userId: "test-user",
   tenantId: "test-tenant",
   role: "enterprise_admin",
-  access: { sections: ["crm"] },
+  // Composed the way attachAccess composes it in production. A bare
+  // { sections } has no plan, and the solution gates (rightly) refuse it.
+  access: intersectWithPlan({ sections: ["crm"], slices: [] }, entitlementsFor("executive")),
   message: "What is the refund policy?",
 };
 
@@ -208,8 +211,11 @@ test("subsequent tool turn retains read tools but does not reoffer writes", asyn
     const result = await chat({ ...request, message: "Find open work and explain the refund policy" });
     assert.equal(result.task.steps.length, 2);
     assert.ok(offered[0].includes("create_record"));
+    assert.ok(offered[0].includes("run_action"), "domain actions are offered on the first turn");
     assert.ok(offered[1].includes("search_records"));
+    assert.ok(offered[1].includes("read_solution"), "read views survive into later turns");
     assert.ok(!offered[1].includes("create_record"));
+    assert.ok(!offered[1].includes("run_action"), "a write must never be chained off a tool result");
     assert.deepEqual(offered[2], []);
   } finally { restore(); }
 });
