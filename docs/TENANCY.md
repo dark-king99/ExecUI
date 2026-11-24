@@ -114,8 +114,10 @@ whole extra header.
 
 ## 3. Deleting an organization
 
-`DELETE FROM "Tenant"` now removes the organization from all ~96 tenant-scoped
-tables in one statement. Because that is true, everything around it exists to
+`DELETE FROM "Tenant"` cascades to every model with a foreign key to Tenant —
+90 of the 101 tenant-scoped models. The other 11 have a `tenantId` column but no
+relation, so `purgeTenant` deletes them by name (see below). Because removing an
+organization is now one call, everything around it exists to
 make sure it only happens deliberately.
 
 ### The cascade
@@ -136,6 +138,23 @@ immediately — so success would otherwise depend on which trigger happens to ru
 first. `purgeTenant` clears those tables explicitly before deleting the tenant
 row, removing the ordering dependency. The list is derived from the schema
 (`USER_RESTRICTED_MODELS`), so a new model can't quietly reintroduce the problem.
+
+**Tables the cascade can't reach.** `Attachment`, `CrmPlaybook`, `CrmResolution`,
+`CrmSequence`, `DeptMessage`, `DirectMessage`, `EmailLog`,
+`IntegrationConnection`, `NetworkAutomationJob`, `Notification` and
+`NotificationPref` carry `tenantId` with no foreign key to Tenant. Until
+2026-11-24 an organization delete left their rows behind — including integration
+connections, which hold encrypted third-party secrets — while the preview counted
+them as destroyed. `purgeTenant` now deletes them explicitly
+(`UNLINKED_TENANT_MODELS`); they were not given foreign keys because that
+migration would fail on any orphan rows already present. A test pins the list,
+so a new model without a Tenant relation has to be added to it deliberately.
+
+**Relation metadata comes from the schema file.** Prisma 7 removed
+`relationFromFields`/`relationOnDelete` from the runtime DMMF. Code that derived
+the lists above from it got empty lists without erroring, and the tests asserting
+on them passed vacuously. `lib/schemaRelations.js` reads `prisma/schema.prisma`
+instead, which ships in every image because migrations run from it on boot.
 
 ### The guards
 
