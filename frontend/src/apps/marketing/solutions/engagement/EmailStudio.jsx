@@ -35,6 +35,22 @@ function useRun(toast, after) {
   return [busy, run];
 }
 
+/** Approved Content Studio images, for inserting into the email body. */
+function ImagePicker({ onPick }) {
+  const { data } = useApi(() => marketing.content.assets.list({ kind: "image", status: "approved" }), []);
+  if (!data) return null;
+  return (
+    <Field label="Insert an approved image from Content Studio">
+      {data.length ? (
+        <SelectInput value="" onChange={(e) => { const a = data.find((x) => x.id === e.target.value); if (a) onPick(a); }}>
+          <option value="">Choose an image…</option>
+          {data.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+        </SelectInput>
+      ) : <p className="text-[11px] text-slate-500">No approved images yet — upload and approve them in Content Studio.</p>}
+    </Field>
+  );
+}
+
 // ── Campaign editor / detail ─────────────────────────────────────────────────
 function Campaign({ id, domains, audiences, onChanged, onClose }) {
   const toast = useToast();
@@ -105,6 +121,7 @@ function Campaign({ id, domains, audiences, onChanged, onClose }) {
                 {audiences.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.kind})</option>)}
               </SelectInput></Field>
             )}
+            <ImagePicker onPick={(a) => set("htmlBody", `${f.htmlBody ?? ""}\n<p><img src="${a.absoluteUrl}" alt="${(a.altText ?? "").replace(/"/g, "&quot;")}" style="max-width:100%;height:auto"></p>`)} />
             <Field label="Email body (HTML) — {{first_name}} {{name}} {{email}} {{unsubscribe_url}}">
               <textarea rows={12} value={f.htmlBody} onChange={(e) => set("htmlBody", e.target.value)} spellCheck={false}
                 className="w-full rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />

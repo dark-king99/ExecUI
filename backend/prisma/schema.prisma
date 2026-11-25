@@ -159,6 +159,10 @@ model Tenant {
   journeyVersions         MarketingJourneyVersion[]
   journeyEnrollments      MarketingJourneyEnrollment[]
   journeySteps            MarketingJourneyStep[]
+  marketingSources        MarketingDataSource[]
+  marketingIngestRuns     MarketingIngestRun[]
+  marketingAssets         MarketingAsset[]
+  marketingAssetVersions  MarketingAssetVersion[]
 }
 
 // Per-tenant configuration, one row per key.
@@ -2908,4 +2912,102 @@ model MarketingJourneyStep {
 
   @@unique([enrollmentId, seq])
   @@index([journeyId, nodeId, outcome])
+}
+
+// ── Data Streams ────────────────────────────────────────────────────────────
+// Where marketing data comes from. Every stream writes into CRM contacts and
+// the marketing event stream; none keeps a second copy of people.
+//   form  a hosted signup form (public URL keyed by publicKey)
+//   api   server-to-server events/contacts, authenticated by a secret key
+//   csv   file imports, one MarketingIngestRun per file
+model MarketingDataSource {
+  id             String    @id @default(uuid())
+  tenantId       String
+  name           String
+  kind           String // form | api | csv
+  status         String    @default("active") // active | paused
+  publicKey      String?   @unique // forms: the id in the public URL
+  secretHash     String?   @unique // api: sha256 of the key (shown once)
+  secretPrefix   String? // api: first characters, to recognise the key
+  config         Json      @default("{}")
+  received       Int       @default(0)
+  rejected       Int       @default(0)
+  lastReceivedAt DateTime?
+  lastError      String?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  runs   MarketingIngestRun[]
+
+  @@index([tenantId, kind])
+}
+
+model MarketingIngestRun {
+  id         String    @id @default(uuid())
+  tenantId   String
+  sourceId   String
+  fileName   String?
+  status     String    @default("running") // running | completed | failed
+  rows       Int       @default(0)
+  created    Int       @default(0)
+  updated    Int       @default(0)
+  consented  Int       @default(0)
+  skipped    Int       @default(0)
+  errors     Json      @default("[]") // first problems, with row numbers
+  startedById String?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  tenant Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  source MarketingDataSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId, startedAt])
+}
+
+// ── Content Studio ──────────────────────────────────────────────────────────
+// Brand assets in object storage. Each upload of a new file is a version;
+// only approved assets can be inserted into emails.
+model MarketingAsset {
+  id             String    @id @default(uuid())
+  tenantId       String
+  name           String
+  kind           String // image | video | document
+  mimeType       String
+  size           Int
+  url            String // the current version's public URL
+  altText        String?
+  tags           String[]  @default([])
+  status         String    @default("draft") // draft | approved | archived
+  version        Int       @default(1)
+  approvedById   String?
+  approvedAt     DateTime?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant   Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  versions MarketingAssetVersion[]
+
+  @@index([tenantId, status, kind])
+}
+
+model MarketingAssetVersion {
+  id           String   @id @default(uuid())
+  tenantId     String
+  assetId      String
+  version      Int
+  url          String
+  mimeType     String
+  size         Int
+  fileName     String?
+  note         String?
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  asset  MarketingAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, version])
 }

@@ -3,7 +3,7 @@
  *
  *   {
  *     trigger: { type: "contact_created" }
- *            | { type: "event", event: "email.clicked", campaignId? }
+ *            | { type: "event", event: "email.clicked" | "form.submitted" | "custom:<name>", campaignId?, sourceId? }
  *            | { type: "audience", audienceId, every: "hour" | "day" | "week" }
  *            | { type: "manual" },
  *     entry: "<node id>",
@@ -30,7 +30,7 @@
  * `validate` is pure; `checkReferences` confirms ids exist in the tenant.
  */
 import prisma from "../../../config/database.js";
-import { compile, EVENT_TYPES } from "../segments.js";
+import { compile, isEventType } from "../segments.js";
 import { checkWebhookUrl } from "../../../lib/safeHttp.js";
 
 const err = (message, status = 400) => Object.assign(new Error(message), { status });
@@ -84,7 +84,7 @@ function normalizeNode(id, n) {
       return { ...base, amount: int(n.amount, 1, max, `${where}: the wait`), unit: n.unit, next: ref(n.next) };
     }
     case "wait_for_event": {
-      if (!EVENT_TYPES.includes(n.event)) throw err(`${where}: unknown event "${n.event}"`);
+      if (!isEventType(n.event)) throw err(`${where}: unknown event "${n.event}"`);
       return { ...base, event: n.event, ...(n.campaignId ? { campaignId: String(n.campaignId) } : {}), days: int(n.days, 1, 90, `${where}: the time limit`), next: ref(n.next), timeout: ref(n.timeout) };
     }
     case "condition":
@@ -123,8 +123,8 @@ export function validate(def, { strict = false } = {}) {
   if (!TRIGGERS.includes(t.type)) throw err(`Unknown trigger "${t.type}"`);
   let trigger = { type: t.type };
   if (t.type === "event") {
-    if (!EVENT_TYPES.includes(t.event)) throw err(`Unknown trigger event "${t.event}"`);
-    trigger = { ...trigger, event: t.event, ...(t.campaignId ? { campaignId: String(t.campaignId) } : {}) };
+    if (!isEventType(t.event)) throw err(`Unknown trigger event "${t.event}"`);
+    trigger = { ...trigger, event: t.event, ...(t.campaignId ? { campaignId: String(t.campaignId) } : {}), ...(t.sourceId ? { sourceId: String(t.sourceId) } : {}) };
   }
   if (t.type === "audience") {
     if (!EVERY[t.every]) throw err("Run an audience trigger every hour, day or week");

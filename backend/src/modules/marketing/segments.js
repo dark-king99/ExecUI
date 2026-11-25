@@ -12,7 +12,7 @@
  *   { field: "name",    cmp: "contains" | "not_contains" | "equals", value }
  *   { field: "created", cmp: "within_days" | "before" | "after", value }
  *   { field: "consent", cmp: "is" | "is_not", value: "subscribed" | "unsubscribed" | "bounced" | "complained" | "none" }
- *   { field: "event",   cmp: "within_days" | "never", type: "email.opened" | …, value?: days, campaignId? }
+ *   { field: "event",   cmp: "within_days" | "never", type: "email.opened" | "form.submitted" | "custom:<name>" | …, value?: days, campaignId? }
  *   { field: "audience", cmp: "member" | "not_member", value: <audience id> }
  */
 import prisma from "../../config/database.js";
@@ -21,7 +21,10 @@ const err = (message, status = 400) => Object.assign(new Error(message), { statu
 const MAX_DEPTH = 4;
 const MAX_RULES = 50;
 const DAY = 86_400_000;
-export const EVENT_TYPES = ["email.sent", "email.delivered", "email.opened", "email.clicked", "email.bounced", "email.complained", "email.unsubscribed", "consent.changed"];
+export const EVENT_TYPES = ["email.sent", "email.delivered", "email.opened", "email.clicked", "email.bounced", "email.complained", "email.unsubscribed", "consent.changed", "form.submitted"];
+// Events sent through a Data Streams API key are namespaced "custom:<name>".
+export const CUSTOM_EVENT_RE = /^custom:[a-z0-9][a-z0-9_.-]{0,63}$/;
+export const isEventType = (t) => EVENT_TYPES.includes(t) || CUSTOM_EVENT_RE.test(String(t ?? ""));
 
 const text = (v) => {
   const s = String(v ?? "").trim();
@@ -87,7 +90,7 @@ async function compileRule(r, tenantId, ctx) {
       return r.cmp === "is_not" ? { NOT: has } : has;
     }
     case "event": {
-      if (!EVENT_TYPES.includes(r.type)) throw err(`Unknown event type "${r.type}"`);
+      if (!isEventType(r.type)) throw err(`Unknown event type "${r.type}"`);
       const where = { type: r.type, ...(r.campaignId ? { campaignId: String(r.campaignId) } : {}) };
       if (r.cmp === "within_days") return { marketingEvents: { some: { ...where, occurredAt: { gte: new Date(Date.now() - days(r.value) * DAY) } } } };
       if (r.cmp === "never") return { marketingEvents: { none: where } };

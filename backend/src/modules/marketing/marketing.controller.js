@@ -91,14 +91,6 @@ export const listB2BJourneys  = handle((req) => svc.listB2BJourneys(tid(req)));
 export const getB2BJourney    = handle((req) => svc.getB2BJourney(tid(req), req.params.id));
 export const createB2BJourney = handle((req) => svc.createB2BJourney(tid(req), req.body));
 
-// Content assets
-export const listContentAssets  = handle((req) => svc.listContentAssets(tid(req), req.query));
-export const getContentAsset    = handle((req) => svc.getContentAsset(tid(req), req.params.id));
-export const uploadContentAsset = handle((req) => svc.uploadContentAsset(tid(req), req.body));
-export const deleteContentAsset = handle(async (req, res) => {
-  await svc.deleteContentAsset(tid(req), req.params.id);
-  res.status(204).end();
-});
 
 // Commerce
 export const listOrders         = handle((req) => svc.listOrders(tid(req), req.query));
@@ -111,9 +103,6 @@ export const createPersonalization     = handle((req) => svc.createPersonalizati
 
 // CDP
 export const getCdpMetrics    = handle((req) => svc.getCdpMetrics(tid(req)));
-export const getCdpSources    = handle((req) => svc.getCdpSources(tid(req)));
-export const createCdpSource  = handle((req) => svc.createCdpSource(tid(req), req.body));
-export const createCdpSegment = handle((req) => svc.createCdpSegment(tid(req), req.body));
 
 // AI
 export const generateAi = handle((req) => svc.generateAi(tid(req), req.body));

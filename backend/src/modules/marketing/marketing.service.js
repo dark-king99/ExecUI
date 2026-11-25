@@ -348,11 +348,6 @@ export const createB2BJourney = async (tenantId, data) =>
     data: { name: data.name ?? "New Journey", objective: "demand_gen", channel: "multi-channel", status: "draft", tenantId },
   });
 
-// ── Content assets (no backing table) ─────────────────────────────────────────
-export const listContentAssets  = () => Promise.resolve([]);
-export const getContentAsset    = () => Promise.resolve(null);
-export const uploadContentAsset = (tenantId, data) => Promise.resolve({ id: `asset-${Date.now()}`, ...data, status: "draft" });
-export const deleteContentAsset = () => Promise.resolve({ deleted: true });
 
 // ── Commerce (real closed-won opportunities) ──────────────────────────────────
 export const listOrders = async (tenantId) => {
@@ -396,20 +391,24 @@ export const getPersonalizationMetrics = async (tenantId) => {
 export const createPersonalization = (tenantId, data) =>
   Promise.resolve({ id: `p-${Date.now()}`, ...data, status: "draft", lift: 0, impressions: 0 });
 
-// ── CDP (real counts only; sources require a connected integration) ───────────
+// ── CDP: real counts from contacts, events and Data Streams ─────────────────
+// Predictive fields stay null until Phase 12 has real models behind them.
 export const getCdpMetrics = async (tenantId) => {
-  const [contacts, sources] = await Promise.all([
+  const [contacts, sources, activeSources, events, audiences] = await Promise.all([
     prisma.contact.count({ where: { tenantId } }),
-    Promise.resolve(0),
+    prisma.marketingDataSource.count({ where: { tenantId } }),
+    prisma.marketingDataSource.count({ where: { tenantId, status: "active" } }),
+    prisma.marketingEvent.count({ where: { tenantId } }),
+    prisma.marketingAudience.count({ where: { tenantId } }),
   ]);
   return {
     totalProfiles:      contacts,
-    activeSources:      sources,
+    activeSources,
     totalSources:       sources,
-    resolvedIdentities: contacts,
-    totalEvents:        0,
+    resolvedIdentities: null,
+    totalEvents:        events,
     activeModels:       0,
-    activeSegments:     await prisma.marketingAudience.count({ where: { tenantId } }),
+    activeSegments:     audiences,
     audience:           contacts,
     audienceDelta:      null,
     confidence:         null,
@@ -420,9 +419,6 @@ export const getCdpMetrics = async (tenantId) => {
   };
 };
 
-export const getCdpSources    = () => Promise.resolve([]);
-export const createCdpSource  = (tenantId, data) => Promise.resolve({ id: `src-${Date.now()}`, ...data, status: "pending", records: 0, lastSync: null });
-export const createCdpSegment = (tenantId, data) => Promise.resolve({ id: `seg-${Date.now()}`, ...data, size: 0, status: "building" });
 
 
 // ── AI content generation (a functional generator, not stored data) ───────────
