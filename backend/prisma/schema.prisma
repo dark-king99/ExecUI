@@ -155,6 +155,10 @@ model Tenant {
   marketingEmailSettings  MarketingEmailSettings?
   marketingDeliveries     MarketingEmailDelivery[]
   audienceMembers         MarketingAudienceMember[]
+  marketingJourneys       MarketingJourney[]
+  journeyVersions         MarketingJourneyVersion[]
+  journeyEnrollments      MarketingJourneyEnrollment[]
+  journeySteps            MarketingJourneyStep[]
 }
 
 // Per-tenant configuration, one row per key.
@@ -495,6 +499,7 @@ model Contact {
   marketingEvents    MarketingEvent[]
   audienceMembers    MarketingAudienceMember[]
   emailDeliveries    MarketingEmailDelivery[]
+  journeyEnrollments MarketingJourneyEnrollment[]
 }
 
 model RolePermission {
@@ -870,6 +875,9 @@ model MarketingCampaign {
   sendCompletedAt DateTime?
   lastError       String?
   createdById     String?
+  // batch: sent once to an audience. triggered: a journey email — "active"
+  // while journeys may send it, one delivery per journey step.
+  mode            String    @default("batch")
   deliveries      MarketingEmailDelivery[]
   tenantId    String
   tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -2745,6 +2753,9 @@ model MarketingEmailDelivery {
   tenantId          String
   campaignId        String
   contactId         String
+  // What makes a delivery unique within its campaign: the contact for a batch
+  // send, "<enrollment>:<step>" for a journey email.
+  sendKey           String
   email             String
   status            String    @default("queued") // queued | sending | sent | delivered | bounced | complained | failed | skipped
   attempts          Int       @default(0)
@@ -2766,7 +2777,8 @@ model MarketingEmailDelivery {
   campaign MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   contact  Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
-  @@unique([campaignId, contactId])
+  @@unique([campaignId, sendKey])
+  @@index([campaignId, contactId])
   @@index([status, nextAttemptAt])
   @@index([tenantId, campaignId, status])
 }
@@ -2785,4 +2797,115 @@ model MarketingAudienceMember {
   contact  Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@unique([audienceId, contactId])
+}
+
+// ── Journey Builder and Automation Studio ───────────────────────────────────
+// A journey is a graph of steps (journeys/definition.js). Publishing freezes the
+// draft as a numbered version; contacts move through the version they entered
+// on, so editing a live journey never strands anyone mid-way.
+model MarketingJourney {
+  id               String    @id @default(uuid())
+  tenantId         String
+  name             String
+  description      String?
+  kind             String    @default("journey") // journey | automation
+  status           String    @default("draft") // draft | active | paused | archived
+  draft            Json
+  currentVersionId String?
+  triggerType      String? // of the live version: contact_created | event | audience | manual
+  triggerKey       String? // the event type it listens for, or the audience it enrolls
+  nextRunAt        DateTime? // scheduled (audience) triggers
+  lastRunAt        DateTime?
+  lastError        String?
+  createdById      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant      Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  versions    MarketingJourneyVersion[]
+  enrollments MarketingJourneyEnrollment[]
+
+  @@index([tenantId, kind, status])
+  @@index([status, triggerType, triggerKey])
+  @@index([status, nextRunAt])
+}
+
+model MarketingJourneyVersion {
+  id            String   @id @default(uuid())
+  tenantId      String
+  journeyId     String
+  version       Int
+  definition    Json
+  note          String?
+  publishedById String?
+  createdAt     DateTime @default(now())
+
+  tenant      Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  journey     MarketingJourney             @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  enrollments MarketingJourneyEnrollment[]
+
+  @@unique([journeyId, version])
+}
+
+// One contact's trip through one journey. The engine picks up rows whose wait
+// is over (FOR UPDATE SKIP LOCKED), so waits survive restarts and instances
+// never process the same contact twice.
+model MarketingJourneyEnrollment {
+  id            String    @id @default(uuid())
+  tenantId      String
+  journeyId     String
+  versionId     String
+  contactId     String
+  status        String    @default("active") // active | waiting | completed | exited | failed
+  nodeId        String?
+  waitUntil     DateTime?
+  waitEvent     String? // the event a "wait for event" step is waiting on
+  stepStartedAt DateTime?
+  steps         Int       @default(0) // steps finished; also the history sequence
+  attempts      Int       @default(0) // retries of the current step
+  lockedAt      DateTime?
+  // The contact id while the enrollment is live (one live trip per contact),
+  // and — for journeys that admit each contact once — forever.
+  activeKey     String?
+  onceKey       String?
+  trigger       Json      @default("{}")
+  exitReason    String? // goal | exit_rule | archived | removed
+  lastError     String?
+  enteredAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  updatedAt     DateTime  @updatedAt
+
+  tenant  Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  journey MarketingJourney        @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  version MarketingJourneyVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  contact Contact                 @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  history MarketingJourneyStep[]
+
+  @@unique([journeyId, activeKey])
+  @@unique([journeyId, onceKey])
+  @@index([status, waitUntil])
+  @@index([tenantId, journeyId, status])
+  @@index([contactId, status, waitEvent])
+}
+
+// What happened at each step — the audit trail for one enrollment.
+model MarketingJourneyStep {
+  id           String   @id @default(uuid())
+  tenantId     String
+  journeyId    String
+  enrollmentId String
+  seq          Int
+  nodeId       String
+  type         String
+  outcome      String // started | done | skipped | retry | failed
+  detail       Json     @default("{}")
+  error        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant     Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  enrollment MarketingJourneyEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, seq])
+  @@index([journeyId, nodeId, outcome])
 }

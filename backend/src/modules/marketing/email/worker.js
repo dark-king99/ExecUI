@@ -61,7 +61,8 @@ export async function claim(n = BATCH) {
      WHERE d.id IN (
        SELECT d2.id FROM "MarketingEmailDelivery" d2
          JOIN "MarketingCampaign" c ON c.id = d2."campaignId"
-        WHERE d2.status = 'queued' AND c.status = 'running'
+        WHERE d2.status = 'queued'
+          AND (c.status = 'running' OR (c.mode = 'triggered' AND c.status = 'active'))
           AND (d2."nextAttemptAt" IS NULL OR d2."nextAttemptAt" <= now())
         ORDER BY d2."createdAt"
         LIMIT ${n}
@@ -119,7 +120,7 @@ export async function sendOne(id) {
 
 /** Finish running campaigns with nothing left to send. */
 export async function completeFinished() {
-  const running = await runUnscoped(() => prisma.marketingCampaign.findMany({ where: { channel: "email", status: "running" }, select: { id: true, tenantId: true } }));
+  const running = await runUnscoped(() => prisma.marketingCampaign.findMany({ where: { channel: "email", status: "running", mode: "batch" }, select: { id: true, tenantId: true } }));
   let done = 0;
   for (const c of running) {
     const left = await runUnscoped(() => prisma.marketingEmailDelivery.count({ where: { campaignId: c.id, status: { in: ["queued", "sending"] } } }));

@@ -47,6 +47,7 @@ router.post("/email/campaigns/:id/unschedule", send, handle((req) => svc.unsched
 router.post("/email/campaigns/:id/send", send, handle((req) => svc.start(tid(req), req.params.id)));
 router.post("/email/campaigns/:id/pause", send, handle((req) => svc.pause(tid(req), req.params.id)));
 router.post("/email/campaigns/:id/resume", send, handle((req) => svc.resume(tid(req), req.params.id)));
+router.post("/email/campaigns/:id/activate", send, handle((req) => svc.activate(tid(req), req.params.id)));
 router.post("/email/campaigns/:id/cancel", send, handle((req) => svc.cancel(tid(req), req.params.id)));
 
 // Consent + suppression

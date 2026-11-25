@@ -5,6 +5,9 @@
  * numbers. Status is whatever the engine says happened — a button never sets
  * it directly. Setup: sending domains (with their DNS records) and the legal
  * footer. Subscribers: who has consented, and the audiences campaigns go to.
+ *
+ * A journey email has no audience and is never sent on its own: once
+ * activated, journeys send it to each contact who reaches its step.
  */
 import { useEffect, useMemo, useState } from "react";
 import { Mail, Plus, Send, Pause, Play, Ban, Copy, Trash2, RefreshCw, CheckCircle2, AlertTriangle, Globe, Users, CalendarClock, FlaskConical } from "lucide-react";
@@ -13,8 +16,9 @@ import { useToast } from "../../../../components/ui/Toast";
 import { useApi } from "../../../../hooks/useApi";
 import { marketing } from "../../../../services/api";
 import { SolutionShell, Section, Loading, ErrorNote, Field, TextInput, SelectInput, PrimaryBtn, GhostBtn, fmtNum } from "../../components/mkt-ui";
+import RuleBuilder, { blankTree, normalizeTree } from "../../components/RuleBuilder";
 
-const STATUS_VARIANT = { draft: "neutral", scheduled: "indigo", running: "info", paused: "warning", completed: "success", failed: "danger", cancelled: "neutral" };
+const STATUS_VARIANT = { active: "success", draft: "neutral", scheduled: "indigo", running: "info", paused: "warning", completed: "success", failed: "danger", cancelled: "neutral" };
 const when = (d) => (d ? new Date(d).toLocaleString() : "—");
 const STARTER = `<h1 style="font-family:Arial,sans-serif">Hello {{first_name}},</h1>
 <p style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6">Write your message here.</p>
@@ -37,7 +41,8 @@ function Campaign({ id, domains, audiences, onChanged, onClose }) {
   const { data: c, refetch } = useApi(() => marketing.email.campaign(id), [id]);
   const { data: ready, refetch: recheck } = useApi(() => marketing.email.readiness(id), [id, c?.updatedAt]);
   const live = c && c.status !== "draft";
-  const { data: stats, refetch: restat } = useApi(() => (live ? marketing.email.stats(id) : Promise.resolve(null)), [id, c?.status], { pollingInterval: live && ["running", "scheduled"].includes(c?.status) ? 5000 : null });
+  const triggered = c?.mode === "triggered";
+  const { data: stats, refetch: restat } = useApi(() => (live ? marketing.email.stats(id) : Promise.resolve(null)), [id, c?.status], { pollingInterval: live && ["running", "scheduled", "active"].includes(c?.status) ? 5000 : null });
   const { data: deliveries } = useApi(() => (live ? marketing.email.deliveries(id, { limit: 100 }) : Promise.resolve([])), [id, c?.status, stats?.accepted]);
   const [form, setForm] = useState(null);
   const [at, setAt] = useState("");
@@ -63,6 +68,7 @@ function Campaign({ id, domains, audiences, onChanged, onClose }) {
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{c.name}</h3>
         <StatusBadge label={c.status} variant={STATUS_VARIANT[c.status] ?? "neutral"} dot />
+        {triggered && <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[11px] font-medium text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">Journey email</span>}
         {c.scheduledAt && c.status === "scheduled" && <span className="text-xs text-slate-500">for {when(c.scheduledAt)}</span>}
         <div className="ml-auto flex flex-wrap gap-2">
           <GhostBtn onClick={() => run("dup", () => marketing.email.duplicate(id), "Copied as a new draft")}><Copy size={13} /> Duplicate</GhostBtn>
@@ -91,10 +97,14 @@ function Campaign({ id, domains, audiences, onChanged, onClose }) {
                 {domains.map((d) => <option key={d.id} value={d.id}>{d.domain}{d.status !== "verified" ? ` (${d.status})` : ""}</option>)}
               </SelectInput></Field>
             </div>
-            <Field label="Audience"><SelectInput value={f.audienceId} onChange={(e) => set("audienceId", e.target.value)}>
-              <option value="">Choose…</option>
-              {audiences.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.kind})</option>)}
-            </SelectInput></Field>
+            {triggered ? (
+              <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">Journey emails have no audience: a journey sends this to each contact who reaches its "Send email" step — only if they have email consent.</p>
+            ) : (
+              <Field label="Audience"><SelectInput value={f.audienceId} onChange={(e) => set("audienceId", e.target.value)}>
+                <option value="">Choose…</option>
+                {audiences.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.kind})</option>)}
+              </SelectInput></Field>
+            )}
             <Field label="Email body (HTML) — {{first_name}} {{name}} {{email}} {{unsubscribe_url}}">
               <textarea rows={12} value={f.htmlBody} onChange={(e) => set("htmlBody", e.target.value)} spellCheck={false}
                 className="w-full rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
@@ -106,20 +116,29 @@ function Campaign({ id, domains, audiences, onChanged, onClose }) {
             <iframe title="Email preview" sandbox="" srcDoc={f.htmlBody} className="h-96 w-full rounded-lg border border-slate-200 bg-white dark:border-slate-700" />
             <p className="text-[11px] text-slate-400">A footer with the unsubscribe link and your postal address is added to every email automatically.</p>
             <div className={`rounded-lg p-3 text-sm ${ready?.ready ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300" : "bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200"}`}>
-              {ready?.ready
+              {ready?.ready && triggered
+                ? <p className="flex items-center gap-2"><CheckCircle2 size={15} /> Ready to activate for journeys.</p>
+                : ready?.ready
                 ? <p className="flex items-center gap-2"><CheckCircle2 size={15} /> Ready — {fmtNum(ready.audience.sendable)} subscribed recipient{ready.audience.sendable === 1 ? "" : "s"} ({fmtNum(ready.audience.members)} in the audience).</p>
-                : <ul className="list-disc space-y-0.5 pl-5">{(ready?.problems ?? []).map((p) => <li key={p}>{p}</li>)}{ready && !ready.problems.length && <li>No one in this audience has email consent yet.</li>}</ul>}
+                : <ul className="list-disc space-y-0.5 pl-5">{(ready?.problems ?? []).map((p) => <li key={p}>{p}</li>)}{ready && !ready.problems.length && !triggered && <li>No one in this audience has email consent yet.</li>}</ul>}
               <p className="mt-1 text-[11px] opacity-80">Save the draft to re-check.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <PrimaryBtn disabled={busy === "save"} onClick={save}>Save draft</PrimaryBtn>
               <GhostBtn disabled={busy === "test"} onClick={async () => { await save(); run("test", () => marketing.email.test(id), (r) => `Test sent to ${r.to}`); }}><FlaskConical size={13} /> Send test to me</GhostBtn>
             </div>
+            {triggered ? (
+              <div className="flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+                <PrimaryBtn disabled={busy === "act"} onClick={async () => { await save(); run("act", () => marketing.email.activate(id), "Active — journeys can now send it"); }}><Play size={13} /> Activate for journeys</PrimaryBtn>
+                <p className="text-[11px] text-slate-500">Once active it can't be edited; duplicate it to change the content.</p>
+              </div>
+            ) : (
             <div className="flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
               <Field label="Schedule for"><TextInput type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} /></Field>
               <GhostBtn disabled={!at || busy === "sched"} onClick={async () => { await save(); run("sched", () => marketing.email.schedule(id, new Date(at).toISOString()), "Scheduled"); }}><CalendarClock size={13} /> Schedule</GhostBtn>
               <PrimaryBtn disabled={busy === "send"} onClick={sendNow}><Send size={13} /> Send now</PrimaryBtn>
             </div>
+            )}
           </div>
         </div>
       )}
@@ -128,9 +147,9 @@ function Campaign({ id, domains, audiences, onChanged, onClose }) {
         <>
           <div className="flex flex-wrap gap-2">
             {c.status === "scheduled" && <GhostBtn onClick={() => run("u", () => marketing.email.unschedule(id), "Back to draft")}>Unschedule</GhostBtn>}
-            {c.status === "running" && <GhostBtn onClick={() => run("p", () => marketing.email.pause(id), "Paused")}><Pause size={13} /> Pause</GhostBtn>}
+            {["running", "active"].includes(c.status) && <GhostBtn onClick={() => run("p", () => marketing.email.pause(id), "Paused")}><Pause size={13} /> Pause</GhostBtn>}
             {c.status === "paused" && <GhostBtn onClick={() => run("r", () => marketing.email.resume(id), "Resumed")}><Play size={13} /> Resume</GhostBtn>}
-            {["scheduled", "running", "paused"].includes(c.status) && <GhostBtn onClick={() => window.confirm("Cancel? Unsent recipients won't get it.") && run("c", () => marketing.email.cancel(id), "Cancelled")}><Ban size={13} /> Cancel</GhostBtn>}
+            {["scheduled", "running", "paused", "active"].includes(c.status) && <GhostBtn onClick={() => window.confirm(triggered ? "Cancel? Journeys reaching this email will fail at that step." : "Cancel? Unsent recipients won't get it.") && run("c", () => marketing.email.cancel(id), "Cancelled")}><Ban size={13} /> Cancel</GhostBtn>}
           </div>
           {stats && (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
@@ -232,54 +251,20 @@ function Setup() {
 }
 
 // ── Subscribers + audiences ──────────────────────────────────────────────────
-const FIELDS = [
-  ["email", "Email", ["contains", "ends_with", "equals", "not_contains"]],
-  ["name", "Name", ["contains", "equals", "not_contains"]],
-  ["created", "Added to CRM", ["within_days", "after", "before"]],
-  ["consent", "Email consent", ["is", "is_not"]],
-  ["event", "Email activity", ["within_days", "never"]],
-];
-const CMP = { contains: "contains", ends_with: "ends with", equals: "is", not_contains: "doesn't contain", within_days: "in the last (days)", after: "after", before: "before", is: "is", is_not: "is not", never: "never" };
-
 function AudienceEditor({ audience, onSaved }) {
   const toast = useToast();
-  const initial = audience.definition?.rules?.length ? audience.definition : { op: "and", rules: [{ field: "email", cmp: "contains", value: "" }] };
-  const [tree, setTree] = useState(initial);
+  const [tree, setTree] = useState(audience.definition?.rules?.length ? audience.definition : blankTree());
   const { data: preview, refetch } = useApi(() => marketing.audiences.preview(audience.id), [audience.id, audience.updatedAt]);
   const [busy, run] = useRun(toast, async () => { await refetch(); onSaved(); });
-  const setRule = (i, patch) => setTree((t) => ({ ...t, rules: t.rules.map((r, j) => (j === i ? { ...r, ...patch } : r)) }));
 
   return (
     <div className="space-y-2 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
       <div className="flex items-center gap-2 text-sm">
         <span className="font-medium text-slate-900 dark:text-white">{audience.name}</span>
         <span className="text-xs text-slate-500">{preview ? `${fmtNum(preview.members)} contacts · ${fmtNum(preview.sendable)} can receive email` : "…"}</span>
-        <SelectInput value={tree.op} onChange={(e) => setTree({ ...tree, op: e.target.value })} aria-label="Match"><option value="and">match all</option><option value="or">match any</option></SelectInput>
       </div>
-      {tree.rules.map((r, i) => {
-        const def = FIELDS.find(([k]) => k === r.field) ?? FIELDS[0];
-        return (
-          <div key={i} className="flex flex-wrap items-center gap-2">
-            <SelectInput value={r.field} onChange={(e) => setRule(i, { field: e.target.value, cmp: FIELDS.find(([k]) => k === e.target.value)[2][0], value: "" })}>{FIELDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</SelectInput>
-            <SelectInput value={r.cmp} onChange={(e) => setRule(i, { cmp: e.target.value })}>{def[2].map((c) => <option key={c} value={c}>{CMP[c]}</option>)}</SelectInput>
-            {r.field === "consent" ? (
-              <SelectInput value={r.value || "subscribed"} onChange={(e) => setRule(i, { value: e.target.value })}>{["subscribed", "unsubscribed", "bounced", "complained", "none"].map((v) => <option key={v} value={v}>{v === "none" ? "not recorded" : v}</option>)}</SelectInput>
-            ) : r.field === "event" ? (
-              <>
-                <SelectInput value={r.type || "email.opened"} onChange={(e) => setRule(i, { type: e.target.value })}>{["email.opened", "email.clicked", "email.delivered", "email.bounced", "email.unsubscribed"].map((v) => <option key={v} value={v}>{v.replace("email.", "")}</option>)}</SelectInput>
-                {r.cmp === "within_days" && <TextInput type="number" min={1} value={r.value} onChange={(e) => setRule(i, { value: Number(e.target.value) })} />}
-              </>
-            ) : (
-              <TextInput type={["after", "before"].includes(r.cmp) ? "date" : r.cmp === "within_days" ? "number" : "text"} value={r.value} onChange={(e) => setRule(i, { value: r.cmp === "within_days" ? Number(e.target.value) : e.target.value })} />
-            )}
-            <button type="button" onClick={() => setTree((t) => ({ ...t, rules: t.rules.filter((_, j) => j !== i) }))} className="text-slate-400 hover:text-red-500"><Trash2 size={13} /></button>
-          </div>
-        );
-      })}
-      <div className="flex gap-2">
-        <GhostBtn onClick={() => setTree((t) => ({ ...t, rules: [...t.rules, { field: "email", cmp: "contains", value: "" }] }))}><Plus size={13} /> Rule</GhostBtn>
-        <PrimaryBtn disabled={busy === "save"} onClick={() => run("save", () => marketing.audiences.setDefinition(audience.id, { kind: "dynamic", definition: { ...tree, rules: tree.rules.map((r) => (r.field === "consent" && !r.value ? { ...r, value: "subscribed" } : r.field === "event" && !r.type ? { ...r, type: "email.opened" } : r)) } }), "Audience saved")}>Save rules</PrimaryBtn>
-      </div>
+      <RuleBuilder tree={tree} onChange={setTree} />
+      <PrimaryBtn disabled={busy === "save"} onClick={() => run("save", () => marketing.audiences.setDefinition(audience.id, { kind: "dynamic", definition: normalizeTree(tree) }), "Audience saved")}>Save rules</PrimaryBtn>
       {preview?.sample?.length > 0 && <p className="text-[11px] text-slate-500">e.g. {preview.sample.slice(0, 5).map((s) => s.email).join(", ")}</p>}
     </div>
   );
@@ -337,7 +322,12 @@ export default function EmailStudio() {
 
   return (
     <SolutionShell solutionId="engagement" title="Email Studio" subtitle="Email campaigns sent through your verified domain, only to people who agreed"
-      actions={tab === "campaigns" && <PrimaryBtn disabled={busy === "new"} onClick={() => run("new", () => marketing.email.create({ name: `Campaign ${new Date().toLocaleDateString()}` })).then((c) => c && setOpen(c.id))}><Plus size={15} /> New campaign</PrimaryBtn>}>
+      actions={tab === "campaigns" && (
+        <div className="flex gap-2">
+          <GhostBtn disabled={busy === "newj"} onClick={() => run("newj", () => marketing.email.create({ name: `Journey email ${new Date().toLocaleDateString()}`, mode: "triggered" })).then((c) => c && setOpen(c.id))}><Plus size={14} /> Journey email</GhostBtn>
+          <PrimaryBtn disabled={busy === "new"} onClick={() => run("new", () => marketing.email.create({ name: `Campaign ${new Date().toLocaleDateString()}` })).then((c) => c && setOpen(c.id))}><Plus size={15} /> New campaign</PrimaryBtn>
+        </div>
+      )}>
       <div className="flex gap-1 rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800">
         {[["campaigns", "Campaigns"], ["setup", "Sending setup"], ["subscribers", "Subscribers & audiences"]].map(([k, l]) => (
           <button key={k} type="button" onClick={() => setTab(k)} className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium ${tab === k ? "bg-white shadow-sm dark:bg-slate-700" : "text-slate-500"}`}>{l}</button>
@@ -355,7 +345,7 @@ export default function EmailStudio() {
               {(campaigns ?? []).map((c) => (
                 <button key={c.id} type="button" onClick={() => setOpen(c.id)} className="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{c.name}</p>
+                    <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{c.name}{c.mode === "triggered" && <span className="ml-2 text-[11px] font-normal text-violet-600 dark:text-violet-300">journey email</span>}</p>
                     <p className="truncate text-xs text-slate-500">{c.subject || "No subject yet"}{c.status === "scheduled" ? ` · ${when(c.scheduledAt)}` : c.sendCompletedAt ? ` · finished ${when(c.sendCompletedAt)}` : ""}</p>
                     {c.lastError && <p className="truncate text-xs text-rose-600">{c.lastError}</p>}
                   </div>

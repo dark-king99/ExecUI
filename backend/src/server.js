@@ -15,6 +15,7 @@ import { startTenantScheduler, stopTenantScheduler } from "./modules/tenants/ten
 import { startConnectionScheduler, stopConnectionScheduler } from "./modules/connections/connections.scheduler.js";
 import { startNetworkScheduler, stopNetworkScheduler } from "./modules/network/network.scheduler.js";
 import { startEmailWorker, stopEmailWorker } from "./modules/marketing/email/worker.js";
+import { startJourneyWorker, stopJourneyWorker } from "./modules/marketing/journeys/engine.js";
 const PORT = process.env.PORT || 5555;
 
 // ── Apply pending migrations on boot ──────────────────────────────────────────
@@ -105,6 +106,7 @@ startNetworkScheduler();
 
 // Marketing email: start scheduled campaigns and send queued messages.
 startEmailWorker();
+startJourneyWorker();
 
 // Flush buffered analytics on graceful shutdown so nothing is lost.
 for (const sig of ["SIGTERM", "SIGINT"]) {
@@ -118,6 +120,7 @@ for (const sig of ["SIGTERM", "SIGINT"]) {
     stopConnectionScheduler();
     stopNetworkScheduler();
     stopEmailWorker();
+    stopJourneyWorker();
     stopTenantScheduler();
     await shutdownAnalytics();
     await shutdownPostHogLogs();

@@ -424,12 +424,6 @@ export const getCdpSources    = () => Promise.resolve([]);
 export const createCdpSource  = (tenantId, data) => Promise.resolve({ id: `src-${Date.now()}`, ...data, status: "pending", records: 0, lastSync: null });
 export const createCdpSegment = (tenantId, data) => Promise.resolve({ id: `seg-${Date.now()}`, ...data, size: 0, status: "building" });
 
-// ── Flows (no backing table) ──────────────────────────────────────────────────
-export const listFlows    = () => Promise.resolve([]);
-export const getFlow       = () => Promise.resolve(null);
-export const getFlowStats  = () => Promise.resolve({ entered: 0, converted: 0, active: 0, dropped: 0 });
-export const createFlow    = (tenantId, data) => Promise.resolve({ id: `flow-${Date.now()}`, ...data, status: "draft", enrolled: 0, converted: 0 });
-export const updateFlow    = (tenantId, id, data) => Promise.resolve({ id, ...data });
 
 // ── AI content generation (a functional generator, not stored data) ───────────
 export const generateAi = async (tenantId, body = {}) => {
