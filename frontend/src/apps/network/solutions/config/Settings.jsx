@@ -109,6 +109,7 @@ export default function Settings() {
       ...settings, subnetsText: (settings.subnets ?? []).join("\n"), monitoringUrl: settings.monitoring?.url ?? "", monitoringTool: settings.monitoring?.tool ?? "",
       monitoringAutoAdd: !!settings.monitoring?.autoAdd,
       flowEnabled: !!settings.flow?.enabled, flowPort: settings.flow?.port ?? 2055,
+      backupEnabled: !!settings.backup?.enabled, backupSshUser: settings.backup?.sshUser ?? "",
       v3User: settings.snmpV3?.user ?? "", v3Level: settings.snmpV3?.level ?? "authPriv", v3Auth: settings.snmpV3?.authProtocol ?? "sha256",
     });
   }, [settings]);
@@ -123,6 +124,7 @@ export default function Settings() {
         snmpVersion: f.snmpVersion, cpuThreshold: Number(f.cpuThreshold), memThreshold: Number(f.memThreshold),
         autoResolveAlerts: !!f.autoResolveAlerts, alertEmail: f.alertEmail ?? "", metricRetentionDays: Number(f.metricRetentionDays),
         flow: { enabled: !!f.flowEnabled, port: Number(f.flowPort) },
+        backup: { enabled: !!f.backupEnabled, sshUser: f.backupSshUser ?? "" },
         ...(secret.snmpCommunity ? { snmpCommunity: secret.snmpCommunity } : {}),
         ...(f.snmpVersion === "v3" ? { snmpV3: {
           user: f.v3User, level: f.v3Level, authProtocol: f.v3Auth, privProtocol: "aes",
@@ -224,6 +226,20 @@ export default function Settings() {
             <p className="mt-2 text-xs text-slate-500">
               Point your routers' or firewalls' NetFlow v5/v9 or IPFIX export at the collector machine's address on this port. Only exporters on private
               addresses are accepted. ExecUI keeps per-application totals and the busiest conversations, not individual flow records.
+            </p>
+          </Section>
+
+          <Section title="Configuration backup" subtitle="Routers, switches and firewalls, over SSH" icon={SettingsIcon} className="lg:col-span-2">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="w-56"><Field label="SSH user on your devices"><TextInput value={f.backupSshUser ?? ""} onChange={(e) => set("backupSshUser", e.target.value)} placeholder="backup" /></Field></div>
+              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                <input type="checkbox" checked={!!f.backupEnabled} onChange={(e) => set("backupEnabled", e.target.checked)} /> Back up every day
+              </label>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              The collector signs in with an SSH <strong>key kept on the collector machine</strong> (EXECUI_SSH_KEY) — ExecUI never stores device passwords.
+              Give that user read-only access. Device host keys are pinned on first contact. Configs are stored encrypted, a new version only when
+              something changed, and a change raises an alert. Run one now from Automation → Config Backup.
             </p>
           </Section>
 

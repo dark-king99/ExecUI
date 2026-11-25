@@ -6,6 +6,9 @@ import { network } from "../../../../services/api";
 import { Link } from "react-router-dom";
 import { SolutionShell, MetricGrid, Section, Loading, ErrorNote, UtilBar, Pill, fmtNum } from "../../components/net-ui";
 import useRecordFocus from "../../../../hooks/useRecordFocus";
+import ConfigHistory from "./ConfigHistory";
+
+const BACKED_UP_TYPES = new Set(["router", "switch", "firewall", "wireless"]);
 
 const STATUS_VARIANT = { Online: "success", Offline: "danger", Warning: "warning" };
 const TYPES = ["all", "server", "endpoint", "cloud", "router", "switch", "firewall"];
@@ -25,6 +28,7 @@ export default function Devices() {
   const alertsFor = (id) => alertCounts.get(id) ?? 0;
   const [search, setSearch] = useState("");
   const [type, setType] = useState("all");
+  const [configFor, setConfigFor] = useState(null);
   const { data: devices, loading, error, refetch } = useApi(() => network.devices.list({ limit: 500 }), [], { pollingInterval: 60000 });
 
   const all = devices ?? [];
@@ -97,7 +101,14 @@ export default function Devices() {
                         </Link>
                       ) : <span className="text-xs text-slate-300 dark:text-slate-600">—</span>}
                     </td>
-                    <td className="px-5 py-3"><StatusBadge label={d.status} variant={STATUS_VARIANT[d.status] ?? "neutral"} dot /></td>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-2">
+                        <StatusBadge label={d.status} variant={STATUS_VARIANT[d.status] ?? "neutral"} dot />
+                        {BACKED_UP_TYPES.has(d.type) && (
+                          <button type="button" onClick={() => setConfigFor(d)} className="text-[11px] text-indigo-600 hover:underline dark:text-indigo-400">Config</button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -105,6 +116,7 @@ export default function Devices() {
           </div>
         )}
       </Section>
+      {configFor && <ConfigHistory device={configFor} onClose={() => setConfigFor(null)} />}
     </SolutionShell>
   );
 }

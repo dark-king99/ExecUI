@@ -48,6 +48,10 @@ router.get("/collectors",              auth, c.listCollectors);
 router.post("/collectors",             auth, manage, c.createCollector);
 router.post("/collectors/:id/revoke",  auth, manage, c.revokeCollector);
 router.post("/monitoring/sync",        auth, manage, c.syncMonitoring);
+// Configuration backups hold secrets: same permission as managing collection.
+router.get("/devices/:id/configs",      auth, manage, c.listConfigVersions);
+router.get("/configs/:id",              auth, manage, c.getConfigVersion);
+router.get("/configs/:id/diff",         auth, manage, c.diffConfigVersion);
 
 // ── Incidents ─────────────────────────────────────────────────────────────────
 router.get("/incidents",                  auth, c.listIncidents);

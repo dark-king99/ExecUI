@@ -41,6 +41,19 @@ collector finds are added to LibreNMS with the v2c/v3 credentials from network
 settings (up to 20 per sync; a failed add is retried a day later), so LibreNMS
 starts graphing them. Once LibreNMS has a device, the next import links the two.
 
+## Configuration backup
+
+Set the SSH user in **Network → Settings → Configuration backup** and put a
+private key for it on the collector machine (`EXECUI_SSH_KEY`). Run
+**Automation → Config Backup**, or tick *Back up every day*. ExecUI picks the
+read-only command per vendor — Cisco/Arista/HP/Aruba `show running-config`,
+MikroTik `/export`, Juniper `show configuration | display set`, Fortinet
+`show full-configuration`, Huawei/H3C `display current-configuration`; the
+collector refuses any other command. Configs are encrypted at rest; a new
+version is kept only when the text changed (last 30 per device); a change
+raises an info alert and a chat post. **Devices → Config** shows versions and a
+line diff; viewing needs *Manage network collection* and is audited.
+
 ## Alerts
 
 Raised automatically from measurements, one open alert per condition, and
@@ -61,5 +74,4 @@ or the grantable **Manage network collection** permission
 ## Limits today
 
 - Flow formats: NetFlow v5/v9 and IPFIX. sFlow (packet sampling) isn't parsed.
-- No device configuration backup (needs SSH credentials and vendor support).
 - LibreNMS is the only monitoring tool connector.

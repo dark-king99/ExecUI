@@ -26,6 +26,7 @@ import { log } from "../../lib/logger.js";
 import { loadSettings, snmpForCollector, isPrivate } from "./network.settings.js";
 import { vendorFrom, typeFrom, osFrom } from "./network.classify.js";
 import { ingestFlows, pruneFlows } from "./network.flows.js";
+import { backupTargets, ingestBackups } from "./network.backups.js";
 
 const err = (message, status = 400) => Object.assign(new Error(message), { status });
 const hash = (token) => crypto.createHash("sha256").update(token).digest("hex");
@@ -94,13 +95,16 @@ export async function collectorConfig(collector, hello = null) {
       select: { ip_address: true },
       take: MAX_DEVICES_PER_REPORT,
     });
-    const jobs = await prisma.networkAutomationJob.findMany({
-      where: { tenantId: collector.tenantId, status: "queued", kind: "discovery" },
+    const queued = await prisma.networkAutomationJob.findMany({
+      where: { tenantId: collector.tenantId, status: "queued", kind: { in: ["discovery", "config_backup"] } },
       select: { id: true, kind: true },
     });
-    if (jobs.length) {
-      await prisma.networkAutomationJob.updateMany({ where: { id: { in: jobs.map((j) => j.id) } }, data: { status: "running" } });
+    if (queued.length) {
+      await prisma.networkAutomationJob.updateMany({ where: { id: { in: queued.map((j) => j.id) } }, data: { status: "running" } });
     }
+    // A backup job carries its targets and the read-only command for each.
+    const jobs = [];
+    for (const j of queued) jobs.push(j.kind === "config_backup" ? { ...j, targets: await backupTargets(collector.tenantId) } : j);
     return {
       collectorId: collector.id,
       pollingIntervalSec: settings.pollingIntervalSec,
@@ -108,6 +112,7 @@ export async function collectorConfig(collector, hello = null) {
       subnets: settings.subnets ?? [],
       snmp: snmpForCollector(settings),
       flow: { enabled: !!settings.flowEnabled, port: settings.flowPort ?? 2055 },
+      backup: { sshUser: settings.backupSshUser ?? null },
       known: [...new Set(known.map((d) => d.ip_address).filter(isPrivate))],
       jobs,
       serverTime: new Date().toISOString(),
@@ -260,6 +265,7 @@ export async function ingestReport(collector, report = {}) {
 
     out.links = await ingestLinks(tenantId, collector, report.links, now);
     out.flows = await ingestFlows(tenantId, collector.id, report.flows);
+    out.backups = await ingestBackups(tenantId, collector.id, report.backups);
     await finishJobs(tenantId, report.jobResults);
     await prisma.networkCollector.update({ where: { id: collector.id }, data: { lastSeenAt: now, lastReportAt: now, lastError: str(report.error, 300) } });
     log.info?.("collector_report", { tenantId, collectorId: collector.id, ...out });

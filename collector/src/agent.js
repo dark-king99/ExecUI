@@ -17,6 +17,7 @@ import os from "node:os";
 import { expandCidr, probeHost, arpTable, reverseDns, pool } from "./net.js";
 import { openSession, identify, cpu, memory, interfaceCounters, rates, neighbours } from "./poll.js";
 import { listenForFlows } from "./flow.js";
+import { backupDevice, backupSettings } from "./backup.js";
 
 /** Flow exporters are accepted from private addresses only. */
 export function isPrivateIp(ip) {
@@ -143,7 +144,9 @@ export class Agent {
   async cycle() {
     this.config = await this.api("GET", "/config");
     await this.syncFlowListener();
-    const jobs = this.config.jobs ?? [];
+    const allJobs = this.config.jobs ?? [];
+    const jobs = allJobs.filter((j) => j.kind === "discovery");
+    const backupJobs = allJobs.filter((j) => j.kind === "config_backup");
     const due = Date.now() - this.lastDiscovery >= this.config.discoveryIntervalMin * 60_000;
     const report = { devices: [], links: [], jobResults: [], ...(this.config.snmp?.error ? { error: this.config.snmp.error } : {}) };
 
@@ -159,6 +162,16 @@ export class Agent {
         for (const j of jobs) report.jobResults.push({ id: j.id, ok: true, durationMs: d.durationMs, summary: `Scanned ${d.scanned} addresses; ${d.devices.length} answered; ${d.links.length} links.` });
       }
     }
+    // Configuration backups: run each job's targets, a few at a time.
+    for (const job of backupJobs) {
+      const started = Date.now();
+      const opts = { ...backupSettings(), user: this.config.backup?.sshUser };
+      const results = await pool(job.targets ?? [], 4, (t) => backupDevice(t, opts));
+      report.backups = [...(report.backups ?? []), ...results];
+      const ok = results.filter((r) => r.ok).length;
+      report.jobResults.push({ id: job.id, ok: ok > 0 || !results.length, durationMs: Date.now() - started, summary: `Backed up ${ok} of ${results.length} device${results.length === 1 ? "" : "s"}${results.length - ok ? `; ${results.length - ok} failed` : ""}.` });
+    }
+
     // Poll everything known that the sweep didn't just measure.
     const fresh = new Set(report.devices.map((d) => d.ip));
     const polled = (await this.poll()).filter((d) => d && !fresh.has(d.ip));

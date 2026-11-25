@@ -77,6 +77,7 @@ export const shapeSettings = (s) => ({
   alertEmail: s.alertEmail,
   metricRetentionDays: s.metricRetentionDays,
   flow: { enabled: !!s.flowEnabled, port: s.flowPort ?? 2055 },
+  backup: { enabled: !!s.backupEnabled, sshUser: s.backupSshUser ?? null },
   monitoring: {
     autoAdd: !!s.monitoringAutoAdd,
     tool: s.monitoringTool,
@@ -149,6 +150,14 @@ export async function updateSettings(tenantId, body = {}) {
     const v = String(body.alertEmail ?? "").trim();
     if (v && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) throw err("Alert email doesn't look like an email address");
     data.alertEmail = v || null;
+  }
+  if (body.backup !== undefined) {
+    if (body.backup?.enabled !== undefined) data.backupEnabled = !!body.backup.enabled;
+    if (body.backup?.sshUser !== undefined) {
+      const u = String(body.backup.sshUser ?? "").trim();
+      if (u && !/^[a-zA-Z0-9._-]{1,32}$/.test(u)) throw err("SSH user may contain letters, digits, dot, dash and underscore only");
+      data.backupSshUser = u || null;
+    }
   }
   if (body.flow !== undefined) {
     if (body.flow?.enabled !== undefined) data.flowEnabled = !!body.flow.enabled;

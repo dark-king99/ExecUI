@@ -11,6 +11,7 @@ ExecUI. Everything it does is read-only: it never changes a device.
 | Health | CPU (HOST-RESOURCES, Cisco, UCD), memory (UCD, HOST-RESOURCES), interface traffic from IF-MIB counters (64-bit, 32-bit fallback), uptime, latency. Traffic is a rate between two polls — the first poll has none. |
 | Map | LLDP and CDP neighbour tables: which port on which device is plugged into which port on which other device. |
 | Reachability | Every known device is checked each poll; one that stops answering raises an alert in ExecUI. |
+| Config backup | When a Config Backup job runs, signs in to each router/switch/firewall over SSH with a **key kept on this machine** and runs one read-only command chosen by ExecUI (e.g. `show running-config`, `/export`). Host keys are pinned on first contact; a changed key fails loudly. |
 | Flows | If enabled in settings, listens on UDP (default 2055) for **NetFlow v5, v9 and IPFIX** from routers/firewalls on private addresses, and reports bytes per application (protocol + service port) and the top conversations each cycle — never raw records. |
 
 Only private address space is scanned (10/8, 172.16/12, 192.168/16,
@@ -35,6 +36,11 @@ EXECUI_URL=https://your-execui-host \
 EXECUI_COLLECTOR_TOKEN=exc_... \
 node bin/execui-collector.js
 ```
+
+For configuration backup, also set `EXECUI_SSH_KEY` (path to a private key
+authorised for the backup user on your devices; default `~/.ssh/id_ed25519`).
+Optional: `EXECUI_SSH_KNOWN_HOSTS` (default `~/.execui-collector/known_hosts`).
+The key never leaves this machine.
 
 `--once` runs a single cycle and exits — useful to check a setup. The URL
 must be `https://` (the token can read the SNMP community); for a lab only,

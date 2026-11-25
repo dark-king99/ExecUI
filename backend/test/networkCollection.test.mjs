@@ -59,7 +59,7 @@ test("network collection against the database", { skip: !HAS_DB && "DATABASE_URL
 
   t.after(async () => {
     await runUnscoped(async () => {
-      for (const m of ["networkMetricSample", "networkLink", "networkAlert", "networkAutomationJob", "networkServer", "networkDevice", "networkCollector", "networkSettings", "auditLog"]) {
+      for (const m of ["networkConfigBackup", "networkBackup", "networkFlowStat", "networkFlowConversation", "networkMetricSample", "networkLink", "networkAlert", "networkAutomationJob", "networkServer", "networkDevice", "networkCollector", "networkSettings", "auditLog"]) {
         await prisma[m].deleteMany({ where: { tenantId } }).catch(() => {});
       }
       await prisma.user.deleteMany({ where: { tenantId } });
@@ -217,8 +217,8 @@ test("network collection against the database", { skip: !HAS_DB && "DATABASE_URL
     await assert.rejects(inT(() => svc.checkPolicy(tenantId, "p1")), /No compliance checks/);
     assert.deepEqual(await inT(() => svc.getFirewallLogs(tenantId)), []);
 
-    const backup = await inT(() => svc.createAutomationJob(tenantId, { templateId: "tpl-backup" }));
-    await assert.rejects(inT(() => svc.runAutomationJob(tenantId, backup.id)), /no runner/);
+    const reboot = await inT(() => svc.createAutomationJob(tenantId, { templateId: "tpl-reboot" }));
+    await assert.rejects(inT(() => svc.runAutomationJob(tenantId, reboot.id)), /no runner/);
   });
 
   await t.test("discovery jobs really run on the collector", async () => {
@@ -232,6 +232,49 @@ test("network collection against the database", { skip: !HAS_DB && "DATABASE_URL
     const done = await runUnscoped(() => prisma.networkAutomationJob.findFirst({ where: { id: job.id } }));
     assert.equal(done.status, "success");
     assert.equal(done.lastResult, "Scanned 508 addresses");
+  });
+
+  await t.test("configuration backups: versioned, encrypted, diffed, alerting on change", async () => {
+    const backups = await import("../src/modules/network/network.backups.js");
+    assert.equal(backups.backupCommand({ vendor: "MikroTik" }), "/export");
+    assert.equal(backups.backupCommand({ sys_descr: "Cisco IOS Software, C2960" }), "show running-config");
+    assert.equal(backups.backupCommand({ vendor: "HP", sys_descr: "LaserJet" }), null, "printers aren't backed up");
+
+    const job = await inT(() => svc.createAutomationJob(tenantId, { templateId: "tpl-backup" }));
+    await runUnscoped(() => prisma.networkCollector.update({ where: { id: collector.id }, data: { lastSeenAt: new Date() } }));
+    await assert.rejects(inT(() => svc.runAutomationJob(tenantId, job.id)), /SSH user/);
+    await inT(() => settings.updateSettings(tenantId, { backup: { sshUser: "backup" } }));
+    await inT(() => svc.runAutomationJob(tenantId, job.id));
+    const cfg = await collectors.collectorConfig(await collectors.collectorForToken(token));
+    assert.equal(cfg.backup.sshUser, "backup");
+    const backupJob = cfg.jobs.find((j) => j.kind === "config_backup");
+    const rtr = await runUnscoped(() => prisma.networkDevice.findFirst({ where: { tenantId, ip_address: "192.168.1.1" } }));
+    const target = backupJob.targets.find((x) => x.deviceId === rtr.id);
+    assert.equal(target.command, "/export");
+
+    const v1 = "# RouterOS\n/system identity set name=core-rtr\n/snmp community set public name=S3CRET\n";
+    await report([], { backups: [{ deviceId: rtr.id, ok: true, config: v1 }], jobResults: [{ id: job.id, ok: true, summary: "Backed up 1 of 1 device." }] });
+    await report([], { backups: [{ deviceId: rtr.id, ok: true, config: v1 }] });
+    let versions = await inT(() => backups.listVersions(tenantId, rtr.id));
+    assert.equal(versions.length, 1, "an unchanged config isn't stored twice");
+    assert.equal(versions[0].changed, false);
+    const raw = await runUnscoped(() => prisma.networkConfigBackup.findFirst({ where: { tenantId } }));
+    assert.ok(!JSON.stringify(raw).includes("S3CRET"), "configs are ciphertext at rest");
+
+    const v2 = v1.replace("name=core-rtr", "name=core-rtr-1") + "/ip firewall filter add chain=input action=drop\n";
+    await report([], { backups: [{ deviceId: rtr.id, ok: true, config: v2 }, { deviceId: rtr.id, ok: false, error: "timeout" }] });
+    versions = await inT(() => backups.listVersions(tenantId, rtr.id));
+    assert.equal(versions.length, 2);
+    assert.equal(versions[0].changed, true);
+    const changeAlert = await runUnscoped(() => prisma.networkAlert.findFirst({ where: { tenantId, kind: { startsWith: `config:${rtr.id}` } } }));
+    assert.match(changeAlert.title, /Configuration changed/);
+    const diff = await inT(() => backups.diffVersion(tenantId, versions[0].id, user.id));
+    assert.deepEqual(diff.lines.map((l) => `${l.op}${l.text}`), ["-/system identity set name=core-rtr", "+/system identity set name=core-rtr-1", "+/ip firewall filter add chain=input action=drop"]);
+    const full = await inT(() => backups.getVersion(tenantId, versions[0].id, user.id));
+    assert.match(full.content, /core-rtr-1/);
+    assert.equal(await runUnscoped(() => prisma.auditLog.count({ where: { tenantId, action: "network.config.viewed" } })), 1, "viewing a config is audited");
+    assert.equal(await runUnscoped(() => prisma.networkBackup.count({ where: { tenantId, status: "failed" } })), 1);
+    assert.equal((await runUnscoped(() => prisma.networkAutomationJob.findFirst({ where: { id: job.id } }))).status, "success");
   });
 
   await t.test("a silent collector raises an alert; a revoked one is locked out", async () => {

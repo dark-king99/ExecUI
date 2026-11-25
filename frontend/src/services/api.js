@@ -653,6 +653,12 @@ export const network = {
   monitoring: {
     sync: () => post('/network/monitoring/sync', {}),
   },
+  // Device configuration backups (need "Manage network collection").
+  configs: {
+    versions: (deviceId) => get(`/network/devices/${deviceId}/configs`),
+    get:      (id)       => get(`/network/configs/${id}`),
+    diff:     (id)       => get(`/network/configs/${id}/diff`),
+  },
   settings: {
     get:      ()     => get('/network/settings'),
     update:   (data) => put('/network/settings', data),

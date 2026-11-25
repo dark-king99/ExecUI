@@ -13,6 +13,7 @@ import { runUnscoped } from "../../lib/tenantContext.js";
 import { log } from "../../lib/logger.js";
 import { syncAllMonitoring } from "./network.monitoring.js";
 import { pruneSamples } from "./network.collectors.js";
+import { queueDailyBackups } from "./network.backups.js";
 
 const OFFLINE_MS = 15 * 60_000;
 let timer = null;
@@ -50,7 +51,7 @@ export async function runNetworkHousekeeping() {
   if (running) return { skipped: "already running" };
   running = true;
   try {
-    const out = { collectors: await checkCollectors() };
+    const out = { collectors: await checkCollectors(), backupsQueued: await runUnscoped(() => queueDailyBackups()) };
     if (ticks % 2 === 0) out.monitoring = await syncAllMonitoring();
     if (ticks % 12 === 0) out.pruned = await pruneSamples();
     ticks += 1;

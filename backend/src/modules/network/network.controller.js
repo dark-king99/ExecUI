@@ -1,6 +1,7 @@
 import * as svc from "./network.service.js";
 import * as collectors from "./network.collectors.js";
 import { syncMonitoring as runMonitoringSync } from "./network.monitoring.js";
+import * as backups from "./network.backups.js";
 
 const tid = (req) => req.user.tenantId;
 
@@ -134,3 +135,6 @@ export const listCollectors  = handle((req) => collectors.listCollectors(tid(req
 export const createCollector = handle((req) => collectors.createCollector(tid(req), req.user.userId, req.body ?? {}));
 export const revokeCollector = handle((req) => collectors.revokeCollector(tid(req), req.user.userId, req.params.id));
 export const syncMonitoring  = handle((req) => runMonitoringSync(tid(req)));
+export const listConfigVersions = handle((req) => backups.listVersions(tid(req), req.params.id));
+export const getConfigVersion   = handle((req) => backups.getVersion(tid(req), req.params.id, req.user.userId));
+export const diffConfigVersion  = handle((req) => backups.diffVersion(tid(req), req.params.id, req.user.userId));

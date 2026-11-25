@@ -147,6 +147,7 @@ model Tenant {
   chatRoutes              ChatRoute[]
   networkFlowStats        NetworkFlowStat[]
   networkFlowConversations NetworkFlowConversation[]
+  networkConfigBackups    NetworkConfigBackup[]
 }
 
 // Per-tenant configuration, one row per key.
@@ -2502,6 +2503,10 @@ model NetworkSettings {
   // NetFlow v5/v9/IPFIX reception on the collector.
   flowEnabled          Boolean   @default(false)
   flowPort             Int       @default(2055)
+  // Configuration backup over SSH (key stays on the collector machine).
+  backupEnabled        Boolean   @default(false)
+  backupSshUser        String?
+  backupLastQueuedAt   DateTime?
   cpuThreshold         Int       @default(85)
   memThreshold         Int       @default(90)
   autoResolveAlerts    Boolean   @default(true)
@@ -2579,4 +2584,26 @@ model NetworkFlowConversation {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, periodEnd])
+}
+
+// A device's configuration as fetched over SSH by a collector. Configs hold
+// password hashes and SNMP communities, so the text is AES-256-GCM ciphertext.
+// A new version is stored only when the configuration actually changed.
+model NetworkConfigBackup {
+  id            String   @id @default(uuid())
+  tenantId      String
+  deviceId      String
+  collectorId   String
+  takenAt       DateTime @default(now())
+  sha256        String
+  size          Int
+  lines         Int
+  changed       Boolean // false for the first version of a device
+  contentCipher String
+  contentIv     String
+  contentTag    String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, deviceId, takenAt])
 }

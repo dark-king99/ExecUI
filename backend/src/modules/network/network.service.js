@@ -526,7 +526,7 @@ export async function getServiceHealth(tenantId, id) {
 
 // Pre-built automation recipes (product presets, not per-tenant data).
 const AUTOMATION_TEMPLATES = [
-  { id: "tpl-backup",   name: "Nightly Config Backup",       category: "Backup",      trigger: "schedule", targets: "All devices",   description: "Back up the running config of every managed device each night and retain 30 days.", steps: ["Snapshot device configs", "Diff against last backup", "Store & retain 30 days"] },
+  { id: "tpl-backup",   name: "Config Backup",               category: "Backup",      trigger: "manual",   targets: "Routers, switches, firewalls", description: "Fetch each device's configuration over SSH (key on the collector), keep it if it changed, and alert on changes. Turn on daily runs in Settings.", steps: ["Fetch configuration over SSH", "Compare with last version", "Store if changed"], kind: "config_backup" },
   { id: "tpl-discover", name: "Network Discovery",            category: "Inventory",   trigger: "manual",   targets: "Subnets in network settings", description: "Sweep the subnets in network settings now and add what answers to inventory. Runs on your collector.", steps: ["Sweep subnets", "Identify device type", "Add to inventory"], kind: "discovery" },
   { id: "tpl-reboot",   name: "Restart Degraded Servers",     category: "Remediation", trigger: "event",    targets: "Servers",       description: "Reboot servers that stay in a degraded state for more than 15 minutes.",             steps: ["Detect degraded status", "Notify owner", "Graceful reboot"] },
   { id: "tpl-patch",    name: "Patch Window",                 category: "Maintenance", trigger: "schedule", targets: "Endpoints",     description: "Apply approved patches to endpoints during the maintenance window.",                 steps: ["Pull approved patches", "Apply to targets", "Verify health"] },
@@ -543,7 +543,7 @@ function automationJobShape(j) {
     lastRun: j.lastRun ? new Date(j.lastRun).toLocaleString() : "Never",
     duration: j.duration ?? "—",
     kind: j.kind ?? null,
-    runnable: j.kind === "discovery",
+    runnable: RUNNABLE.has(j.kind),
     lastResult: j.lastResult ?? null,
   };
 }
@@ -558,11 +558,13 @@ export async function listAutomationJobs(tenantId) {
  * rest need device credentials and actions ExecUI doesn't have yet, so they're
  * listed as planned rather than offered as working.
  */
+const RUNNABLE = new Set(["discovery", "config_backup"]);
+
 export async function listAutomationTemplates(_tenantId) {
   return AUTOMATION_TEMPLATES.map((t) => ({
     ...t,
-    runnable: t.kind === "discovery",
-    availability: t.kind === "discovery" ? "Runs on your collector" : "Not available yet — ExecUI has no runner for this",
+    runnable: RUNNABLE.has(t.kind),
+    availability: RUNNABLE.has(t.kind) ? "Runs on your collector" : "Not available yet — ExecUI has no runner for this",
   }));
 }
 
@@ -592,7 +594,11 @@ export async function createAutomationJob(tenantId, data = {}) {
 export async function runAutomationJob(tenantId, id) {
   const job = await prisma.networkAutomationJob.findFirst({ where: { id, tenantId } });
   if (!job) throw new Error("Automation job not found");
-  if (job.kind !== "discovery") throw fail("ExecUI can't run this job yet — there's no runner for it. Only Network Discovery runs today, on your collector.");
+  if (!RUNNABLE.has(job.kind)) throw fail("ExecUI can't run this job yet — there's no runner for it. Network Discovery and Config Backup run on your collector.");
+  if (job.kind === "config_backup") {
+    const s = await prisma.networkSettings.findUnique({ where: { tenantId }, select: { backupSshUser: true } });
+    if (!s?.backupSshUser) throw fail("Set the SSH user for backups in Network → Settings first.");
+  }
   const online = await prisma.networkCollector.count({ where: { tenantId, revokedAt: null, lastSeenAt: { gte: new Date(Date.now() - 5 * 60_000) } } });
   if (!online) throw fail("No collector is online to run this. Set one up in Network → Settings.");
   if (job.status === "queued" || job.status === "running") return automationJobShape(job);
