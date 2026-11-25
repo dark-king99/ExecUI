@@ -149,8 +149,6 @@ export const getBilling = async (tenantId) => {
     ...(providerId() === "paddle" ? { paddleCustomerId: tenant.providerCustomerId ?? null } : {}),
     subscription: null,
     nextRenewal: null,
-    pendingInvoice: null,
-    paymentInstructions: [],
   };
 
   const active = provider();
@@ -170,24 +168,13 @@ export const getBilling = async (tenantId) => {
         });
       }
     }
-    const invoices = active.id === "manual" ? await active.listInvoices(tenantId) : [];
-    const pendingInvoice = invoices.find((invoice) => invoice.status === "pending") ?? null;
-    if (!subscription) {
-      return {
-        ...base,
-        status: base.status === "none" && pendingInvoice ? "pending" : base.status,
-        pendingInvoice,
-        paymentInstructions: pendingInvoice ? active.getPaymentInstructions?.() ?? [] : [],
-      };
-    }
+    if (!subscription) return base;
     return {
       ...base,
       status: subscription.status,
       subscription,
       interval: subscription.billingInterval ?? "month",
       nextRenewal: subscription.currentPeriodEnd ?? null,
-      pendingInvoice,
-      paymentInstructions: pendingInvoice ? active.getPaymentInstructions?.() ?? [] : [],
     };
   } catch (err) {
     log.error("billing_subscription_load_failed", { provider: active.id, error: err.message });
@@ -409,47 +396,11 @@ export const selectPlan = async (tenantId, {
     successUrl: result.successUrl ?? null,
     cancelUrl: result.cancelUrl ?? null,
     sessionId: result.sessionId ?? null,
-    // Offline providers answer with an invoice and instructions instead of a URL.
-    invoice: result.invoice ?? null,
-    instructions: result.instructions ?? null,
     amountUsd,
     display: shown,
     plan,
     planName: planLabel(plan),
   };
-};
-
-// ── Manual (offline) invoices ────────────────────────────────────────────────
-/** Invoices this tenant has been issued. Empty unless the manual provider is on. */
-export const listPlatformInvoices = async (tenantId) => {
-  const active = provider();
-  if (active.id !== "manual") return [];
-  return active.listInvoices(tenantId);
-};
-
-/**
- * Confirm an offline payment and activate the plan it was for.
- *
- * Deliberately keyed on the invoice REFERENCE — that is the string the customer
- * quotes on the transfer, so an operator confirming a payment works from the
- * same identifier the money arrived with.
- *
- * Restricted to system_admin at the route: this is the platform taking money,
- * not a tenant administering itself. A tenant able to call it would grant itself
- * any plan for free.
- */
-export const confirmPlatformInvoice = async (reference, { method, note } = {}, actorId = null) => {
-  const invoice = await prisma.platformInvoice.findFirst({ where: { reference: String(reference).trim().toUpperCase() } });
-  if (!invoice) throw new NotFoundError("No invoice with that reference");
-  if (invoice.status === "paid") throw new ValidationError("That invoice is already settled");
-  if (invoice.status === "void") throw new ValidationError("That invoice was voided");
-
-  const updated = await prisma.platformInvoice.update({
-    where: { id: invoice.id },
-    data: { status: "paid", paidAt: new Date(), method: method ?? null, note: note ?? null, confirmedById: actorId },
-  });
-  await activatePlan(invoice.tenantId, invoice.plan, invoice.planSolutions ?? [], {}, actorId);
-  return { reference: updated.reference, plan: updated.plan, tenantId: updated.tenantId, paidAt: updated.paidAt };
 };
 
 // ── Public service functions ──────────────────────────────────────────────────

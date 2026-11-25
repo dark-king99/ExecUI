@@ -14,7 +14,6 @@ import {
   Target,
   ArrowUpRight,
   ArrowDownRight,
-  Megaphone,
   
   Send,
   Activity,
@@ -299,8 +298,7 @@ export const Dashboard = () => {
   const [stats, setStats] = useState({
     financial: { total_income: 0, total_expenses: 0, net_profit: 0, transaction_count: 0 },
     projects: { active: 0, completed: 0, total: 0 },
-    team: { active_members: 0, total: 0 },
-    clients: { active: 0, total: 0, total_value: 0 },
+    team: { active_members: 0, total: 0, open_tasks: 0, overdue_tasks: 0 },
     operations: { sops_count: 0 },
     strategic: { goals_count: 0, avg_progress: 0 },
     recent_transactions: [],
@@ -383,7 +381,7 @@ export const Dashboard = () => {
           {[
             { icon: Activity, tint: 'text-orange-400', value: stats.projects.active,       label: 'Live Projects', to: '/services/team',      testid: 'stat-projects' },
             { icon: Target,   tint: 'text-violet-400', value: stats.strategic.goals_count,  label: 'Active Goals',  to: '/services/strategic', testid: 'stat-goals' },
-            { icon: Users,    tint: 'text-emerald-400',value: stats.clients.active,         label: 'Active Clients',to: '/services/marketing', testid: 'stat-clients' },
+            { icon: Users,    tint: 'text-emerald-400',value: stats.team?.open_tasks,       label: 'Open Tasks',    to: '/services/team',      testid: 'stat-open-tasks' },
           ].map((p) => (
             <button
               key={p.label}
@@ -429,9 +427,9 @@ export const Dashboard = () => {
           isDarkMode={isDarkMode}
         />
         <StatCard
-          title="Active Clients"
-          value={stats.clients.active}
-          subtitle={`$${stats.clients.total_value.toLocaleString()} total value`}
+          title="Open Team Tasks"
+          value={stats.team?.open_tasks ?? 0}
+          subtitle={`${stats.team?.overdue_tasks ?? 0} overdue · ${stats.team?.active_members ?? 0} members`}
           icon={Users}
           accentColor="bg-rose-500/10 text-rose-500"
           isDarkMode={isDarkMode}

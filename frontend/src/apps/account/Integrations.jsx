@@ -9,8 +9,6 @@ import { account } from "../../services/api";
 import { useUser } from "../../context/UserContext";
 
 const KINDS = [
-  { id: "api", label: "External API" },
-  { id: "webhook", label: "Webhook" },
   { id: "slack", label: "Slack" },
   { id: "custom", label: "Custom" },
 ];
@@ -19,7 +17,7 @@ const AUTH = [
   { id: "header", label: "Custom header" },
   { id: "none", label: "No auth" },
 ];
-const blankForm = { name: "", kind: "api", baseUrl: "", authType: "bearer", authHeader: "X-API-Key", secret: "" };
+const blankForm = { name: "", kind: "slack", baseUrl: "", authType: "bearer", authHeader: "X-API-Key", secret: "" };
 
 export default function Integrations() {
   const toast = useToast();
@@ -77,7 +75,7 @@ export default function Integrations() {
     <div className="space-y-6">
       <PageHeader
         title="Integrations"
-        subtitle="Securely connect ExecUI to external services & webhooks"
+        subtitle="Securely connect ExecUI to external services"
         actions={
           <button onClick={() => setForm({ ...blankForm })} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition">
             <Plus size={15} /> Add Connection

@@ -121,16 +121,6 @@ export const SOURCES = {
     dateField: "createdAt",
   },
 
-  clients: {
-    id: "clients", label: "Clients", module: "services", model: "bizClient",
-    icon: "briefcase", link: (r) => linkTo("client", r.id),
-    fields: [f("name", 10), f("email", 7), f("company", 8)],
-    select: { id: true, name: true, email: true, company: true, status: true, createdAt: true },
-    title: (r) => r.name,
-    subtitle: (r) => [r.company, r.email].filter(Boolean).join(" · "),
-    dateField: "createdAt",
-  },
-
   // ── Network ───────────────────────────────────────────────────────────────
   devices: {
     id: "devices", label: "Devices", module: "network", model: "networkDevice",

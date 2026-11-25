@@ -105,8 +105,8 @@ reminders, renewals and free-text notes. "How did this become active, and who di
 it?" is the question a register exists to answer.
 
 - **Approval routing** reuses the approvals engine. The outcome comes back over
-  the domain-event bus, and `contracts:write` over the public API deliberately
-  **cannot set `status`** — the lifecycle map is the only door.
+  the domain-event bus, and the record registry deliberately makes `status`
+  **read-only** to ExecAI and workflows — the lifecycle map is the only door.
 - **Signature routing** sends the attached document; completion activates the
   contract automatically via the e-signature completion hook (no polling).
 - **Renewal** creates a *successor* contract and marks the original `renewed`,
@@ -168,9 +168,9 @@ approval hook stays wired either way.
 
 - **Reporting** — `contracts` is a dataset (admin-only): value, status, renewal
   dates, auto-renew. Renewal exposure is the report finance teams ask for first.
-- **Public API** — `contracts` (read/write, status read-only) and `documents`
-  (metadata only, never file bytes) under the `contracts:*` / `documents:read`
-  scopes, with the usual webhook events.
+- **Record registry** — `contracts` (read/write, status read-only) and `documents`
+  (metadata only, never file bytes) are registry resources, so ExecAI can read
+  them and workflows can trigger on them.
 - **Compliance** — signer identities are a governance category. A signing party is
   a **data subject** even if they were never an employee or a CRM contact, so
   subject lookup finds them. Erasure **anonymizes** their signer rows: the

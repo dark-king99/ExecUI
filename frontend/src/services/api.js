@@ -311,36 +311,6 @@ export const enterprise = {
   },
 };
 
-// ── Views (bootstrap payloads per module) ─────────────────────────────────
-export const views = {
-  home:      () => get('/views/home'),
-  account:   () => get('/views/account'),
-  analytics: () => get('/views/analytics'),
-  crm:       () => get('/views/crm'),
-  marketing: () => get('/views/marketing'),
-  network:   () => get('/views/network'),
-};
-
-// ── Analytics ─────────────────────────────────────────────────────────────
-export const analytics = {
-  kpis:              ()       => get('/analytics/kpis'),
-  healthSummary:     ()       => get('/analytics/health-summary'),
-  revenueVsPlan:     ()       => get('/analytics/revenue-vs-plan'),
-  operationalServices: ()     => get('/analytics/operational/services'),
-  operationalEvents:   ()     => get('/analytics/operational/events'),
-  cohorts:           ()       => get('/analytics/cohorts'),
-  retentionByTier:   ()       => get('/analytics/retention/by-tier'),
-  churnSignals:      ()       => get('/analytics/churn-signals'),
-  revenueSegments:   ()       => get('/analytics/revenue/segments'),
-  expansionPipeline: ()       => get('/analytics/revenue/expansion'),
-  datasets:          ()       => get('/analytics/data-quality/datasets'),
-  savedQueries:      ()       => get('/analytics/explorer/queries'),
-  runQuery:          (body)   => post('/analytics/explorer/run', body),
-  saveQuery:         (body)   => post('/analytics/explorer/queries', body),
-  deleteQuery:       (id)     => del(`/analytics/explorer/queries/${id}`),
-  deduplicateDataset:(id)     => post(`/analytics/data-quality/datasets/${id}/deduplicate`),
-};
-
 // ── CRM ───────────────────────────────────────────────────────────────────
 export const crm = {
   customers: {
@@ -812,7 +782,7 @@ export const governance = {
   },
 };
 
-// ── Workflow automation (admin) + approvals (everyone) ─────────────────────
+// ── Workflow automation (admin, in the ExecAI workbench) + approvals (everyone)
 export const workflows = {
   catalog: ()          => get('/workflows/catalog'),
   list:    ()          => get('/workflows'),
@@ -831,29 +801,6 @@ export const approvals = {
   create:       (data)   => post('/approvals', data),
   decide:       (id, d)  => post(`/approvals/${id}/decide`, d),
   cancel:       (id)     => post(`/approvals/${id}/cancel`),
-};
-
-// ── Developer (public API tokens + outbound webhooks) ──────────────────────
-export const developer = {
-  meta: () => get('/developer/meta'),
-  tokens: {
-    list:   ()     => get('/developer/tokens'),
-    create: (data) => post('/developer/tokens', data),   // returns the plaintext token ONCE
-    revoke: (id)   => post(`/developer/tokens/${id}/revoke`),
-    remove: (id)   => del(`/developer/tokens/${id}`),
-  },
-  webhooks: {
-    list:   ()         => get('/developer/webhooks'),
-    create: (data)     => post('/developer/webhooks', data), // returns the signing secret ONCE
-    update: (id, data) => put(`/developer/webhooks/${id}`, data),
-    remove: (id)       => del(`/developer/webhooks/${id}`),
-    rotate: (id)       => post(`/developer/webhooks/${id}/rotate`),
-    test:   (id)       => post(`/developer/webhooks/${id}/test`),
-  },
-  deliveries: {
-    list:   (params) => get('/developer/deliveries', params),
-    replay: (id)     => post(`/developer/deliveries/${id}/replay`),
-  },
 };
 
 // ── Reports (custom BI: build, save, export, schedule) ─────────────────────
@@ -1281,11 +1228,6 @@ export const services = {
       update: (id, data) => put(`/services/operations/sops/${id}`, data),
       delete: (id)       => del(`/services/operations/sops/${id}`),
     },
-    workflows: {
-      list:   ()     => get('/services/operations/workflows'),
-      create: (data) => post('/services/operations/workflows', data),
-      delete: (id)   => del(`/services/operations/workflows/${id}`),
-    },
   },
   strategic: {
     goals: {
@@ -1300,26 +1242,10 @@ export const services = {
       delete: (id)   => del(`/services/strategic/market-analysis/${id}`),
     },
   },
-  marketing: {
-    campaigns: {
-      list:   ()         => get('/services/marketing/campaigns'),
-      create: (data)     => post('/services/marketing/campaigns', data),
-      update: (id, data) => put(`/services/marketing/campaigns/${id}`, data),
-      delete: (id)       => del(`/services/marketing/campaigns/${id}`),
-    },
-    clients: {
-      list:   ()         => get('/services/marketing/clients'),
-      create: (data)     => post('/services/marketing/clients', data),
-      update: (id, data) => put(`/services/marketing/clients/${id}`, data),
-      delete: (id)       => del(`/services/marketing/clients/${id}`),
-    },
-  },
   team: {
+    // The workspace's own members, with open/overdue task counts. Read-only.
     members: {
       list:   ()         => get('/services/team/members'),
-      create: (data)     => post('/services/team/members', data),
-      update: (id, data) => put(`/services/team/members/${id}`, data),
-      delete: (id)       => del(`/services/team/members/${id}`),
     },
     projects: {
       list:   ()         => get('/services/team/projects'),

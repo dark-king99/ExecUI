@@ -114,10 +114,10 @@ it exists is itself information), or a ticket marked `portalVisible: false`.
   ticket reference. See [`docs/SEARCH.md`](./SEARCH.md).
 - **Reporting** — the tickets dataset gained source, assignee, rating, first-reply
   and resolution columns; `kb_articles` is a dataset of its own.
-- **Public API** — `support-tickets` is writable (so a monitoring tool or email
-  gateway can raise one) with `status` and the outcome timestamps read-only, since
-  a ticket's lifecycle moves through the helpdesk. `help-articles` is read-only.
-  Internal notes aren't reachable through the API at all.
+- **Record registry** — `support-tickets` is writable by ExecAI and workflows,
+  with `status` and the outcome timestamps read-only, since a ticket's lifecycle
+  moves through the helpdesk. `help-articles` is read-only. Internal notes aren't
+  in the registry at all.
 - **Compliance** — four governance categories. A customer's own messages are
   redacted on erasure while the thread survives so the ticket still makes sense;
   portal sessions and sign-in links are **deleted**; article feedback keeps the

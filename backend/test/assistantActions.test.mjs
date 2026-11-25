@@ -157,7 +157,8 @@ test("required fields, enums and ranges are enforced", () => {
   assert.throws(() => validateInput(ACTIONS.crm_create_task, { title: "x".repeat(201) }), /200 characters/);
   assert.throws(() => validateInput(ACTIONS.crm_schedule_meeting, { title: "Sync", scheduledAt: "next tuesday" }), /ISO date/);
   assert.throws(() => validateInput(ACTIONS.crm_schedule_meeting, { title: "Sync", scheduledAt: "1999-01-01" }), /out of range/);
-  assert.throws(() => validateInput(ACTIONS.services_create_client, { name: "A", email: "nope" }), /email/);
+  assert.throws(() => validateInput(ACTIONS.services_assign_task, { title: "Prep board deck" }), /assigneeId is required/);
+  assert.throws(() => validateInput(ACTIONS.services_update_task_status, { id: "x", status: "archived" }), /one of/);
   assert.throws(() => validateInput(ACTIONS.services_draft_sop, { title: "T", department: "Ops", steps: "do it" }), /list/);
   assert.throws(() => validateInput(ACTIONS.crm_update_lead, { id: "x" }), /at least one of/);
 });
@@ -175,8 +176,8 @@ test("valid input is normalized", () => {
     { name: "Acme", value: 2500, probability: 40 },
   );
   assert.deepEqual(
-    validateInput(ACTIONS.services_create_client, { name: "Bo", email: " Bo@Acme.COM " }),
-    { name: "Bo", email: "bo@acme.com" },
+    validateInput(ACTIONS.services_create_project, { name: "  Q3 rollout ", budget: "5000" }),
+    { name: "Q3 rollout", budget: 5000 },
   );
 });
 
@@ -207,7 +208,7 @@ test("actions against real records", { skip: !HAS_DB && "DATABASE_URL not set" }
   t.after(async () => {
     await runUnscoped(async () => {
       for (const model of ["auditLog", "crmTask", "crmFollowUp", "crmOpportunity", "contact", "networkAlert",
-        "networkIncident", "networkChange", "marketingAudience", "marketingExperiment", "bizGoal", "bizSOP", "bizClient"]) {
+        "networkIncident", "networkChange", "marketingAudience", "marketingExperiment", "bizGoal", "bizSOP", "bizProject", "bizTask"]) {
         await prisma[model].deleteMany({ where: { tenantId } }).catch(() => {});
       }
       await prisma.user.deleteMany({ where: { tenantId } }).catch(() => {});
@@ -331,6 +332,45 @@ test("actions against real records", { skip: !HAS_DB && "DATABASE_URL not set" }
     const { result: moved } = await act("services_update_goal_progress", { id: goal.id, progress: 40, status: "in_progress" },
       { role: "enterprise_admin" });
     assert.equal(moved.progress, 40);
+  });
+
+  await t.test("a manager assigns work to real members, and only to them", async () => {
+    const admin = { role: "enterprise_admin" };
+    const { result: project } = await act("services_create_project", { name: "Office move", budget: 12000 }, admin);
+    assert.equal(project.status, "planning");
+    assert.equal(project.progress, 0);
+
+    const { result: task } = await act("services_assign_task",
+      { title: "Book movers", assigneeId: ws.colleague.id, projectId: project.id, dueDate: "2020-01-01" }, admin);
+    assert.equal(task.assignee, ws.colleague.id);
+    assert.equal(task.assigned_to, ws.colleague.id, "the page reads assigned_to");
+    assert.equal(task.status, "todo");
+
+    // Someone outside this workspace can't be handed work.
+    const outsider = await runUnscoped(async () => {
+      const other = await prisma.tenant.create({ data: { name: `Other ${stamp}`, slug: `other-${stamp}`, code: `OT${stamp}`.slice(0, 12), plan: "executive" } });
+      const role = await prisma.role.create({ data: { name: "employee", tenantId: other.id } });
+      const user = await prisma.user.create({ data: { email: `outsider-${stamp}@t.test`, firstName: "O", lastName: "T", passwordHash: "x", tenantId: other.id, roleId: role.id } });
+      return { other, user };
+    });
+    t.after(() => runUnscoped(async () => {
+      await prisma.user.deleteMany({ where: { tenantId: outsider.other.id } });
+      await prisma.role.deleteMany({ where: { tenantId: outsider.other.id } });
+      await prisma.tenant.delete({ where: { id: outsider.other.id } }).catch(() => {});
+    }));
+    await assert.rejects(act("services_assign_task", { title: "Leak", assigneeId: outsider.user.id }, admin), /member of this workspace/);
+
+    // The workload view counts it as open and overdue for that person.
+    const { listMembers } = await import("../src/modules/services/services.service.js");
+    const workload = await seed(() => listMembers(tenantId));
+    const row = workload.find((m) => m.id === ws.colleague.id);
+    assert.equal(row.open_tasks, 1);
+    assert.equal(row.overdue_tasks, 1);
+
+    const { result: done } = await act("services_update_task_status", { id: task.id, status: "done" }, admin);
+    assert.equal(done.status, "done");
+    const { result: moved } = await act("services_update_project_progress", { id: project.id, progress: 60, status: "in_progress" }, admin);
+    assert.equal(moved.progress, 60);
   });
 
   await t.test("records in another workspace are invisible", async () => {

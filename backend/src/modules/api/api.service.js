@@ -1,10 +1,10 @@
 /**
- * Generic CRUD for every /api/v1 resource.
+ * Generic, registry-driven record access for ExecAI and workflow automation.
  *
- * One implementation serves all resources because the registry describes them
- * uniformly. That means consistent pagination, filtering, validation and error
- * shapes across the whole API — and a new resource is a registry entry, not a
- * new pile of hand-written handlers that drift apart.
+ * One implementation serves every resource because the registry describes them
+ * uniformly: the same validation, field whitelisting and error shapes whether
+ * the agent creates a record or a workflow action updates one. There is no
+ * delete here — neither caller is allowed to remove records.
  *
  * Tenant scoping is automatic (Prisma guard), so nothing here filters by tenant
  * by hand and no handler can forget to.
@@ -166,14 +166,6 @@ export async function count(resourceId) {
   return prisma[resource.model].count({ where: {} });
 }
 
-export async function retrieve(resourceId, id) {
-  const resource = resolve(resourceId);
-  const select = Object.fromEntries(readableFields(resource).map((k) => [k, true]));
-  const row = await prisma[resource.model].findFirst({ where: { id }, select });
-  if (!row) throw err(`No ${resource.name} with id "${id}"`, 404, "not_found");
-  return serialize(resource, row);
-}
-
 export async function create(resourceId, body, db = prisma) {
   const resource = resolve(resourceId);
   const data = validateBody(resource, body);
@@ -198,15 +190,6 @@ export async function update(resourceId, id, body, db = prisma) {
   } catch (e) {
     throw translatePrismaError(e, resource);
   }
-}
-
-export async function remove(resourceId, id) {
-  const resource = resolve(resourceId);
-  if (resource.readOnly) throw err(`The ${resource.id} resource is read-only`, 405, "read_only");
-  const exists = await prisma[resource.model].findFirst({ where: { id }, select: { id: true } });
-  if (!exists) throw err(`No ${resource.name} with id "${id}"`, 404, "not_found");
-  await prisma[resource.model].delete({ where: { id } });
-  return { object: resource.id, id, deleted: true };
 }
 
 /** Turn Prisma's internal errors into clean, actionable API errors. */

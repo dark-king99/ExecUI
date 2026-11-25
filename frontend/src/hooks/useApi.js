@@ -11,7 +11,7 @@
  *    instantly from cache on remount, then refreshes in the background).
  *
  * Usage:
- *   const { data, loading, error, refetch } = useApi(() => analytics.kpis());
+ *   const { data, loading, error, refetch } = useApi(() => crm.pipeline.summary());
  *   const { data } = useApi(() => network.alerts.list(), [], { pollingInterval: 30000 });
  *   const { data } = useApi(() => account.profile.get(), [], { cacheKey: "account:profile" });
  *   const { execute } = useApi(() => crm.deals.create(payload), [], { immediate: false });

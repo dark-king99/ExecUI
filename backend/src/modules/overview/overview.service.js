@@ -35,7 +35,8 @@ async function crmMetrics(tenantId) {
     prisma.crmOpportunity.aggregate({ where: { tenantId, status: "active" }, _sum: { value: true } }),
     prisma.crmOpportunity.aggregate({ where: { tenantId, status: "won" }, _sum: { value: true } }),
     prisma.crmOpportunity.count({ where: { tenantId } }),
-    prisma.bizClient.count({ where: { tenantId, status: "active" } }),
+    // CRM accounts are contacts; Business Services no longer keeps its own clients.
+    prisma.contact.count({ where: { tenantId } }),
   ]);
   const won = await prisma.crmOpportunity.count({ where: { tenantId, status: "won" } });
   return {

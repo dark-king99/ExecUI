@@ -141,8 +141,8 @@ filtered by what the viewer can actually reach — module access **and**
 offering it.
 
 Everything outside the module sidebars had been missing from this index, so
-Documents, Contracts, HR, Payroll, Helpdesk, Approvals and the compliance and
-developer consoles were reachable only by clicking the sidebar.
+Documents, Contracts, HR, Payroll, Helpdesk, Approvals and the compliance
+console were reachable only by clicking the sidebar.
 
 ## 5. Worked example: Documents ↔ Contracts
 

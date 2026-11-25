@@ -62,7 +62,6 @@ const SERVICES_SOLS = [
   { name: "Financial Management", path: "/services/financial" },
   { name: "Operations System",    path: "/services/operation" },
   { name: "Strategic Planning",   path: "/services/strategic" },
-  { name: "Marketing & Sales",    path: "/services/marketing" },
   { name: "Team & Project",       path: "/services/team" },
 ];
 

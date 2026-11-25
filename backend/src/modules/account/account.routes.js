@@ -64,8 +64,6 @@ router.post("/billing/refund-requests",  auth, adminOnly, rateLimit({ windowMs: 
 router.patch("/billing/refund-requests/:id", auth, requireRole("system_admin"), validate(refundRequestUpdateSchema), c.updateRefundRequest);
 // Offline billing. Listing is admin; confirming a payment is the PLATFORM
 // taking money, so it is restricted to system_admin.
-router.get("/billing/platform-invoices",  auth, adminOnly, c.getPlatformInvoices);
-router.post("/billing/platform-invoices/:reference/confirm", auth, requireRole("system_admin"), c.confirmInvoice);
 router.post("/billing/portal",           auth, c.createPortalSession);
 // NOTE: the payment webhook (POST /api/account/billing/webhook) is registered
 // directly in app.js with a raw body parser, ahead of express.json(), because

@@ -334,10 +334,8 @@ export const getRefundCenter = handle((req) => refunds.getRefundCenter(tid(req),
 export const submitRefundRequest = handle((req) => refunds.submitRefundRequest(tid(req), uid(req), req.body));
 export const updateRefundRequest = handle((req) => refunds.updateRefundRequest(req.params.id, uid(req), req.body));
 // Offline invoices the platform issued to this tenant (manual provider only).
-export const getPlatformInvoices = handle((req) => billing.listPlatformInvoices(tid(req)));
 // Confirming one takes money on the platform's behalf, so it is system_admin
 // only at the route — a tenant able to call it would grant itself any plan.
-export const confirmInvoice    = handle((req) => billing.confirmPlatformInvoice(req.params.reference, req.body ?? {}, uid(req)));
 export const createPortalSession = handle((req) => billing.createPortalSession(tid(req)));
 export const billingWebhook = async (req, res) => {
   try {

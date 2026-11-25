@@ -42,7 +42,17 @@ each re-checks authorization itself rather than trusting the offered catalog.
 | `services_create_goal` | Services · strategic | admin (section) | Goal in `planning`, 0% |
 | `services_update_goal_progress` | Services · strategic | admin (section) | Progress and status |
 | `services_draft_sop` | Services · operation | admin (section) | SOP as **draft** |
-| `services_create_client` | Services · marketing | admin (section) | Business client |
+| `services_create_project` | Services · team | admin (section) | Project in `planning`, 0% |
+| `services_update_project_progress` | Services · team | admin (section) | Progress and status |
+| `services_assign_task` | Services · team | admin (section) | Team task assigned to a workspace member (refuses anyone outside it); they're notified |
+| `services_update_task_status` | Services · team | admin (section) | todo / in_progress / review / done |
+
+Business Services is the managers' workspace: finances, SOPs, strategy, and
+coordinating people through projects and tasks. It keeps no copies of what the
+core modules own — clients are CRM accounts, campaigns are Marketing's,
+automation is ExecAI's Automation tab, and the team is the workspace's own
+members. ExecAI reads the team's workload (`services_team_workload`) to decide
+who to assign work to.
 
 **Gates, in order.** (1) The section must be in the caller's effective access
 (department ∩ plan) and the plan must include the solution — the same gate
@@ -124,7 +134,7 @@ Paddle support tooling.
 
 ## Why automation is not yet application-wide
 
-The public API resource registry currently covers 18 resources across CRM,
+The resource registry currently covers 18 resources across CRM,
 Marketing, Network, Services, Contracts, Documents, HR, People, and Helpdesk.
 The agent can only expose resources whose module maps directly to the caller's
 effective `access.sections`; that access descriptor currently covers CRM,

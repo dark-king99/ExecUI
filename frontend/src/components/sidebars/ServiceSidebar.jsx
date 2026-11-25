@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, DollarSign, Settings2, Target,
-  Megaphone, Users, ArrowLeft, ChevronRight, ChevronLeft, Layers
+  Users, ArrowLeft, ChevronRight, ChevronLeft, Layers
 } from "lucide-react";
 import { useUser } from "../../context/UserContext";
 import { canSee } from "../../lib/visibility";
@@ -12,7 +12,6 @@ const menuItems = [
   { id: "financial",  solution: "financial", label: "Financial Management", icon: DollarSign,      path: "/services/financial",  color: "text-emerald-500", activeBg: "bg-emerald-50 dark:bg-emerald-500/10", activeBar: "bg-emerald-500 dark:bg-emerald-400" },
   { id: "operations", solution: "operation", label: "Operations & Systems", icon: Settings2,       path: "/services/operation",  color: "text-sky-500",     activeBg: "bg-sky-50 dark:bg-sky-500/10",         activeBar: "bg-sky-500 dark:bg-sky-400" },
   { id: "strategic",  solution: "strategic", label: "Strategic Planning",   icon: Target,          path: "/services/strategic",  color: "text-purple-500",  activeBg: "bg-purple-50 dark:bg-purple-500/10",  activeBar: "bg-purple-500 dark:bg-purple-400" },
-  { id: "marketing",  solution: "marketing", label: "Marketing & Sales",    icon: Megaphone,       path: "/services/marketing",  color: "text-rose-500",    activeBg: "bg-rose-50 dark:bg-rose-500/10",      activeBar: "bg-rose-500 dark:bg-rose-400" },
   { id: "team",       solution: "team", label: "Team & Projects",      icon: Users,           path: "/services/team",       color: "text-amber-500",   activeBg: "bg-amber-50 dark:bg-amber-500/10",    activeBar: "bg-amber-500 dark:bg-amber-400" },
 ];
 

@@ -270,9 +270,8 @@ async function loadRecord(resourceId, recordId) {
 /**
  * Announce an outcome on the domain-event bus so in-process modules can react to
  * their own approvals (the contract register moves to pending_signature this
- * way). Deliberately not a webhook resource: `resource` here is the *subject* of
- * the approval, and the webhook queue ignores events whose resource isn't a
- * public API resource, so nothing leaks outward from this.
+ * way). "approvals" isn't a registry resource, so no workflow rule can be
+ * written to trigger on these events.
  */
 function announceOutcome(request, outcome) {
   emitDomainEvent({

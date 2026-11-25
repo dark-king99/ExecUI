@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import {
   Activity, AlertCircle, ArrowRight, Bot, CheckCircle2, ChevronRight, Circle,
   Code2, Layers3, Loader2, Maximize2, Minimize2, Network, Play, Search,
-  ShieldCheck, Sparkles, Terminal, X,
+  ShieldCheck, Sparkles, Terminal, X, Zap, FlaskConical,
 } from "lucide-react";
 import { assistant } from "../services/api";
 import { useSidebar } from "./SidebarContext";
+import { useUser } from "../context/UserContext";
+
+// Admin-only, and the builder is sizeable — only load it when someone opens it.
+const AutomationPanel = lazy(() => import("./execai/AutomationPanel"));
 
 const QUICK_ACTIONS = [
   { label: "Workspace overview", icon: Layers3, prompt: "Give me an overview of my authorized workspace modules." },
@@ -234,12 +238,20 @@ function PoliciesCanvas({ documents = [] }) {
   );
 }
 
-function WorkflowsCanvas({ rows = [] }) {
+function WorkflowsCanvas({ rows = [], drafted = false, onOpenAutomation }) {
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-      <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700">
-        <h4 className="font-semibold">Automation workflows</h4>
-        <p className="text-xs text-slate-500">Read-only workflow summaries</p>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+        <div>
+          <h4 className="font-semibold">{drafted ? "Drafted automation" : "Automation workflows"}</h4>
+          <p className="text-xs text-slate-500">{drafted ? "Saved paused. Nothing runs until you turn it on." : "Read-only workflow summaries"}</p>
+        </div>
+        {onOpenAutomation && (
+          <button type="button" onClick={onOpenAutomation}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium hover:border-sky-300 dark:border-slate-700">
+            <Zap size={13} /> {drafted ? "Review & turn on" : "Open Automation"}
+          </button>
+        )}
       </div>
       {rows.length ? rows.map((workflow) => (
         <article key={workflow.id} className="border-b border-slate-100 px-4 py-3 last:border-0 dark:border-slate-800">
@@ -247,10 +259,29 @@ function WorkflowsCanvas({ rows = [] }) {
             <h5 className="truncate text-sm font-medium">{workflow.name}</h5>
             <span className="text-xs text-slate-500">{workflow.active ? "Active" : "Paused"}</span>
           </div>
+          {workflow.summary && <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{workflow.summary}</p>}
           <p className="mt-1 text-xs text-slate-500">{workflow.triggerEvent} · {workflow.runCount} runs</p>
           {workflow.description && <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{workflow.description}</p>}
         </article>
       )) : <p className="px-4 py-5 text-sm text-slate-500">No automation workflows found.</p>}
+    </section>
+  );
+}
+
+function WorkflowTestCanvas({ view }) {
+  return (
+    <section className={`rounded-xl border p-4 ${view.matched ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30" : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"}`}>
+      <div className="flex items-start gap-2">
+        <FlaskConical size={16} className={view.matched ? "mt-0.5 text-emerald-600" : "mt-0.5 text-slate-400"} />
+        <div className="min-w-0">
+          <h4 className="text-sm font-semibold">Dry run{view.record?.label ? ` against ${view.record.label}` : ""}</h4>
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{view.message}</p>
+          {view.rule && <p className="mt-1 text-[11px] text-slate-500">Rule: {view.rule}</p>}
+          {view.matched && view.results?.length > 0 && (
+            <p className="mt-1 text-[11px] text-slate-500">Would run: {view.results.map((r) => label(r.type)).join(", ")}</p>
+          )}
+        </div>
+      </div>
     </section>
   );
 }
@@ -285,6 +316,24 @@ export default function ExecAIWorkbench() {
   const [activeRun, setActiveRun] = useState(null);
   const [lastRun, setLastRun] = useState(loadLastRun);
   const [runHistory, setRunHistory] = useState([]);
+  const { isAdmin } = useUser();
+  // "run" is the agent canvas; "automation" is the rule builder (admins only).
+  const [section, setSection] = useState("run");
+  const pane = isAdmin ? section : "run";
+
+  // Other pages can open the workbench on a given section (e.g. Operations →
+  // "Open Automation") without importing it: window.dispatchEvent(
+  // new CustomEvent("execai:open", { detail: { section: "automation" } })).
+  useEffect(() => {
+    const onOpen = (event) => {
+      const wanted = event.detail?.section;
+      setSection(wanted === "automation" ? "automation" : "run");
+      setOpen(true);
+      setMinimized(false);
+    };
+    window.addEventListener("execai:open", onOpen);
+    return () => window.removeEventListener("execai:open", onOpen);
+  }, []);
 
   const shell = isDark
     ? "border-slate-700 bg-slate-950 text-slate-100"
@@ -459,14 +508,19 @@ export default function ExecAIWorkbench() {
               <aside className="hidden min-h-0 flex-col border-r border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:flex">
                 <div>
                   <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Workbench</p>
-                  <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2.5 text-sm font-medium dark:bg-slate-800">
-                    <Activity size={16} className="text-sky-600 dark:text-sky-400" /> Current run
+                  <div className="space-y-1">
+                    {[["run", "Current run", Activity], ...(isAdmin ? [["automation", "Automation", Zap]] : [])].map(([id, text, Icon]) => (
+                      <button key={id} type="button" onClick={() => setSection(id)} aria-current={pane === id ? "page" : undefined}
+                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium ${pane === id ? "bg-slate-100 dark:bg-slate-800" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/60"}`}>
+                        <Icon size={16} className="text-sky-600 dark:text-sky-400" /> {text}
+                      </button>
+                    ))}
                   </div>
                 </div>
                 <div className="mt-6">
                   <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Available tools</p>
                   <div className="space-y-1">
-                    {["Workspace metrics", "Record search", "Create & update when permitted", "ExecUI policy search", "Workflow summaries (admins)"].map((tool) => (
+                    {["Workspace metrics", "Record search", "Create & update when permitted", "ExecUI policy search", ...(isAdmin ? ["Draft & test automations"] : [])].map((tool) => (
                       <div key={tool} className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs text-slate-600 dark:text-slate-300">
                         <CheckCircle2 size={14} className="text-emerald-500" /> {tool}
                       </div>
@@ -522,6 +576,22 @@ export default function ExecAIWorkbench() {
               </aside>
 
               <main className="min-h-0 overflow-y-auto p-3 sm:p-5">
+                {isAdmin && (
+                  // The left rail is hidden below lg, so small screens switch here.
+                  <div className="mb-4 flex rounded-lg bg-slate-100 p-0.5 lg:hidden dark:bg-slate-800">
+                    {[["run", "Current run"], ["automation", "Automation"]].map(([id, text]) => (
+                      <button key={id} type="button" onClick={() => setSection(id)}
+                        className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium ${pane === id ? "bg-white shadow-sm dark:bg-slate-700" : "text-slate-500"}`}>
+                        {text}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {pane === "automation" ? (
+                  <Suspense fallback={<div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Loading automation…</div>}>
+                    <AutomationPanel refreshKey={activeRun?.completedAt} onLeave={close} />
+                  </Suspense>
+                ) : (<>
                 <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Workspace canvas</p>
@@ -558,7 +628,11 @@ export default function ExecAIWorkbench() {
                         {view.kind === "record" && <RecordCanvas view={view} />}
                         {view.kind === "python" && <PythonCanvas view={view} />}
                         {view.kind === "policies" && <PoliciesCanvas documents={view.documents} />}
-                        {view.kind === "workflows" && <WorkflowsCanvas rows={view.rows} />}
+                        {view.kind === "workflows" && (
+                          <WorkflowsCanvas rows={view.rows} drafted={view.drafted}
+                            onOpenAutomation={isAdmin ? () => setSection("automation") : undefined} />
+                        )}
+                        {view.kind === "workflow_test" && <WorkflowTestCanvas view={view} />}
                       </div>
                     ))}
                   </div>
@@ -591,6 +665,7 @@ export default function ExecAIWorkbench() {
                     </div>
                   )}
                 </section>
+                </>)}
               </main>
 
               <aside className="flex min-h-0 flex-col border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:border-l lg:border-t-0">

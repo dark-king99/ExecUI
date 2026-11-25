@@ -31,7 +31,6 @@ export const STATIC_DESTINATIONS = [
   { label: "Financial Management", path: "/services/financial", section: "services", solution: "financial", keywords: "finance revenue expenses cash flow" },
   { label: "Operations System",  path: "/services/operation", section: "services", solution: "operation", keywords: "operations sop process" },
   { label: "Strategic Planning", path: "/services/strategic", section: "services", solution: "strategic", keywords: "strategy goals okr roadmap" },
-  { label: "Marketing & Sales",  path: "/services/marketing", section: "services", solution: "marketing", keywords: "marketing sales revenue" },
   { label: "Team & Project",     path: "/services/team",      section: "services", solution: "team", keywords: "team project coordination tasks" },
 
   // Company-wide pages that live outside the module sidebars. These were
@@ -53,7 +52,5 @@ export const STATIC_DESTINATIONS = [
   { label: "Rewards",            path: "/rewards",    section: null, keywords: "rewards points leaderboard perks" },
   { label: "Global search",      path: "/search",     section: null, keywords: "search everything find records global" },
   { label: "Compliance",         path: "/account/compliance", section: null, adminOnly: true, keywords: "compliance governance dsar erasure retention legal hold gdpr privacy" },
-  { label: "Workflows",          path: "/account/workflows",  section: null, adminOnly: true, keywords: "workflows automation rules approvals chains" },
-  { label: "Developer",          path: "/account/developer",  section: null, adminOnly: true, keywords: "developer api tokens webhooks openapi" },
   { label: "Single sign-on",     path: "/account/sso",        section: null, adminOnly: true, keywords: "sso saml oidc scim provisioning identity" },
 ];

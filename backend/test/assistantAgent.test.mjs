@@ -37,6 +37,7 @@ test("agent tool catalog exposes only authorized resources and no delete or arbi
 
   assert.deepEqual(Object.keys(byName).sort(), [
     "create_record",
+    "draft_automation_workflow",
     "get_workspace_overview",
     "list_automation_workflows",
     "read_industry_records",
@@ -44,6 +45,7 @@ test("agent tool catalog exposes only authorized resources and no delete or arbi
     "run_action",
     "search_execui_policy",
     "search_records",
+    "test_automation_workflow",
     "update_record",
   ]);
   // No tool name or offered action may delete, approve, or run code.

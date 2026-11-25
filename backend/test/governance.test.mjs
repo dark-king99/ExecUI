@@ -71,7 +71,6 @@ test("subject linkage resolves to the right Prisma filter", () => {
   // unfiltered clause — that would erase or export everyone's rows.
   assert.equal(subjectWhere(getCategory("audit_logs"), { email: "a@b.co" }), null);
   assert.equal(subjectWhere(getCategory("email_logs"), { userId: "u1" }), null);
-  assert.equal(subjectWhere(getCategory("webhook_deliveries"), { userId: "u1" }), null);
 });
 
 test("no subject filter can ever be empty", () => {
@@ -88,18 +87,12 @@ test("no subject filter can ever be empty", () => {
 });
 
 test("retention-only categories carry no subject link and no erase action", () => {
-  for (const id of ["webhook_deliveries", "workflow_runs", "social_snapshots"]) {
+  for (const id of ["workflow_runs", "social_snapshots"]) {
     const c = getCategory(id);
     assert.equal(c.subject, null);
     assert.equal(c.onErase, null);
     assert.ok(c.defaultRetentionDays, `${id} should have a recommended retention window`);
   }
-});
-
-test("categories holding customer payloads default to short retention", () => {
-  // Webhook payloads can carry customer data; keeping them for a year by
-  // default would quietly turn a delivery log into a shadow data store.
-  assert.ok(getCategory("webhook_deliveries").defaultRetentionDays <= 90);
 });
 
 test("every subject-linked category can be exported and erased", () => {

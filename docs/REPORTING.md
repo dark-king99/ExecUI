@@ -6,6 +6,10 @@ or monthly cadence.
 
 Find it at **Analytics → Reports** (`/analytics/reports`).
 
+Reports are part of the Analytics module: the `/api/reports` endpoints sit behind
+the same `analytics` module gate as the rest of Analytics, so someone without
+Analytics access can't reach the report builder through the API either.
+
 ## What you can build
 
 | Capability | Detail |
@@ -87,7 +91,7 @@ rather than pretending it sent.
 
 ## Extending the data sets
 
-Add an entry to `backend/src/modules/reports/reports.datasets.js`: name the
+Add an entry to `backend/src/modules/analytics/reports.datasets.js`: name the
 Prisma model, list the fields you want exposed with their types, and mark which
 are `groupable` / `aggregatable`. That's the whole change — the builder UI,
 validation, exports and scheduling all read from the registry. Because the

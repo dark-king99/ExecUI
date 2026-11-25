@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const KINDS = ["api", "webhook", "slack", "custom"];
+const KINDS = ["slack", "custom"];
 const AUTH_TYPES = ["bearer", "header", "none"];
 
 // A target URL must be http(s) — never a file://, localhost-scheme, etc.
