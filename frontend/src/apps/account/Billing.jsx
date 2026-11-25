@@ -403,10 +403,6 @@ export default function Billing() {
         : paddleMode && !paddle
           ? "Paddle unavailable"
           : "Unavailable";
-  const [manualInvoice, setManualInvoice] = useState(null);
-  const [paymentInstructions, setPaymentInstructions] = useState([]);
-  const displayedManualInvoice = manualInvoice ?? billing?.pendingInvoice ?? null;
-  const displayedPaymentInstructions = paymentInstructions.length ? paymentInstructions : billing?.paymentInstructions ?? [];
 
   useEffect(() => {
     if (!paddleMode || !paddle || !paddleBackendConfigured) return undefined;
@@ -481,13 +477,6 @@ export default function Billing() {
           return;
         }
         if (data.requiresPayment) {
-          if (data.invoice) {
-            setManualInvoice(data.invoice);
-            setPaymentInstructions(data.instructions ?? []);
-            refetchBilling();
-            toast({ message: "Invoice created. Your plan activates after payment is confirmed.", type: "info" });
-            return;
-          }
           toast({ message: "The payment provider did not return checkout details. Please try again.", type: "error" });
           return;
         }
@@ -661,47 +650,6 @@ export default function Billing() {
         </div>
       )}
 
-      {billing?.pendingInvoice && (
-        <Card>
-          <CardHeader title="Payment pending" />
-          <CardBody>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Invoice <strong>{billing.pendingInvoice.reference}</strong>
-              {` for ${plans.find((plan) => plan.id === billing.pendingInvoice.plan)?.name ?? billing.pendingInvoice.plan}`}
-              {" is awaiting payment. Your selected plan will not activate until payment is confirmed."}
-            </p>
-          </CardBody>
-        </Card>
-      )}
-
-      {displayedManualInvoice && (
-        <Card>
-          <CardHeader title="Pay by bank transfer or mobile money" />
-          <CardBody className="space-y-4">
-            <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-900/20 dark:text-amber-200">
-              <p className="font-semibold">Invoice reference: {displayedManualInvoice.reference}</p>
-              <p className="mt-1">
-                Amount due: {invoiceAmount(displayedManualInvoice)}
-                {displayedManualInvoice.dueAt ? ` · due ${invoiceDate(displayedManualInvoice.dueAt)}` : ""}
-              </p>
-              <p className="mt-2">Include the reference with your transfer. Access activates after the payment is verified.</p>
-            </div>
-            {displayedPaymentInstructions.map((method) => (
-              <div key={method.id} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
-                <h3 className="font-medium text-slate-900 dark:text-white">{method.label}</h3>
-                <dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {method.fields.map(([label, value]) => (
-                    <div key={label}>
-                      <dt className="text-xs text-slate-500">{label}</dt>
-                      <dd className="text-sm text-slate-800 dark:text-slate-200">{value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-            ))}
-          </CardBody>
-        </Card>
-      )}
 
       {/* Current plan summary */}
       <Card>

@@ -1,8 +1,9 @@
 /**
  * Payment providers.
  *
- * Billing is provider-neutral because processor availability varies by market.
- * `PAYMENT_PROVIDER` names one, and every adapter answers the same interface.
+ * Paddle is the payment provider. The adapter interface stays so the billing
+ * service doesn't need to know Paddle's API, and so "nothing configured" can be
+ * a provider of its own (free early access) rather than a special case.
  * Providers differ in what they can actually do, and pretending otherwise
  * produces a UI full of buttons that fail. So an adapter DECLARES its
  * capabilities and the surfaces above it ask before offering:
@@ -19,31 +20,54 @@
  */
 import { log } from "../../../lib/logger.js";
 import paddleProvider from "./paddle.provider.js";
-import manualProvider from "./manual.provider.js";
-import flutterwaveProvider from "./flutterwave.provider.js";
+
+/**
+ * No payment provider configured: free early access.
+ *
+ * Choosing a plan activates it immediately. This is how a deployment runs
+ * before a merchant account exists, and how local development works without
+ * Paddle keys. It is never chosen silently in place of a provider someone
+ * asked for — see providerId().
+ */
+const freeProvider = {
+  id: "free",
+  label: "Free early access",
+  capabilities: {
+    hostedCheckout: false, savedCards: false, customerPortal: false,
+    invoiceHistory: false, webhooks: false, recurring: false,
+  },
+  configured: () => false,
+  methods: [],
+  notes: "No payment provider is configured, so plans activate without payment.",
+  async createCheckout() { return { activateNow: true, reason: "no_payment_provider_configured" }; },
+  async listInvoices() { return []; },
+  async listPaymentMethods() { return { supported: false, methods: [] }; },
+  async createPortalSession() { return { supported: false }; },
+};
 
 export const PROVIDERS = {
   paddle: paddleProvider,
-  manual: manualProvider,
-  flutterwave: flutterwaveProvider,
+  free: freeProvider,
 };
 
 /**
  * Which provider is in force.
  *
- * Explicit configuration wins. Failing that we infer from supported provider
- * keys. No key means free early-access mode (`manual` with
- * nothing configured activates plans immediately, exactly as before).
+ * Paddle is the only payment provider. With no Paddle key and no explicit
+ * choice, plans are free (early access). Any other explicit value — including
+ * the retired "manual" and "flutterwave" — resolves to Paddle, so a deployment
+ * that meant to collect money fails loudly with a Paddle configuration error
+ * instead of quietly giving plans away.
  */
 export function providerId() {
   const explicit = process.env.PAYMENT_PROVIDER?.trim().toLowerCase();
-  if (explicit && PROVIDERS[explicit]) return explicit;
-  if (explicit) {
-    log.warn("payment_provider_unknown", { requested: explicit, using: "manual" });
-    return "manual";
+  if (explicit === "free") return "free";
+  if (explicit && explicit !== "paddle") {
+    log.warn("payment_provider_unsupported", { requested: explicit, using: "paddle" });
+    return "paddle";
   }
-  if (process.env.PADDLE_API_KEY?.trim()) return "paddle";
-  return "manual";
+  if (explicit === "paddle" || process.env.PADDLE_API_KEY?.trim()) return "paddle";
+  return "free";
 }
 
 export const provider = () => PROVIDERS[providerId()];
@@ -52,18 +76,9 @@ export const provider = () => PROVIDERS[providerId()];
 export const supports = (capability) => !!provider().capabilities?.[capability];
 
 /**
- * Is money actually being collected?
- *
- * False means free early-access mode: choosing a plan activates it immediately.
- * That is a deliberate state, not a misconfiguration — it is how the product
- * ships before a merchant account exists.
+ * Is money actually being collected? False only in free early access.
  */
-export const billingEnabled = () => {
-  const active = provider();
-  // An explicitly selected Paddle provider must fail with a configuration
-  // error, never fall through to free activation when credentials are absent.
-  return active.id === "paddle" || !!active.configured?.();
-};
+export const billingEnabled = () => provider().id === "paddle";
 
 /** What the admin UI shows about payment configuration. */
 export function providerInfo() {
@@ -73,7 +88,6 @@ export function providerInfo() {
     label: p.label,
     configured: !!p.configured?.(),
     capabilities: { ...p.capabilities },
-    // How a customer actually pays, in words the buyer understands.
     methods: p.methods ?? [],
     notes: p.notes ?? null,
   };

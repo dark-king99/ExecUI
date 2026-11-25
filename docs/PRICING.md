@@ -126,25 +126,24 @@ reason: settings are tenant-editable by design.
 
 ---
 
-## 5. Payment providers
+## 5. Payment provider
 
-Billing uses provider adapters because payment availability and capabilities
-vary by market.
+**Paddle is the only payment provider.** It is the merchant of record, so it
+handles card, PayPal and Apple/Google Pay, tax and receipts, and renews
+subscriptions itself. The manual bank-transfer / mobile-money invoices and the
+Flutterwave adapter were removed.
 
-Set `PAYMENT_PROVIDER` explicitly. For sandbox testing use `PAYMENT_PROVIDER=paddle`
-and `PADDLE_ENV=sandbox`; for approved live operation use
-`PADDLE_ENV=production`. The backend key prefix and frontend token prefix must
-match that explicit choice. Without an explicit Paddle provider, this application
-may use its manual early-access behavior.
+For sandbox testing use `PAYMENT_PROVIDER=paddle` and `PADDLE_ENV=sandbox`; for
+approved live operation use `PADDLE_ENV=production`. The backend key prefix and
+frontend token prefix must match.
 
-| Provider | Methods | Recurring | Notes |
-| --- | --- | --- | --- |
-| `paddle` | Card, PayPal, Apple/Google Pay | ✅ | Merchant of record; seller onboarding required. |
-| `manual` | Bank transfer, mobile money, cash | ❌ | **Works anywhere.** No onboarding needed. |
-| `flutterwave` | Card, bank transfer, USSD, mobile money | ❌ | Africa-wide rails. ⚠️ see below. |
-
-Providers **declare capabilities** rather than pretending to a common
-denominator, so the UI never offers a button that will fail.
+| `PAYMENT_PROVIDER` | Paddle key set? | Result |
+| --- | --- | --- |
+| unset | no | **Free early access** — choosing a plan activates it at once. For local development and pre-launch. |
+| unset | yes | Paddle |
+| `paddle` | either | Paddle (a missing key is a configuration error, never free plans) |
+| `free` | either | Free early access, explicitly |
+| anything else, including the retired `manual` / `flutterwave` | either | Paddle, with a warning — a deployment that meant to collect money must not quietly give plans away |
 
 ### `paddle` — checkout and webhook setup
 
@@ -230,49 +229,6 @@ Developer tools → Authentication; `VITE_PADDLE_CLIENT_TOKEN` is the separate
 browser token. Do not swap these credentials. The backend loads `backend/.env`
 by path before initializing modules that read environment variables;
 `.env.example` is a template and is not loaded automatically.
-
-### `manual` — the one that works today
-
-Not a fallback. In a market where card penetration is low, mobile money is most
-of the digital economy, and no card processor will onboard the merchant, an
-invoice with a reference the customer quotes when they pay **is** the billing
-system.
-
-1. Tenant picks a plan → `PlatformInvoice` issued with a unique reference
-   (`EX-XXXX-XXXX`, no 0/O/1/I — people read these aloud) and instructions from
-   config.
-2. They pay by bank transfer or mobile money.
-3. An operator confirms receipt: `POST /api/account/billing/platform-invoices/:reference/confirm`
-   — **system_admin only**, because it is the platform taking money. A tenant
-   able to call it would grant itself any plan free.
-
-With nothing configured this degrades to free early access, exactly as before.
-When payment instructions are configured, selecting a plan creates a pending
-invoice and shows the transfer instructions in Billing; access changes only
-after a system administrator confirms receipt.
-
-```
-PAY_BANK_NAME, PAY_BANK_ACCOUNT_NAME, PAY_BANK_ACCOUNT_NUMBER, PAY_BANK_SWIFT
-PAY_MOBILE_MONEY_NUMBER, PAY_MOBILE_MONEY_NAME, PAY_MOBILE_MONEY_LABEL
-PAY_INVOICE_DUE_DAYS (default 14)
-```
-
-### ⚠️ Flutterwave is unverified
-
-Written to Flutterwave's documented v3 API, but **never run against a live
-merchant account**, and whether Flutterwave will onboard a merchant registered
-in **Liberia** is a KYC question only they can answer. Verify both before taking
-money with it.
-
-Also note: their webhook auth is a shared secret echoed in `verif-hash`, **not**
-an HMAC over the body — it proves the sender knows the secret, not that the body
-is untampered. `confirm()` therefore re-fetches the transaction from the API
-before anything is trusted.
-
-Other providers with Liberia coverage worth evaluating: **Rapyd**, **Novalnet**,
-**MoneyMatrix**, and direct integration with **Orange Money Liberia** or
-**Lonestar Cell MTN Mobile Money**. Adding one is a new file in
-`providers/` and an entry in the registry.
 
 ---
 
