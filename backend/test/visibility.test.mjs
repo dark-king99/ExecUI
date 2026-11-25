@@ -175,7 +175,7 @@ test("a plan cannot find the pages it didn't buy", () => {
 test("every indexed destination declares a section or is genuinely universal", () => {
   const UNIVERSAL = new Set([
     "/home", "/overview", "/account/profile", "/account/security",
-    "/account/notifications", "/account/my-hr", "/documents", "/approvals",
+    "/account/notifications", "/account/my-hr", "/account/connections", "/documents", "/approvals",
     "/rewards", "/search",
   ]);
   for (const e of SEARCH_INDEX) {

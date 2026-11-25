@@ -73,6 +73,12 @@ test("subject linkage resolves to the right Prisma filter", () => {
   assert.equal(subjectWhere(getCategory("email_logs"), { userId: "u1" }), null);
 });
 
+test("a logged email matches its contact as sender or recipient", () => {
+  assert.deepEqual(subjectWhere(getCategory("mail_activity"), { email: " Buyer@Acme.test " }),
+    { OR: [{ fromEmail: "buyer@acme.test" }, { toEmails: { has: "buyer@acme.test" } }] });
+  assert.equal(subjectWhere(getCategory("mail_activity"), { userId: "u1" }), null);
+});
+
 test("no subject filter can ever be empty", () => {
   // An empty {} where-clause would match every row in the table.
   for (const c of subjectCategories()) {

@@ -1121,6 +1121,16 @@ export const attachments = {
 };
 
 // ── Account ───────────────────────────────────────────────────────────────
+// ── Connected accounts (Google / Microsoft) ───────────────────────────────
+export const connections = {
+  list:   ()                    => get('/connections'),
+  // Returns { url } — the browser is sent to the provider to sign in.
+  start:  (provider, purpose)   => post(`/connections/oauth/${provider}/start`, { purpose }),
+  update: (id, data)            => patch(`/connections/${id}`, data),
+  remove: (id)                  => del(`/connections/${id}`),
+  sync:   (id)                  => post(`/connections/${id}/sync`, {}),
+};
+
 export const account = {
   profile: {
     get:    ()     => get('/account/profile'),

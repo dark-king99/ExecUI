@@ -62,6 +62,7 @@ const Security            = lazy(() => import("../apps/account/Security"));
 const Integrations        = lazy(() => import("../apps/account/Integrations"));
 const Notifications       = lazy(() => import("../apps/account/Notifications"));
 const Messaging           = lazy(() => import("../apps/account/Messaging"));
+const ConnectedAccounts   = lazy(() => import("../apps/account/ConnectedAccounts"));
 const TeamPermissions     = lazy(() => import("../apps/account/TeamPermissions"));
 const Billing             = lazy(() => import("../apps/account/Billing"));
 const RefundRequests      = lazy(() => import("../apps/account/RefundRequests"));
@@ -228,6 +229,7 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/account/api-keys"     element={<Navigate to="/account/integrations" replace />} />
                 <Route path="/account/notifications" element={<Notifications />} />
                 <Route path="/account/messaging"    element={<Messaging />} />
+                <Route path="/account/connections"  element={<ConnectedAccounts />} />
 
 
                 {/* Account — organization views (enterprise admins only) */}

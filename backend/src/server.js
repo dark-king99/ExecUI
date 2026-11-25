@@ -12,6 +12,7 @@ import { startClmScheduler, stopClmScheduler } from "./modules/documents/contrac
 import { startHrScheduler, stopHrScheduler } from "./modules/hr/hr.scheduler.js";
 import { startHelpdeskScheduler, stopHelpdeskScheduler } from "./modules/helpdesk/helpdesk.scheduler.js";
 import { startTenantScheduler, stopTenantScheduler } from "./modules/tenants/tenants.scheduler.js";
+import { startConnectionScheduler, stopConnectionScheduler } from "./modules/connections/connections.scheduler.js";
 const PORT = process.env.PORT || 5555;
 
 // ── Apply pending migrations on boot ──────────────────────────────────────────
@@ -94,6 +95,9 @@ startHelpdeskScheduler();
 // Carry out organization deletions whose grace window has elapsed.
 startTenantScheduler();
 
+// Sync connected Google / Microsoft mailboxes and calendars.
+startConnectionScheduler();
+
 // Flush buffered analytics on graceful shutdown so nothing is lost.
 for (const sig of ["SIGTERM", "SIGINT"]) {
   process.on(sig, async () => {
@@ -103,6 +107,7 @@ for (const sig of ["SIGTERM", "SIGINT"]) {
     stopClmScheduler();
     stopHrScheduler();
     stopHelpdeskScheduler();
+    stopConnectionScheduler();
     stopTenantScheduler();
     await shutdownAnalytics();
     await shutdownPostHogLogs();

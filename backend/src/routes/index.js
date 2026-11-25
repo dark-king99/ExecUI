@@ -12,6 +12,7 @@ import assistantRoutes  from "../modules/assistant/assistant.routes.js";
 import servicesRoutes   from "../modules/services/services.routes.js";
 import overviewRoutes   from "../modules/overview/overview.routes.js";
 import integrationRoutes from "../modules/integrations/integrations.routes.js";
+import connectionRoutes, { callbackRouter as connectionCallback } from "../modules/connections/connections.routes.js";
 import attachmentRoutes  from "../modules/attachments/attachments.routes.js";
 import messagingRoutes  from "../modules/messaging/messaging.routes.js";
 import notificationRoutes from "../modules/notifications/notifications.routes.js";
@@ -41,6 +42,10 @@ router.get("/health", (_req, res) => res.json({ status: "ok" }));
 // alone (see sign.routes.js).
 router.use("/sign", signRoutes);
 
+// The Google / Microsoft OAuth redirect lands here with no session; it is
+// authenticated by its single-use state record instead.
+router.use("/connections", connectionCallback);
+
 // Turn successful workspace mutations into reward points (best-effort, on
 // response finish — see the middleware). Must run before the route handlers so
 // it can observe their outcome.
@@ -61,6 +66,8 @@ router.use("/notifications", notificationRoutes);
 router.use("/email",      emailRoutes);
 // Outbound integration secret store (ExecUI -> external services), admin-managed.
 router.use("/integrations", integrationRoutes);
+// Connected Google / Microsoft accounts (the callback is mounted above).
+router.use("/connections", connectionRoutes);
 router.use("/attachments", attachmentRoutes);
 
 // ── Department-gated core modules ───────────────────────────────────────────

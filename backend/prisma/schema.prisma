@@ -136,6 +136,10 @@ model Tenant {
   deletionReason        String?
 
   @@index([deletionScheduledFor])
+  oauthConnections        OAuthConnection[]
+  oauthRequests           OAuthRequest[]
+  mailActivities          MailActivity[]
+  supportEmails           SupportEmail[]
 }
 
 // Per-tenant configuration, one row per key.
@@ -385,6 +389,7 @@ model User {
   @@unique([tenantId, employeeId])
   @@unique([tenantId, externalId])
   @@index([tenantId, ssoSubject])
+  oauthConnections  OAuthConnection[]
 }
 
 model UserSession {
@@ -549,8 +554,15 @@ model CrmFollowUp {
   tenantId       String
   createdAt      DateTime @default(now())
 
+  // Set when the meeting came from a connected calendar ("google:<eventId>"),
+  // so a re-sync updates the same row instead of adding another.
+  externalRef    String?
+  contactId      String?
+
   user   User   @relation(fields: [userId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, externalRef])
 }
 
 model CrmOpportunity {
@@ -2258,4 +2270,104 @@ model PortalSession {
 
   @@index([tokenHash])
   @@index([tenantId, email])
+}
+
+// ── Connected accounts (Google / Microsoft) ──────────────────────────────────
+// A person's own mailbox and calendar ("personal"), or the organization's
+// support mailbox ("support_inbox", one per tenant, connected by an admin).
+// Tokens are AES-256-GCM ciphertext (lib/secrets.js) and never leave the
+// server. Deleting the user deletes their connections and tokens with them.
+model OAuthConnection {
+  id            String    @id @default(uuid())
+  tenantId      String
+  userId        String
+  provider      String // google | microsoft
+  purpose       String // personal | support_inbox
+  accountEmail  String
+  scopes        String[]  @default([])
+  accessCipher  String
+  accessIv      String
+  accessTag     String
+  refreshCipher String?
+  refreshIv     String?
+  refreshTag    String?
+  expiresAt     DateTime?
+  status        String    @default("active") // active | needs_reauth
+  logEmails     Boolean   @default(true) // personal: log emails with CRM contacts
+  logMeetings   Boolean   @default(true) // personal: log meetings with CRM contacts
+  syncedThrough DateTime?
+  lastSyncAt    DateTime?
+  lastError     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mailActivities MailActivity[]
+  supportEmails  SupportEmail[]
+
+  @@unique([tenantId, userId, provider, purpose])
+  @@index([status])
+}
+
+// One pending "Connect Google/Microsoft" sign-in. The id is the OAuth `state`,
+// bound to the person who started it; single use, short-lived.
+model OAuthRequest {
+  id           String    @id @default(uuid())
+  tenantId     String
+  userId       String
+  provider     String
+  purpose      String
+  codeVerifier String
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+// An email exchanged with a CRM contact, logged from someone's connected
+// mailbox. Only the subject and a short snippet are kept — never the body.
+model MailActivity {
+  id           String   @id @default(uuid())
+  tenantId     String
+  connectionId String
+  userId       String
+  contactId    String?
+  provider     String
+  externalId   String
+  threadId     String?
+  direction    String // inbound | outbound
+  fromEmail    String
+  toEmails     String[] @default([])
+  subject      String
+  snippet      String?
+  occurredAt   DateTime
+  createdAt    DateTime @default(now())
+
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  connection OAuthConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, externalId])
+  @@index([tenantId, contactId, occurredAt])
+}
+
+// Each message the support inbox has seen, so none becomes two tickets.
+model SupportEmail {
+  id           String   @id @default(uuid())
+  tenantId     String
+  connectionId String
+  externalId   String
+  ticketId     String?
+  outcome      String // created | replied | skipped
+  reason       String?
+  receivedAt   DateTime
+  createdAt    DateTime @default(now())
+
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  connection OAuthConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, externalId])
 }
