@@ -62,7 +62,7 @@ export class Agent {
     for (const d of found) d.mac = d.mac ?? macs.get(d.ip) ?? null;
 
     // Neighbours from every SNMP device — this is what draws the map.
-    const links = (await pool(found.filter((d) => d.snmp), 16, async (d) => {
+    const links = this.config.snmp?.error ? [] : (await pool(found.filter((d) => d.snmp), 16, async (d) => {
       const s = openSession(d.ip, this.config.snmp);
       try { return await neighbours(s, d.ip); } catch { return []; } finally { s.close(); }
     })).flat();
@@ -74,6 +74,10 @@ export class Agent {
 
   /** Identify one live host and read its metrics. */
   async describe(ip, probe) {
+    // Misconfigured SNMP (e.g. v3 without a password) is reported, not attempted.
+    if (this.config.snmp?.error) {
+      return { ip, reachable: true, latencyMs: probe.latencyMs, openPorts: probe.openPorts, snmp: false, hostname: await reverseDns(ip) };
+    }
     const s = openSession(ip, this.config.snmp);
     try {
       const sys = await identify(s);
@@ -114,7 +118,7 @@ export class Agent {
     this.config = await this.api("GET", "/config");
     const jobs = this.config.jobs ?? [];
     const due = Date.now() - this.lastDiscovery >= this.config.discoveryIntervalMin * 60_000;
-    const report = { devices: [], links: [], jobResults: [] };
+    const report = { devices: [], links: [], jobResults: [], ...(this.config.snmp?.error ? { error: this.config.snmp.error } : {}) };
 
     if (due || jobs.length) {
       if (!this.config.subnets?.length) {

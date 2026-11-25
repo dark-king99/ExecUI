@@ -13,6 +13,7 @@
  * contributes nothing for it, and nothing is ever estimated to fill the gap.
  */
 import { Session, text, mac, under } from "./snmp.js";
+import { SessionV3 } from "./snmpv3.js";
 
 export const OID = {
   sysDescr: "1.3.6.1.2.1.1.1.0", sysObjectID: "1.3.6.1.2.1.1.2.0", sysUpTime: "1.3.6.1.2.1.1.3.0",
@@ -39,6 +40,13 @@ const byIndex = (rows, root) => new Map(rows.map((r) => [suffix(r.oid, root), r.
 const safeWalk = (s, root) => s.walk(root).catch(() => []);
 
 export function openSession(ip, snmp) {
+  if (snmp?.version === "v3") {
+    return new SessionV3(ip, {
+      user: snmp.user, level: snmp.level, authProtocol: snmp.authProtocol, authPassword: snmp.authPassword,
+      privProtocol: snmp.privProtocol, privPassword: snmp.privPassword,
+      timeoutMs: snmp.timeoutMs ?? 1500, port: snmp.port ?? 161,
+    });
+  }
   return new Session(ip, { community: snmp?.community ?? "public", version: snmp?.version ?? "v2c", timeoutMs: snmp?.timeoutMs ?? 1200, port: snmp?.port ?? 161 });
 }
 

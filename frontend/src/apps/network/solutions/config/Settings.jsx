@@ -98,14 +98,18 @@ export default function Settings() {
   const { data: settings, loading, refetch } = useApi(() => network.settings.get(), [], {});
   const { data: presets } = useApi(() => network.settings.profiles.list(), [], {});
   const [form, setForm] = useState(null);
-  const [secret, setSecret] = useState({ snmpCommunity: "", monitoringToken: "" });
+  const [secret, setSecret] = useState({ snmpCommunity: "", monitoringToken: "", v3Auth: "", v3Priv: "" });
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   // Admins and roles granted "Manage network collection" can change these. The
   // server decides; anyone else gets its explanation when they try.
 
   useEffect(() => {
-    if (settings) setForm({ ...settings, subnetsText: (settings.subnets ?? []).join("\n"), monitoringUrl: settings.monitoring?.url ?? "", monitoringTool: settings.monitoring?.tool ?? "" });
+    if (settings) setForm({
+      ...settings, subnetsText: (settings.subnets ?? []).join("\n"), monitoringUrl: settings.monitoring?.url ?? "", monitoringTool: settings.monitoring?.tool ?? "",
+      monitoringAutoAdd: !!settings.monitoring?.autoAdd,
+      v3User: settings.snmpV3?.user ?? "", v3Level: settings.snmpV3?.level ?? "authPriv", v3Auth: settings.snmpV3?.authProtocol ?? "sha256",
+    });
   }, [settings]);
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const f = form ?? {};
@@ -118,10 +122,14 @@ export default function Settings() {
         snmpVersion: f.snmpVersion, cpuThreshold: Number(f.cpuThreshold), memThreshold: Number(f.memThreshold),
         autoResolveAlerts: !!f.autoResolveAlerts, alertEmail: f.alertEmail ?? "", metricRetentionDays: Number(f.metricRetentionDays),
         ...(secret.snmpCommunity ? { snmpCommunity: secret.snmpCommunity } : {}),
-        monitoring: f.monitoringTool ? { tool: f.monitoringTool, url: f.monitoringUrl, ...(secret.monitoringToken ? { token: secret.monitoringToken } : {}) } : { tool: null },
+        ...(f.snmpVersion === "v3" ? { snmpV3: {
+          user: f.v3User, level: f.v3Level, authProtocol: f.v3Auth, privProtocol: "aes",
+          ...(secret.v3Auth ? { authPassword: secret.v3Auth } : {}), ...(secret.v3Priv ? { privPassword: secret.v3Priv } : {}),
+        } } : {}),
+        monitoring: f.monitoringTool ? { tool: f.monitoringTool, url: f.monitoringUrl, autoAdd: !!f.monitoringAutoAdd, ...(secret.monitoringToken ? { token: secret.monitoringToken } : {}) } : { tool: null },
       };
       await network.settings.update(body);
-      setSecret({ snmpCommunity: "", monitoringToken: "" });
+      setSecret({ snmpCommunity: "", monitoringToken: "", v3Auth: "", v3Priv: "" });
       toast({ message: "Settings saved — collectors pick them up on their next check-in", type: "success" });
       refetch();
     } catch (e) { toast({ message: e.message, type: "error" }); } finally { setSaving(false); }
@@ -154,12 +162,32 @@ export default function Settings() {
                 <Field label="Discover every (minutes)"><TextInput type="number" min={15} value={f.discoveryIntervalMin ?? 60} onChange={(e) => set("discoveryIntervalMin", e.target.value)} /></Field>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="SNMP version"><SelectInput value={f.snmpVersion ?? "v2c"} onChange={(e) => set("snmpVersion", e.target.value)}>{["v2c", "v1"].map((v) => <option key={v}>{v}</option>)}</SelectInput></Field>
-                <Field label={`SNMP community${f.hasSnmpCommunity ? " (set — type to replace)" : " (default: public)"}`}>
-                  <TextInput type="password" autoComplete="off" value={secret.snmpCommunity} onChange={(e) => setSecret((s) => ({ ...s, snmpCommunity: e.target.value }))} placeholder={f.hasSnmpCommunity ? "••••••••" : "public"} />
-                </Field>
+                <Field label="SNMP version"><SelectInput value={f.snmpVersion ?? "v2c"} onChange={(e) => set("snmpVersion", e.target.value)}>{["v3", "v2c", "v1"].map((v) => <option key={v}>{v}</option>)}</SelectInput></Field>
+                {f.snmpVersion !== "v3" ? (
+                  <Field label={`SNMP community${f.hasSnmpCommunity ? " (set — type to replace)" : " (default: public)"}`}>
+                    <TextInput type="password" autoComplete="off" value={secret.snmpCommunity} onChange={(e) => setSecret((s) => ({ ...s, snmpCommunity: e.target.value }))} placeholder={f.hasSnmpCommunity ? "••••••••" : "public"} />
+                  </Field>
+                ) : (
+                  <Field label="SNMPv3 user"><TextInput autoComplete="off" value={f.v3User ?? ""} onChange={(e) => set("v3User", e.target.value)} /></Field>
+                )}
               </div>
-              <p className="text-[11px] text-slate-400">SNMPv3 isn't supported by the collector yet.</p>
+              {f.snmpVersion === "v3" && (
+                <div className="space-y-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Security level"><SelectInput value={f.v3Level} onChange={(e) => set("v3Level", e.target.value)}>
+                      <option value="authPriv">authPriv (signed + encrypted)</option><option value="authNoPriv">authNoPriv (signed)</option><option value="noAuthNoPriv">noAuthNoPriv</option>
+                    </SelectInput></Field>
+                    <Field label="Authentication"><SelectInput value={f.v3Auth} onChange={(e) => set("v3Auth", e.target.value)} disabled={f.v3Level === "noAuthNoPriv"}>
+                      {[["sha256", "SHA-256"], ["sha384", "SHA-384"], ["sha512", "SHA-512"], ["sha224", "SHA-224"], ["sha", "SHA-1"], ["md5", "MD5"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </SelectInput></Field>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label={`Auth password${f.snmpV3?.hasAuthPassword ? " (set)" : ""}`}><TextInput type="password" autoComplete="off" disabled={f.v3Level === "noAuthNoPriv"} value={secret.v3Auth} onChange={(e) => setSecret((s) => ({ ...s, v3Auth: e.target.value }))} placeholder={f.snmpV3?.hasAuthPassword ? "••••••••" : "8+ characters"} /></Field>
+                    <Field label={`Privacy (AES) password${f.snmpV3?.hasPrivPassword ? " (set)" : ""}`}><TextInput type="password" autoComplete="off" disabled={f.v3Level !== "authPriv"} value={secret.v3Priv} onChange={(e) => setSecret((s) => ({ ...s, v3Priv: e.target.value }))} placeholder={f.snmpV3?.hasPrivPassword ? "••••••••" : "8+ characters"} /></Field>
+                  </div>
+                  <p className="text-[11px] text-slate-400">Privacy uses AES-128. DES isn't offered — it's broken; move devices that only support DES to AES.</p>
+                </div>
+              )}
             </div>
           </Section>
 
@@ -192,6 +220,12 @@ export default function Settings() {
                 <TextInput type="password" autoComplete="off" disabled={!f.monitoringTool} value={secret.monitoringToken} onChange={(e) => setSecret((s) => ({ ...s, monitoringToken: e.target.value }))} placeholder={f.monitoring?.hasToken ? "••••••••" : ""} />
               </Field>
             </div>
+            {f.monitoringTool && (
+              <label className="mt-3 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                <input type="checkbox" checked={!!f.monitoringAutoAdd} onChange={(e) => set("monitoringAutoAdd", e.target.checked)} />
+                Add devices the collector discovers to {f.monitoringTool === "librenms" ? "LibreNMS" : "the monitoring tool"}, with the SNMP settings above
+              </label>
+            )}
             <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
               {f.monitoring?.tool && <GhostBtn disabled={syncing} onClick={syncNow}><RefreshCw size={13} className={syncing ? "animate-spin" : ""} /> Sync now</GhostBtn>}
               {f.monitoring?.lastSyncAt && <span>Last import {timeAgo(f.monitoring.lastSyncAt)}</span>}

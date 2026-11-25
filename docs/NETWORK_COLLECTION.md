@@ -48,7 +48,6 @@ or the grantable **Manage network collection** permission
 
 ## Limits today
 
-- SNMP v1/v2c only (no v3).
 - No flow data (NetFlow/sFlow), so no per-protocol or per-conversation traffic.
 - No device configuration backup (needs SSH credentials and vendor support).
 - LibreNMS is the only monitoring tool connector.

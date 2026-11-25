@@ -687,6 +687,7 @@ model NetworkDevice {
   snmp          Boolean   @default(false) // answered SNMP
   collectorId   String?
   externalRef   String? // id in the connected monitoring tool, e.g. "librenms:42"
+  monitoringAddedAt DateTime? // when ExecUI asked the monitoring tool to start monitoring it
 
   tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   alerts NetworkAlert[]
@@ -2483,6 +2484,19 @@ model NetworkSettings {
   snmpCommunityCipher  String?
   snmpCommunityIv      String?
   snmpCommunityTag     String?
+  // SNMPv3 (USM). Passwords are ciphertext.
+  snmpV3User           String?
+  snmpV3Level          String    @default("authPriv") // noAuthNoPriv | authNoPriv | authPriv
+  snmpV3AuthProtocol   String    @default("sha256")   // md5 | sha | sha224 | sha256 | sha384 | sha512
+  snmpV3AuthCipher     String?
+  snmpV3AuthIv         String?
+  snmpV3AuthTag        String?
+  snmpV3PrivProtocol   String    @default("aes")
+  snmpV3PrivCipher     String?
+  snmpV3PrivIv         String?
+  snmpV3PrivTag        String?
+  // Push devices the collector discovers into the monitoring tool.
+  monitoringAutoAdd    Boolean   @default(false)
   cpuThreshold         Int       @default(85)
   memThreshold         Int       @default(90)
   autoResolveAlerts    Boolean   @default(true)

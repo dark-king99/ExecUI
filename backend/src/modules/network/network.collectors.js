@@ -23,7 +23,7 @@ import crypto from "crypto";
 import prisma from "../../config/database.js";
 import { runUnscoped, runWithTenant } from "../../lib/tenantContext.js";
 import { log } from "../../lib/logger.js";
-import { loadSettings, snmpCommunity, isPrivate } from "./network.settings.js";
+import { loadSettings, snmpForCollector, isPrivate } from "./network.settings.js";
 import { vendorFrom, typeFrom, osFrom } from "./network.classify.js";
 
 const err = (message, status = 400) => Object.assign(new Error(message), { status });
@@ -105,7 +105,7 @@ export async function collectorConfig(collector, hello = null) {
       pollingIntervalSec: settings.pollingIntervalSec,
       discoveryIntervalMin: settings.discoveryIntervalMin,
       subnets: settings.subnets ?? [],
-      snmp: { version: settings.snmpVersion, community: snmpCommunity(settings) ?? "public" },
+      snmp: snmpForCollector(settings),
       known: [...new Set(known.map((d) => d.ip_address).filter(isPrivate))],
       jobs,
       serverTime: new Date().toISOString(),

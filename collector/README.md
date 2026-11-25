@@ -13,7 +13,12 @@ ExecUI. Everything it does is read-only: it never changes a device.
 | Reachability | Every known device is checked each poll; one that stops answering raises an alert in ExecUI. |
 
 Only private address space is scanned (10/8, 172.16/12, 192.168/16,
-100.64/10), at most a /20 per subnet. SNMP v1 and v2c are supported; v3 is not yet.
+100.64/10), at most a /20 per subnet.
+
+**SNMP versions:** v1, v2c and **v3** (USM): noAuthNoPriv / authNoPriv /
+authPriv, authentication MD5, SHA-1, SHA-224/256/384/512, privacy AES-128.
+DES is not supported (broken, and absent from modern OpenSSL). Every v3
+response is signature-checked; a response that fails is dropped.
 
 ## Run it
 

@@ -77,7 +77,16 @@ test("network collection against the database", { skip: !HAS_DB && "DATABASE_URL
     assert.ok(!JSON.stringify(saved).includes("s3cret"));
     const again = await inT(() => svc.getNetworkSettings(tenantId));
     assert.equal(again.pollingIntervalSec, 120, "it was really stored");
-    await assert.rejects(inT(() => settings.updateSettings(tenantId, { snmpVersion: "v3" })), /v3/);
+    // SNMPv3: incomplete credentials are reported to the collector, not sent half-done.
+    await inT(() => settings.updateSettings(tenantId, { snmpVersion: "v3", snmpV3: { user: "monitor", level: "authPriv", authProtocol: "sha256", authPassword: "auth-pass-123" } }));
+    const half = await collectors.collectorConfig(await collectors.collectorForToken((await inT(() => collectors.createCollector(tenantId, user.id, { name: "tmp" }))).token));
+    assert.match(half.snmp.error, /privacy password/);
+    const v3 = await inT(() => settings.updateSettings(tenantId, { snmpV3: { privPassword: "priv-pass-456" } }));
+    assert.equal(v3.snmpV3.hasPrivPassword, true);
+    assert.ok(!JSON.stringify(v3).includes("priv-pass-456") && !JSON.stringify(v3).includes("auth-pass-123"));
+    await assert.rejects(inT(() => settings.updateSettings(tenantId, { snmpV3: { privProtocol: "des" } })), /DES/);
+    await assert.rejects(inT(() => settings.updateSettings(tenantId, { snmpV3: { authPassword: "short" } })), /8–128/);
+    await inT(() => settings.updateSettings(tenantId, { snmpVersion: "v2c" }));
     await assert.rejects(inT(() => settings.updateSettings(tenantId, { subnets: ["1.1.1.0/24"] })), /private/);
     const preset = await inT(() => svc.updateSettingsProfile(tenantId, "critical"));
     assert.equal(preset.pollingIntervalSec, 30, "a preset is applied, not pretended");
@@ -94,6 +103,10 @@ test("network collection against the database", { skip: !HAS_DB && "DATABASE_URL
     const config = await collectors.collectorConfig(row, { hostname: "probe-01", version: "1.0.0" });
     assert.deepEqual(config.subnets, ["192.168.1.0/24", "10.0.5.0/24"]);
     assert.equal(config.snmp.community, "s3cret-community", "the collector, and only the collector, gets the community");
+    await inT(() => settings.updateSettings(tenantId, { snmpVersion: "v3" }));
+    const v3cfg = await collectors.collectorConfig(row);
+    assert.deepEqual(v3cfg.snmp, { version: "v3", user: "monitor", level: "authPriv", authProtocol: "sha256", authPassword: "auth-pass-123", privProtocol: "aes", privPassword: "priv-pass-456" });
+    await inT(() => settings.updateSettings(tenantId, { snmpVersion: "v2c" }));
     assert.equal(await collectors.collectorForToken("exc_not-a-real-token"), null);
   });
 

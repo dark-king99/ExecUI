@@ -16,6 +16,9 @@ const err = (message, status = 400) => Object.assign(new Error(message), { statu
 
 export const MAX_HOSTS_PER_SUBNET = 4096; // a /20
 export const MONITORING_TOOLS = ["librenms"];
+export const V3_LEVELS = ["noAuthNoPriv", "authNoPriv", "authPriv"];
+export const V3_AUTH = ["md5", "sha", "sha224", "sha256", "sha384", "sha512"];
+export const V3_PRIV = ["aes"];
 
 const toInt = (ip) => ip.split(".").reduce((n, o) => n * 256 + Number(o), 0);
 const isIPv4 = (ip) => /^(\d{1,3})(\.\d{1,3}){3}$/.test(ip) && ip.split(".").every((o) => Number(o) <= 255);
@@ -60,12 +63,21 @@ export const shapeSettings = (s) => ({
   discoveryIntervalMin: s.discoveryIntervalMin,
   snmpVersion: s.snmpVersion,
   hasSnmpCommunity: !!s.snmpCommunityCipher,
+  snmpV3: {
+    user: s.snmpV3User ?? null,
+    level: s.snmpV3Level ?? "authPriv",
+    authProtocol: s.snmpV3AuthProtocol ?? "sha256",
+    privProtocol: s.snmpV3PrivProtocol ?? "aes",
+    hasAuthPassword: !!s.snmpV3AuthCipher,
+    hasPrivPassword: !!s.snmpV3PrivCipher,
+  },
   cpuThreshold: s.cpuThreshold,
   memThreshold: s.memThreshold,
   autoResolveAlerts: s.autoResolveAlerts,
   alertEmail: s.alertEmail,
   metricRetentionDays: s.metricRetentionDays,
   monitoring: {
+    autoAdd: !!s.monitoringAutoAdd,
     tool: s.monitoringTool,
     url: s.monitoringUrl,
     hasToken: !!s.monitoringTokenCipher,
@@ -93,8 +105,7 @@ export async function updateSettings(tenantId, body = {}) {
   if (body.pollingIntervalSec !== undefined) data.pollingIntervalSec = intIn(body.pollingIntervalSec, 30, 3600, "Polling interval (seconds)");
   if (body.discoveryIntervalMin !== undefined) data.discoveryIntervalMin = intIn(body.discoveryIntervalMin, 15, 1440, "Discovery interval (minutes)");
   if (body.snmpVersion !== undefined) {
-    // SNMPv3 needs user/auth/privacy keys; the collector speaks v1 and v2c today.
-    if (!["v1", "v2c"].includes(body.snmpVersion)) throw err("The collector supports SNMP v1 and v2c. SNMPv3 isn't supported yet.");
+    if (!["v1", "v2c", "v3"].includes(body.snmpVersion)) throw err("SNMP version must be v1, v2c or v3");
     data.snmpVersion = body.snmpVersion;
   }
   if (typeof body.snmpCommunity === "string" && body.snmpCommunity.length) {
@@ -103,6 +114,33 @@ export async function updateSettings(tenantId, body = {}) {
     Object.assign(data, { snmpCommunityCipher: e.ciphertext, snmpCommunityIv: e.iv, snmpCommunityTag: e.tag });
   }
   if (body.clearSnmpCommunity === true) Object.assign(data, { snmpCommunityCipher: null, snmpCommunityIv: null, snmpCommunityTag: null });
+  if (body.snmpV3 !== undefined) {
+    const v = body.snmpV3 ?? {};
+    if (v.user !== undefined) {
+      const user = String(v.user ?? "").trim();
+      if (user.length > 32) throw err("SNMPv3 user names are at most 32 characters");
+      data.snmpV3User = user || null;
+    }
+    if (v.level !== undefined) {
+      if (!V3_LEVELS.includes(v.level)) throw err(`Security level must be one of ${V3_LEVELS.join(", ")}`);
+      data.snmpV3Level = v.level;
+    }
+    if (v.authProtocol !== undefined) {
+      if (!V3_AUTH.includes(v.authProtocol)) throw err(`Authentication must be one of ${V3_AUTH.join(", ")}`);
+      data.snmpV3AuthProtocol = v.authProtocol;
+    }
+    if (v.privProtocol !== undefined) {
+      if (!V3_PRIV.includes(v.privProtocol)) throw err("Privacy must be AES (DES isn't supported — it's broken)");
+      data.snmpV3PrivProtocol = v.privProtocol;
+    }
+    for (const [field, prefix, label] of [["authPassword", "snmpV3Auth", "Authentication"], ["privPassword", "snmpV3Priv", "Privacy"]]) {
+      if (typeof v[field] === "string" && v[field].length) {
+        if (v[field].length < 8 || v[field].length > 128) throw err(`${label} password must be 8–128 characters`);
+        const e = encryptSecret(v[field]);
+        Object.assign(data, { [`${prefix}Cipher`]: e.ciphertext, [`${prefix}Iv`]: e.iv, [`${prefix}Tag`]: e.tag });
+      }
+    }
+  }
   if (body.cpuThreshold !== undefined) data.cpuThreshold = intIn(body.cpuThreshold, 10, 100, "CPU threshold");
   if (body.memThreshold !== undefined) data.memThreshold = intIn(body.memThreshold, 10, 100, "Memory threshold");
   if (body.autoResolveAlerts !== undefined) data.autoResolveAlerts = !!body.autoResolveAlerts;
@@ -123,6 +161,7 @@ export async function updateSettings(tenantId, body = {}) {
       try { url = new URL(String(m.url)); } catch { throw err("Enter the monitoring tool's address, e.g. https://librenms.example.com"); }
       if (!["http:", "https:"].includes(url.protocol)) throw err("The monitoring tool's address must be http or https");
       data.monitoringTool = m.tool;
+      if (m.autoAdd !== undefined) data.monitoringAutoAdd = !!m.autoAdd;
       data.monitoringUrl = url.toString().replace(/\/$/, "");
       if (typeof m.token === "string" && m.token.length) {
         const e = encryptSecret(m.token);
@@ -141,6 +180,26 @@ export async function updateSettings(tenantId, body = {}) {
 
 export const snmpCommunity = (s) => readSecret(s, "snmpCommunity");
 export const monitoringToken = (s) => readSecret(s, "monitoringToken");
+
+/**
+ * The SNMP credentials a collector needs, in its format. v3 settings that are
+ * incomplete for their security level are reported rather than sent half-done.
+ */
+export function snmpForCollector(s) {
+  if (s.snmpVersion !== "v3") return { version: s.snmpVersion ?? "v2c", community: snmpCommunity(s) ?? "public" };
+  const level = s.snmpV3Level ?? "authPriv";
+  const authPassword = readSecret(s, "snmpV3Auth");
+  const privPassword = readSecret(s, "snmpV3Priv");
+  const missing = !s.snmpV3User ? "a user name"
+    : level !== "noAuthNoPriv" && !authPassword ? "an authentication password"
+      : level === "authPriv" && !privPassword ? "a privacy password" : null;
+  if (missing) return { version: "v3", error: `SNMPv3 is selected but has no ${missing}.` };
+  return {
+    version: "v3", user: s.snmpV3User, level,
+    authProtocol: s.snmpV3AuthProtocol, ...(level !== "noAuthNoPriv" ? { authPassword } : {}),
+    privProtocol: s.snmpV3PrivProtocol, ...(level === "authPriv" ? { privPassword } : {}),
+  };
+}
 
 /**
  * Starting points a person can apply, not stored profiles. They used to be

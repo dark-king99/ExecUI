@@ -9,6 +9,7 @@ import dgram from "node:dgram";
 import crypto from "node:crypto";
 
 export const T = {
+  REPORT: 0xa8,
   INTEGER: 0x02, OCTET_STRING: 0x04, NULL: 0x05, OID: 0x06, SEQUENCE: 0x30,
   IP_ADDRESS: 0x40, COUNTER32: 0x41, GAUGE32: 0x42, TIMETICKS: 0x43, OPAQUE: 0x44, COUNTER64: 0x46,
   NO_SUCH_OBJECT: 0x80, NO_SUCH_INSTANCE: 0x81, END_OF_MIB_VIEW: 0x82,
@@ -64,15 +65,20 @@ export function encValue({ type, value }) {
   }
 }
 
-export function encodeMessage({ version = 1, community = "public", pduType, requestId, a = 0, b = 0, varbinds }) {
+/** The PDU alone — shared by v1/v2c messages and v3 scoped PDUs. */
+export function encodePdu({ pduType, requestId, a = 0, b = 0, varbinds }) {
   const vbs = tlv(T.SEQUENCE, Buffer.concat(varbinds.map((vb) =>
     tlv(T.SEQUENCE, Buffer.concat([encOid(vb.oid), vb.value ? encValue(vb.value) : tlv(T.NULL, Buffer.alloc(0))])))));
-  const pdu = tlv(pduType, Buffer.concat([encInt(requestId), encInt(a), encInt(b), vbs]));
+  return tlv(pduType, Buffer.concat([encInt(requestId), encInt(a), encInt(b), vbs]));
+}
+
+export function encodeMessage({ version = 1, community = "public", pduType, requestId, a = 0, b = 0, varbinds }) {
+  const pdu = encodePdu({ pduType, requestId, a, b, varbinds });
   return tlv(T.SEQUENCE, Buffer.concat([encInt(version), tlv(T.OCTET_STRING, Buffer.from(community)), pdu]));
 }
 
 // ── BER decoding ─────────────────────────────────────────────────────────────
-function read(buf, pos) {
+export function read(buf, pos) {
   const type = buf[pos];
   let len = buf[pos + 1];
   let start = pos + 2;
@@ -87,7 +93,7 @@ function read(buf, pos) {
   return { type, start, end: start + len };
 }
 
-function decOid(b) {
+export function decOid(b) {
   const arcs = [Math.floor(b[0] / 40), b[0] % 40];
   let v = 0;
   for (let i = 1; i < b.length; i++) {
@@ -97,7 +103,7 @@ function decOid(b) {
   return arcs.join(".");
 }
 
-function decInt(b, signed) {
+export function decInt(b, signed) {
   let v = 0n;
   for (const byte of b) v = (v << 8n) | BigInt(byte);
   if (signed && b.length && (b[0] & 0x80)) v -= 1n << BigInt(b.length * 8);
@@ -115,12 +121,9 @@ export function decValue(type, b) {
   }
 }
 
-export function decodeMessage(buf) {
-  const msg = read(buf, 0);
-  if (msg.type !== T.SEQUENCE) throw new Error("not an SNMP message");
-  const ver = read(buf, msg.start);
-  const com = read(buf, ver.end);
-  const pdu = read(buf, com.end);
+/** Decode the PDU that starts at `pos`. */
+export function decodePduAt(buf, pos) {
+  const pdu = read(buf, pos);
   const rid = read(buf, pdu.start);
   const f1 = read(buf, rid.end);
   const f2 = read(buf, f1.end);
@@ -135,14 +138,22 @@ export function decodeMessage(buf) {
     p = vb.end;
   }
   return {
-    version: decInt(buf.subarray(ver.start, ver.end), true),
-    community: buf.subarray(com.start, com.end).toString(),
     pduType: pdu.type,
     requestId: decInt(buf.subarray(rid.start, rid.end), true),
     a: decInt(buf.subarray(f1.start, f1.end), true), // error-status / non-repeaters
     b: decInt(buf.subarray(f2.start, f2.end), true), // error-index / max-repetitions
     varbinds,
   };
+}
+
+export function decodeMessage(buf) {
+  const msg = read(buf, 0);
+  if (msg.type !== T.SEQUENCE) throw new Error("not an SNMP message");
+  const ver = read(buf, msg.start);
+  const version = decInt(buf.subarray(ver.start, ver.end), true);
+  if (version === 3) throw Object.assign(new Error("SNMPv3 message"), { code: "EV3" });
+  const com = read(buf, ver.end);
+  return { version, community: buf.subarray(com.start, com.end).toString(), ...decodePduAt(buf, com.end) };
 }
 
 // ── OIDs ─────────────────────────────────────────────────────────────────────
