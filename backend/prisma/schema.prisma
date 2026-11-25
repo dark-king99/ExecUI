@@ -61,12 +61,8 @@ model Tenant {
   bizTaxPlans             BizTaxPlan[]
   bizInvestments          BizInvestment[]
   bizSOPs                 BizSOP[]
-  bizWorkflows            BizWorkflow[]
   bizGoals                BizGoal[]
   bizMarketAnalysis       BizMarketAnalysis[]
-  bizCampaigns            BizCampaign[]
-  bizClients              BizClient[]
-  bizMembers              BizMember[]
   bizProjects             BizProject[]
   bizTasks                BizTask[]
   networkDevices          NetworkDevice[]
@@ -90,9 +86,6 @@ model Tenant {
   rewardStats             RewardStat[]
   reports                 Report[]
   reportSchedules         ReportSchedule[]
-  apiTokens               ApiToken[]
-  webhookEndpoints        WebhookEndpoint[]
-  webhookDeliveries       WebhookDelivery[]
   workflows               Workflow[]
   workflowRuns            WorkflowRun[]
   assistantRuns           AssistantRun[]
@@ -131,7 +124,6 @@ model Tenant {
   scimTokens              ScimToken[]
   ssoLoginRequests        SsoLoginRequest[]
   settings                TenantSetting[]
-  platformInvoices        PlatformInvoice[]
 
   // ── Scheduled deletion ────────────────────────────────────────────────────
   // Removing an organization is staged, never immediate: an admin requests it,
@@ -144,37 +136,6 @@ model Tenant {
   deletionReason        String?
 
   @@index([deletionScheduledFor])
-}
-
-// A bill the platform issued to a tenant.
-//
-// Only the `manual` payment provider writes these: where no processor will
-// onboard us, an invoice with a reference number that the customer pays by bank
-// transfer or mobile money IS the billing system, and a platform operator
-// confirms receipt. Paddle and Flutterwave are their own system of record, so
-// they never create rows here.
-model PlatformInvoice {
-  id          String    @id @default(uuid())
-  tenantId    String
-  reference   String    @unique
-  plan        String
-  planSolutions String[] @default([])
-  amountUsd   Int
-  localAmount Int?
-  currency    String    @default("USD")
-  status      String    @default("pending") // pending | paid | void
-  method      String?                        // how it was paid, recorded on confirmation
-  note        String?
-  issuedAt    DateTime  @default(now())
-  dueAt       DateTime?
-  paidAt      DateTime?
-  confirmedById String?
-  voidedAt    DateTime?
-
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  @@index([tenantId, status])
-  @@index([status])
 }
 
 // Per-tenant configuration, one row per key.
@@ -924,20 +885,6 @@ model BizSOP {
   updatedAt   DateTime @updatedAt
 }
 
-model BizWorkflow {
-  id           String   @id @default(uuid())
-  name         String
-  description  String?
-  department   String?
-  trigger      String?
-  steps        Json     @default("[]")
-  status       String   @default("active") // active | inactive
-  is_automated Boolean  @default(false)
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdAt    DateTime @default(now())
-}
-
 model BizGoal {
   id          String   @id @default(uuid())
   title       String
@@ -966,52 +913,6 @@ model BizMarketAnalysis {
   tenantId      String
   tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
-}
-
-model BizCampaign {
-  id          String   @id @default(uuid())
-  name        String
-  platform    String   @default("email")
-  status      String   @default("draft") // draft | active | paused | completed
-  budget      Float    @default(0)
-  spent       Float    @default(0)
-  leads       Int      @default(0)
-  conversions Int      @default(0)
-  start_date  String?
-  end_date    String?
-  tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model BizClient {
-  id           String   @id @default(uuid())
-  name         String
-  company      String?
-  email        String?
-  phone        String?
-  annual_value Float    @default(0)
-  status       String   @default("active") // active | inactive | prospect
-  contract_end String?
-  industry     String?
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdAt    DateTime @default(now())
-}
-
-model BizMember {
-  id         String   @id @default(uuid())
-  name       String
-  role       String
-  department String
-  email      String?
-  status     String   @default("active") // active | inactive
-  skills     Json     @default("[]")
-  avatar_url String?
-  tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
 }
 
 model BizProject {
@@ -1447,82 +1348,9 @@ model ReportSchedule {
   @@index([active, nextRunAt])
 }
 
-// ── Public API & outbound webhooks ───────────────────────────────────────────
-// A machine credential other systems use to call ExecUI. Only a SHA-256 hash is
-// stored — the plaintext is shown once at creation and can never be recovered.
-model ApiToken {
-  id          String    @id @default(uuid())
-  tenantId    String
-  name        String
-  tokenHash   String    @unique // sha256(token) — the lookup key
-  prefix      String // "execui_live_ab12…" shown in the UI for identification
-  scopes      String[]  @default([])
-  lastUsedAt  DateTime?
-  lastUsedIp  String?
-  expiresAt   DateTime?
-  revokedAt   DateTime?
-  createdById String?
-  createdAt   DateTime  @default(now())
-
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  @@index([tenantId])
-  @@index([tokenHash])
-}
-
-// A customer-registered HTTPS endpoint that receives signed event callbacks.
-model WebhookEndpoint {
-  id            String    @id @default(uuid())
-  tenantId      String
-  url           String
-  description   String?
-  events        String[]  @default([]) // subscribed event types; ["*"] = all
-  secret        String // signing secret (shown once, used for HMAC)
-  active        Boolean   @default(true)
-  failureCount  Int       @default(0) // consecutive failures
-  disabledAt    DateTime? // auto-disabled after repeated failures
-  lastStatus    String?
-  lastAttemptAt DateTime?
-  createdById   String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  deliveries WebhookDelivery[]
-
-  @@index([tenantId])
-  @@index([tenantId, active])
-}
-
-// One attempt-tracked delivery of one event to one endpoint. Retried with
-// exponential backoff; kept as an auditable log the customer can inspect/replay.
-model WebhookDelivery {
-  id             String    @id @default(uuid())
-  tenantId       String
-  endpointId     String
-  event          String
-  payload        Json
-  status         String    @default("pending") // pending | delivered | failed
-  attempts       Int       @default(0)
-  responseStatus Int?
-  responseBody   String?
-  error          String?
-  nextAttemptAt  DateTime?
-  deliveredAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
-
-  @@index([tenantId, createdAt])
-  @@index([status, nextAttemptAt])
-}
-
 // ── Workflow automation & approvals ──────────────────────────────────────────
-// "When X happens, do Y." Triggered by domain events (the same stream that
-// drives outbound webhooks), so a rule fires whether the change came from the
-// UI, the public API or a background job. Conditions and actions are validated
+// "When X happens, do Y." Triggered by domain events, so a rule fires whether
+// the change came from the UI, ExecAI or a background job. Conditions and actions are validated
 // JSON specs — never executable code — so a rule can't become an injection path.
 model Workflow {
   id            String    @id @default(uuid())

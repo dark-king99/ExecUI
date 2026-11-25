@@ -31,7 +31,6 @@ so there is exactly one place to look.
 | Direct messages | sender id | **anonymized** |
 | Reward activity | user id | deleted |
 | Approval decisions | user id | **anonymized** |
-| Webhook deliveries | — (retention only) | — |
 | Automation run history | — (retention only) | — |
 | Social follower snapshots | — (retention only) | — |
 
@@ -81,9 +80,8 @@ Set a window per category and choose **delete** or **anonymize**. Policies run
 **automatically once a day**, and unconfigured categories are surfaced in the UI
 with a recommended default rather than sitting invisible.
 
-Recommended defaults ship in the registry — e.g. webhook deliveries **30 days**
-(payloads can carry customer data, so a delivery log shouldn't quietly become a
-shadow data store), sessions and notifications 90, audit logs 730.
+Recommended defaults ship in the registry — e.g. sessions and notifications
+**90 days**, audit logs **730**.
 
 **Preview before you trust it.** The console shows a live count of rows currently
 past retention for each policy, and **Run now** applies everything immediately.

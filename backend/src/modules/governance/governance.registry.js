@@ -343,17 +343,6 @@ export const CATEGORIES = [
     note: "The record of how each contract reached its current status.",
   }),
 
-  cat("webhook_deliveries", {
-    label: "Webhook deliveries",
-    model: "webhookDelivery",
-    dateField: "createdAt",
-    subject: null,
-    onErase: null,
-    defaultRetentionDays: 30,
-    pii: false,
-    note: "Payloads can contain customer data — purged aggressively by default.",
-  }),
-
   cat("workflow_runs", {
     label: "Automation run history",
     model: "workflowRun",
