@@ -11,7 +11,6 @@ import analyticsRoutes  from "../modules/analytics/analytics.routes.js";
 import accountRoutes    from "../modules/account/account.routes.js";
 import assistantRoutes  from "../modules/assistant/assistant.routes.js";
 import servicesRoutes   from "../modules/services/services.routes.js";
-import viewsRoutes      from "../modules/views/views.routes.js";
 import overviewRoutes   from "../modules/overview/overview.routes.js";
 import integrationRoutes from "../modules/integrations/integrations.routes.js";
 import attachmentRoutes  from "../modules/attachments/attachments.routes.js";
@@ -76,7 +75,6 @@ router.use("/services",   authenticate, requireModule("services"),  servicesRout
 
 router.use("/account",    accountRoutes);
 router.use("/assistant",  assistantRoutes);
-router.use("/views",      viewsRoutes);
 router.use("/rewards",    rewardsRoutes);
 router.use("/reports",    reportsRoutes);
 router.use("/workflows",  workflowRoutes);
