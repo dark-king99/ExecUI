@@ -4,9 +4,10 @@ import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import StatusBadge from "../../components/ui/StatusBadge";
 import DataTable from "../../components/ui/DataTable";
 import { useToast } from "../../components/ui/Toast";
-import { Users, Plus, Shield, AlertCircle, Loader2 } from "lucide-react";
+import { Users, Plus, AlertCircle, Loader2 } from "lucide-react";
 import { useApi, useMutation } from "../../hooks/useApi";
 import { account } from "../../services/api";
+import RolePermissionsPanel from "./RolePermissionsPanel";
 
 const ROLE_COLORS = {
   Admin: "danger", Sales: "indigo", Marketing: "success",
@@ -33,9 +34,6 @@ export default function TeamPermissions() {
   const { data: members, loading: membersLoading, error: membersError, refetch: refetchMembers } = useApi(
     () => account.team.list(), [], { pollingInterval: 60000 }
   );
-  const { data: roles, loading: rolesLoading } = useApi(
-    () => account.team.roles(), [], {}
-  );
 
   const { mutate: inviteMember, loading: inviting } = useMutation(
     (data) => account.team.invite(data),
@@ -58,8 +56,8 @@ export default function TeamPermissions() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Team Permissions"
-        subtitle="Manage team members, roles and access levels"
+        title="Roles & Permissions"
+        subtitle="Manage team members, roles and what each role may do"
         actions={
           <button
             onClick={() => setShowInvite(true)}
@@ -125,29 +123,9 @@ export default function TeamPermissions() {
         </CardBody>
       </Card>
 
-      <Card>
-        <CardHeader title="Role Definitions" icon={Shield} />
-        <CardBody>
-          {rolesLoading && !roles && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 animate-pulse">
-              {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-20 bg-slate-100 dark:bg-slate-700 rounded-xl" />)}
-            </div>
-          )}
-
-          {roles?.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {roles.map(r => (
-                <div key={r.role} className="p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                  <div className="flex items-center gap-2 mb-2">
-                    <StatusBadge label={r.role} variant={ROLE_COLORS[r.role] ?? "neutral"} />
-                  </div>
-                  <p className="text-xs text-slate-500">{r.desc ?? r.description}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardBody>
-      </Card>
+      {/* Replaces the old "Role Definitions" card, which read r.role / r.desc
+          from an API that returns { id, name } and so rendered empty badges. */}
+      <RolePermissionsPanel />
     </div>
   );
 }

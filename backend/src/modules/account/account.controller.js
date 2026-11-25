@@ -1,4 +1,5 @@
 import bcrypt from "bcrypt";
+import * as roleAccess from "../role/role.access.service.js";
 import prisma from "../../config/database.js";
 import * as billing from "./billing.service.js";
 import * as refunds from "./refunds.service.js";
@@ -311,6 +312,13 @@ export const listRoles = async (req, res) => {
     res.status(err.status ?? 500).json({ message: err.message });
   }
 };
+
+// ── Roles & permissions ───────────────────────────────────────────────────
+export const getTeamAccess    = handle((req) => roleAccess.overview(tid(req)));
+export const createAccessRole = handle((req) => roleAccess.createRole(tid(req), uid(req), req.body?.name));
+export const grantPermission  = handle((req) => roleAccess.grant(tid(req), uid(req), req.params.roleId, req.params.key));
+export const revokePermission = handle((req) => roleAccess.revoke(tid(req), uid(req), req.params.roleId, req.params.key));
+export const assignMemberRole = handle((req) => roleAccess.assignMember(tid(req), uid(req), req.params.userId, req.body?.roleId));
 
 // ── Billing ───────────────────────────────────────────────────────────────
 export const getBilling        = handle((req) => billing.getBilling(tid(req)));

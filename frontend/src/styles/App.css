@@ -76,6 +76,27 @@
   --color-violet-950: #211906;
 }
 
+/* ─── Dark mode: pitch black ─────────────────────────────────────
+   The dark theme is written with Tailwind's slate scale, which is tinted
+   navy. Inside .dark the scale is remapped to true neutrals, so the page is
+   pure black, surfaces are near-black and text is plain gray. Light mode keeps
+   the original slate. */
+.dark {
+  --color-slate-50: #fafafa;
+  --color-slate-100: #f5f5f5;
+  --color-slate-200: #e5e5e5;
+  --color-slate-300: #d4d4d4;
+  --color-slate-400: #a3a3a3;
+  --color-slate-500: #737373;
+  --color-slate-600: #4a4a4a;
+  --color-slate-700: #2e2e2e;
+  --color-slate-800: #1c1c1c;
+  --color-slate-900: #0d0d0d;
+  --color-slate-950: #000000;
+  color-scheme: dark;
+}
+.dark body { background-color: #000; }
+
 /* ─── Typography: Inter ──────────────────────────────────────── */
 html {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

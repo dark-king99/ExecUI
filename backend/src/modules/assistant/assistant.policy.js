@@ -1,6 +1,14 @@
 import { containsPromptInjection } from "../../lib/aiSafety.js";
 import { listResources } from "../api/api.resources.js";
 import { hasSolutionAccess, solutionCatalog } from "./assistant.solutions.js";
+import { actionCatalog, describeAction } from "./assistant.actions.js";
+
+/**
+ * Tools that change data. After the first turn these are withdrawn, so a model
+ * reacting to its own tool output can't chain one write into another — any
+ * further write needs a fresh request from the person.
+ */
+export const WRITE_TOOL_NAMES = ["create_record", "update_record", "run_action"];
 
 const RESOURCE_SOLUTIONS = {
   contacts: "accounts", opportunities: "opportunities", tasks: "activities", tickets: "service",
@@ -45,7 +53,7 @@ export function writableResources(access = {}, { role, permissions = [] } = {}) 
   }));
 }
 
-export function assistantTools(access = {}, { pythonEnabled = false, writable = [], role } = {}) {
+export function assistantTools(access = {}, { pythonEnabled = false, writable = [], role, permissions = new Set() } = {}) {
   const resources = overviewCatalog(access);
   const ids = resources.map(({ id }) => id);
   const searchFilters = resources.map((resource) => {
@@ -77,10 +85,14 @@ export function assistantTools(access = {}, { pythonEnabled = false, writable = 
     type: "function",
     function: {
       name: "read_solution",
-      description: `Read these authorized solution views: ${solutions.map(({ id, description }) => `${id}: ${description}`).join(" ")}`,
+      description: `Read one of these authorized, read-only solution views: ${solutions.map(({ id, description }) => `${id}: ${description}`).join(" ")}`,
       parameters: {
         type: "object",
-        properties: { solution: { type: "string", enum: solutions.map(({ id }) => id) } },
+        properties: {
+          solution: { type: "string", enum: solutions.map(({ id }) => id) },
+          // Only some views take one; they say so in their description.
+          id: { type: "string", minLength: 1, maxLength: 200 },
+        },
         required: ["solution"],
         additionalProperties: false,
       },
@@ -183,6 +195,29 @@ export function assistantTools(access = {}, { pythonEnabled = false, writable = 
         },
       },
     );
+  }
+  // Domain actions. The enum is this caller's permitted actions and nothing
+  // else, so a model can't even name an action the user isn't allowed to take.
+  const actions = actionCatalog(access, { role, permissions });
+  if (actions.length) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "run_action",
+        description: "Perform ONE permitted workspace action. Fields marked * are required; send no other fields. " +
+          "Only act when the user asked for this change. Available actions: " +
+          actions.map(({ name, ...action }) => describeAction(name, action)).join(" | "),
+        parameters: {
+          type: "object",
+          properties: {
+            action: { type: "string", enum: actions.map(({ name }) => name) },
+            input: { type: "object", additionalProperties: true },
+          },
+          required: ["action", "input"],
+          additionalProperties: false,
+        },
+      },
+    });
   }
   if (pythonEnabled) {
     tools.push({

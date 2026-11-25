@@ -12,10 +12,87 @@ tenant-scoped Prisma client and resource registry as the application:
 | `create_record` / `update_record` | Only registry-writable fields and explicitly granted resource permissions; writes create audit entries. No delete tool. |
 | `search_execui_policy` | Retrieves public Terms, Acceptable Use, Refund, Privacy, and Security policy excerpts for grounded answers. |
 | `list_automation_workflows` | Admin-only, tenant-scoped summaries; read-only and does not execute a workflow. |
+| `read_solution` | Read-only module views (`assistant.solutions.js`): CRM pipeline, funnel, win/loss, renewals, *my* tasks and meetings; marketing campaign performance, audiences, experiments; network capacity, backup health, incidents and an incident's timeline; Business Services dashboard, goals, SOPs, clients, investments, tax plans, market analyses. Gated on section + plan solution. |
+| `read_industry_records` | The tenant industry's CRM/marketing object types, or up to 10 records of one. |
+| `run_action` | Permission-aware writes across CRM, Marketing, Network and Business Services (`assistant.actions.js`). Offered only with the actions the caller may take. See below. |
 | `run_python_analysis` | Offered only when the separate Python runner is configured. Do not enable it until the runner has OS-level isolation and resource controls. |
 
 CRM tasks require an assigned user. When an authorized task creation omits
 `userId`, ExecAI assigns the task to the signed-in user.
+
+`read_solution` and `read_industry_records` were advertised to the model before
+the dispatcher handled them, so every call failed. They are dispatched now, and
+each re-checks authorization itself rather than trusting the offered catalog.
+
+## Workspace actions (`run_action`)
+
+| Action | Module · solution | Needs (non-admin) | Effect |
+|---|---|---|---|
+| `crm_create_lead` | CRM · leads | `crm.pipeline.manage` | New lead owned by the caller |
+| `crm_update_lead` | CRM · leads | `crm.pipeline.manage` | Open stages, value, probability. Refuses a closed deal |
+| `crm_create_task` | CRM · activities | self-service | Task for the caller; another assignee needs `crm.activity.write` and must be active |
+| `crm_complete_task` | CRM · activities | self-service | Caller's own task; someone else's needs `crm.activity.write` |
+| `crm_schedule_meeting` | CRM · activities | self-service | Meeting on the caller's calendar |
+| `crm_add_account_note` | CRM · accounts | `crm.contact.write` | Note attributed to the caller |
+| `marketing_create_audience` | Marketing · engagement | `marketing.audience.write` | **Draft** audience |
+| `marketing_create_experiment` | Marketing · intelligence | `marketing.experiment.write` | **Draft** experiment |
+| `network_acknowledge_alert` | Network | `network.alerts.manage` | Open alert → acknowledged. Refuses a resolved one |
+| `network_open_incident` | Network | `network.incidents.manage` | Incident opened as `open` |
+| `network_request_change` | Network | `network.changes.request` | Change request, always `pending` |
+| `services_create_goal` | Services · strategic | admin (section) | Goal in `planning`, 0% |
+| `services_update_goal_progress` | Services · strategic | admin (section) | Progress and status |
+| `services_draft_sop` | Services · operation | admin (section) | SOP as **draft** |
+| `services_create_client` | Services · marketing | admin (section) | Business client |
+
+**Gates, in order.** (1) The section must be in the caller's effective access
+(department ∩ plan) and the plan must include the solution — the same gate
+`requireModule` applies to the module's HTTP routes. (2) A non-admin needs the
+listed permission; admins pass. (3) The action re-reads the record to enforce
+ownership and lifecycle rules. Business Services is admin-only as a section, so
+its actions need no key: no non-admin ever reaches the section gate.
+
+**Why writes are stricter than the UI.** The module routes check only module
+access. The agent adds a permission because it acts on an instruction that can
+be wrong, ambiguous, or planted in a record's text. Self-service is the narrow
+exception: a user may create and complete their own tasks and schedule their
+own meetings, which touches nobody else's work.
+
+**Input is a whitelist.** Each action declares the only fields it accepts and
+rejects anything else. Network incidents and changes are built field by field
+because their services spread the input straight into the row: passed through,
+a model could create a change request already marked `approved`.
+
+**Permission keys.** Migration `20261124120000_add_execai_action_permissions`
+inserts every key the actions check. That includes `crm.contact.write` and
+`crm.pipeline.manage`, which previously existed only where the development seed
+ran — a tenant created by signup gets four coarse keys, so in production they
+could not have been granted. Granting is through the roles API
+(`POST /roles/:id/permissions`); **the Team & Permissions page does not yet expose
+it**, so until it does, non-admins have only the self-service actions.
+
+**Deliberately absent**, with the reason, so nobody adds them by accident:
+
+- Deleting anything — irreversible; the agent has no delete.
+- Closing (won/lost) or re-opening a deal; converting a lead — commercial
+  commitments and protected lifecycle moves, made by a person.
+- Starting or pausing a campaign — starting one sends email to customers.
+- Approving or rejecting a change — the approval is the human control.
+- Running automation, restarting a server, restoring a backup — operational
+  effects outside the database.
+- Resolving an alert or incident — closes the loop on evidence the model can't see.
+
+**Placeholder data is not exposed.** Marketing attribution, channel performance
+and trend, the network traffic in/out split and service health return
+hard-coded values today. They have no read view, because an agent reporting
+them would be confidently wrong.
+
+**Audit and replay.** Every action writes an `ai_agent.<action>` audit entry.
+It is written after the action rather than in one transaction, because the
+domain services use the shared client and can't join one; a failed audit write
+is logged as an error. Runs that performed a write are never served from the
+30-second response cache, which previously could record a second run as having
+made a change it never made. After the first turn, `run_action` is withdrawn with
+the other write tools, so a write can't be chained off a tool result.
 
 These are first-party agent tools, not a connection to a third-party MCP server.
 The current policy retriever uses lexical term matching over version-controlled
@@ -55,8 +132,9 @@ Marketing, Network, Analytics, and admin-only Services. Contracts, Documents,
 HR, People, and Helpdesk use separate route and data rules and must not become
 agent-accessible merely because they appear in the resource registry.
 
-Writes are narrower still: the current permission map grants selected CRM and
-Marketing operations, and only the tenant administrator can inspect workflow
+Writes are narrower still: the generic `create_record`/`update_record` path
+grants selected CRM and Marketing operations, `run_action` covers the domain
+actions listed above, and only the tenant administrator can inspect workflow
 summaries. The many application surfaces outside the generic resource registry
 (payroll, approvals, documents, contracts, governance, and other domain
 services) need explicit read/write tools that invoke their existing service

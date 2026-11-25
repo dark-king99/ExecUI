@@ -1,0 +1,6 @@
+{
+    "openclawAgent.cliPath": "openclawAgent.cliPath",
+    "openclawAgent.sessionId": "openclawAgent.sessionId",
+    "openclawAgent.thinking": "high",
+    "openclawAgent.workspaceRoot": "openclawAgent.workspaceRoot"
+}

@@ -199,7 +199,7 @@ export const createDealTask = async (tenantId, dealId, data, actorId = null) => 
       status: "pending", priority: data.priority ?? "medium",
       due_date: data.dueDate ? new Date(data.dueDate) : null,
       relatedCustomerName: data.relatedCustomerName ?? null,
-      tenantId, userId: data.userId ?? firstUser?.id ?? "",
+      tenantId, userId: data.userId ?? actorId ?? firstUser?.id ?? "",
     },
   });
   notifyTaskAssignee(tenantId, task, actorId);
@@ -326,7 +326,10 @@ export const listTasks = async (tenantId, params = {}) => {
 };
 
 export const createTask = async (tenantId, data, actorId = null) => {
-  const firstUser = data.userId
+  // An unassigned task belongs to whoever created it. The old fallback was the
+  // tenant's first user, which quietly handed every unassigned task to the
+  // account owner rather than to the person who asked for it.
+  const firstUser = data.userId || actorId
     ? null
     : await prisma.user.findFirst({ where: { tenantId } });
   const task = await prisma.crmTask.create({
@@ -335,7 +338,7 @@ export const createTask = async (tenantId, data, actorId = null) => {
       status: data.status ?? "pending", priority: data.priority ?? "medium",
       due_date: data.dueDate ? new Date(data.dueDate) : null,
       relatedCustomerName: data.relatedCustomerName ?? null,
-      tenantId, userId: data.userId ?? firstUser?.id ?? "",
+      tenantId, userId: data.userId ?? actorId ?? firstUser?.id ?? "",
     },
   });
   notifyTaskAssignee(tenantId, task, actorId);
@@ -648,14 +651,18 @@ export const getAccountTimeline = async (tenantId, accountId) => {
   ];
 };
 
-export const addAccountNote = async (tenantId, accountId, data) => {
-  const firstUser = await prisma.user.findFirst({ where: { tenantId } });
-  if (!firstUser) return { id: accountId, note: data.note ?? "" };
+export const addAccountNote = async (tenantId, accountId, data, actorId = null) => {
+  // A note is attributed to its author. It used to be written as the tenant's
+  // first user whoever typed it, which made the account trail say the wrong
+  // person said it. The first-user fallback survives only for callers that
+  // genuinely have no actor.
+  const authorId = actorId ?? (await prisma.user.findFirst({ where: { tenantId } }))?.id;
+  if (!authorId) return { id: accountId, note: data.note ?? "" };
   return prisma.auditLog.create({
     data: {
       action: "note", resource: "account", resourceId: accountId,
       detail: data.note ?? data.content ?? "",
-      tenantId, userId: firstUser.id,
+      tenantId, userId: authorId,
     },
   });
 };
@@ -1035,8 +1042,10 @@ export const listMeetings = async (tenantId, params = {}) => {
   }));
 };
 
-export const createMeeting = async (tenantId, data) => {
-  const firstUser = data.userId
+export const createMeeting = async (tenantId, data, actorId = null) => {
+  // Same rule as tasks: an unassigned meeting is the organiser's, not the
+  // tenant's first user's.
+  const firstUser = data.userId || actorId
     ? null
     : await prisma.user.findFirst({ where: { tenantId } });
   return prisma.crmFollowUp.create({
@@ -1045,7 +1054,7 @@ export const createMeeting = async (tenantId, data) => {
       notes: data.notes ?? data.title ?? "",
       follow_up_type: "meeting", status: "scheduled",
       scheduled_date: data.scheduledAt ? new Date(data.scheduledAt) : new Date(),
-      tenantId, userId: data.userId ?? firstUser?.id ?? "",
+      tenantId, userId: data.userId ?? actorId ?? firstUser?.id ?? "",
     },
   });
 };

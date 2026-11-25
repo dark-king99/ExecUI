@@ -43,6 +43,15 @@ router.put("/team/members/:id",      auth, adminOnly, updateUser);
 router.delete("/team/members/:id",   auth, adminOnly, deleteUser);
 router.get("/team/roles",            auth, c.listRoles);
 
+// ── Roles & permissions (admin only) ─────────────────────────────────────
+// Granting is server-enforced here, not just hidden in the UI: an employee who
+// called these directly gets 403 from adminOnly.
+router.get("/team/access",                              auth, adminOnly, c.getTeamAccess);
+router.post("/team/access/roles",                       auth, adminOnly, c.createAccessRole);
+router.put("/team/access/roles/:roleId/permissions/:key",    auth, adminOnly, c.grantPermission);
+router.delete("/team/access/roles/:roleId/permissions/:key", auth, adminOnly, c.revokePermission);
+router.put("/team/access/members/:userId/role",         auth, adminOnly, c.assignMemberRole);
+
 // ── Billing ───────────────────────────────────────────────────────────────
 router.get("/billing",                   auth, c.getBilling);
 router.get("/billing/plans",             auth, c.getPlans);

@@ -11,23 +11,39 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Prisma } from "@prisma/client";
 import {
-  TENANT_MODELS, USER_RESTRICTED_MODELS, GRACE_DAYS,
+  TENANT_MODELS, USER_RESTRICTED_MODELS, UNLINKED_TENANT_MODELS, GRACE_DAYS,
 } from "../src/modules/tenants/tenants.service.js";
+import { schemaRelations } from "../src/lib/schemaRelations.js";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
 // ── Static analysis: the schema itself ───────────────────────────────────────
-const MODELS = Prisma.dmmf.datamodel.models;
+// Relations come from the schema file: Prisma 7's runtime DMMF no longer carries
+// relationFromFields/relationOnDelete, and this test passed vacuously on it —
+// it found no relations at all, so it found none missing a cascade.
+const TENANT_RELATIONS = schemaRelations().filter((r) => r.target === "Tenant" && r.fields.includes("tenantId"));
 
-test("every tenant-scoped model cascades from Tenant", () => {
-  const missing = MODELS
-    .filter((m) => m.fields.some((f) => f.name === "tenantId"))
-    .filter((m) => {
-      const rel = m.fields.find((f) => f.kind === "object" && f.type === "Tenant" && (f.relationFromFields ?? []).includes("tenantId"));
-      return rel && rel.relationOnDelete !== "Cascade";
-    })
-    .map((m) => m.name);
+test("relation metadata is actually being read", () => {
+  // The guard against this file going vacuous again: under Prisma 7's DMMF this
+  // list was empty and every test below passed without checking anything.
+  assert.ok(TENANT_RELATIONS.length > 50, `only ${TENANT_RELATIONS.length} tenant relations found`);
+});
+
+test("every Tenant relation cascades", () => {
+  const missing = TENANT_RELATIONS.filter((r) => r.onDelete !== "Cascade").map((r) => r.model);
   assert.deepEqual(missing, [], `these models would block a tenant delete: ${missing.join(", ")}`);
+});
+
+test("every tenant-scoped model is removed by the cascade or by name", () => {
+  for (const model of TENANT_MODELS) {
+    const cascades = TENANT_RELATIONS.some((r) => r.model === model);
+    assert.ok(cascades || UNLINKED_TENANT_MODELS.includes(model), `${model} would survive an organization delete`);
+  }
+  // Pinned so a new model without a Tenant relation is a deliberate choice.
+  assert.deepEqual([...UNLINKED_TENANT_MODELS].sort(), [
+    "Attachment", "CrmPlaybook", "CrmResolution", "CrmSequence", "DeptMessage", "DirectMessage",
+    "EmailLog", "IntegrationConnection", "NetworkAutomationJob", "Notification", "NotificationPref",
+  ]);
 });
 
 test("the blast radius is derived from the schema, not a hand-kept list", () => {
@@ -178,8 +194,18 @@ test("deleting an organization", { skip: !HAS_DB && "DATABASE_URL not set" }, as
 
   // The whole point: one delete, and the organization is gone from every table.
   await t.test("once due, the purge removes everything", async () => {
-    const { tenant } = await seed();
+    const { tenant, user } = await seed();
+    // Rows in tables with NO foreign key to Tenant — the cascade can't reach
+    // these, and this test passed for months without ever seeding one.
+    await runUnscoped(async () => {
+      await prisma.notification.create({ data: { tenantId: tenant.id, userId: user.id, title: "Seed" } });
+      await prisma.integrationConnection.create({
+        data: { tenantId: tenant.id, name: "Seed", kind: "api", baseUrl: "https://example.test", authType: "none" },
+      });
+    });
     const before = await svc.previewDeletion(tenant.id);
+    assert.equal(before.counts.Notification, 1);
+    assert.equal(before.counts.IntegrationConnection, 1);
     assert.ok(before.total > 0);
 
     await runUnscoped(async () => {

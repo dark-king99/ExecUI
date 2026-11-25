@@ -24,6 +24,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "../../config/database.js";
 import { runUnscoped, runWithTenant } from "../../lib/tenantContext.js";
 import { log } from "../../lib/logger.js";
+import { schemaRelations } from "../../lib/schemaRelations.js";
 import { CATEGORIES } from "../governance/governance.registry.js";
 import { SEGMENTS, marketFor, bandForCountry } from "../billing/pricing.book.js";
 import { quoteFor } from "../billing/plans.config.js";
@@ -52,15 +53,31 @@ export const TENANT_MODELS = MODELS
  * tenant row goes removes the ordering dependency entirely. Derived from the
  * schema so a new model can't quietly reintroduce the problem.
  */
-export const USER_RESTRICTED_MODELS = MODELS
-  .filter((m) =>
-    m.fields.some((f) => f.name === "tenantId") &&
-    m.fields.some((f) =>
-      f.kind === "object" && f.type === "User" &&
-      (f.relationOnDelete ?? "Restrict") === "Restrict" &&
-      (f.relationFromFields ?? []).length > 0),
-  )
-  .map((m) => m.name);
+export const USER_RESTRICTED_MODELS = [...new Set(
+  // Read from the schema file, not Prisma.dmmf: Prisma 7 removed relation
+  // metadata from the runtime DMMF, and this list came back EMPTY — silently
+  // switching the safeguard off. See lib/schemaRelations.js.
+  schemaRelations()
+    .filter((r) => r.target === "User" && r.onDelete === "Restrict" && TENANT_MODELS.includes(r.model))
+    .map((r) => r.model),
+)];
+
+/**
+ * Tenant-scoped models with NO foreign key to Tenant.
+ *
+ * They have a tenantId column but no relation, so the cascade never reaches
+ * them: notifications, direct and department messages, email logs,
+ * attachments, CRM sequences/playbooks/resolutions, notification preferences,
+ * network automation jobs — and integration connections, which hold encrypted
+ * third-party secrets. Before this list existed, deleting an organization left
+ * all of those behind while the preview counted them as destroyed.
+ *
+ * Deleted explicitly by tenantId rather than by adding foreign keys, because a
+ * migration adding constraints would fail on any orphan rows already present.
+ */
+export const UNLINKED_TENANT_MODELS = TENANT_MODELS.filter((model) =>
+  !schemaRelations().some((r) => r.model === model && r.target === "Tenant" && r.fields.includes("tenantId")),
+);
 
 /** Row counts per table for one tenant — what deletion would actually remove. */
 export async function previewDeletion(tenantId) {
@@ -249,6 +266,11 @@ export async function purgeTenant(tenantId, { force = false } = {}) {
       // Clear the RESTRICT-referencing tables first so the outcome never depends
       // on Postgres's trigger ordering (see USER_RESTRICTED_MODELS).
       for (const model of USER_RESTRICTED_MODELS) {
+        const d = tx[delegateName(model)];
+        if (d?.deleteMany) await d.deleteMany({ where: { tenantId } });
+      }
+      // And the tables the cascade can't reach at all (see UNLINKED_TENANT_MODELS).
+      for (const model of UNLINKED_TENANT_MODELS) {
         const d = tx[delegateName(model)];
         if (d?.deleteMany) await d.deleteMany({ where: { tenantId } });
       }
