@@ -1220,6 +1220,14 @@ export const account = {
     update: (id, data) => put(`/account/team/members/${id}`, data),
     remove: (id)       => del(`/account/team/members/${id}`),
     roles:  ()         => get('/account/team/roles'),
+    // Roles & permissions — admin-only on the server; employees get 403.
+    access: {
+      get:        ()                => get('/account/team/access'),
+      createRole: (name)            => post('/account/team/access/roles', { name }),
+      grant:      (roleId, key)     => put(`/account/team/access/roles/${roleId}/permissions/${encodeURIComponent(key)}`),
+      revoke:     (roleId, key)     => del(`/account/team/access/roles/${roleId}/permissions/${encodeURIComponent(key)}`),
+      assign:     (userId, roleId)  => put(`/account/team/access/members/${userId}/role`, { roleId }),
+    },
   },
   billing: {
     get:             ()          => get('/account/billing'),

@@ -96,7 +96,12 @@ export const inviteUser = handle(async (req) => {
   }
 
   // Resolve roleId — accept UUID directly or fall back to name lookup → default
-  let resolvedRoleId = rawRoleId && rawRoleId.length === 36 ? rawRoleId : null;
+  // A role id is honoured only if the role is this organization's. Unchecked,
+  // an id from another tenant — a platform system_admin role, say — would put
+  // the new member in it.
+  let resolvedRoleId = rawRoleId && rawRoleId.length === 36
+    ? (await prisma.role.findFirst({ where: { id: rawRoleId, tenantId: tid(req) }, select: { id: true } }))?.id ?? null
+    : null;
   if (!resolvedRoleId && roleName) {
     const found = await prisma.role.findFirst({ where: { tenantId: tid(req), name: roleName } });
     resolvedRoleId = found?.id ?? null;
@@ -160,6 +165,11 @@ export const inviteUser = handle(async (req) => {
 // ── Update user ───────────────────────────────────────────────────────────────
 export const updateUser = handle(async (req) => {
   const { firstName, lastName, department, jobTitle, phone, roleId } = req.body;
+  // The role must be one of this organization's. Unchecked, a foreign role id
+  // would attach another tenant's permissions to this member.
+  if (roleId !== undefined && !(await prisma.role.findFirst({ where: { id: String(roleId), tenantId: tid(req) } }))) {
+    throw new ValidationError("That role doesn't exist in this organization.");
+  }
   const user = await prisma.user.update({
     where: { id: req.params.id },
     data: { firstName, lastName, department, jobTitle, phone, roleId, updatedAt: new Date() },
