@@ -53,7 +53,5 @@ export const STATIC_DESTINATIONS = [
   { label: "Rewards",            path: "/rewards",    section: null, keywords: "rewards points leaderboard perks" },
   { label: "Global search",      path: "/search",     section: null, keywords: "search everything find records global" },
   { label: "Compliance",         path: "/account/compliance", section: null, adminOnly: true, keywords: "compliance governance dsar erasure retention legal hold gdpr privacy" },
-  { label: "Workflows",          path: "/account/workflows",  section: null, adminOnly: true, keywords: "workflows automation rules approvals chains" },
-  { label: "Developer",          path: "/account/developer",  section: null, adminOnly: true, keywords: "developer api tokens webhooks openapi" },
   { label: "Single sign-on",     path: "/account/sso",        section: null, adminOnly: true, keywords: "sso saml oidc scim provisioning identity" },
 ];

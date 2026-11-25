@@ -2,13 +2,14 @@ import { containsPromptInjection } from "../../lib/aiSafety.js";
 import { listResources } from "../api/api.resources.js";
 import { hasSolutionAccess, solutionCatalog } from "./assistant.solutions.js";
 import { actionCatalog, describeAction } from "./assistant.actions.js";
+import { automationTools } from "./assistant.automation.js";
 
 /**
  * Tools that change data. After the first turn these are withdrawn, so a model
  * reacting to its own tool output can't chain one write into another — any
  * further write needs a fresh request from the person.
  */
-export const WRITE_TOOL_NAMES = ["create_record", "update_record", "run_action"];
+export const WRITE_TOOL_NAMES = ["create_record", "update_record", "run_action", "draft_automation_workflow"];
 
 const RESOURCE_SOLUTIONS = {
   contacts: "accounts", opportunities: "opportunities", tasks: "activities", tickets: "service",
@@ -154,6 +155,7 @@ export function assistantTools(access = {}, { pythonEnabled = false, writable = 
         },
       },
     });
+    tools.push(...automationTools(role));
   }
   if (createIds.length) {
     tools.push(

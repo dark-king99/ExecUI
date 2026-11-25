@@ -68,8 +68,6 @@ const RefundRequests      = lazy(() => import("../apps/account/RefundRequests"))
 const Checkout            = lazy(() => import("../apps/account/Checkout"));
 const Welcome             = lazy(() => import("../apps/account/Welcome"));
 const AuditLogs           = lazy(() => import("../apps/account/AuditLogs"));
-const Developer           = lazy(() => import("../apps/account/Developer"));
-const Workflows           = lazy(() => import("../apps/account/Workflows"));
 const Compliance          = lazy(() => import("../apps/account/Compliance"));
 const Approvals           = lazy(() => import("../apps/approvals/Approvals"));
 
@@ -241,8 +239,6 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/account/billing"      element={isAdmin ? <Billing /> : <Navigate to="/account/profile" replace />} />
                 <Route path="/account/refunds"      element={isAdmin ? <RefundRequests /> : <Navigate to="/account/profile" replace />} />
                 <Route path="/account/audit"        element={isAdmin ? <AuditLogs /> : <Navigate to="/account/profile" replace />} />
-                <Route path="/account/developer"    element={isAdmin ? <Developer /> : <Navigate to="/account/profile" replace />} />
-                <Route path="/account/workflows"    element={isAdmin ? <Workflows /> : <Navigate to="/account/profile" replace />} />
                 <Route path="/account/compliance"   element={isAdmin ? <Compliance /> : <Navigate to="/account/profile" replace />} />
                 <Route path="/account/sso"          element={isAdmin ? <SingleSignOn /> : <Navigate to="/account/profile" replace />} />
 

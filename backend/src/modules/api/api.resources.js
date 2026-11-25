@@ -1,11 +1,15 @@
 /**
- * Public API resource registry — the contract and the security boundary.
+ * Resource registry — the field-level contract for generic record access.
  *
- * Every /api/v1 resource is declared here: which Prisma model backs it, which
- * scope guards it, and exactly which fields are readable, writable and required.
- * The generic CRUD layer reads only from this registry, so a field that isn't
- * listed can never be read or written through the public API — and adding one is
- * a deliberate act, not an accident of the ORM.
+ * ExecAI's record tools and workflow automation both read and write records
+ * through this registry: which Prisma model backs each resource, which module
+ * it belongs to, and exactly which fields are readable, writable and required.
+ * A field that isn't listed can never be read or written by either — adding one
+ * is a deliberate act, not an accident of the ORM. It also decides which models
+ * emit domain events (config/database.js), which is what triggers workflows.
+ *
+ * (There used to be a public /api/v1 built on this too. It was removed; the
+ * registry stays because the agent and the workflow engine depend on it.)
  *
  * Field flags:
  *   writable  — accepted on POST/PATCH
@@ -25,28 +29,7 @@ export const SCOPES = [
   "documents:read",
   "hr:read",
   "helpdesk:read", "helpdesk:write",
-  "webhooks:manage",
 ];
-
-export const SCOPE_LABELS = {
-  "crm:read": "Read CRM (contacts, deals, tasks, tickets)",
-  "crm:write": "Create & update CRM records",
-  "marketing:read": "Read marketing (campaigns, social posts)",
-  "marketing:write": "Create & update marketing records",
-  "services:read": "Read business services (projects, tasks, transactions)",
-  "services:write": "Create & update business services records",
-  "network:read": "Read network (devices, alerts)",
-  "network:write": "Create & update network records",
-  "people:read": "Read the employee directory",
-  "reports:read": "Run saved reports",
-  "contracts:read": "Read the contract register",
-  "contracts:write": "Create & update contracts",
-  "documents:read": "Read document metadata (never file contents)",
-  "hr:read": "Read payroll totals, employment records and leave (never bank details or government ids)",
-  "helpdesk:read": "Read help articles and ticket conversations",
-  "helpdesk:write": "Create support tickets on a customer's behalf",
-  "webhooks:manage": "Manage webhook endpoints",
-};
 
 const f = (type, opts = {}) => ({ type, ...opts });
 const ro = (type) => ({ type, readonly: true });
@@ -446,23 +429,3 @@ export const readableFields = (r) => Object.keys(r.fields);
 export const writableFields = (r) => Object.entries(r.fields).filter(([, m]) => m.writable).map(([k]) => k);
 export const requiredFields = (r) => Object.entries(r.fields).filter(([, m]) => m.required).map(([k]) => k);
 
-/** Public description of a resource (drives docs + the OpenAPI document). */
-export function describeResource(r) {
-  return {
-    resource: r.id,
-    name: r.name,
-    scope: r.scope,
-    readOnly: !!r.readOnly,
-    endpoints: [
-      `GET /api/v1/${r.id}`,
-      `GET /api/v1/${r.id}/:id`,
-      ...(r.readOnly ? [] : [`POST /api/v1/${r.id}`, `PATCH /api/v1/${r.id}/:id`, `DELETE /api/v1/${r.id}/:id`]),
-    ],
-    filterable: r.filterable,
-    fields: Object.entries(r.fields).map(([key, m]) => ({
-      key, type: m.type,
-      writable: !!m.writable, required: !!m.required, readonly: !!m.readonly,
-      enum: m.enum || undefined,
-    })),
-  };
-}

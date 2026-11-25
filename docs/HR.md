@@ -207,10 +207,10 @@ somebody silently didn't get paid is the worst failure this module could have.
   and audit trail.
 - **Reporting** — `payslips` and `leave_requests` are admin-only datasets, so
   "what did payroll cost by month" is answerable without a database client.
-- **Public API** — `payslips`, `leave-requests` and `employment` are exposed
-  **read-only** under `hr:read`. Bank details, government ids, dates of birth and
-  emergency contacts are **not in the registry at all**, so no token scope can
-  ever reach them.
+- **Record registry** — `payslips`, `leave-requests` and `employment` are
+  **read-only** registry resources. Bank details, government ids, dates of birth
+  and emergency contacts are **not in the registry at all**, so neither ExecAI nor
+  a workflow can ever reach them.
 - **Compliance** — six governance categories cover HR data. Erasure **anonymizes**:
   the employment row survives so payroll history stays valid, while the encrypted
   ids and bank details are **destroyed** and personal details cleared. Leave

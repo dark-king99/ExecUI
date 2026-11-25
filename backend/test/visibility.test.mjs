@@ -144,7 +144,7 @@ test("`visible` filters a declared list the same way", () => {
 test("an employee cannot find HR, payroll or any admin console by name", () => {
   const employee = user();
   const forbidden = ["/people", "/people?tab=payroll", "/contracts",
-    "/account/compliance", "/account/developer", "/account/sso", "/account/billing"];
+    "/account/compliance", "/account/sso", "/account/billing"];
   for (const path of forbidden) {
     const entry = SEARCH_INDEX.find((e) => e.path === path);
     assert.ok(entry, `${path} is missing from the index`);

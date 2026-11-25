@@ -1,8 +1,8 @@
 /**
  * Workflow engine — turns domain events into automated actions.
  *
- * Rules listen to the same event stream that drives outbound webhooks, so an
- * automation fires whether the change came from the UI, the public API or a
+ * Rules listen to the domain-event stream the Prisma layer emits, so an
+ * automation fires whether the change came from the UI, ExecAI or a
  * background job.
  *
  * ── Why the cycle guard matters ──────────────────────────────────────────────

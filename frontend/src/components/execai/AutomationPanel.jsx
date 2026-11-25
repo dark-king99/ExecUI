@@ -1,16 +1,19 @@
 /**
  * Workflow automation — "when this happens, do that".
  *
+ * Lives in the ExecAI workbench (admins only), beside the command box: an
+ * admin can build a rule by hand here, or ask ExecAI to draft one. ExecAI saves
+ * its drafts paused, and this is where a person reads one and turns it on.
+ *
  * The builder only offers triggers, fields, operators and actions the server
  * actually accepts (it reads them from /workflows/catalog, which is generated
  * from the same registry the engine validates against). A rule you can compose
  * here is a rule that will save.
  */
 import { useMemo, useState } from "react";
-import PageHeader from "../../components/ui/PageHeader";
-import { Card, CardBody } from "../../components/ui/Card";
+import { Card, CardBody } from "../ui/Card";
 import { useApi } from "../../hooks/useApi";
-import { useToast } from "../../components/ui/Toast";
+import { useToast } from "../ui/Toast";
 import { workflows } from "../../services/api";
 import { Link } from "react-router-dom";
 import {
@@ -248,11 +251,16 @@ function Builder({ catalog, draft, setDraft, onSave, onCancel, saving }) {
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
-export default function Workflows() {
+/**
+ * `refreshKey` changes when an ExecAI run finishes, so a rule ExecAI just
+ * drafted shows up without a manual refresh. `onLeave` closes the workbench
+ * when a link here navigates to another page underneath it.
+ */
+export default function AutomationPanel({ refreshKey, onLeave }) {
   const toast = useToast();
   const { data: catalog } = useApi(() => workflows.catalog(), [], { cacheKey: "wf:catalog" });
-  const { data: list, refetch } = useApi(() => workflows.list(), [], { cacheKey: "wf:list" });
-  const { data: runs, refetch: refetchRuns } = useApi(() => workflows.runs({ limit: 40 }), [], { cacheKey: "wf:runs" });
+  const { data: list, refetch } = useApi(() => workflows.list(), [refreshKey], { cacheKey: "wf:list" });
+  const { data: runs, refetch: refetchRuns } = useApi(() => workflows.runs({ limit: 40 }), [refreshKey], { cacheKey: "wf:runs" });
 
   const [tab, setTab] = useState("rules");
   const [draft, setDraft] = useState(null);
@@ -283,18 +291,22 @@ export default function Workflows() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <PageHeader
-        title="Workflow automation"
-        subtitle="Run actions automatically when your data changes — notify people, update records, or require approval."
-        actions={
-          !draft && (
-            <button onClick={() => { setDraft(blankWorkflow()); setEditingId(null); setTab("rules"); }}
-              className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500">
-              <Plus size={13} /> New workflow
-            </button>
-          )
-        }
-      />
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Automation</p>
+          <h3 className="mt-1 text-lg font-semibold">Workflow automation</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Run actions automatically when your data changes. Build a rule here, or describe one in the command box and
+            ExecAI will draft it — paused, so you can check it before turning it on.
+          </p>
+        </div>
+        {!draft && (
+          <button onClick={() => { setDraft(blankWorkflow()); setEditingId(null); setTab("rules"); }}
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500">
+            <Plus size={13} /> New workflow
+          </button>
+        )}
+      </div>
 
       <div className="mb-4 flex rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800">
         {[["rules", `Rules${list?.length ? ` (${list.length})` : ""}`, Zap], ["runs", "Run history", History]].map(([id, label, Icon]) => (
@@ -343,7 +355,7 @@ export default function Workflows() {
                         ones it raised — otherwise "require approval" is an action
                         with no visible consequence. */}
                     {(w.actions ?? []).some((a) => a.type === "request_approval") && (
-                      <Link to={`/approvals?workflow=${w.id}`}
+                      <Link to={`/approvals?workflow=${w.id}`} onClick={onLeave}
                         className="mt-1 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-600 hover:text-indigo-500 dark:bg-indigo-500/10 dark:text-indigo-400">
                         <CheckCircle2 size={10} /> Approvals it raised
                       </Link>

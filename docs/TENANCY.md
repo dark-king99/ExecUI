@@ -95,8 +95,7 @@ Branded — surfaces belonging to the **tenant**:
 
 - Billing-provider product names. The tenant is buying ExecUI; a white-label
   invoice would be a lie.
-- The public API, OpenAPI document and SCIM service documents. Those describe
-  *this* product to integrators.
+- SCIM service documents. Those describe *this* product to identity providers.
 
 ### Email sending
 

@@ -100,17 +100,16 @@ const tenantGuard = Prisma.defineExtension({
 });
 
 /**
- * Domain-event capture (the source of outbound webhooks).
+ * Domain-event capture (what triggers workflow automation).
  *
- * Watching writes here — rather than in the API layer — means an event fires
- * however the change was made: through the public API, through the app's own
- * UI, or by a background job. That's what makes "notify me when a deal closes"
- * actually dependable.
+ * Watching writes here — rather than in a route — means an event fires however
+ * the change was made: through the app's own UI, through ExecAI, or by a
+ * background job. That's what makes "notify me when a deal closes" dependable.
  *
- * Only models exposed as public API resources are watched, and emission is
- * fire-and-forget: a webhook failure can never roll back a database write.
+ * Only models in the resource registry are watched, and emission is
+ * fire-and-forget: a failing automation can never roll back a database write.
  * `updateMany`/`deleteMany` are deliberately not covered — they return counts,
- * not records, so there is no payload to send (documented in docs/API.md).
+ * not records, so there is no record for a rule to evaluate.
  */
 const delegateOf = (model) => model[0].toLowerCase() + model.slice(1);
 const EVENT_MODELS = new Map(

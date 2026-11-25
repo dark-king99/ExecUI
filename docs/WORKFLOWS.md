@@ -3,7 +3,9 @@
 Two connected capabilities:
 
 - **Workflows** — "when this happens, do that." Rules react automatically when
-  your data changes. *Account → Automation* (admin only).
+  your data changes. *ExecAI workbench → Automation* (admin only). Build a
+  rule by hand there, or ask ExecAI to draft one — see "Drafting with ExecAI"
+  below.
 - **Approvals** — multi-step sign-off on a record, raised by a workflow or by a
   person. *Approvals* in the main sidebar (every employee).
 
@@ -17,11 +19,10 @@ A workflow listens to a record lifecycle event: `<resource>.created`,
 `<resource>.updated` or `<resource>.deleted` — e.g. `opportunities.updated`.
 
 Events are captured at the **data layer**, so a rule fires whether the change
-came from the ExecUI web app, the public API, or a background job. This is the
-same event stream that drives outbound webhooks.
+came from the ExecUI web app, ExecAI, or a background job.
 
 > `updateMany` / `deleteMany` bulk operations do **not** emit events (they return
-> counts, not records). Per-record writes — which is what the UI and API perform
+> counts, not records). Per-record writes — which is what the UI and ExecAI perform
 > — always do.
 
 ### Conditions
@@ -49,8 +50,8 @@ Text comparisons are case-insensitive; numeric ones coerce numeric strings, so
 
 There is deliberately **no "run a script" action**. Every action is a named,
 whitelisted operation, and record writes are validated through the same registry
-that guards the public API — so an automation can never set a field a person
-couldn't set through the API.
+that guards ExecAI's record tools — so an automation can never set a field the
+registry doesn't mark writable.
 
 ### Templates
 
@@ -95,6 +96,25 @@ partially fails is marked `failed` with the failing action named, and the
 remaining actions still run — one broken step doesn't silently abort the rest.
 
 ---
+
+### Drafting with ExecAI
+
+Admins can describe a rule in the ExecAI command box ("when a deal moves to
+negotiation, notify its owner") and ExecAI drafts it with the
+`draft_automation_workflow` tool. Two rules hold:
+
+- **Drafts are always saved paused.** The tool ignores any `active` value; a
+  person turns the rule on in the Automation tab after reading it. ExecAI never
+  sends external messages itself, and a drafted rule may contain a
+  `send_email` action, so enabling it is deliberately a human click.
+- **Same validation as the builder.** The draft goes through the workflow
+  service, so a rule that wouldn't save from the builder won't save from ExecAI
+  either. When a draft is rejected, ExecAI is told why and can say so.
+
+`test_automation_workflow` dry-runs an existing rule against a real record
+(read-only — nothing runs and no run is logged), and `list_automation_workflows`
+lists rules. All three tools exist only for admins. Each draft is audited as
+`ai_agent.workflow_drafted`.
 
 ## 2. Approvals
 

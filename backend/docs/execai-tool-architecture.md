@@ -124,7 +124,7 @@ Paddle support tooling.
 
 ## Why automation is not yet application-wide
 
-The public API resource registry currently covers 18 resources across CRM,
+The resource registry currently covers 18 resources across CRM,
 Marketing, Network, Services, Contracts, Documents, HR, People, and Helpdesk.
 The agent can only expose resources whose module maps directly to the caller's
 effective `access.sections`; that access descriptor currently covers CRM,

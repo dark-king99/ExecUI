@@ -1,10 +1,11 @@
 /**
  * Tiny in-process domain-event bus.
  *
- * Exists to break an import cycle: the Prisma layer emits events, the webhooks
- * module consumes them, and neither needs to import the other. Handlers are
- * fire-and-forget and fully isolated — a webhook problem can never fail the
- * database write that triggered it.
+ * Exists to break an import cycle: the Prisma layer emits events, the workflow
+ * engine (and in-process listeners like the contract register) consume them,
+ * and neither side imports the other. Handlers are fire-and-forget and fully
+ * isolated — a failing automation can never fail the database write that
+ * triggered it.
  */
 const handlers = new Set();
 

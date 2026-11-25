@@ -20,7 +20,6 @@ import notificationRoutes from "../modules/notifications/notifications.routes.js
 import emailRoutes      from "../modules/email/email.routes.js";
 import rewardsRoutes    from "../modules/rewards/rewards.routes.js";
 import reportsRoutes    from "../modules/reports/reports.routes.js";
-import developerRoutes  from "../modules/api/developer.routes.js";
 import workflowRoutes   from "../modules/workflows/workflows.routes.js";
 import approvalRoutes   from "../modules/approvals/approvals.routes.js";
 import governanceRoutes from "../modules/governance/governance.routes.js";
@@ -80,7 +79,6 @@ router.use("/assistant",  assistantRoutes);
 router.use("/views",      viewsRoutes);
 router.use("/rewards",    rewardsRoutes);
 router.use("/reports",    reportsRoutes);
-router.use("/developer",  developerRoutes);
 router.use("/workflows",  workflowRoutes);
 router.use("/approvals",  approvalRoutes);
 router.use("/governance", governanceRoutes);
