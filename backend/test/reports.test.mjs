@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   DATASETS, getDataset, datasetsFor, canUseDataset, describeDataset, OPERATORS,
-} from "../src/modules/reports/reports.datasets.js";
+} from "../src/modules/analytics/reports.datasets.js";
 import {
   validateDefinition, buildWhere, resolveDateRange, aggAlias, MAX_ROWS,
-} from "../src/modules/reports/reports.engine.js";
-import { toCsv, sanitizeCell, safeFilename, displayValue } from "../src/modules/reports/reports.export.js";
-import { computeNextRun, validateSchedule, zonedTimeToUtc, isValidTimezone } from "../src/modules/reports/reports.schedule.js";
+} from "../src/modules/analytics/reports.engine.js";
+import { toCsv, sanitizeCell, safeFilename, displayValue } from "../src/modules/analytics/reports.export.js";
+import { computeNextRun, validateSchedule, zonedTimeToUtc, isValidTimezone } from "../src/modules/analytics/reports.schedule.js";
 
 const OPPS = getDataset("opportunities");
 

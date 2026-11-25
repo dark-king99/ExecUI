@@ -311,26 +311,6 @@ export const enterprise = {
   },
 };
 
-// ── Analytics ─────────────────────────────────────────────────────────────
-export const analytics = {
-  kpis:              ()       => get('/analytics/kpis'),
-  healthSummary:     ()       => get('/analytics/health-summary'),
-  revenueVsPlan:     ()       => get('/analytics/revenue-vs-plan'),
-  operationalServices: ()     => get('/analytics/operational/services'),
-  operationalEvents:   ()     => get('/analytics/operational/events'),
-  cohorts:           ()       => get('/analytics/cohorts'),
-  retentionByTier:   ()       => get('/analytics/retention/by-tier'),
-  churnSignals:      ()       => get('/analytics/churn-signals'),
-  revenueSegments:   ()       => get('/analytics/revenue/segments'),
-  expansionPipeline: ()       => get('/analytics/revenue/expansion'),
-  datasets:          ()       => get('/analytics/data-quality/datasets'),
-  savedQueries:      ()       => get('/analytics/explorer/queries'),
-  runQuery:          (body)   => post('/analytics/explorer/run', body),
-  saveQuery:         (body)   => post('/analytics/explorer/queries', body),
-  deleteQuery:       (id)     => del(`/analytics/explorer/queries/${id}`),
-  deduplicateDataset:(id)     => post(`/analytics/data-quality/datasets/${id}/deduplicate`),
-};
-
 // ── CRM ───────────────────────────────────────────────────────────────────
 export const crm = {
   customers: {

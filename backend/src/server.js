@@ -5,7 +5,7 @@ import prisma from "./config/database.js";
 import { log } from "./lib/logger.js";
 import { shutdownAnalytics } from "./lib/analytics.js";
 import { posthogLog, shutdownPostHogLogs } from "./lib/posthogLogs.js";
-import { startReportScheduler, stopReportScheduler } from "./modules/reports/reports.schedule.js";
+import { startReportScheduler, stopReportScheduler } from "./modules/analytics/reports.schedule.js";
 import { startWorkflowEngine, stopWorkflowEngine } from "./modules/workflows/workflows.engine.js";
 import { startRetentionScheduler, stopRetentionScheduler } from "./modules/governance/governance.scheduler.js";
 import { startClmScheduler, stopClmScheduler } from "./modules/documents/contracts.scheduler.js";

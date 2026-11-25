@@ -7,7 +7,6 @@ import crmRoutes        from "../modules/crm/crm.routes.js";
 import contactRoutes    from "../modules/crm/contact.routes.js";
 import marketingRoutes  from "../modules/marketing/marketing.routes.js";
 import networkRoutes    from "../modules/network/network.routes.js";
-import analyticsRoutes  from "../modules/analytics/analytics.routes.js";
 import accountRoutes    from "../modules/account/account.routes.js";
 import assistantRoutes  from "../modules/assistant/assistant.routes.js";
 import servicesRoutes   from "../modules/services/services.routes.js";
@@ -18,7 +17,7 @@ import messagingRoutes  from "../modules/messaging/messaging.routes.js";
 import notificationRoutes from "../modules/notifications/notifications.routes.js";
 import emailRoutes      from "../modules/email/email.routes.js";
 import rewardsRoutes    from "../modules/rewards/rewards.routes.js";
-import reportsRoutes    from "../modules/reports/reports.routes.js";
+import reportsRoutes    from "../modules/analytics/reports.routes.js";
 import workflowRoutes   from "../modules/workflows/workflows.routes.js";
 import approvalRoutes   from "../modules/approvals/approvals.routes.js";
 import governanceRoutes from "../modules/governance/governance.routes.js";
@@ -70,13 +69,13 @@ router.use("/crm",        authenticate, requireModule("crm"),       contactRoute
 router.use("/crm",        authenticate, requireModule("crm"),       crmRoutes);
 router.use("/marketing",  authenticate, requireModule("marketing"), marketingRoutes);
 router.use("/network",    authenticate, requireModule("network"),   networkRoutes);
-router.use("/analytics",  authenticate, requireModule("analytics"), analyticsRoutes);
 router.use("/services",   authenticate, requireModule("services"),  servicesRoutes);
 
 router.use("/account",    accountRoutes);
 router.use("/assistant",  assistantRoutes);
 router.use("/rewards",    rewardsRoutes);
-router.use("/reports",    reportsRoutes);
+// Reports are the Analytics module's builder, so they sit behind its gate.
+router.use("/reports",    authenticate, requireModule("analytics"), reportsRoutes);
 router.use("/workflows",  workflowRoutes);
 router.use("/approvals",  approvalRoutes);
 router.use("/governance", governanceRoutes);
