@@ -1,6 +1,7 @@
 import prisma from "../../config/database.js";
 import * as netSettings from "./network.settings.js";
 import { buildMap } from "./network.topology.js";
+import { protocolBreakdown, topConversations } from "./network.flows.js";
 
 const fail = (message, status = 409) => Object.assign(new Error(message), { status });
 
@@ -420,9 +421,15 @@ export async function getTopTalkers(tenantId) {
   }));
 }
 
-// No flow/DPI table → protocol breakdown is empty until a collector is connected.
-export async function getTrafficProtocols(tenantId) {
-  return [];
+/** Traffic by application, from NetFlow/IPFIX the collector receives. Empty without flow data. */
+export async function getTrafficProtocols(tenantId, query = {}) {
+  const hours = Math.min(168, Math.max(1, Number(query.hours) || 1));
+  return protocolBreakdown(tenantId, { hours });
+}
+
+export async function getTrafficConversations(tenantId, query = {}) {
+  const hours = Math.min(168, Math.max(1, Number(query.hours) || 1));
+  return topConversations(tenantId, { hours });
 }
 
 export async function getTrafficAnomalies(tenantId) {

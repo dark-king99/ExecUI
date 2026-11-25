@@ -25,6 +25,7 @@ import { runUnscoped, runWithTenant } from "../../lib/tenantContext.js";
 import { log } from "../../lib/logger.js";
 import { loadSettings, snmpForCollector, isPrivate } from "./network.settings.js";
 import { vendorFrom, typeFrom, osFrom } from "./network.classify.js";
+import { ingestFlows, pruneFlows } from "./network.flows.js";
 
 const err = (message, status = 400) => Object.assign(new Error(message), { status });
 const hash = (token) => crypto.createHash("sha256").update(token).digest("hex");
@@ -106,6 +107,7 @@ export async function collectorConfig(collector, hello = null) {
       discoveryIntervalMin: settings.discoveryIntervalMin,
       subnets: settings.subnets ?? [],
       snmp: snmpForCollector(settings),
+      flow: { enabled: !!settings.flowEnabled, port: settings.flowPort ?? 2055 },
       known: [...new Set(known.map((d) => d.ip_address).filter(isPrivate))],
       jobs,
       serverTime: new Date().toISOString(),
@@ -257,6 +259,7 @@ export async function ingestReport(collector, report = {}) {
     }
 
     out.links = await ingestLinks(tenantId, collector, report.links, now);
+    out.flows = await ingestFlows(tenantId, collector.id, report.flows);
     await finishJobs(tenantId, report.jobResults);
     await prisma.networkCollector.update({ where: { id: collector.id }, data: { lastSeenAt: now, lastReportAt: now, lastError: str(report.error, 300) } });
     log.info?.("collector_report", { tenantId, collectorId: collector.id, ...out });
@@ -337,8 +340,12 @@ export async function pruneSamples() {
   let removed = 0;
   for (const [tenantId, days] of custom) {
     const r = await runUnscoped(() => prisma.networkMetricSample.deleteMany({ where: { tenantId, at: { lt: new Date(Date.now() - days * 86_400_000) } } }));
-    removed += r.count;
+    removed += r.count + await runUnscoped(() => pruneFlows(tenantId, days));
   }
+  // Flow summaries for everyone else also follow the 30-day default.
+  const cutoff = new Date(Date.now() - 30 * 86_400_000);
+  await runUnscoped(() => prisma.networkFlowStat.deleteMany({ where: { tenantId: { notIn: [...custom.keys()] }, periodEnd: { lt: cutoff } } }));
+  await runUnscoped(() => prisma.networkFlowConversation.deleteMany({ where: { tenantId: { notIn: [...custom.keys()] }, periodEnd: { lt: cutoff } } }));
   // Everyone else gets the default 30 days.
   const r = await runUnscoped(() => prisma.networkMetricSample.deleteMany({
     where: { tenantId: { notIn: [...custom.keys()] }, at: { lt: new Date(Date.now() - 30 * 86_400_000) } },

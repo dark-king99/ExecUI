@@ -76,6 +76,7 @@ export const shapeSettings = (s) => ({
   autoResolveAlerts: s.autoResolveAlerts,
   alertEmail: s.alertEmail,
   metricRetentionDays: s.metricRetentionDays,
+  flow: { enabled: !!s.flowEnabled, port: s.flowPort ?? 2055 },
   monitoring: {
     autoAdd: !!s.monitoringAutoAdd,
     tool: s.monitoringTool,
@@ -148,6 +149,10 @@ export async function updateSettings(tenantId, body = {}) {
     const v = String(body.alertEmail ?? "").trim();
     if (v && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) throw err("Alert email doesn't look like an email address");
     data.alertEmail = v || null;
+  }
+  if (body.flow !== undefined) {
+    if (body.flow?.enabled !== undefined) data.flowEnabled = !!body.flow.enabled;
+    if (body.flow?.port !== undefined) data.flowPort = intIn(body.flow.port, 1024, 65535, "Flow port");
   }
   if (body.metricRetentionDays !== undefined) data.metricRetentionDays = intIn(body.metricRetentionDays, 1, 365, "Metric retention (days)");
 

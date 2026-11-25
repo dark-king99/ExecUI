@@ -34,6 +34,7 @@ router.post("/alerts/:id/resolve",      auth, c.resolveAlert);
 router.get("/traffic/overview",    auth, c.getTrafficOverview);
 router.get("/traffic/top-talkers", auth, c.getTopTalkers);
 router.get("/traffic/protocols",   auth, c.getTrafficProtocols);
+router.get("/traffic/conversations", auth, c.getTrafficConversations);
 router.get("/traffic/anomalies",   auth, c.getTrafficAnomalies);
 
 // ── Topology ──────────────────────────────────────────────────────────────────

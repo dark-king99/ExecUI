@@ -594,7 +594,8 @@ export const network = {
   traffic: {
     overview:    () => get('/network/traffic/overview'),
     topTalkers:  () => get('/network/traffic/top-talkers'),
-    protocols:   () => get('/network/traffic/protocols'),
+    protocols: (params) => get('/network/traffic/protocols', params),
+    conversations: (params) => get('/network/traffic/conversations', params),
     anomalies:   () => get('/network/traffic/anomalies'),
   },
   topology: {

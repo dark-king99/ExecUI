@@ -145,6 +145,8 @@ model Tenant {
   networkMetricSamples    NetworkMetricSample[]
   networkSettings         NetworkSettings?
   chatRoutes              ChatRoute[]
+  networkFlowStats        NetworkFlowStat[]
+  networkFlowConversations NetworkFlowConversation[]
 }
 
 // Per-tenant configuration, one row per key.
@@ -2497,6 +2499,9 @@ model NetworkSettings {
   snmpV3PrivTag        String?
   // Push devices the collector discovers into the monitoring tool.
   monitoringAutoAdd    Boolean   @default(false)
+  // NetFlow v5/v9/IPFIX reception on the collector.
+  flowEnabled          Boolean   @default(false)
+  flowPort             Int       @default(2055)
   cpuThreshold         Int       @default(85)
   memThreshold         Int       @default(90)
   autoResolveAlerts    Boolean   @default(true)
@@ -2538,4 +2543,40 @@ model ChatRoute {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, category])
+}
+
+// Flow traffic (NetFlow/IPFIX) summarised by the collector per report window:
+// bytes per (protocol, service port), and the busiest conversations.
+model NetworkFlowStat {
+  id          String   @id @default(uuid())
+  tenantId    String
+  collectorId String
+  periodStart DateTime
+  periodEnd   DateTime
+  protocol    Int
+  port        Int
+  bytes       Float
+  packets     Float
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, periodEnd])
+}
+
+model NetworkFlowConversation {
+  id          String   @id @default(uuid())
+  tenantId    String
+  collectorId String
+  periodStart DateTime
+  periodEnd   DateTime
+  srcIp       String
+  dstIp       String
+  protocol    Int
+  port        Int
+  bytes       Float
+  packets     Float
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, periodEnd])
 }

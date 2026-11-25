@@ -33,7 +33,8 @@ export const resolveAlert     = handle((req) => svc.resolveAlert(tid(req), req.p
 // Traffic
 export const getTrafficOverview  = handle((req) => svc.getTrafficOverview(tid(req)));
 export const getTopTalkers       = handle((req) => svc.getTopTalkers(tid(req)));
-export const getTrafficProtocols = handle((req) => svc.getTrafficProtocols(tid(req)));
+export const getTrafficProtocols = handle((req) => svc.getTrafficProtocols(tid(req), req.query));
+export const getTrafficConversations = handle((req) => svc.getTrafficConversations(tid(req), req.query));
 export const getTrafficAnomalies = handle((req) => svc.getTrafficAnomalies(tid(req)));
 
 // Topology

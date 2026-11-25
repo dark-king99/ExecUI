@@ -7,6 +7,8 @@
  *   every polling interval    check every known device is reachable and read
  *                             CPU, memory and traffic from the ones with SNMP
  *   on request                run a queued "Network Discovery" job right away
+ *   continuously (if enabled) receive NetFlow v5/v9/IPFIX exports and report a
+ *                             per-protocol/port and per-conversation summary
  *
  * Configuration comes from ExecUI on every cycle, so changing subnets or
  * intervals in Network → Settings takes effect without touching this machine.
@@ -14,6 +16,14 @@
 import os from "node:os";
 import { expandCidr, probeHost, arpTable, reverseDns, pool } from "./net.js";
 import { openSession, identify, cpu, memory, interfaceCounters, rates, neighbours } from "./poll.js";
+import { listenForFlows } from "./flow.js";
+
+/** Flow exporters are accepted from private addresses only. */
+export function isPrivateIp(ip) {
+  const p = String(ip).replace(/^::ffff:/, "").split(".").map(Number);
+  if (p.length !== 4 || p.some((n) => !(n >= 0 && n <= 255))) return false;
+  return p[0] === 10 || (p[0] === 172 && p[1] >= 16 && p[1] <= 31) || (p[0] === 192 && p[1] === 168) || (p[0] === 100 && p[1] >= 64 && p[1] <= 127) || p[0] === 127;
+}
 
 export const VERSION = "1.0.0";
 const CONCURRENCY = 64;
@@ -32,6 +42,7 @@ export class Agent {
     this.counters = new Map();  // ip → { at, counters }
     this.lastDiscovery = 0;
     this.config = null;
+    this.flows = null; // { aggregator, port, close }
   }
 
   async api(method, path, body) {
@@ -114,8 +125,24 @@ export class Agent {
   }
 
   // ── Loop ───────────────────────────────────────────────────────────────────
+  /** Start, move or stop the flow listener to match the configuration. */
+  async syncFlowListener() {
+    const want = this.config.flow?.enabled ? Number(this.config.flow.port) || 2055 : null;
+    if (this.flows && this.flows.port !== want) { this.flows.close(); this.flows = null; }
+    if (want && !this.flows) {
+      try {
+        this.flows = await listenForFlows({ port: want, allow: isPrivateIp, log: this.log });
+        this.log.info?.(`listening for NetFlow/IPFIX on UDP ${this.flows.port}`);
+      } catch (e) {
+        this.flowError = `Couldn't listen for flows on UDP ${want}: ${e.message}`;
+        this.log.warn?.(this.flowError);
+      }
+    }
+  }
+
   async cycle() {
     this.config = await this.api("GET", "/config");
+    await this.syncFlowListener();
     const jobs = this.config.jobs ?? [];
     const due = Date.now() - this.lastDiscovery >= this.config.discoveryIntervalMin * 60_000;
     const report = { devices: [], links: [], jobResults: [], ...(this.config.snmp?.error ? { error: this.config.snmp.error } : {}) };
@@ -137,6 +164,8 @@ export class Agent {
     const polled = (await this.poll()).filter((d) => d && !fresh.has(d.ip));
     report.devices.push(...polled);
 
+    if (this.flows) report.flows = this.flows.aggregator.drain();
+    if (this.flowError) { report.error = [report.error, this.flowError].filter(Boolean).join(" "); this.flowError = null; }
     const result = await this.api("POST", "/report", report);
     this.log.info?.(`report: ${JSON.stringify(result)}`);
     return result;

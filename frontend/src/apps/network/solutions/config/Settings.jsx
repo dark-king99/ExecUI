@@ -108,6 +108,7 @@ export default function Settings() {
     if (settings) setForm({
       ...settings, subnetsText: (settings.subnets ?? []).join("\n"), monitoringUrl: settings.monitoring?.url ?? "", monitoringTool: settings.monitoring?.tool ?? "",
       monitoringAutoAdd: !!settings.monitoring?.autoAdd,
+      flowEnabled: !!settings.flow?.enabled, flowPort: settings.flow?.port ?? 2055,
       v3User: settings.snmpV3?.user ?? "", v3Level: settings.snmpV3?.level ?? "authPriv", v3Auth: settings.snmpV3?.authProtocol ?? "sha256",
     });
   }, [settings]);
@@ -121,6 +122,7 @@ export default function Settings() {
         subnets: f.subnetsText, pollingIntervalSec: Number(f.pollingIntervalSec), discoveryIntervalMin: Number(f.discoveryIntervalMin),
         snmpVersion: f.snmpVersion, cpuThreshold: Number(f.cpuThreshold), memThreshold: Number(f.memThreshold),
         autoResolveAlerts: !!f.autoResolveAlerts, alertEmail: f.alertEmail ?? "", metricRetentionDays: Number(f.metricRetentionDays),
+        flow: { enabled: !!f.flowEnabled, port: Number(f.flowPort) },
         ...(secret.snmpCommunity ? { snmpCommunity: secret.snmpCommunity } : {}),
         ...(f.snmpVersion === "v3" ? { snmpV3: {
           user: f.v3User, level: f.v3Level, authProtocol: f.v3Auth, privProtocol: "aes",
@@ -210,6 +212,19 @@ export default function Settings() {
                 </div>
               )}
             </div>
+          </Section>
+
+          <Section title="Flow traffic (NetFlow / IPFIX)" subtitle="Per-application breakdown and top conversations" icon={SettingsIcon} className="lg:col-span-2">
+            <div className="flex flex-wrap items-end gap-4">
+              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                <input type="checkbox" checked={!!f.flowEnabled} onChange={(e) => set("flowEnabled", e.target.checked)} /> Collectors receive flow exports
+              </label>
+              <div className="w-40"><Field label="UDP port"><TextInput type="number" min={1024} max={65535} value={f.flowPort ?? 2055} onChange={(e) => set("flowPort", e.target.value)} disabled={!f.flowEnabled} /></Field></div>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              Point your routers' or firewalls' NetFlow v5/v9 or IPFIX export at the collector machine's address on this port. Only exporters on private
+              addresses are accepted. ExecUI keeps per-application totals and the busiest conversations, not individual flow records.
+            </p>
           </Section>
 
           <Section title="Existing monitoring tool" subtitle="Import devices, traffic and links from a tool you already run" icon={Link2} className="lg:col-span-2">

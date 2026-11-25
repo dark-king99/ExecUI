@@ -60,6 +60,6 @@ or the grantable **Manage network collection** permission
 
 ## Limits today
 
-- No flow data (NetFlow/sFlow), so no per-protocol or per-conversation traffic.
+- Flow formats: NetFlow v5/v9 and IPFIX. sFlow (packet sampling) isn't parsed.
 - No device configuration backup (needs SSH credentials and vendor support).
 - LibreNMS is the only monitoring tool connector.

@@ -174,6 +174,29 @@ test("network collection against the database", { skip: !HAS_DB && "DATABASE_URL
     await runUnscoped(() => prisma.networkLink.updateMany({ where: { tenantId }, data: { lastSeenAt: new Date() } }));
   });
 
+  await t.test("NetFlow summaries become a per-application breakdown", async () => {
+    const flows = await import("../src/modules/network/network.flows.js");
+    assert.equal(flows.serviceName(6, 443), "HTTPS");
+    assert.equal(flows.serviceName(17, 8801), "Zoom");
+    assert.equal(flows.serviceName(6, 40001), "TCP 40001");
+    assert.deepEqual(await inT(() => svc.getTrafficProtocols(tenantId)), [], "no flow data, no breakdown");
+    await inT(() => settings.updateSettings(tenantId, { flow: { enabled: true, port: 2055 } }));
+    const cfg = await collectors.collectorConfig(await collectors.collectorForToken(token));
+    assert.deepEqual(cfg.flow, { enabled: true, port: 2055 });
+    const until = new Date(), since = new Date(Date.now() - 60_000);
+    const out = await report([], { flows: {
+      since: since.toISOString(), until: until.toISOString(),
+      byService: [{ protocol: 6, port: 443, bytes: 750_000, packets: 600 }, { protocol: 17, port: 53, bytes: 250_000, packets: 2000 }, { protocol: 999, port: 1, bytes: 5 }],
+      conversations: [{ src: "192.168.1.20", dst: "142.250.1.1", protocol: 6, port: 443, bytes: 700_000, packets: 500 }, { src: "<script>", dst: "x", bytes: 1 }],
+    } });
+    assert.equal(out.flows, 3, "the invalid protocol and the junk conversation are dropped");
+    const mix = await inT(() => svc.getTrafficProtocols(tenantId));
+    assert.deepEqual(mix.map((m) => [m.name, m.percent]), [["HTTPS", 75], ["DNS", 25]]);
+    const convs = await inT(() => svc.getTrafficConversations(tenantId));
+    assert.equal(convs[0].service, "HTTPS");
+    assert.equal(convs[0].src, "192.168.1.20");
+  });
+
   await t.test("traffic is measured or it's absent", async () => {
     const tr = await inT(() => svc.getTrafficOverview(tenantId));
     assert.equal(tr.measured, true);

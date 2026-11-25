@@ -11,6 +11,7 @@ ExecUI. Everything it does is read-only: it never changes a device.
 | Health | CPU (HOST-RESOURCES, Cisco, UCD), memory (UCD, HOST-RESOURCES), interface traffic from IF-MIB counters (64-bit, 32-bit fallback), uptime, latency. Traffic is a rate between two polls — the first poll has none. |
 | Map | LLDP and CDP neighbour tables: which port on which device is plugged into which port on which other device. |
 | Reachability | Every known device is checked each poll; one that stops answering raises an alert in ExecUI. |
+| Flows | If enabled in settings, listens on UDP (default 2055) for **NetFlow v5, v9 and IPFIX** from routers/firewalls on private addresses, and reports bytes per application (protocol + service port) and the top conversations each cycle — never raw records. |
 
 Only private address space is scanned (10/8, 172.16/12, 192.168/16,
 100.64/10), at most a /20 per subnet.
