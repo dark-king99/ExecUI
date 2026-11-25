@@ -51,6 +51,13 @@ function ConnectionCard({ connection, busy, onSync, onDisconnect, onToggle }) {
         Last synced {when(connection.lastSyncAt)}
         {connection.lastError && <span className="block text-amber-600 dark:text-amber-400">{connection.lastError}</span>}
       </p>
+      {!personal && (
+        <p className={`mt-1 text-xs ${connection.canSend ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+          {connection.canSend
+            ? "Ticket replies are sent from this mailbox, in the customer's email thread."
+            : "Ticket replies come from ExecUI's own address. Reconnect and allow sending to reply from this mailbox."}
+        </p>
+      )}
       {personal && (
         <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 dark:border-slate-800">
           <Toggle label="Log emails with CRM contacts" checked={connection.logEmails} disabled={busy} onChange={() => onToggle("logEmails")} />
@@ -188,7 +195,8 @@ export default function ConnectedAccounts() {
           <CardBody className="space-y-4">
             <p className="text-sm text-slate-600 dark:text-slate-300">
               Connect the mailbox customers write to (for example support@yourcompany.com). New emails become help-desk tickets;
-              a reply that quotes a ticket reference joins that ticket. Mail already in the inbox when you connect is left alone.
+              a reply that quotes a ticket reference joins that ticket, and your agents' replies go out from this address in the
+              customer's thread. Mail already in the inbox when you connect is left alone.
             </p>
             {supportInbox && (
               <ConnectionCard connection={supportInbox} busy={busy === supportInbox.id}

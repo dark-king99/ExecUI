@@ -7,9 +7,11 @@ inbox** there.
 | Connection | What it does |
 |---|---|
 | Personal | Emails with CRM contacts are logged on the account's timeline (subject + short snippet, never the body). Meetings with CRM contacts become CRM meetings. ExecAI can search *that person's* mail and read *their* calendar when they ask. |
-| Support inbox | New mail becomes a help-desk ticket. A reply quoting `[TKT-…]` from the ticket's own address joins that ticket. Auto-replies, bounces, no-reply senders and list mail are skipped. Mail already in the inbox when it's connected is left alone. |
+| Support inbox | Agents' public replies are **sent from this mailbox**, in the customer's original thread (falls back to ExecUI's sender if it can't). New mail becomes a help-desk ticket. A reply quoting `[TKT-…]` from the ticket's own address joins that ticket. Auto-replies, bounces, no-reply senders and list mail are skipped. Mail already in the inbox when it's connected is left alone. |
 
-Everything is **read-only**: ExecUI can't send, reply, delete or accept invites.
+Personal connections are **read-only**: ExecUI can't send, reply, delete or
+accept invites from them. Only the support inbox asks for permission to send
+(`gmail.send` / `Mail.Send`), and only uses it for ticket replies.
 Tokens are encrypted with `SECRETS_KEY` and never reach the browser. Sync runs
 every `CONNECTIONS_SYNC_MINUTES` (default 5); people can also press *Sync now*.
 
@@ -26,7 +28,7 @@ backend (falls back to `APP_URL`).
 **Google** — Google Cloud console → APIs & Services:
 1. Enable the Gmail API and Google Calendar API.
 2. OAuth consent screen: add scopes `openid`, `email`,
-   `gmail.readonly`, `calendar.readonly`.
+   `gmail.readonly`, `calendar.readonly`, and `gmail.send` (support inbox only).
 3. Credentials → OAuth client ID (Web application) with the redirect URI.
 4. Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
 
@@ -38,7 +40,8 @@ backend (falls back to `APP_URL`).
 **Microsoft** — Entra admin center → App registrations:
 1. New registration, Web platform, the redirect URI above.
 2. API permissions (delegated, Microsoft Graph): `User.Read`, `Mail.Read`,
-   `Calendars.Read`, `offline_access`, `openid`, `email`.
+   `Calendars.Read`, `offline_access`, `openid`, `email`, and `Mail.Send`
+   (support inbox only).
 3. Certificates & secrets → new client secret.
 4. Set `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET`. `MICROSOFT_TENANT`
    stays `common` to accept any organization's accounts.

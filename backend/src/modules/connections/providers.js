@@ -11,9 +11,11 @@
  * "not configured" and the UI says so; nothing here invents a credential or
  * pretends a connection exists.
  *
- * Scopes are the narrowest that do the job, all read-only:
+ * Scopes are the narrowest that do the job. Personal connections are read-only:
  *   Google     gmail.readonly, calendar.readonly (+ openid email for the address)
  *   Microsoft  Mail.Read, Calendars.Read, User.Read, offline_access
+ * The support inbox additionally asks to SEND (gmail.send / Mail.Send), so
+ * help-desk replies go out from the support address in the customer's thread.
  * Note that Google classes gmail.readonly as a *restricted* scope: past 100
  * users, Google requires app verification and an annual security assessment.
  */
@@ -55,6 +57,9 @@ async function call(url, { method = "GET", token, headers = {}, form, json } = {
   }
   return body;
 }
+
+/** Header values can't carry line breaks (that's how header injection works). */
+export const oneLine = (v) => String(v ?? "").replace(/[\r\n]+/g, " ").trim();
 
 const header = (headers, name) =>
   headers?.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value ?? null;
@@ -104,11 +109,13 @@ const google = {
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/calendar.readonly",
   ],
+  sendScope: "https://www.googleapis.com/auth/gmail.send",
+  scopesFor(purpose) { return purpose === "support_inbox" ? [...this.scopes, this.sendScope] : this.scopes; },
 
-  authorizeUrl({ redirectUri, state, codeChallenge, loginHint }) {
+  authorizeUrl({ redirectUri, state, codeChallenge, loginHint, purpose = "personal" }) {
     const q = {
       client_id: env("GOOGLE_CLIENT_ID"), redirect_uri: redirectUri, response_type: "code",
-      scope: this.scopes.join(" "), state, code_challenge: codeChallenge, code_challenge_method: "S256",
+      scope: this.scopesFor(purpose).join(" "), state, code_challenge: codeChallenge, code_challenge_method: "S256",
       // offline + consent is what makes Google return a refresh token.
       access_type: "offline", prompt: "consent", include_granted_scopes: "true",
       ...(loginHint ? { login_hint: loginHint } : {}),
@@ -183,6 +190,27 @@ const google = {
     };
   },
 
+  /** Send a plain-text reply, threaded onto `replyTo` (a getMessage() result) when given. */
+  async sendMail(token, { to, subject, text, replyTo }) {
+    const messageId = replyTo?.headers?.["message-id"] ?? null;
+    const encodedSubject = `=?UTF-8?B?${Buffer.from(oneLine(subject)).toString("base64")}?=`;
+    const raw = [
+      `To: ${oneLine(to)}`,
+      `Subject: ${encodedSubject}`,
+      ...(messageId ? [`In-Reply-To: ${oneLine(messageId)}`, `References: ${oneLine(messageId)}`] : []),
+      "MIME-Version: 1.0",
+      "Content-Type: text/plain; charset=UTF-8",
+      "Content-Transfer-Encoding: base64",
+      "",
+      Buffer.from(String(text)).toString("base64").replace(/.{76}/g, "$&\r\n"),
+    ].join("\r\n");
+    const sent = await call(`${GMAIL}/messages/send`, {
+      method: "POST", token,
+      json: { raw: Buffer.from(raw).toString("base64url"), ...(replyTo?.threadId ? { threadId: replyTo.threadId } : {}) },
+    });
+    return { id: sent?.id ?? null };
+  },
+
   async listEvents(token, { from, to }) {
     const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&maxResults=100` +
       `&timeMin=${enc(from.toISOString())}&timeMax=${enc(to.toISOString())}&showDeleted=true`;
@@ -229,33 +257,35 @@ const microsoft = {
   label: "Microsoft (Outlook & Calendar)",
   configured: () => !!(env("MICROSOFT_CLIENT_ID") && env("MICROSOFT_CLIENT_SECRET")),
   scopes: ["openid", "email", "offline_access", "User.Read", "Mail.Read", "Calendars.Read"],
+  sendScope: "Mail.Send",
+  scopesFor(purpose) { return purpose === "support_inbox" ? [...this.scopes, this.sendScope] : this.scopes; },
 
-  authorizeUrl({ redirectUri, state, codeChallenge, loginHint }) {
+  authorizeUrl({ redirectUri, state, codeChallenge, loginHint, purpose = "personal" }) {
     const q = {
       client_id: env("MICROSOFT_CLIENT_ID"), redirect_uri: redirectUri, response_type: "code", response_mode: "query",
-      scope: this.scopes.join(" "), state, code_challenge: codeChallenge, code_challenge_method: "S256",
+      scope: this.scopesFor(purpose).join(" "), state, code_challenge: codeChallenge, code_challenge_method: "S256",
       prompt: "select_account",
       ...(loginHint ? { login_hint: loginHint } : {}),
     };
     return `https://login.microsoftonline.com/${enc(msTenant())}/oauth2/v2.0/authorize?${new URLSearchParams(q)}`;
   },
 
-  exchangeCode({ code, redirectUri, codeVerifier }) {
+  exchangeCode({ code, redirectUri, codeVerifier, purpose = "personal" }) {
     return call(`https://login.microsoftonline.com/${enc(msTenant())}/oauth2/v2.0/token`, {
       method: "POST",
       form: {
         code, redirect_uri: redirectUri, code_verifier: codeVerifier, grant_type: "authorization_code",
-        client_id: env("MICROSOFT_CLIENT_ID"), client_secret: env("MICROSOFT_CLIENT_SECRET"), scope: this.scopes.join(" "),
+        client_id: env("MICROSOFT_CLIENT_ID"), client_secret: env("MICROSOFT_CLIENT_SECRET"), scope: this.scopesFor(purpose).join(" "),
       },
     });
   },
 
-  refresh(refreshToken) {
+  refresh(refreshToken, purpose = "personal") {
     return call(`https://login.microsoftonline.com/${enc(msTenant())}/oauth2/v2.0/token`, {
       method: "POST",
       form: {
         refresh_token: refreshToken, grant_type: "refresh_token",
-        client_id: env("MICROSOFT_CLIENT_ID"), client_secret: env("MICROSOFT_CLIENT_SECRET"), scope: this.scopes.join(" "),
+        client_id: env("MICROSOFT_CLIENT_ID"), client_secret: env("MICROSOFT_CLIENT_SECRET"), scope: this.scopesFor(purpose).join(" "),
       },
     });
   },
@@ -292,6 +322,25 @@ const microsoft = {
       token, headers: withText ? { Prefer: 'outlook.body-content-type="text"' } : {},
     });
     return msMessage(m, { withText });
+  },
+
+  /** Reply in the original conversation when we have it; otherwise a new message. */
+  async sendMail(token, { to, subject, text, replyTo }) {
+    if (replyTo?.id) {
+      await call(`${GRAPH}/messages/${enc(replyTo.id)}/reply`, {
+        method: "POST", token,
+        json: { message: { toRecipients: [{ emailAddress: { address: oneLine(to) } }] }, comment: String(text) },
+      });
+    } else {
+      await call(`${GRAPH}/sendMail`, {
+        method: "POST", token,
+        json: {
+          message: { subject: oneLine(subject), body: { contentType: "Text", content: String(text) }, toRecipients: [{ emailAddress: { address: oneLine(to) } }] },
+          saveToSentItems: true,
+        },
+      });
+    }
+    return { id: null };
   },
 
   async listEvents(token, { from, to }) {

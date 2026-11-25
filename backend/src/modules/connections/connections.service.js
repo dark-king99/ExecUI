@@ -53,7 +53,15 @@ export const shape = (c) => ({
   lastSyncAt: c.lastSyncAt,
   lastError: c.lastError,
   connectedAt: c.createdAt,
+  // Support inbox only: may help-desk replies be sent from it?
+  canSend: canSend(c),
 });
+
+/** Did the provider grant permission to send mail from this connection? */
+export function canSend(c) {
+  const p = getProvider(c?.provider);
+  return !!p?.sendScope && (c?.scopes ?? []).some((s) => s === p.sendScope || s.toLowerCase() === p.sendScope.toLowerCase());
+}
 
 export const providers = () => providerList();
 
@@ -86,7 +94,7 @@ export async function startConnect({ tenantId, userId, role }, providerId, purpo
   const request = await prisma.oAuthRequest.create({
     data: { tenantId, userId, provider: providerId, purpose, codeVerifier, expiresAt: new Date(Date.now() + REQUEST_TTL_MS) },
   });
-  return { url: provider.authorizeUrl({ redirectUri: redirectUri(providerId), state: request.id, codeChallenge }) };
+  return { url: provider.authorizeUrl({ redirectUri: redirectUri(providerId), state: request.id, codeChallenge, purpose }) };
 }
 
 // ── Connect: step 2 (the provider's redirect) ────────────────────────────────
@@ -109,7 +117,7 @@ export async function completeConnect(providerId, { code, state, error: provider
   if (!code) throw err("The provider didn't return an authorization code.");
 
   const provider = getProvider(providerId);
-  const tokens = await provider.exchangeCode({ code, redirectUri: redirectUri(providerId), codeVerifier: request.codeVerifier });
+  const tokens = await provider.exchangeCode({ code, redirectUri: redirectUri(providerId), codeVerifier: request.codeVerifier, purpose: request.purpose });
   if (!tokens?.access_token) throw err("The provider didn't return an access token, so nothing was connected.");
   const accountEmail = await provider.accountEmail(tokens.access_token);
   if (!accountEmail) throw err("Couldn't read which account was connected, so nothing was saved.");
@@ -121,7 +129,9 @@ export async function completeConnect(providerId, { code, state, error: provider
   const refresh = tokens.refresh_token ? encryptSecret(tokens.refresh_token) : null;
   const data = {
     accountEmail: String(accountEmail).toLowerCase(),
-    scopes: String(tokens.scope ?? provider.scopes.join(" ")).split(/\s+/).filter(Boolean),
+    // What the provider actually granted — a person can untick a permission on
+    // the consent screen, so the request isn't proof of the grant.
+    scopes: String(tokens.scope ?? provider.scopesFor(request.purpose).join(" ")).split(/\s+/).filter(Boolean),
     accessCipher: access.ciphertext, accessIv: access.iv, accessTag: access.tag,
     ...(refresh ? { refreshCipher: refresh.ciphertext, refreshIv: refresh.iv, refreshTag: refresh.tag } : {}),
     expiresAt: tokens.expires_in ? new Date(Date.now() + Number(tokens.expires_in) * 1000) : null,
@@ -211,7 +221,7 @@ export async function accessTokenFor(connection) {
     throw new ProviderError("No refresh token", { reauth: true });
   }
   try {
-    const tokens = await getProvider(connection.provider).refresh(refreshToken);
+    const tokens = await getProvider(connection.provider).refresh(refreshToken, connection.purpose);
     const access = encryptSecret(tokens.access_token);
     // Microsoft rotates refresh tokens; keep the newest.
     const rotated = tokens.refresh_token ? encryptSecret(tokens.refresh_token) : null;

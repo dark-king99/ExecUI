@@ -11,6 +11,7 @@
  * message. Everything the customer can see goes through `publicMessageWhere()`,
  * so there's a single place to be right about it.
  */
+import { sendFromSupportMailbox } from "../connections/mailbox.send.js";
 import prisma from "../../config/database.js";
 import { log } from "../../lib/logger.js";
 import { sendEmail, emailConfigured } from "../../lib/email.js";
@@ -451,11 +452,19 @@ export async function addMessage(user, id, { body, visibility = "public", status
  */
 async function emailCustomer(ticket, { body, authorName }) {
   if (!ticket.contactEmail) return false;
+  const subject = `Re: [${ticket.ticket_number}] ${ticket.subject}`;
+  // From the organization's own support mailbox when one is connected with
+  // send permission — in the customer's thread, and they can simply reply.
+  const viaMailbox = await sendFromSupportMailbox(ticket, {
+    subject,
+    text: [`Hello ${ticket.customer_name},`, "", body, "", authorName ? `— ${authorName}` : ""].filter(Boolean).join("\n"),
+  });
+  if (viaMailbox?.sent) return true;
   try {
     await sendEmail({
       tenantId: ticket.tenantId,
       to: ticket.contactEmail,
-      subject: `Re: [${ticket.ticket_number}] ${ticket.subject}`,
+      subject,
       text: [
         `Hello ${ticket.customer_name},`,
         "",
