@@ -10,7 +10,7 @@ const DESTINATIONS = ["Google Ads", "LinkedIn Ads", "Meta", "Mailchimp", "The Tr
 export default function Activation() {
   const toast = useToast();
   const { data: audiences, loading, refetch } = useApi(() => marketing.audiences.list(), [], { pollingInterval: 60000 });
-  const { mutate: activate } = useMutation((id) => marketing.audiences.activate(id), { onSuccess: () => { toast({ message: "Activated to destinations", type: "success" }); refetch(); } });
+  const { mutate: activate } = useMutation((id) => marketing.audiences.activate(id), { onError: (e) => toast({ message: e?.message ?? "That didn't work", type: "error" }),  onSuccess: () => { toast({ message: "Activated to destinations", type: "success" }); refetch(); } });
 
   const all = audiences ?? [];
   const active = all.filter((a) => a.status === "active");

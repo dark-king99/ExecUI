@@ -14,6 +14,7 @@ import { startHelpdeskScheduler, stopHelpdeskScheduler } from "./modules/helpdes
 import { startTenantScheduler, stopTenantScheduler } from "./modules/tenants/tenants.scheduler.js";
 import { startConnectionScheduler, stopConnectionScheduler } from "./modules/connections/connections.scheduler.js";
 import { startNetworkScheduler, stopNetworkScheduler } from "./modules/network/network.scheduler.js";
+import { startEmailWorker, stopEmailWorker } from "./modules/marketing/email/worker.js";
 const PORT = process.env.PORT || 5555;
 
 // ── Apply pending migrations on boot ──────────────────────────────────────────
@@ -102,6 +103,9 @@ startConnectionScheduler();
 // Monitoring-tool import, collector health, metric retention.
 startNetworkScheduler();
 
+// Marketing email: start scheduled campaigns and send queued messages.
+startEmailWorker();
+
 // Flush buffered analytics on graceful shutdown so nothing is lost.
 for (const sig of ["SIGTERM", "SIGINT"]) {
   process.on(sig, async () => {
@@ -113,6 +117,7 @@ for (const sig of ["SIGTERM", "SIGINT"]) {
     stopHelpdeskScheduler();
     stopConnectionScheduler();
     stopNetworkScheduler();
+    stopEmailWorker();
     stopTenantScheduler();
     await shutdownAnalytics();
     await shutdownPostHogLogs();

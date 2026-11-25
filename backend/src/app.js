@@ -15,6 +15,7 @@ import {
 import routes from "./routes/index.js";
 import scimRoutes from "./modules/scim/scim.routes.js";
 import collectorRoutes from "./modules/network/collector.routes.js";
+import marketingPublicRoutes from "./modules/marketing/email/public.routes.js";
 import portalRoutes from "./modules/helpdesk/portal.routes.js";
 import { STORAGE_ROOT } from "./lib/storage.js";
 import { billingWebhook } from "./modules/account/account.controller.js";
@@ -90,6 +91,11 @@ app.use("/scim/v2", scimRoutes);
 // Mounted before the shared body parser: a report from a large network is
 // bigger than the app's 200 KB limit. Authenticated by collector token only.
 app.use("/api/collector", collectorRoutes);
+
+// ── Public marketing endpoints ───────────────────────────────────────────────
+// Email provider webhooks (verified against the raw body, so before the JSON
+// parser) and the unsubscribe page/one-click POST (form-encoded, no session).
+app.use("/api/public/marketing", marketingPublicRoutes);
 
 // ── Body parsing + universal input hygiene ───────────────────────────────────
 // The SAML HTTP-POST binding delivers the assertion as

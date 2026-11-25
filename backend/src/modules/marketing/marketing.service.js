@@ -52,15 +52,18 @@ export const updateCampaign = async (tenantId, id, data) => {
   return prisma.marketingCampaign.update({ where: { id }, data: update });
 };
 
-export const startCampaign = async (tenantId, id) => {
-  await prisma.marketingCampaign.update({ where: { id }, data: { status: "active", startDate: new Date() } });
-  return { started: true };
-};
+// Starting or pausing a campaign used to flip its status and do nothing else.
+// Email campaigns now run through Email Studio's engine; other channels have
+// no execution yet, so they say so instead of pretending.
+const noExecution = (tenantId, id) => prisma.marketingCampaign.findFirst({ where: { id, tenantId } }).then((c) => {
+  if (!c) throw Object.assign(new Error("Campaign not found"), { status: 404 });
+  throw Object.assign(new Error(c.channel === "email"
+    ? "Send, schedule and pause email campaigns from Email Studio."
+    : `Campaigns on the ${c.channel} channel can't be run from ExecUI yet — nothing would actually be sent.`), { status: 409 });
+});
+export const startCampaign = (tenantId, id) => noExecution(tenantId, id);
 
-export const pauseCampaign = async (tenantId, id) => {
-  await prisma.marketingCampaign.update({ where: { id }, data: { status: "paused" } });
-  return { paused: true };
-};
+export const pauseCampaign = (tenantId, id) => noExecution(tenantId, id);
 
 export const getCampaignSummary = async (tenantId) => {
   const campaigns = await prisma.marketingCampaign.findMany({ where: { tenantId } });
@@ -104,30 +107,26 @@ export const createAudience = async (tenantId, data) =>
     data: {
       name:        data.name,
       type:        data.type ?? "behavioral",
-      size:        Number(data.size) || 0,
+      // Size is counted from members/rules (audiences.service), never typed in.
+      kind:        data.kind === "static" ? "static" : "dynamic",
+      size:        0,
       description: data.description ?? null,
       status:      "draft",
       tenantId,
     },
   });
 
-export const activateAudience = async (tenantId, id) => {
-  await prisma.marketingAudience.update({ where: { id }, data: { status: "active" } });
-  return { activated: true };
+// "Activate" used to flip the status. Activation means sending an audience to
+// a destination (an ad platform, another channel); none is connected yet.
+// Email campaigns use audiences directly, without activation.
+export const activateAudience = async () => {
+  throw Object.assign(new Error("Activation sends an audience to a destination such as an ad platform, and none is connected yet. Email campaigns use audiences directly."), { status: 409 });
 };
 
-export const createLookalikeAudience = async (tenantId, id) => {
-  const source = await prisma.marketingAudience.findFirst({ where: { id, tenantId } });
-  return prisma.marketingAudience.create({
-    data: {
-      name:        `Lookalike — ${source?.name ?? "Audience"}`,
-      type:        "lookalike",
-      size:        0,
-      description: `Lookalike audience modelled on "${source?.name ?? "source"}"`,
-      status:      "draft",
-      tenantId,
-    },
-  });
+// Lookalikes are built by an ad platform from a seed audience (Meta, Google).
+// Creating one locally used to produce an empty audience; that's refused now.
+export const createLookalikeAudience = async () => {
+  throw Object.assign(new Error("Lookalike audiences are built by an advertising platform (e.g. Meta, Google Ads) from your seed audience. Connect one first — ExecUI won't invent members."), { status: 409 });
 };
 
 export const getAudienceOverlap = async (tenantId, id) => ({ overlap: null, audienceId: id });

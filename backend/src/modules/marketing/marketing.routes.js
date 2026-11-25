@@ -1,9 +1,13 @@
 import express from "express";
+import emailRoutes from "./email/email.routes.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import * as c from "./marketing.controller.js";
 import socialRouter from "./social/social.routes.js";
 
 const router = express.Router();
+
+// Email Studio engine, consent and audience rules (see email/email.routes.js).
+router.use("/", emailRoutes);
 const auth = authenticate;
 
 // ── Social media marketing (additive — core marketing routes below unchanged) ─
