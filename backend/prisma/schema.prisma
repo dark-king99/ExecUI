@@ -144,6 +144,7 @@ model Tenant {
   networkLinks            NetworkLink[]
   networkMetricSamples    NetworkMetricSample[]
   networkSettings         NetworkSettings?
+  chatRoutes              ChatRoute[]
 }
 
 // Per-tenant configuration, one row per key.
@@ -562,6 +563,9 @@ model CrmFollowUp {
   // so a re-sync updates the same row instead of adding another.
   externalRef    String?
   contactId      String?
+  // A video meeting created for it (e.g. Zoom), so the join link travels with the meeting.
+  meetingUrl      String?
+  meetingProvider String?
 
   user   User   @relation(fields: [userId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -2349,6 +2353,8 @@ model OAuthRequest {
   provider     String
   purpose      String
   codeVerifier String
+  // Optional extras the person asked for at connect time, e.g. ["files"].
+  features     String[]  @default([])
   expiresAt    DateTime
   consumedAt   DateTime?
   createdAt    DateTime  @default(now())
@@ -2493,4 +2499,29 @@ model NetworkSettings {
   updatedAt            DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+
+// Where ExecUI posts a category of event in Slack or Teams. Slack routes name a
+// channel the connected Slack app can post to; Teams routes hold a Workflows
+// webhook URL, which is a secret and stored encrypted.
+model ChatRoute {
+  id            String    @id @default(uuid())
+  tenantId      String
+  category      String // network_alerts | helpdesk_tickets | approvals | automation
+  provider      String // slack | teams
+  label         String // "#it-alerts", "IT team › Alerts"
+  slackChannel  String?
+  webhookCipher String?
+  webhookIv     String?
+  webhookTag    String?
+  enabled       Boolean   @default(true)
+  lastSentAt    DateTime?
+  lastError     String?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, category])
 }

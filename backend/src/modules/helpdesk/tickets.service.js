@@ -11,6 +11,7 @@
  * message. Everything the customer can see goes through `publicMessageWhere()`,
  * so there's a single place to be right about it.
  */
+import { notifyChat } from "../connections/chat.service.js";
 import { sendFromSupportMailbox } from "../connections/mailbox.send.js";
 import prisma from "../../config/database.js";
 import { log } from "../../lib/logger.js";
@@ -273,6 +274,12 @@ export async function createTicket({
 
 /** Tell someone a ticket arrived: the assignee, or the admins if unassigned. */
 async function alertAgents(ticket) {
+  // Subject and customer name only — the message body stays in ExecUI.
+  notifyChat(ticket.tenantId, "helpdesk_tickets", {
+    title: `New ticket ${ticket.ticket_number}: ${ticket.subject}`,
+    text: `From ${ticket.customer_name}${ticket.source === "email" ? " by email" : ticket.source === "portal" ? " via the portal" : ""}`,
+    link: `/helpdesk?ticket=${ticket.id}`,
+  });
   try {
     if (ticket.assigneeId) {
       await notify({

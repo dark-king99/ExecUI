@@ -5,6 +5,7 @@ import { useToast } from "../../../../components/ui/Toast";
 import { useApi, useMutation } from "../../../../hooks/useApi";
 import { crm } from "../../../../services/api";
 import { SolutionShell, Section, Loading, fmtDate } from "../../components/crm-ui";
+import AccountFiles from "./AccountFiles";
 
 const TIMELINE_ICON = { email: Mail, meeting: CalendarDays, note: StickyNote };
 
@@ -82,6 +83,8 @@ export default function Account360() {
               </>
             )}
           </Section>
+
+          {selected && <AccountFiles accountId={selected} />}
 
           {selected && (
             <Section title="Timeline & Notes" icon={Clock}>

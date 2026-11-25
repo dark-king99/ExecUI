@@ -1140,6 +1140,24 @@ export const connections = {
   update: (id, data)            => patch(`/connections/${id}`, data),
   remove: (id)                  => del(`/connections/${id}`),
   sync:   (id)                  => post(`/connections/${id}/sync`, {}),
+  // start(provider, purpose, features) — e.g. features ["files"] adds Drive/OneDrive search.
+  startWith: (provider, purpose, features) => post(`/connections/oauth/${provider}/start`, { purpose, features }),
+  // Slack / Teams channel routing (admins).
+  chat: {
+    get:          ()          => get('/connections/chat'),
+    slackChannels: ()         => get('/connections/chat/slack/channels'),
+    addRoute:     (data)      => post('/connections/chat/routes', data),
+    toggleRoute:  (id, enabled) => patch(`/connections/chat/routes/${id}`, { enabled }),
+    removeRoute:  (id)        => del(`/connections/chat/routes/${id}`),
+    testRoute:    (id)        => post(`/connections/chat/routes/${id}/test`, {}),
+  },
+  files: {
+    search: (q)    => get('/connections/files/search', { q }),
+    attach: (data) => post('/connections/files/attach', data),
+  },
+  zoom: {
+    createMeeting: (followUpId) => post(`/connections/zoom/meetings`, { followUpId }),
+  },
 };
 
 export const account = {

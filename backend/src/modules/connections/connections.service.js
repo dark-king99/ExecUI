@@ -5,6 +5,8 @@
  *   personal       anyone connects their OWN mailbox and calendar. Emails and
  *                  meetings with CRM contacts are logged to CRM, and ExecAI can
  *                  read that person's mail and calendar for them — nobody else.
+ *   workspace      an admin connects the organization's Slack, so ExecUI can
+ *                  post chosen events to chosen channels.
  *   support_inbox  an admin connects the organization's support mailbox; new
  *                  mail there becomes help-desk tickets. One per organization.
  *
@@ -25,7 +27,11 @@ import { createPkce } from "../../lib/oidc.js";
 import { log } from "../../lib/logger.js";
 import { getProvider, providerList, ProviderError } from "./providers.js";
 
-export const PURPOSES = ["personal", "support_inbox"];
+export const PURPOSES = ["personal", "support_inbox", "workspace"];
+const ADMIN_PURPOSES = new Set(["support_inbox", "workspace"]);
+export const FEATURES = ["files"];
+/** Providers whose personal connection is a mailbox + calendar. */
+export const MAILBOX_PROVIDERS = ["google", "microsoft"];
 const REQUEST_TTL_MS = 10 * 60_000;
 const ADMIN_ROLES = new Set(["enterprise_admin", "system_admin"]);
 
@@ -55,7 +61,14 @@ export const shape = (c) => ({
   connectedAt: c.createdAt,
   // Support inbox only: may help-desk replies be sent from it?
   canSend: canSend(c),
+  // Personal Google/Microsoft: was Drive/OneDrive file search granted?
+  canSearchFiles: canSearchFiles(c),
 });
+
+export function canSearchFiles(c) {
+  const p = getProvider(c?.provider);
+  return !!p?.filesScope && (c?.scopes ?? []).some((s) => s.toLowerCase() === p.filesScope.toLowerCase());
+}
 
 /** Did the provider grant permission to send mail from this connection? */
 export function canSend(c) {
@@ -72,7 +85,7 @@ export async function listConnections({ tenantId, userId, role }) {
       tenantId,
       OR: [
         { userId, purpose: "personal" },
-        ...(ADMIN_ROLES.has(role) ? [{ purpose: "support_inbox" }] : []),
+        ...(ADMIN_ROLES.has(role) ? [{ purpose: { in: [...ADMIN_PURPOSES] } }] : []),
       ],
     },
     orderBy: { createdAt: "asc" },
@@ -81,20 +94,24 @@ export async function listConnections({ tenantId, userId, role }) {
 }
 
 // ── Connect: step 1 ──────────────────────────────────────────────────────────
-export async function startConnect({ tenantId, userId, role }, providerId, purpose = "personal") {
+export async function startConnect({ tenantId, userId, role }, providerId, purpose = "personal", features = []) {
   const provider = getProvider(providerId);
   if (!provider) throw err("Unknown provider", 404);
   if (!provider.configured()) {
     throw err(`${provider.label} isn't set up on this ExecUI server yet. An administrator needs to add its OAuth client credentials.`, 409);
   }
-  if (!PURPOSES.includes(purpose)) throw err("Unknown connection type");
-  if (purpose === "support_inbox" && !ADMIN_ROLES.has(role)) throw err("Only an admin can connect the support inbox.", 403);
+  if (!PURPOSES.includes(purpose) || !(provider.purposes ?? ["personal"]).includes(purpose)) throw err(`${provider.label} can't be connected that way.`);
+  if (ADMIN_PURPOSES.has(purpose) && !ADMIN_ROLES.has(role)) {
+    throw err(purpose === "workspace" ? `Only an admin can connect ${provider.label} for the organization.` : "Only an admin can connect the support inbox.", 403);
+  }
+  const wanted = (Array.isArray(features) ? features : []).filter((f) => FEATURES.includes(f));
+  if (wanted.length && (purpose !== "personal" || !MAILBOX_PROVIDERS.includes(providerId))) throw err("File search is only available on a personal Google or Microsoft connection.");
 
   const { codeVerifier, codeChallenge } = createPkce();
   const request = await prisma.oAuthRequest.create({
-    data: { tenantId, userId, provider: providerId, purpose, codeVerifier, expiresAt: new Date(Date.now() + REQUEST_TTL_MS) },
+    data: { tenantId, userId, provider: providerId, purpose, features: wanted, codeVerifier, expiresAt: new Date(Date.now() + REQUEST_TTL_MS) },
   });
-  return { url: provider.authorizeUrl({ redirectUri: redirectUri(providerId), state: request.id, codeChallenge, purpose }) };
+  return { url: provider.authorizeUrl({ redirectUri: redirectUri(providerId), state: request.id, codeChallenge, purpose, features: wanted }) };
 }
 
 // ── Connect: step 2 (the provider's redirect) ────────────────────────────────
@@ -117,9 +134,10 @@ export async function completeConnect(providerId, { code, state, error: provider
   if (!code) throw err("The provider didn't return an authorization code.");
 
   const provider = getProvider(providerId);
-  const tokens = await provider.exchangeCode({ code, redirectUri: redirectUri(providerId), codeVerifier: request.codeVerifier, purpose: request.purpose });
+  const tokens = await provider.exchangeCode({ code, redirectUri: redirectUri(providerId), codeVerifier: request.codeVerifier, purpose: request.purpose, features: request.features ?? [] });
   if (!tokens?.access_token) throw err("The provider didn't return an access token, so nothing was connected.");
-  const accountEmail = await provider.accountEmail(tokens.access_token);
+  // Slack identifies a workspace by name, not an email address.
+  const accountEmail = tokens.accountLabel ?? await provider.accountEmail(tokens.access_token);
   if (!accountEmail) throw err("Couldn't read which account was connected, so nothing was saved.");
 
   const user = await runUnscoped(() => prisma.user.findFirst({ where: { id: request.userId, tenantId: request.tenantId, isActive: true } }));
@@ -128,10 +146,10 @@ export async function completeConnect(providerId, { code, state, error: provider
   const access = encryptSecret(tokens.access_token);
   const refresh = tokens.refresh_token ? encryptSecret(tokens.refresh_token) : null;
   const data = {
-    accountEmail: String(accountEmail).toLowerCase(),
+    accountEmail: tokens.accountLabel ? String(accountEmail) : String(accountEmail).toLowerCase(),
     // What the provider actually granted — a person can untick a permission on
     // the consent screen, so the request isn't proof of the grant.
-    scopes: String(tokens.scope ?? provider.scopesFor(request.purpose).join(" ")).split(/\s+/).filter(Boolean),
+    scopes: String(tokens.scope ?? provider.scopesFor(request.purpose, request.features ?? []).join(" ")).split(/\s+/).filter(Boolean),
     accessCipher: access.ciphertext, accessIv: access.iv, accessTag: access.tag,
     ...(refresh ? { refreshCipher: refresh.ciphertext, refreshIv: refresh.iv, refreshTag: refresh.tag } : {}),
     expiresAt: tokens.expires_in ? new Date(Date.now() + Number(tokens.expires_in) * 1000) : null,
@@ -140,10 +158,10 @@ export async function completeConnect(providerId, { code, state, error: provider
   };
 
   const connection = await runUnscoped(async () => {
-    if (request.purpose === "support_inbox") {
-      // One support inbox per organization: connecting a new one replaces it.
+    if (ADMIN_PURPOSES.has(request.purpose)) {
+      // One support inbox / one Slack workspace per organization: a new one replaces it.
       const other = await prisma.oAuthConnection.findFirst({
-        where: { tenantId: request.tenantId, purpose: "support_inbox", NOT: { userId: request.userId, provider: providerId } },
+        where: { tenantId: request.tenantId, purpose: request.purpose, NOT: { userId: request.userId, provider: providerId } },
       });
       if (other) await prisma.oAuthConnection.delete({ where: { id: other.id } });
     }
@@ -161,7 +179,7 @@ export async function completeConnect(providerId, { code, state, error: provider
     data: {
       tenantId: request.tenantId, userId: request.userId, action: "connection.connected",
       resource: "connection", resourceId: connection.id,
-      detail: `${provider.label} connected (${request.purpose === "support_inbox" ? "support inbox" : "personal"}) as ${data.accountEmail}`,
+      detail: `${provider.label} connected (${{ support_inbox: "support inbox", workspace: "organization" }[request.purpose] ?? "personal"}) as ${data.accountEmail}`,
     },
   })).catch(() => {});
   return { connection: shape(connection), purpose: request.purpose };
@@ -171,7 +189,7 @@ export async function completeConnect(providerId, { code, state, error: provider
 async function ownConnection({ tenantId, userId, role }, id) {
   const c = await prisma.oAuthConnection.findFirst({ where: { id: String(id), tenantId } });
   const mine = c && (c.userId === userId && c.purpose === "personal");
-  const adminInbox = c && c.purpose === "support_inbox" && ADMIN_ROLES.has(role);
+  const adminInbox = c && ADMIN_PURPOSES.has(c.purpose) && ADMIN_ROLES.has(role);
   if (!mine && !adminInbox) throw err("Connection not found", 404);
   return c;
 }
@@ -221,7 +239,7 @@ export async function accessTokenFor(connection) {
     throw new ProviderError("No refresh token", { reauth: true });
   }
   try {
-    const tokens = await getProvider(connection.provider).refresh(refreshToken, connection.purpose);
+    const tokens = await getProvider(connection.provider).refresh(refreshToken, connection.purpose, connection.scopes);
     const access = encryptSecret(tokens.access_token);
     // Microsoft rotates refresh tokens; keep the newest.
     const rotated = tokens.refresh_token ? encryptSecret(tokens.refresh_token) : null;
@@ -249,9 +267,19 @@ export async function markNeedsReauth(connection, reason) {
 /** The signed-in person's active personal connection, if any (for ExecAI). */
 export async function personalConnection(tenantId, userId) {
   return prisma.oAuthConnection.findFirst({
-    where: { tenantId, userId, purpose: "personal", status: "active" },
+    where: { tenantId, userId, purpose: "personal", status: "active", provider: { in: MAILBOX_PROVIDERS } },
     orderBy: { updatedAt: "desc" },
   });
+}
+
+/** The signed-in person's active connection to `providerId` (e.g. Zoom), if any. */
+export async function connectionFor(tenantId, userId, providerId) {
+  return prisma.oAuthConnection.findFirst({ where: { tenantId, userId, purpose: "personal", status: "active", provider: providerId } });
+}
+
+/** The organization's Slack workspace connection, if any. */
+export async function workspaceConnection(tenantId, providerId = "slack") {
+  return prisma.oAuthConnection.findFirst({ where: { tenantId, purpose: "workspace", status: "active", provider: providerId } });
 }
 
 /** Drop finished or abandoned connect attempts. */

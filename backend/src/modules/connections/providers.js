@@ -110,12 +110,21 @@ const google = {
     "https://www.googleapis.com/auth/calendar.readonly",
   ],
   sendScope: "https://www.googleapis.com/auth/gmail.send",
-  scopesFor(purpose) { return purpose === "support_inbox" ? [...this.scopes, this.sendScope] : this.scopes; },
+  filesScope: "https://www.googleapis.com/auth/drive.metadata.readonly",
+  purposes: ["personal", "support_inbox"],
+  syncs: true,
+  scopesFor(purpose, features = []) {
+    return [
+      ...this.scopes,
+      ...(purpose === "support_inbox" ? [this.sendScope] : []),
+      ...(purpose === "personal" && features.includes("files") ? [this.filesScope] : []),
+    ];
+  },
 
-  authorizeUrl({ redirectUri, state, codeChallenge, loginHint, purpose = "personal" }) {
+  authorizeUrl({ redirectUri, state, codeChallenge, loginHint, purpose = "personal", features = [] }) {
     const q = {
       client_id: env("GOOGLE_CLIENT_ID"), redirect_uri: redirectUri, response_type: "code",
-      scope: this.scopesFor(purpose).join(" "), state, code_challenge: codeChallenge, code_challenge_method: "S256",
+      scope: this.scopesFor(purpose, features).join(" "), state, code_challenge: codeChallenge, code_challenge_method: "S256",
       // offline + consent is what makes Google return a refresh token.
       access_type: "offline", prompt: "consent", include_granted_scopes: "true",
       ...(loginHint ? { login_hint: loginHint } : {}),
@@ -211,6 +220,17 @@ const google = {
     return { id: sent?.id ?? null };
   },
 
+  /** Files whose name contains `query` (metadata only — never contents). */
+  async searchFiles(token, query, { max = 10 } = {}) {
+    const q = `name contains '${String(query).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}' and trashed = false`;
+    const page = await call(`https://www.googleapis.com/drive/v3/files?pageSize=${Math.min(25, max)}&orderBy=modifiedTime desc` +
+      `&fields=${enc("files(id,name,mimeType,webViewLink,modifiedTime,owners(displayName))")}&q=${enc(q)}`, { token });
+    return (page?.files ?? []).map((f) => ({
+      id: f.id, name: f.name, mimeType: f.mimeType ?? null, url: f.webViewLink ?? null,
+      modifiedAt: f.modifiedTime ?? null, owner: f.owners?.[0]?.displayName ?? null, source: "Google Drive",
+    }));
+  },
+
   async listEvents(token, { from, to }) {
     const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&maxResults=100` +
       `&timeMin=${enc(from.toISOString())}&timeMax=${enc(to.toISOString())}&showDeleted=true`;
@@ -258,36 +278,55 @@ const microsoft = {
   configured: () => !!(env("MICROSOFT_CLIENT_ID") && env("MICROSOFT_CLIENT_SECRET")),
   scopes: ["openid", "email", "offline_access", "User.Read", "Mail.Read", "Calendars.Read"],
   sendScope: "Mail.Send",
-  scopesFor(purpose) { return purpose === "support_inbox" ? [...this.scopes, this.sendScope] : this.scopes; },
+  filesScope: "Files.Read",
+  purposes: ["personal", "support_inbox"],
+  syncs: true,
+  scopesFor(purpose, features = []) {
+    return [
+      ...this.scopes,
+      ...(purpose === "support_inbox" ? [this.sendScope] : []),
+      ...(purpose === "personal" && features.includes("files") ? [this.filesScope] : []),
+    ];
+  },
 
-  authorizeUrl({ redirectUri, state, codeChallenge, loginHint, purpose = "personal" }) {
+  authorizeUrl({ redirectUri, state, codeChallenge, loginHint, purpose = "personal", features = [] }) {
     const q = {
       client_id: env("MICROSOFT_CLIENT_ID"), redirect_uri: redirectUri, response_type: "code", response_mode: "query",
-      scope: this.scopesFor(purpose).join(" "), state, code_challenge: codeChallenge, code_challenge_method: "S256",
+      scope: this.scopesFor(purpose, features).join(" "), state, code_challenge: codeChallenge, code_challenge_method: "S256",
       prompt: "select_account",
       ...(loginHint ? { login_hint: loginHint } : {}),
     };
     return `https://login.microsoftonline.com/${enc(msTenant())}/oauth2/v2.0/authorize?${new URLSearchParams(q)}`;
   },
 
-  exchangeCode({ code, redirectUri, codeVerifier, purpose = "personal" }) {
+  exchangeCode({ code, redirectUri, codeVerifier, purpose = "personal", features = [] }) {
     return call(`https://login.microsoftonline.com/${enc(msTenant())}/oauth2/v2.0/token`, {
       method: "POST",
       form: {
         code, redirect_uri: redirectUri, code_verifier: codeVerifier, grant_type: "authorization_code",
-        client_id: env("MICROSOFT_CLIENT_ID"), client_secret: env("MICROSOFT_CLIENT_SECRET"), scope: this.scopesFor(purpose).join(" "),
+        client_id: env("MICROSOFT_CLIENT_ID"), client_secret: env("MICROSOFT_CLIENT_SECRET"), scope: this.scopesFor(purpose, features).join(" "),
       },
     });
   },
 
-  refresh(refreshToken, purpose = "personal") {
+  // Refresh with exactly what was granted, so a refresh never asks for more.
+  refresh(refreshToken, purpose = "personal", grantedScopes = null) {
     return call(`https://login.microsoftonline.com/${enc(msTenant())}/oauth2/v2.0/token`, {
       method: "POST",
       form: {
         refresh_token: refreshToken, grant_type: "refresh_token",
-        client_id: env("MICROSOFT_CLIENT_ID"), client_secret: env("MICROSOFT_CLIENT_SECRET"), scope: this.scopesFor(purpose).join(" "),
+        client_id: env("MICROSOFT_CLIENT_ID"), client_secret: env("MICROSOFT_CLIENT_SECRET"),
+        scope: (grantedScopes?.length ? grantedScopes : this.scopesFor(purpose)).join(" "),
       },
     });
+  },
+
+  async searchFiles(token, query, { max = 10 } = {}) {
+    const page = await call(`${GRAPH}/drive/root/search(q='${enc(String(query).replace(/'/g, "''"))}')?$top=${Math.min(25, max)}&$select=id,name,webUrl,lastModifiedDateTime,file,createdBy`, { token });
+    return (page?.value ?? []).map((f) => ({
+      id: f.id, name: f.name, mimeType: f.file?.mimeType ?? null, url: f.webUrl ?? null,
+      modifiedAt: f.lastModifiedDateTime ?? null, owner: f.createdBy?.user?.displayName ?? null, source: "OneDrive",
+    }));
   },
 
   async accountEmail(token) {
@@ -361,10 +400,117 @@ const microsoft = {
   },
 };
 
-export const PROVIDERS = { google, microsoft };
+// ── Slack ────────────────────────────────────────────────────────────────────
+/**
+ * Slack is connected once per organization ("Add to Slack"). It gets a bot
+ * token that can list channels and post to them — nothing else: it can't read
+ * messages. Bot tokens don't expire, so there's no refresh.
+ */
+async function slackApi(method, token, body) {
+  const res = await fetch(`https://slack.com/api/${method}`, {
+    method: "POST",
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": body instanceof URLSearchParams ? "application/x-www-form-urlencoded" : "application/json; charset=utf-8" },
+    body: body instanceof URLSearchParams ? body.toString() : JSON.stringify(body ?? {}),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const data = await res.json().catch(() => ({}));
+  // Slack answers 200 with { ok: false, error } for most failures.
+  if (!res.ok || data.ok === false) {
+    const reauth = ["invalid_auth", "token_revoked", "account_inactive", "not_authed"].includes(data.error);
+    throw new ProviderError(`Slack ${method}: ${data.error ?? res.status}`, { status: res.status, reauth });
+  }
+  return data;
+}
+
+const slack = {
+  id: "slack",
+  label: "Slack",
+  configured: () => !!(env("SLACK_CLIENT_ID") && env("SLACK_CLIENT_SECRET")),
+  scopes: ["chat:write", "chat:write.public", "channels:read", "groups:read"],
+  purposes: ["workspace"],
+  syncs: false,
+  scopesFor() { return this.scopes; },
+  authorizeUrl({ redirectUri, state }) {
+    const q = { client_id: env("SLACK_CLIENT_ID"), scope: this.scopes.join(","), redirect_uri: redirectUri, state };
+    return `https://slack.com/oauth/v2/authorize?${new URLSearchParams(q)}`;
+  },
+  async exchangeCode({ code, redirectUri }) {
+    const d = await slackApi("oauth.v2.access", null, new URLSearchParams({
+      code, redirect_uri: redirectUri, client_id: env("SLACK_CLIENT_ID"), client_secret: env("SLACK_CLIENT_SECRET"),
+    }));
+    return { access_token: d.access_token, scope: String(d.scope ?? "").replace(/,/g, " "), accountLabel: d.team?.name ? `${d.team.name} (Slack)` : "Slack workspace" };
+  },
+  async accountEmail() { return null; },
+  async revoke(token) { await slackApi("auth.revoke", token, {}).catch(() => {}); },
+  async listChannels(token) {
+    const out = [];
+    let cursor = "";
+    do {
+      const d = await slackApi("conversations.list", token, new URLSearchParams({ types: "public_channel,private_channel", exclude_archived: "true", limit: "200", ...(cursor ? { cursor } : {}) }));
+      for (const c of d.channels ?? []) out.push({ id: c.id, name: c.name, private: !!c.is_private, member: !!c.is_member });
+      cursor = d.response_metadata?.next_cursor ?? "";
+    } while (cursor && out.length < 1000);
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  },
+  async post(token, channel, { title, text, url }) {
+    const lines = [`*${title}*`, text, url ? `<${url}|Open in ExecUI>` : null].filter(Boolean);
+    await slackApi("chat.postMessage", token, { channel, text: lines.join("\n"), unfurl_links: false });
+  },
+};
+
+// ── Zoom ─────────────────────────────────────────────────────────────────────
+/**
+ * Each person connects their own Zoom, so meetings are hosted by them. The
+ * only thing ExecUI does with it is create a meeting when asked.
+ */
+const zoomBasic = () => `Basic ${Buffer.from(`${env("ZOOM_CLIENT_ID")}:${env("ZOOM_CLIENT_SECRET")}`).toString("base64")}`;
+const zoom = {
+  id: "zoom",
+  label: "Zoom",
+  configured: () => !!(env("ZOOM_CLIENT_ID") && env("ZOOM_CLIENT_SECRET")),
+  // Zoom's granular scopes; override with ZOOM_SCOPES if the app uses classic ones.
+  get scopes() { return (env("ZOOM_SCOPES") ?? "meeting:write:meeting user:read:user").split(/[\s,]+/).filter(Boolean); },
+  purposes: ["personal"],
+  syncs: false,
+  scopesFor() { return this.scopes; },
+  authorizeUrl({ redirectUri, state, codeChallenge }) {
+    const q = { response_type: "code", client_id: env("ZOOM_CLIENT_ID"), redirect_uri: redirectUri, state, code_challenge: codeChallenge, code_challenge_method: "S256" };
+    return `https://zoom.us/oauth/authorize?${new URLSearchParams(q)}`;
+  },
+  exchangeCode({ code, redirectUri, codeVerifier }) {
+    return call("https://zoom.us/oauth/token", {
+      method: "POST", headers: { Authorization: zoomBasic() },
+      form: { grant_type: "authorization_code", code, redirect_uri: redirectUri, code_verifier: codeVerifier },
+    });
+  },
+  refresh(refreshToken) {
+    return call("https://zoom.us/oauth/token", { method: "POST", headers: { Authorization: zoomBasic() }, form: { grant_type: "refresh_token", refresh_token: refreshToken } });
+  },
+  async accountEmail(token) {
+    const me = await call("https://api.zoom.us/v2/users/me", { token });
+    return String(me?.email ?? "").toLowerCase() || null;
+  },
+  async revoke(token) {
+    await call("https://zoom.us/oauth/revoke", { method: "POST", headers: { Authorization: zoomBasic() }, form: { token } }).catch(() => {});
+  },
+  /** Create a scheduled meeting hosted by the connected person. */
+  async createMeeting(token, { topic, start, durationMin = 30 }) {
+    const m = await call("https://api.zoom.us/v2/users/me/meetings", {
+      method: "POST", token,
+      json: {
+        topic: oneLine(topic).slice(0, 200), type: 2, start_time: new Date(start).toISOString().replace(/\.\d{3}Z$/, "Z"),
+        duration: Math.max(15, Math.min(480, Math.round(durationMin))), timezone: "UTC",
+        settings: { join_before_host: false, waiting_room: true },
+      },
+    });
+    return { id: String(m.id), joinUrl: m.join_url };
+  },
+};
+
+export const PROVIDERS = { google, microsoft, slack, zoom };
 export const getProvider = (id) => PROVIDERS[id] ?? null;
 
 /** What the UI shows: which providers this deployment can actually connect. */
 export const providerList = () => Object.values(PROVIDERS).map((p) => ({
-  id: p.id, label: p.label, configured: p.configured(),
+  id: p.id, label: p.label, configured: p.configured(), purposes: p.purposes,
 }));

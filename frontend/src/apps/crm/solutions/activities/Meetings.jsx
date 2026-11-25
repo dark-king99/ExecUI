@@ -3,7 +3,8 @@ import { CalendarClock, Plus, Video, User } from "lucide-react";
 import StatusBadge from "../../../../components/ui/StatusBadge";
 import { useToast } from "../../../../components/ui/Toast";
 import { useApi, useMutation } from "../../../../hooks/useApi";
-import { crm } from "../../../../services/api";
+import { crm, connections } from "../../../../services/api";
+import { useUser } from "../../../../context/UserContext";
 import { SolutionShell, MetricGrid, Section, Loading, Modal, Field, TextInput, PrimaryBtn, GhostBtn, fmtNum, fmtDate } from "../../components/crm-ui";
 
 const STATUS_VARIANT = { scheduled: "info", completed: "success", cancelled: "danger" };
@@ -18,6 +19,17 @@ export default function Meetings() {
     onSuccess: () => { toast({ message: "Meeting scheduled", type: "success" }); setShowModal(false); setForm({ title: "", scheduledAt: "" }); refetch(); },
     onError: (e) => setErr(e?.message ?? "Failed"),
   });
+
+  const { user } = useUser();
+  const [zooming, setZooming] = useState(null);
+  // Creates the meeting in the signed-in person's own Zoom; the server explains
+  // if Zoom isn't connected.
+  const addZoom = async (m) => {
+    setZooming(m.id);
+    try { await connections.zoom.createMeeting(m.id); toast({ message: "Zoom meeting created", type: "success" }); refetch(); }
+    catch (e) { toast({ message: e.message, type: "error" }); }
+    finally { setZooming(null); }
+  };
 
   const all = meetings ?? [];
   const upcoming = all.filter((m) => m.status === "scheduled");
@@ -54,6 +66,16 @@ export default function Meetings() {
                     {m.owner && <span className="inline-flex items-center gap-1"><User size={11} />{m.owner}</span>}
                   </div>
                 </div>
+                {m.meetingUrl ? (
+                  <a href={m.meetingUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 hover:bg-sky-100 dark:bg-sky-500/10 dark:text-sky-300">
+                    <Video size={12} /> Join
+                  </a>
+                ) : m.status === "scheduled" && m.ownerId === (user?.id ?? user?.userId) && (
+                  <button type="button" disabled={zooming === m.id} onClick={() => addZoom(m)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:border-sky-400 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300">
+                    <Video size={12} /> {zooming === m.id ? "Creating…" : "Add Zoom"}
+                  </button>
+                )}
                 <StatusBadge label={m.status} variant={STATUS_VARIANT[m.status] ?? "neutral"} />
               </div>
             ))}

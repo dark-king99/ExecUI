@@ -7,6 +7,7 @@ import { Plug, Plus, Trash2, Loader2, AlertCircle, Lock, ShieldCheck, Zap, KeyRo
 import { useApi, useMutation } from "../../hooks/useApi";
 import { account } from "../../services/api";
 import { useUser } from "../../context/UserContext";
+import ChatChannels from "./ChatChannels";
 
 const KINDS = [
   { id: "slack", label: "Slack" },
@@ -82,6 +83,8 @@ export default function Integrations() {
           </button>
         }
       />
+
+      <ChatChannels />
 
       <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300">
         <ShieldCheck size={18} className="mt-0.5 shrink-0 text-emerald-500" />

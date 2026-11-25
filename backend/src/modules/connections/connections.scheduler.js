@@ -23,7 +23,8 @@ export async function runConnectionSync() {
     await pruneRequests().catch(() => {});
     const rows = await runUnscoped(() => prisma.oAuthConnection.findMany({ where: { status: "active" } }));
     for (const c of rows) {
-      if (!getProvider(c.provider)?.configured()) continue; // credentials removed from the server
+      const p = getProvider(c.provider);
+      if (!p?.configured() || !p.syncs) continue; // nothing to sync (Slack, Zoom) or credentials removed
       const r = await syncConnection(c);
       totals.connections += 1;
       if (!r.ok) totals.failed += 1;

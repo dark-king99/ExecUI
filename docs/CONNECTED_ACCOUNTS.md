@@ -57,3 +57,47 @@ Compliance: retained 730 days by default, exportable, and deleted when a
 contact asks to be erased (matched as sender or recipient). Disconnecting
 revokes the Google grant (Microsoft has no revocation endpoint; people can
 remove the app at myapps.microsoft.com) and deletes the stored tokens.
+
+## Slack and Microsoft Teams (chat channels)
+
+Admins choose which events go to which channel under **Account → Integrations →
+Chat channels**: network alerts (device down, threshold crossed, collector
+offline), new help-desk tickets, approval requests, and workflow posts (the
+automation action *Post to a Slack or Teams channel*). Only a title, a short
+summary and a link back to ExecUI are posted — never ticket bodies or customer
+messages. Each channel has **Test**, on/off, and shows its last error.
+
+**Slack** — api.slack.com → Your Apps → Create app:
+1. OAuth & Permissions: bot scopes `chat:write`, `chat:write.public`,
+   `channels:read`, `groups:read`; redirect URL
+   `<OAUTH_REDIRECT_BASE>/api/connections/oauth/slack/callback`.
+2. Set `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET`. An admin then clicks
+   **Add to Slack**. The app can post and list channels; it can't read messages.
+   To post into a private channel, invite the app to it first.
+3. Offering it to other companies' workspaces means distributing the app,
+   which Slack reviews — a separate step from installing it in your own.
+
+**Teams** — no app registration. In the channel: **… → Workflows → "Post to a
+channel when a webhook request is received"**, copy the URL, paste it into
+ExecUI. It's stored encrypted and only Microsoft webhook hosts are accepted.
+
+## Zoom
+
+Each person connects their own Zoom under **Connected accounts**; CRM meetings
+then get an **Add Zoom** button, and ExecAI can schedule a meeting "with a
+Zoom link". Meetings are hosted by that person, with the waiting room on.
+
+marketplace.zoom.us → Develop → Build App → **General app (user-managed)**:
+scopes `meeting:write:meeting` and `user:read:user`, redirect URL
+`…/api/connections/oauth/zoom/callback`. Set `ZOOM_CLIENT_ID` /
+`ZOOM_CLIENT_SECRET`. Publishing to the Zoom App Marketplace for other
+companies is a review Zoom runs.
+
+## Google Drive and OneDrive
+
+Opt-in: tick **Include Drive / OneDrive** when connecting Google or Microsoft.
+ExecAI can then find files by name ("find the Acme proposal"), and Account 360
+can attach a found file to an account — as a link, so the file stays in Drive
+with its own sharing. Only names, links, owners and dates are read, never
+contents. Scopes: Google `drive.metadata.readonly` (restricted — same
+verification note as Gmail), Microsoft `Files.Read`.

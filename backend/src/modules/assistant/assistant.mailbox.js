@@ -14,7 +14,10 @@
 import { getProvider } from "../connections/providers.js";
 import { accessTokenFor } from "../connections/connections.service.js";
 
-export const MAILBOX_TOOL_NAMES = ["search_my_email", "list_my_calendar"];
+import { canSearchFiles } from "../connections/connections.service.js";
+import { searchMyFiles } from "../connections/workspace.service.js";
+
+export const MAILBOX_TOOL_NAMES = ["search_my_email", "list_my_calendar", "search_my_files"];
 const MAX_RESULTS = 10;
 
 export function mailboxTools(mailbox) {
@@ -53,6 +56,19 @@ export function mailboxTools(mailbox) {
         },
       },
     },
+    ...(canSearchFiles(mailbox) ? [{
+      type: "function",
+      function: {
+        name: "search_my_files",
+        description: `Find files by name in the signed-in user's own ${mailbox.provider === "google" ? "Google Drive" : "OneDrive"}. Returns names, links, owners and dates — never file contents. Read-only.`,
+        parameters: {
+          type: "object",
+          properties: { query: { type: "string", minLength: 2, maxLength: 100 }, limit: { type: "integer", minimum: 1, maximum: MAX_RESULTS } },
+          required: ["query"],
+          additionalProperties: false,
+        },
+      },
+    }] : []),
   ];
 }
 
@@ -83,6 +99,18 @@ export async function runMailboxTool(name, args, { connection }) {
       summary: `Found ${rows.length} email${rows.length === 1 ? "" : "s"} in your mailbox.`,
       visualization: { kind: "records", resource: "email", title: "Your email", total: rows.length, rows },
       modelOutput: rows,
+    };
+  }
+
+  if (name === "search_my_files") {
+    if (Object.keys(args).some((k) => !["query", "limit"].includes(k))) throw new Error("File search takes `query` and `limit`.");
+    const rows = await searchMyFiles({ tenantId: connection.tenantId, userId: connection.userId }, args.query, { max: Math.min(MAX_RESULTS, Number(args.limit) || 5) });
+    return {
+      action: "read",
+      resource: "files",
+      summary: `Found ${rows.length} file${rows.length === 1 ? "" : "s"}.`,
+      visualization: { kind: "records", resource: "files", title: "Your files", total: rows.length, rows: rows.map(({ id, ...r }) => r) },
+      modelOutput: rows.map(({ id, ...r }) => r),
     };
   }
 

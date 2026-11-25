@@ -14,7 +14,7 @@ import { useMemo, useState } from "react";
 import { Card, CardBody } from "../ui/Card";
 import { useApi } from "../../hooks/useApi";
 import { useToast } from "../ui/Toast";
-import { workflows } from "../../services/api";
+import { workflows, connections } from "../../services/api";
 import { Link } from "react-router-dom";
 import {
   Zap, Plus, X, Trash2, Play, Pause, FlaskConical, History, AlertCircle,
@@ -37,6 +37,23 @@ function Field({ label, children, hint }) {
       {children}
       {hint && <span className="mt-1 block text-[11px] text-slate-400">{hint}</span>}
     </label>
+  );
+}
+
+// ── "Post to a Slack or Teams channel" ───────────────────────────────────────
+// Channels come from Account → Integrations → Chat channels.
+function ChatActionEditor({ action, setField }) {
+  const { data } = useApi(() => connections.chat.get(), [], { cacheKey: "chat:routes" });
+  const routes = data?.routes ?? [];
+  return (
+    <div className="space-y-1.5">
+      <select className={input} value={action.routeId || ""} onChange={(e) => setField("routeId", e.target.value)}>
+        <option value="">Choose a channel…</option>
+        {routes.map((r) => <option key={r.id} value={r.id}>{r.provider === "slack" ? "Slack" : "Teams"} · {r.label}</option>)}
+      </select>
+      {data && !routes.length && <p className="text-[11px] text-slate-400">No channels yet — add one in Account → Integrations → Chat channels.</p>}
+      <textarea className={cls(input, "min-h-16")} placeholder={"First line is the headline, e.g. Deal {{record.name}} reached negotiation"} value={action.text || ""} onChange={(e) => setField("text", e.target.value)} />
+    </div>
   );
 }
 
@@ -156,6 +173,8 @@ function ActionEditor({ action, catalog, triggerResource, onChange, onRemove }) 
           </button>
         </div>
       )}
+
+      {action.type === "post_chat" && <ChatActionEditor action={action} setField={setField} />}
     </div>
   );
 }

@@ -18,6 +18,7 @@
  *   • LLDP/CDP neighbours become links, which are the only thing the network
  *     map draws.
  */
+import { notifyChat } from "../connections/chat.service.js";
 import crypto from "crypto";
 import prisma from "../../config/database.js";
 import { runUnscoped, runWithTenant } from "../../lib/tenantContext.js";
@@ -150,6 +151,7 @@ async function raise(tenantId, device, kind, { title, message, severity }) {
   const open = await prisma.networkAlert.findFirst({ where: { tenantId, deviceId: device.id, kind, status: { not: "resolved" } } });
   if (open) return false;
   await prisma.networkAlert.create({ data: { tenantId, deviceId: device.id, kind, title, message, severity, status: "open" } });
+  notifyChat(tenantId, "network_alerts", { title: `${severity === "critical" ? "🔴" : "🟠"} ${title}`, text: message, link: "/network/alerts" });
   return true;
 }
 

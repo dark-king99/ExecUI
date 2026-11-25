@@ -7,6 +7,7 @@
  *   • drop metric samples past retention (hourly).
  * `NETWORK_SCHEDULER=off` disables it.
  */
+import { notifyChat } from "../connections/chat.service.js";
 import prisma from "../../config/database.js";
 import { runUnscoped } from "../../lib/tenantContext.js";
 import { log } from "../../lib/logger.js";
@@ -34,6 +35,7 @@ export async function checkCollectors(now = Date.now()) {
             message: `It last checked in at ${c.lastSeenAt.toISOString()}. Device readings from it are no longer current.`,
           },
         });
+        notifyChat(c.tenantId, "network_alerts", { title: `🔴 Collector "${c.name}" is offline`, text: `Last check-in ${c.lastSeenAt.toISOString()}.`, link: "/network/config/settings" });
         raised += 1;
       } else if (!offline && open) {
         await prisma.networkAlert.update({ where: { id: open.id }, data: { status: "resolved", resolvedAt: new Date() } });

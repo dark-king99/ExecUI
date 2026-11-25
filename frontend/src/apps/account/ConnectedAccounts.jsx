@@ -19,7 +19,8 @@ import { useUser } from "../../context/UserContext";
 import { connections as api } from "../../services/api";
 
 const when = (d) => (d ? new Date(d).toLocaleString() : "never");
-const PROVIDER_NAME = { google: "Google", microsoft: "Microsoft" };
+const PROVIDER_NAME = { google: "Google", microsoft: "Microsoft", slack: "Slack", zoom: "Zoom" };
+const MAILBOX = ["google", "microsoft"];
 
 function Toggle({ checked, onChange, label, disabled }) {
   return (
@@ -35,6 +36,7 @@ function Toggle({ checked, onChange, label, disabled }) {
 
 function ConnectionCard({ connection, busy, onSync, onDisconnect, onToggle }) {
   const personal = connection.purpose === "personal";
+  const mailbox = MAILBOX.includes(connection.provider);
   const needsReauth = connection.status !== "active";
   return (
     <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
@@ -51,24 +53,29 @@ function ConnectionCard({ connection, busy, onSync, onDisconnect, onToggle }) {
         Last synced {when(connection.lastSyncAt)}
         {connection.lastError && <span className="block text-amber-600 dark:text-amber-400">{connection.lastError}</span>}
       </p>
-      {!personal && (
+      {connection.purpose === "support_inbox" && (
         <p className={`mt-1 text-xs ${connection.canSend ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
           {connection.canSend
             ? "Ticket replies are sent from this mailbox, in the customer's email thread."
             : "Ticket replies come from ExecUI's own address. Reconnect and allow sending to reply from this mailbox."}
         </p>
       )}
-      {personal && (
+      {personal && mailbox && (
+        <p className={`mt-1 text-xs ${connection.canSearchFiles ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`}>
+          {connection.canSearchFiles ? `${connection.provider === "google" ? "Drive" : "OneDrive"} file search is on.` : "File search is off — reconnect with “Include Drive / OneDrive” to turn it on."}
+        </p>
+      )}
+      {personal && mailbox && (
         <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 dark:border-slate-800">
           <Toggle label="Log emails with CRM contacts" checked={connection.logEmails} disabled={busy} onChange={() => onToggle("logEmails")} />
           <Toggle label="Log meetings with CRM contacts" checked={connection.logMeetings} disabled={busy} onChange={() => onToggle("logMeetings")} />
         </div>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
-        <button type="button" onClick={onSync} disabled={busy || needsReauth}
+        {onSync && <button type="button" onClick={onSync} disabled={busy || needsReauth}
           className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:border-indigo-400 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300">
           {busy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} Sync now
-        </button>
+        </button>}
         <button type="button" onClick={onDisconnect} disabled={busy}
           className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:border-red-400 hover:text-red-600 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300">
           <Unplug size={12} /> Disconnect
@@ -78,10 +85,10 @@ function ConnectionCard({ connection, busy, onSync, onDisconnect, onToggle }) {
   );
 }
 
-function ConnectButtons({ providers, purpose, onConnect, busyKey, connectedProviders = [] }) {
+function ConnectButtons({ providers, purpose, onConnect, busyKey, connectedProviders = [], only = null }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {providers.map((p) => {
+      {providers.filter((p) => (p.purposes ?? ["personal"]).includes(purpose) && (!only || only.includes(p.id))).map((p) => {
         const key = `${p.id}:${purpose}`;
         const already = connectedProviders.includes(p.id);
         return (
@@ -105,6 +112,7 @@ export default function ConnectedAccounts() {
   const [params, setParams] = useSearchParams();
   const { data, loading, error, refetch } = useApi(() => api.list(), []);
   const [busy, setBusy] = useState(null);
+  const [withFiles, setWithFiles] = useState(false);
 
   // The server's redirect after Google/Microsoft: report it once, then clean the URL.
   useEffect(() => {
@@ -118,7 +126,8 @@ export default function ConnectedAccounts() {
 
   const providers = data?.providers ?? [];
   const list = data?.connections ?? [];
-  const personal = list.filter((c) => c.purpose === "personal");
+  const personal = list.filter((c) => c.purpose === "personal" && MAILBOX.includes(c.provider));
+  const zoomConn = list.find((c) => c.purpose === "personal" && c.provider === "zoom") ?? null;
   const supportInbox = list.find((c) => c.purpose === "support_inbox") ?? null;
   const anyConfigured = providers.some((p) => p.configured);
 
@@ -138,7 +147,8 @@ export default function ConnectedAccounts() {
   };
 
   const connect = async (provider, purpose) => {
-    const result = await run(`${provider}:${purpose}`, () => api.start(provider, purpose));
+    const features = purpose === "personal" && MAILBOX.includes(provider) && withFiles ? ["files"] : [];
+    const result = await run(`${provider}:${purpose}`, () => api.startWith(provider, purpose, features));
     if (result?.url) window.location.href = result.url; // off to Google / Microsoft
   };
   const sync = (c) => run(c.id, async () => {
@@ -182,10 +192,26 @@ export default function ConnectedAccounts() {
                   ))}
                 </div>
               )}
+              <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                <input type="checkbox" checked={withFiles} onChange={(e) => setWithFiles(e.target.checked)} />
+                Include Drive / OneDrive — let ExecAI and Account 360 find your files by name (names and links only, never contents)
+              </label>
               <ConnectButtons providers={providers} purpose="personal" onConnect={connect} busyKey={busy}
-                connectedProviders={personal.map((c) => c.provider)} />
+                connectedProviders={personal.map((c) => c.provider)} only={MAILBOX} />
             </>
           )}
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader title="Zoom" subtitle="Add Zoom links to your CRM meetings" icon={CalendarDays} />
+        <CardBody className="space-y-3">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Meetings are created in your own Zoom account, hosted by you — from a CRM meeting, or by asking ExecAI to schedule one with a Zoom link.
+          </p>
+          {zoomConn && <ConnectionCard connection={zoomConn} busy={busy === zoomConn.id} onDisconnect={() => disconnect(zoomConn)} />}
+          <ConnectButtons providers={providers} purpose="personal" onConnect={connect} busyKey={busy}
+            connectedProviders={zoomConn ? ["zoom"] : []} only={["zoom"]} />
         </CardBody>
       </Card>
 
@@ -202,7 +228,7 @@ export default function ConnectedAccounts() {
               <ConnectionCard connection={supportInbox} busy={busy === supportInbox.id}
                 onSync={() => sync(supportInbox)} onDisconnect={() => disconnect(supportInbox)} />
             )}
-            <ConnectButtons providers={providers} purpose="support_inbox" onConnect={connect} busyKey={busy}
+            <ConnectButtons providers={providers} purpose="support_inbox" onConnect={connect} busyKey={busy} only={MAILBOX}
               connectedProviders={supportInbox ? [supportInbox.provider] : []} />
             <p className="text-xs text-slate-400">Sign in as the support mailbox itself when the provider asks which account to use.</p>
           </CardBody>

@@ -1068,7 +1068,10 @@ export const listMeetings = async (tenantId, params = {}) => {
     id: m.id, title: m.notes ?? "Meeting", notes: m.notes,
     scheduledAt: m.scheduled_date, status: m.status,
     owner: m.user ? `${m.user.firstName} ${m.user.lastName}` : null,
+    ownerId: m.userId,
     type: m.follow_up_type,
+    meetingUrl: m.meetingUrl ?? null,
+    meetingProvider: m.meetingProvider ?? null,
   }));
 };
 

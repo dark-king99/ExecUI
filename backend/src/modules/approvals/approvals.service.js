@@ -11,6 +11,7 @@
  * with its author and comment, and a decision can never be cast twice by the
  * same person on the same step (enforced by a unique index).
  */
+import { notifyChat } from "../connections/chat.service.js";
 import prisma from "../../config/database.js";
 import { runWithTenant } from "../../lib/tenantContext.js";
 import { emitDomainEvent } from "../../lib/domainEvents.js";
@@ -98,6 +99,11 @@ export async function createRequest({
   );
 
   await notifyStep(tenantId, request, 0);
+  notifyChat(tenantId ?? request.tenantId, "approvals", {
+    title: `Approval requested: ${request.title}`,
+    text: request.summary ?? (recordLabel ? `For ${recordLabel}` : ""),
+    link: `/approvals?request=${request.id}`,
+  });
   return shape(request);
 }
 
