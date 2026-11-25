@@ -1,7 +1,8 @@
 import prisma from "../../config/database.js";
 import { encryptSecret, decryptSecret, last4 } from "../../lib/secrets.js";
 
-const KINDS = ["api", "webhook", "slack", "custom"];
+// "api" and "webhook" connections were removed; rows saved with them stay readable.
+const KINDS = ["slack", "custom"];
 const AUTH_TYPES = ["bearer", "header", "none"];
 
 // Masked view — the decrypted secret is NEVER returned to the client.
@@ -68,7 +69,7 @@ export async function create(tenantId, userId, body = {}) {
   const enc = secret ? encryptSecret(secret) : {};
   const c = await prisma.integrationConnection.create({
     data: {
-      tenantId, name: name.trim(), kind: KINDS.includes(kind) ? kind : "api", baseUrl: baseUrl.trim(),
+      tenantId, name: name.trim(), kind: KINDS.includes(kind) ? kind : "custom", baseUrl: baseUrl.trim(),
       authType: at, authHeader: at === "header" ? (authHeader || "X-API-Key") : null,
       secretCipher: enc.ciphertext ?? null, secretIv: enc.iv ?? null, secretTag: enc.tag ?? null,
       secretLast4: secret ? last4(secret) : null, createdById: userId ?? null,
@@ -112,21 +113,5 @@ export async function test(tenantId, id) {
     where: { id },
     data: { lastUsedAt: new Date(), lastStatus: result.ok ? `${result.status} OK` : `error: ${result.statusText}` },
   });
-  return result;
-}
-
-/**
- * Internal helper for the rest of the app to make an authenticated OUTBOUND
- * call through a stored connection (the secret is decrypted here, server-side).
- */
-export async function callExternal(tenantId, id, { method = "GET", path = "", body, headers } = {}) {
-  const c = await prisma.integrationConnection.findFirst({ where: { id, tenantId } });
-  if (!c) throw new Error("Connection not found");
-  if (c.status !== "active") throw new Error("Connection is disabled");
-  const { url, options } = buildRequest(c, { method, path, body, headers });
-  const result = await doFetch(url, options);
-  prisma.integrationConnection.update({
-    where: { id }, data: { lastUsedAt: new Date(), lastStatus: result.ok ? `${result.status} OK` : `error: ${result.statusText}` },
-  }).catch(() => {});
   return result;
 }
