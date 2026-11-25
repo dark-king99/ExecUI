@@ -10,7 +10,7 @@ const STATUS_VARIANT = { active: "success", draft: "neutral", building: "warning
 export default function Audiences() {
   const toast = useToast();
   const { data: audiences, loading, refetch } = useApi(() => marketing.audiences.list(), [], { pollingInterval: 60000 });
-  const { mutate: activate } = useMutation((id) => marketing.audiences.activate(id), { onSuccess: () => { toast({ message: "Audience activated for commerce", type: "success" }); refetch(); } });
+  const { mutate: activate } = useMutation((id) => marketing.audiences.activate(id), { onError: (e) => toast({ message: e?.message ?? "That didn't work", type: "error" }),  onSuccess: () => { toast({ message: "Audience activated for commerce", type: "success" }); refetch(); } });
 
   const all = audiences ?? [];
   const metrics = [

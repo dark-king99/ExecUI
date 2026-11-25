@@ -20,6 +20,14 @@ const RECORD_WRITES = {
 
 // Keys that gate screens rather than agent actions.
 const SCREEN_CAPABILITIES = {
+  "marketing.email.send": [
+    "Send, schedule, pause and cancel email campaigns to consented contacts",
+    "Send test emails to workspace members",
+  ],
+  "marketing.settings.manage": [
+    "Add and verify marketing sending domains",
+    "Set the postal address and default sender for marketing email",
+  ],
   "network.settings.manage": [
     "Create and revoke network collectors",
     "Change subnets, polling, SNMP and alert thresholds",
@@ -38,6 +46,10 @@ export const GRANTABLE = [
     description: "Create marketing campaigns. Starting one still needs a person in the Marketing module." },
   { key: "marketing.audience.write", group: "Marketing", label: "Draft audiences",
     description: "Create audience segments as drafts. Activating one stays manual." },
+  { key: "marketing.email.send", group: "Marketing", label: "Send marketing email",
+    description: "Send, schedule and stop email campaigns. Only contacts with recorded consent ever receive them." },
+  { key: "marketing.settings.manage", group: "Marketing", label: "Manage marketing settings",
+    description: "Sending domains and email settings for the organization." },
   { key: "marketing.experiment.write", group: "Marketing", label: "Draft experiments",
     description: "Create experiments as drafts. Starting one stays manual." },
   { key: "network.alerts.manage", group: "Network", label: "Acknowledge alerts",

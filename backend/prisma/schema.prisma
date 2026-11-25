@@ -148,6 +148,13 @@ model Tenant {
   networkFlowStats        NetworkFlowStat[]
   networkFlowConversations NetworkFlowConversation[]
   networkConfigBackups    NetworkConfigBackup[]
+  marketingConsents       MarketingConsent[]
+  marketingSuppressions   MarketingSuppression[]
+  marketingEvents         MarketingEvent[]
+  marketingDomains        MarketingSendingDomain[]
+  marketingEmailSettings  MarketingEmailSettings?
+  marketingDeliveries     MarketingEmailDelivery[]
+  audienceMembers         MarketingAudienceMember[]
 }
 
 // Per-tenant configuration, one row per key.
@@ -482,6 +489,12 @@ model Contact {
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
+
+  // Marketing references the CRM contact; it never keeps a copy of it.
+  marketingConsents  MarketingConsent[]
+  marketingEvents    MarketingEvent[]
+  audienceMembers    MarketingAudienceMember[]
+  emailDeliveries    MarketingEmailDelivery[]
 }
 
 model RolePermission {
@@ -840,6 +853,24 @@ model MarketingCampaign {
   roi         Float?
   startDate   DateTime?
   endDate     DateTime?
+  // ── Email execution (channel = "email") ─────────────────────────────────
+  // Status for email campaigns is set only by the engine:
+  // draft → scheduled → running ⇄ paused → completed | failed | cancelled.
+  subject         String?
+  previewText     String?
+  htmlBody        String?
+  textBody        String?
+  fromName        String?
+  fromLocalPart   String?   // "news" in news@<verified domain>
+  replyTo         String?
+  sendingDomainId String?
+  audienceId      String?
+  scheduledAt     DateTime?
+  sendStartedAt   DateTime?
+  sendCompletedAt DateTime?
+  lastError       String?
+  createdById     String?
+  deliveries      MarketingEmailDelivery[]
   tenantId    String
   tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now())
@@ -853,6 +884,11 @@ model MarketingAudience {
   size        Int      @default(0)
   status      String   @default("draft")
   description String?
+  // static: explicit members · dynamic: `definition` rules evaluated live
+  kind        String   @default("dynamic")
+  definition  Json?
+  lastCountAt DateTime?
+  members     MarketingAudienceMember[]
   tenantId    String
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
@@ -2606,4 +2642,147 @@ model NetworkConfigBackup {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, deviceId, takenAt])
+}
+
+// ── Marketing foundation ─────────────────────────────────────────────────────
+// Consent to receive marketing on a channel, per CRM contact. Marketing email is
+// sent ONLY to "subscribed". Every change records where it came from.
+model MarketingConsent {
+  id          String   @id @default(uuid())
+  tenantId    String
+  contactId   String
+  channel     String   // email
+  status      String   // subscribed | unsubscribed | bounced | complained
+  source      String   // form | import | manual | unsubscribe_link | provider
+  evidence    String?  // e.g. form name, import file, note
+  changedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, contactId, channel])
+  @@index([tenantId, channel, status])
+}
+
+// Addresses never to send to again in this organization (hard bounces,
+// complaints, manual blocks), whether or not they're CRM contacts.
+model MarketingSuppression {
+  id        String   @id @default(uuid())
+  tenantId  String
+  email     String
+  reason    String   // hard_bounce | complaint | manual
+  detail    String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
+}
+
+// The standardized marketing event stream. Analytics, scoring, attribution and
+// journeys read from here. `idempotencyKey` makes provider retries harmless.
+model MarketingEvent {
+  id             String   @id @default(uuid())
+  tenantId       String
+  type           String   // email.sent | email.delivered | email.opened | email.clicked | email.bounced | email.complained | email.unsubscribed | consent.changed | ...
+  channel        String?  // email | social | web | commerce | crm
+  contactId      String?
+  email          String?
+  campaignId     String?
+  deliveryId     String?
+  source         String   // engine | provider | user | import
+  properties     Json     @default("{}")
+  idempotencyKey String?
+  occurredAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, type, occurredAt])
+  @@index([tenantId, contactId, occurredAt])
+  @@index([campaignId, type])
+}
+
+// A domain the organization sends marketing email from, registered with the
+// email provider. Not usable until the provider reports it verified.
+model MarketingSendingDomain {
+  id               String    @id @default(uuid())
+  tenantId         String
+  domain           String
+  provider         String    // resend
+  providerDomainId String?
+  status           String    @default("pending") // pending | verified | failed
+  records          Json      @default("[]")      // DNS records to publish (SPF, DKIM, MX…)
+  dmarcFound       Boolean   @default(false)
+  lastCheckedAt    DateTime?
+  verifiedAt       DateTime?
+  createdById      String?
+  createdAt        DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, domain])
+}
+
+// Organization-wide email marketing settings.
+model MarketingEmailSettings {
+  tenantId      String   @id
+  postalAddress String?  // required in every marketing email (CAN-SPAM and similar laws)
+  defaultFromName String?
+  replyTo       String?
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// One row per recipient per campaign: the send queue and the delivery record.
+model MarketingEmailDelivery {
+  id                String    @id @default(uuid())
+  tenantId          String
+  campaignId        String
+  contactId         String
+  email             String
+  status            String    @default("queued") // queued | sending | sent | delivered | bounced | complained | failed | skipped
+  attempts          Int       @default(0)
+  nextAttemptAt     DateTime?
+  lockedAt          DateTime?
+  providerMessageId String?   @unique
+  lastError         String?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  openedAt          DateTime?
+  clickedAt         DateTime?
+  bouncedAt         DateTime?
+  complainedAt      DateTime?
+  unsubscribedAt    DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaign MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact  Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, contactId])
+  @@index([status, nextAttemptAt])
+  @@index([tenantId, campaignId, status])
+}
+
+// Explicit members of a static audience.
+model MarketingAudienceMember {
+  id         String   @id @default(uuid())
+  tenantId   String
+  audienceId String
+  contactId  String
+  source     String   @default("manual") // manual | import | journey | automation
+  addedAt    DateTime @default(now())
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  audience MarketingAudience @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+  contact  Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([audienceId, contactId])
 }

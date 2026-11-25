@@ -16,8 +16,8 @@ export default function Segments() {
   const { mutate: create, loading: creating } = useMutation((d) => marketing.audiences.create(d), {
     onSuccess: () => { toast({ message: "Segment created", type: "success" }); setShowModal(false); setForm({ name: "", type: "behavioral", size: "", description: "" }); refetch(); },
   });
-  const { mutate: activate } = useMutation((id) => marketing.audiences.activate(id), { onSuccess: () => { toast({ message: "Segment activated", type: "success" }); refetch(); } });
-  const { mutate: lookalike } = useMutation((id) => marketing.audiences.createLookalike(id), { onSuccess: () => { toast({ message: "Lookalike created", type: "success" }); refetch(); } });
+  const { mutate: activate } = useMutation((id) => marketing.audiences.activate(id), { onError: (e) => toast({ message: e?.message ?? "That didn't work", type: "error" }),  onSuccess: () => { toast({ message: "Segment activated", type: "success" }); refetch(); } });
+  const { mutate: lookalike } = useMutation((id) => marketing.audiences.createLookalike(id), { onError: (e) => toast({ message: e?.message ?? "That didn't work", type: "error" }),  onSuccess: () => { toast({ message: "Lookalike created", type: "success" }); refetch(); } });
 
   const all = audiences ?? [];
   const metrics = [
