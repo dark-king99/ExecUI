@@ -76,7 +76,11 @@ export default function Devices() {
                   <tr key={d.id} data-record-id={d.id} className={focus.className(d.id, "hover:bg-slate-50 dark:hover:bg-slate-800/40 transition")}>
                     <td className="px-5 py-3">
                       <div className="font-medium text-slate-900 dark:text-white">{d.name}</div>
-                      <div className="text-xs text-slate-400">{d.ip}{d.os ? ` · ${d.os}` : ""}</div>
+                      <div className="text-xs text-slate-400">{d.ip}{d.vendor ? ` · ${d.vendor}` : ""}{d.os ? ` · ${d.os}` : ""}</div>
+                      {/* Where this row's data comes from — a typed-in entry isn't a reading. */}
+                      <div className="mt-0.5 text-[10px] text-slate-400">
+                        {d.source === "collector" ? `Discovered · seen ${d.lastSeen}` : d.source === "monitoring" ? `From monitoring tool · seen ${d.lastSeen}` : "Entered by hand · not monitored"}
+                      </div>
                     </td>
                     <td className="px-5 py-3"><Pill color="sky">{d.type}</Pill></td>
                     <td className="px-5 py-3 text-slate-500">{d.location}</td>

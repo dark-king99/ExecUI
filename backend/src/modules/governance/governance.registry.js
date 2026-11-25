@@ -357,6 +357,17 @@ export const CATEGORIES = [
     note: "The record of how each contract reached its current status.",
   }),
 
+  cat("network_metric_samples", {
+    label: "Network metric history",
+    model: "networkMetricSample",
+    dateField: "at",
+    subject: null,
+    onErase: null,
+    defaultRetentionDays: 30,
+    pii: false,
+    note: "CPU, memory, traffic and reachability readings from collectors. Network settings also prune these on their own schedule.",
+  }),
+
   cat("workflow_runs", {
     label: "Automation run history",
     model: "workflowRun",

@@ -140,6 +140,10 @@ model Tenant {
   oauthRequests           OAuthRequest[]
   mailActivities          MailActivity[]
   supportEmails           SupportEmail[]
+  networkCollectors       NetworkCollector[]
+  networkLinks            NetworkLink[]
+  networkMetricSamples    NetworkMetricSample[]
+  networkSettings         NetworkSettings?
 }
 
 // Per-tenant configuration, one row per key.
@@ -664,8 +668,27 @@ model NetworkDevice {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // Where this device's data comes from. Only "collector" and "monitoring"
+  // devices have measured metrics; "manual" ones show what a person typed.
+  source        String    @default("manual") // manual | collector | monitoring
+  mac           String?
+  vendor        String?
+  sys_descr     String?
+  lastSeenAt    DateTime?
+  metricsAt     DateTime? // when cpu/mem/traffic were last measured
+  latency_ms    Float?
+  in_bps        Float?
+  out_bps       Float?
+  uptime_sec    Int?
+  snmp          Boolean   @default(false) // answered SNMP
+  collectorId   String?
+  externalRef   String? // id in the connected monitoring tool, e.g. "librenms:42"
+
   tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   alerts NetworkAlert[]
+
+  @@unique([tenantId, externalRef])
+  @@index([tenantId, ip_address])
 }
 
 model NetworkAlert {
@@ -678,6 +701,9 @@ model NetworkAlert {
   tenantId   String
   createdAt  DateTime  @default(now())
   resolvedAt DateTime?
+  // Set on alerts raised automatically from measurements ("unreachable",
+  // "cpu", "memory"), so one condition is one open alert, resolved when it clears.
+  kind       String?
 
   device NetworkDevice? @relation(fields: [deviceId], references: [id])
   tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -1005,6 +1031,10 @@ model NetworkAutomationJob {
   status      String    @default("pending") // pending | queued | running | success | failed
   lastRun     DateTime?
   duration    String?
+  // What actually runs it. Only "discovery" has a runner (the collector); a job
+  // without one can be planned but not run, and says so.
+  kind        String? // discovery
+  lastResult  String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -2370,4 +2400,97 @@ model SupportEmail {
   connection OAuthConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
 
   @@unique([connectionId, externalId])
+}
+
+// ── Network collection ───────────────────────────────────────────────────────
+// A collector is the small agent a customer runs inside their own network. It
+// finds devices, polls them over SNMP, discovers how they're cabled together
+// (LLDP/CDP), and reports here. It authenticates with a token shown once at
+// creation; only its SHA-256 hash is stored.
+model NetworkCollector {
+  id           String    @id @default(uuid())
+  tenantId     String
+  name         String
+  tokenHash    String    @unique
+  tokenPrefix  String
+  createdById  String?
+  hostname     String?
+  platform     String?
+  version      String?
+  lastSeenAt   DateTime?
+  lastReportAt DateTime?
+  lastError    String?
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+// A physical/logical connection between two devices, as reported by LLDP/CDP
+// or by a monitoring tool. The network map is drawn from these and nothing else.
+model NetworkLink {
+  id         String   @id @default(uuid())
+  tenantId   String
+  aDeviceId  String
+  aPort      String   @default("")
+  bDeviceId  String
+  bPort      String   @default("")
+  protocol   String // lldp | cdp | monitoring
+  source     String // collector | monitoring
+  lastSeenAt DateTime
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, aDeviceId, aPort, bDeviceId, bPort])
+  @@index([tenantId, lastSeenAt])
+}
+
+// One measurement of one device, kept for charts and trends (retention in settings).
+model NetworkMetricSample {
+  id         String   @id @default(uuid())
+  tenantId   String
+  deviceId   String
+  at         DateTime @default(now())
+  up         Boolean
+  cpu        Float?
+  mem        Float?
+  in_bps     Float?
+  out_bps    Float?
+  latency_ms Float?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, deviceId, at])
+  @@index([at])
+}
+
+// What the collectors do, per organization. Secrets are AES-256-GCM ciphertext.
+model NetworkSettings {
+  tenantId             String    @id
+  subnets              String[]  @default([])
+  pollingIntervalSec   Int       @default(60)
+  discoveryIntervalMin Int       @default(60)
+  snmpVersion          String    @default("v2c")
+  snmpCommunityCipher  String?
+  snmpCommunityIv      String?
+  snmpCommunityTag     String?
+  cpuThreshold         Int       @default(85)
+  memThreshold         Int       @default(90)
+  autoResolveAlerts    Boolean   @default(true)
+  alertEmail           String?
+  metricRetentionDays  Int       @default(30)
+  // Optional existing monitoring tool to import from.
+  monitoringTool       String? // librenms
+  monitoringUrl        String?
+  monitoringTokenCipher String?
+  monitoringTokenIv    String?
+  monitoringTokenTag   String?
+  monitoringLastSyncAt DateTime?
+  monitoringLastError  String?
+  updatedAt            DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }

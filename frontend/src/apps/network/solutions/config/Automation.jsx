@@ -12,7 +12,11 @@ export default function Automation() {
   const toast = useToast();
   const { data: jobs, loading, refetch } = useApi(() => network.automation.jobs(), [], { pollingInterval: 60000 });
   const { data: templates } = useApi(() => network.automation.templates(), [], { pollingInterval: 300000 });
-  const { mutate: run } = useMutation((id) => network.automation.run(id), { onSuccess: () => { toast({ message: "Job run recorded", type: "success" }); refetch(); } });
+  // Running queues the job for a collector; jobs with no runner are refused with the reason.
+  const { mutate: run } = useMutation((id) => network.automation.run(id), {
+    onSuccess: () => { toast({ message: "Queued — your collector picks it up within a minute", type: "success" }); refetch(); },
+    onError: (e) => toast({ message: e?.message ?? "Couldn't run", type: "error" }),
+  });
   const { mutate: addJob } = useMutation((templateId) => network.automation.create({ templateId }), { onSuccess: () => { toast({ message: "Job created from template", type: "success" }); refetch(); } });
   const { mutate: removeJob } = useMutation((id) => network.automation.remove(id), { onSuccess: () => { toast({ message: "Job removed", type: "warning" }); refetch(); } });
 
@@ -26,7 +30,7 @@ export default function Automation() {
   ];
 
   return (
-    <SolutionShell solutionId="config" title="Automation" subtitle="Schedule and run routine network operations">
+    <SolutionShell solutionId="config" title="Automation" subtitle="Routine network operations — Network Discovery runs on your collector today">
       <MetricGrid items={metrics} cols={4} loading={loading && all.length === 0} />
 
       <Section title="Automation Jobs" icon={Bot} pad={false}>
@@ -46,6 +50,7 @@ export default function Automation() {
                     <td className="px-5 py-3">
                       <div className="font-medium text-slate-900 dark:text-white">{j.name}</div>
                       <div className="text-xs text-slate-400">{j.description}</div>
+                      {j.lastResult && <div className="mt-0.5 text-xs text-slate-500">Last result: {j.lastResult}</div>}
                     </td>
                     <td className="px-5 py-3"><Pill color={TRIGGER_COLOR[j.trigger] ?? "slate"}>{j.trigger}</Pill></td>
                     <td className="px-5 py-3 font-mono text-xs text-slate-500">{j.targets}</td>
@@ -53,7 +58,9 @@ export default function Automation() {
                     <td className="px-5 py-3"><StatusBadge label={j.status} variant={STATUS_VARIANT[j.status] ?? "neutral"} dot /></td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-1.5">
-                        <button onClick={() => run(j.id)} className="text-xs flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg transition"><Play size={12} /> Run</button>
+                        {j.runnable
+                          ? <button onClick={() => run(j.id)} className="text-xs flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg transition"><Play size={12} /> Run</button>
+                          : <span className="text-[11px] text-slate-400" title="ExecUI has no runner for this job yet">Not runnable yet</span>}
                         <button onClick={() => removeJob(j.id)} title="Remove job" className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition"><Trash2 size={13} /></button>
                       </div>
                     </td>
@@ -79,7 +86,7 @@ export default function Automation() {
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{t.description}</p>
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="text-[11px] text-slate-400">{t.steps?.length ?? 0} steps · {t.trigger}</span>
+                  <span className={`text-[11px] ${t.runnable ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`}>{t.availability}</span>
                   <button onClick={() => addJob(t.id)} className="flex items-center gap-1 text-xs px-2.5 py-1 bg-violet-100 text-violet-700 hover:bg-violet-200 dark:bg-violet-500/15 dark:text-violet-300 rounded-lg transition"><Plus size={12} /> Use</button>
                 </div>
               </div>

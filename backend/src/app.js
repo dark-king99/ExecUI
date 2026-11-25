@@ -14,6 +14,7 @@ import {
 } from "./middleware/hardening.middleware.js";
 import routes from "./routes/index.js";
 import scimRoutes from "./modules/scim/scim.routes.js";
+import collectorRoutes from "./modules/network/collector.routes.js";
 import portalRoutes from "./modules/helpdesk/portal.routes.js";
 import { STORAGE_ROOT } from "./lib/storage.js";
 import { billingWebhook } from "./modules/account/account.controller.js";
@@ -84,6 +85,11 @@ app.post(
 // `application/scim+json`; this router parses and validates its own bodies and
 // authenticates with a bearer token rather than a session.
 app.use("/scim/v2", scimRoutes);
+
+// ── Network collectors (on-site agents) ──────────────────────────────────────
+// Mounted before the shared body parser: a report from a large network is
+// bigger than the app's 200 KB limit. Authenticated by collector token only.
+app.use("/api/collector", collectorRoutes);
 
 // ── Body parsing + universal input hygiene ───────────────────────────────────
 // The SAML HTTP-POST binding delivers the assertion as

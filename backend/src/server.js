@@ -13,6 +13,7 @@ import { startHrScheduler, stopHrScheduler } from "./modules/hr/hr.scheduler.js"
 import { startHelpdeskScheduler, stopHelpdeskScheduler } from "./modules/helpdesk/helpdesk.scheduler.js";
 import { startTenantScheduler, stopTenantScheduler } from "./modules/tenants/tenants.scheduler.js";
 import { startConnectionScheduler, stopConnectionScheduler } from "./modules/connections/connections.scheduler.js";
+import { startNetworkScheduler, stopNetworkScheduler } from "./modules/network/network.scheduler.js";
 const PORT = process.env.PORT || 5555;
 
 // ── Apply pending migrations on boot ──────────────────────────────────────────
@@ -98,6 +99,9 @@ startTenantScheduler();
 // Sync connected Google / Microsoft mailboxes and calendars.
 startConnectionScheduler();
 
+// Monitoring-tool import, collector health, metric retention.
+startNetworkScheduler();
+
 // Flush buffered analytics on graceful shutdown so nothing is lost.
 for (const sig of ["SIGTERM", "SIGINT"]) {
   process.on(sig, async () => {
@@ -108,6 +112,7 @@ for (const sig of ["SIGTERM", "SIGINT"]) {
     stopHrScheduler();
     stopHelpdeskScheduler();
     stopConnectionScheduler();
+    stopNetworkScheduler();
     stopTenantScheduler();
     await shutdownAnalytics();
     await shutdownPostHogLogs();

@@ -1,0 +1,14 @@
+{
+  "name": "execui-collector",
+  "version": "1.0.0",
+  "description": "ExecUI on-site network collector: discovery, SNMP polling and LLDP/CDP topology.",
+  "type": "module",
+  "bin": { "execui-collector": "bin/execui-collector.js" },
+  "scripts": {
+    "start": "node bin/execui-collector.js",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": { "node": ">=18" },
+  "license": "UNLICENSED",
+  "private": true
+}

@@ -1,10 +1,13 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import * as c from "./network.controller.js";
+import { requirePermission } from "../../middleware/permission.middleware.js";
 import connectivityRouter from "./connectivity/connectivity.routes.js";
 
 const router = express.Router();
 const auth = authenticate;
+// Collectors, settings and the monitoring connection: admins, or a role granted this.
+const manage = requirePermission("network.settings.manage");
 
 // ── Connectivity + profile (small-office layer — routes below unchanged) ──────
 router.use("/", connectivityRouter);
@@ -37,6 +40,13 @@ router.get("/traffic/anomalies",   auth, c.getTrafficAnomalies);
 router.get("/topology/regions", auth, c.getTopologyRegions);
 router.get("/topology/nodes",   auth, c.getTopologyNodes);
 router.get("/topology/links",   auth, c.getTopologyLinks);
+router.get("/topology/map",     auth, c.getTopologyMap);
+
+// ── Collection: on-site collectors + an existing monitoring tool ─────────────
+router.get("/collectors",              auth, c.listCollectors);
+router.post("/collectors",             auth, manage, c.createCollector);
+router.post("/collectors/:id/revoke",  auth, manage, c.revokeCollector);
+router.post("/monitoring/sync",        auth, manage, c.syncMonitoring);
 
 // ── Incidents ─────────────────────────────────────────────────────────────────
 router.get("/incidents",                  auth, c.listIncidents);
@@ -84,9 +94,9 @@ router.post("/policies/:id/check", auth, c.checkPolicy);
 // ── Settings ──────────────────────────────────────────────────────────────────
 router.get("/settings/profiles",       auth, c.listSettingsProfiles);
 router.get("/settings/profiles/:id",   auth, c.getSettingsProfile);
-router.put("/settings/profiles/:id",   auth, c.updateSettingsProfile);
+router.put("/settings/profiles/:id",   auth, manage, c.updateSettingsProfile);
 router.get("/settings",                auth, c.getNetworkSettings);
-router.put("/settings",                auth, c.updateNetworkSettings);
+router.put("/settings",                auth, manage, c.updateNetworkSettings);
 
 // ── Servers ───────────────────────────────────────────────────────────────────
 router.get("/servers",              auth, c.listServers);

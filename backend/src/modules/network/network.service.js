@@ -1,4 +1,8 @@
 import prisma from "../../config/database.js";
+import * as netSettings from "./network.settings.js";
+import { buildMap } from "./network.topology.js";
+
+const fail = (message, status = 409) => Object.assign(new Error(message), { status });
 
 // ── Dashboard Overview ────────────────────────────────────────────────────────
 
@@ -25,7 +29,8 @@ export async function getDashboardOverview(tenantId) {
     prisma.networkDevice.count({ where: { tenantId, status: { not: "up" } } }),
     prisma.networkAlert.count({ where: { tenantId, severity: "critical", status: "open" } }),
     prisma.networkIncident.count({ where: { tenantId, status: { notIn: ["resolved", "closed"] } } }),
-    prisma.networkDevice.aggregate({ where: { tenantId }, _avg: { cpu_util: true, mem_util: true } }),
+    // Averages over MEASURED devices only — a number someone typed in isn't a reading.
+    prisma.networkDevice.aggregate({ where: { tenantId, metricsAt: { not: null } }, _avg: { cpu_util: true, mem_util: true }, _count: { id: true } }),
     prisma.networkDevice.findMany({
       where: { tenantId, region: { not: null } },
       select: { region: true },
@@ -33,8 +38,9 @@ export async function getDashboardOverview(tenantId) {
     }),
   ]);
 
-  const avgCpu = Math.round(utilAgg._avg.cpu_util ?? 0);
-  const avgMem = Math.round(utilAgg._avg.mem_util ?? 0);
+  const measuredCount = utilAgg._count.id;
+  const avgCpu = measuredCount ? Math.round(utilAgg._avg.cpu_util ?? 0) : null;
+  const avgMem = measuredCount ? Math.round(utilAgg._avg.mem_util ?? 0) : null;
   const endpointsHealthyPct = endpointsTotal > 0
     ? Math.round((endpointsUp / endpointsTotal) * 100)
     : 100;
@@ -42,7 +48,7 @@ export async function getDashboardOverview(tenantId) {
   // Derive health statuses
   const networkStatus  = activeAlerts === 0 ? "Operational" : criticalAlerts > 0 ? "Degraded" : "Warning";
   const endpointHealth = endpointsHealthyPct >= 95 ? "Good" : endpointsHealthyPct >= 80 ? "Fair" : "At Risk";
-  const serverLoad     = avgCpu < 50 ? "Normal" : avgCpu < 75 ? "Moderate" : "High";
+  const serverLoad     = avgCpu == null ? "Not measured" : avgCpu < 50 ? "Normal" : avgCpu < 75 ? "Moderate" : "High";
   const securePosture  = criticalAlerts === 0 ? "Secure" : "At Risk";
 
   // Cloud control
@@ -58,6 +64,7 @@ export async function getDashboardOverview(tenantId) {
       cloud_regions: cloudRegions.length,
       avg_cpu_util: avgCpu,
       avg_mem_util: avgMem,
+      measured_devices: measuredCount,
     },
     health: {
       network_status: networkStatus,
@@ -78,7 +85,7 @@ export async function getDashboardOverview(tenantId) {
 
 export async function getDeviceUsage(tenantId) {
   const devices = await prisma.networkDevice.findMany({
-    where: { tenantId },
+    where: { tenantId, metricsAt: { not: null } }, // measured devices only
     orderBy: { cpu_util: "desc" },
     take: 8,
     select: {
@@ -123,10 +130,19 @@ function deviceShape(d) {
     type:       d.device_type,
     status:     d.status === "up" ? "Online" : d.status === "down" ? "Offline" : "Warning",
     location:   d.region ?? d.cloud_provider ?? "—",
-    lastSeen:   d.updatedAt ? new Date(d.updatedAt).toLocaleString() : "—",
-    cpu_util:   d.cpu_util,
-    mem_util:   d.mem_util,
+    // When a collector/monitoring tool last saw it; a manual entry was never "seen".
+    lastSeen:   d.lastSeenAt ? new Date(d.lastSeenAt).toLocaleString() : "—",
+    // Readings only when measured; a typed-in value isn't shown as a reading.
+    cpu_util:   d.metricsAt ? d.cpu_util : null,
+    mem_util:   d.metricsAt ? d.mem_util : null,
+    inMbps:     d.metricsAt && d.in_bps != null ? +(d.in_bps / 1e6).toFixed(2) : null,
+    outMbps:    d.metricsAt && d.out_bps != null ? +(d.out_bps / 1e6).toFixed(2) : null,
+    latencyMs:  d.latency_ms ?? null,
     os:         d.os,
+    vendor:     d.vendor ?? null,
+    mac:        d.mac ?? null,
+    source:     d.source,
+    measured:   !!d.metricsAt,
   };
 }
 
@@ -307,19 +323,22 @@ export async function createBackup(tenantId, data) {
 
 // ── Capacity (derived from devices) ──────────────────────────────────────────
 
+/** Capacity from measured devices only. */
 export async function getCapacitySummary(tenantId) {
-  const agg = await prisma.networkDevice.aggregate({
-    where: { tenantId },
-    _avg: { cpu_util: true, mem_util: true, bandwidth_mbps: true },
-    _count: { id: true },
-  });
-  const critical = await prisma.networkDevice.count({ where: { tenantId, cpu_util: { gte: 90 } } });
-  const warning  = await prisma.networkDevice.count({ where: { tenantId, cpu_util: { gte: 75, lt: 90 } } });
+  const measured = { tenantId, metricsAt: { not: null } };
+  const [agg, total, critical, warning] = await Promise.all([
+    prisma.networkDevice.aggregate({ where: measured, _avg: { cpu_util: true, mem_util: true, bandwidth_mbps: true }, _count: { id: true } }),
+    prisma.networkDevice.count({ where: { tenantId } }),
+    prisma.networkDevice.count({ where: { ...measured, cpu_util: { gte: 90 } } }),
+    prisma.networkDevice.count({ where: { ...measured, cpu_util: { gte: 75, lt: 90 } } }),
+  ]);
+  const n = agg._count.id;
   return {
-    total: agg._count.id,
-    avgCpu: Math.round(agg._avg.cpu_util ?? 0),
-    avgMem: Math.round(agg._avg.mem_util ?? 0),
-    avgBandwidthMbps: Math.round(agg._avg.bandwidth_mbps ?? 0),
+    total,
+    measured: n,
+    avgCpu: n ? Math.round(agg._avg.cpu_util ?? 0) : null,
+    avgMem: n ? Math.round(agg._avg.mem_util ?? 0) : null,
+    avgBandwidthMbps: n ? +(agg._avg.bandwidth_mbps ?? 0).toFixed(2) : null,
     critical,
     warning,
   };
@@ -327,7 +346,7 @@ export async function getCapacitySummary(tenantId) {
 
 export async function getCapacityLinks(tenantId) {
   return prisma.networkDevice.findMany({
-    where: { tenantId },
+    where: { tenantId, metricsAt: { not: null } },
     select: { id: true, hostname: true, cpu_util: true, mem_util: true, bandwidth_mbps: true, status: true },
     orderBy: { bandwidth_mbps: "desc" },
     take: 20,
@@ -336,45 +355,61 @@ export async function getCapacityLinks(tenantId) {
 
 // ── Traffic ───────────────────────────────────────────────────────────────────
 
+/**
+ * Traffic from measured interface counters only (collector SNMP or the
+ * monitoring tool). This used to split the total 58/42 into "inbound" and
+ * "outbound" and call 21% of it "internal" — numbers no device ever reported.
+ */
 export async function getTrafficOverview(tenantId) {
-  const agg = await prisma.networkDevice.aggregate({
-    where: { tenantId },
-    _sum: { bandwidth_mbps: true },
-    _avg: { bandwidth_mbps: true },
-    _count: { id: true },
+  const measured = await prisma.networkDevice.findMany({
+    where: { tenantId, metricsAt: { not: null }, OR: [{ in_bps: { not: null } }, { out_bps: { not: null } }] },
+    select: { in_bps: true, out_bps: true },
   });
-  const total   = +(agg._sum.bandwidth_mbps ?? 0).toFixed(1);
-  const inbound = +(total * 0.58).toFixed(1);
-  const outbound = +(total * 0.42).toFixed(1);
+  if (!measured.length) {
+    return {
+      measured: false, inboundMbps: null, outboundMbps: null, totalMbps: null,
+      kpis: [
+        { label: "Total Throughput", value: "—" }, { label: "Inbound", value: "—" },
+        { label: "Outbound", value: "—" }, { label: "Measured Devices", value: 0 },
+      ],
+      bandwidth: null,
+      note: "No device is reporting traffic yet. Deploy a collector with SNMP access, or connect a monitoring tool, in Network → Settings.",
+    };
+  }
+  const mbps = (bps) => +(bps / 1e6).toFixed(2);
+  const inbound = mbps(measured.reduce((t, d) => t + (d.in_bps ?? 0), 0));
+  const outbound = mbps(measured.reduce((t, d) => t + (d.out_bps ?? 0), 0));
+  const total = +(inbound + outbound).toFixed(2);
   return {
-    inboundMbps:  inbound,
-    outboundMbps: outbound,
-    totalMbps:    total,
+    measured: true, inboundMbps: inbound, outboundMbps: outbound, totalMbps: total,
     kpis: [
       { label: "Total Throughput", value: `${total} Mbps` },
-      { label: "Inbound",          value: `${inbound} Mbps` },
-      { label: "Outbound",         value: `${outbound} Mbps` },
-      { label: "Active Devices",   value: agg._count.id },
+      { label: "Inbound", value: `${inbound} Mbps` },
+      { label: "Outbound", value: `${outbound} Mbps` },
+      { label: "Measured Devices", value: measured.length },
     ],
-    bandwidth: { inbound: `${inbound} Mbps`, outbound: `${outbound} Mbps`, internal: `${+(total * 0.21).toFixed(1)} Mbps` },
+    bandwidth: { inbound: `${inbound} Mbps`, outbound: `${outbound} Mbps`, internal: null },
+    note: "Summed from interface counters on devices that report traffic. Each link is counted at every device that reports it.",
   };
 }
 
+/** Busiest measured devices. Volume over time isn't tracked, so there's no "bytes" figure. */
 export async function getTopTalkers(tenantId) {
   const devices = await prisma.networkDevice.findMany({
-    where:   { tenantId },
-    orderBy: { bandwidth_mbps: "desc" },
-    take:    10,
-    select:  { id: true, hostname: true, ip_address: true, bandwidth_mbps: true, device_type: true, status: true },
+    where: { tenantId, metricsAt: { not: null }, OR: [{ in_bps: { not: null } }, { out_bps: { not: null } }] },
+    select: { id: true, hostname: true, ip_address: true, in_bps: true, out_bps: true, device_type: true, status: true, source: true },
   });
-  const totalBw = devices.reduce((s, d) => s + (d.bandwidth_mbps ?? 0), 0) || 1;
-  return devices.map((d) => ({
-    ip:      d.ip_address,
-    hostname: d.hostname,
-    name:    d.hostname,
-    traffic: `${d.bandwidth_mbps?.toFixed(1) ?? 0} Mbps`,
-    bytes:   `${((d.bandwidth_mbps ?? 0) * 7.2).toFixed(0)} GB`,
-    percent: +(((d.bandwidth_mbps ?? 0) / totalBw) * 100).toFixed(1),
+  const rows = devices
+    .map((d) => ({ ...d, bps: (d.in_bps ?? 0) + (d.out_bps ?? 0) }))
+    .sort((a, b) => b.bps - a.bps)
+    .slice(0, 10);
+  const total = rows.reduce((t, d) => t + d.bps, 0) || 1;
+  return rows.map((d) => ({
+    ip: d.ip_address, hostname: d.hostname, name: d.hostname, source: d.source,
+    traffic: `${(d.bps / 1e6).toFixed(2)} Mbps`,
+    inMbps: +((d.in_bps ?? 0) / 1e6).toFixed(2), outMbps: +((d.out_bps ?? 0) / 1e6).toFixed(2),
+    bytes: null,
+    percent: +((d.bps / total) * 100).toFixed(1),
   }));
 }
 
@@ -424,48 +459,17 @@ export async function getTopologyRegions(tenantId) {
   return regions;
 }
 
-export async function getTopologyNodes(tenantId) {
-  const devices = await prisma.networkDevice.findMany({
-    where:   { tenantId },
-    orderBy: { device_type: "asc" },
-    select:  { id: true, hostname: true, ip_address: true, device_type: true, status: true, cloud_provider: true, region: true },
-  });
-  // Lay out devices in a grid, grouping on-prem vs cloud
-  const onprem = devices.filter(d => !d.cloud_provider);
-  const cloud  = devices.filter(d =>  d.cloud_provider);
-  const statusMap = { up: "ok", down: "down", degraded: "warn", maintenance: "warn" };
-  const typeMap   = { router: "router", switch: "switch", firewall: "router", server: "server", endpoint: "server", cloud: "cloud" };
-  const nodes = [];
-  onprem.forEach((d, i) => {
-    const col = i % 4, row = Math.floor(i / 4);
-    nodes.push({ id: d.id, label: d.hostname, name: d.hostname, type: typeMap[d.device_type] ?? "server", status: statusMap[d.status] ?? "ok", x: 70 + col * 90, y: 80 + row * 100, ip: d.ip_address });
-  });
-  cloud.forEach((d, i) => {
-    const col = i % 3, row = Math.floor(i / 3);
-    nodes.push({ id: d.id, label: d.hostname, name: d.hostname, type: typeMap[d.device_type] ?? "cloud", status: statusMap[d.status] ?? "ok", x: 460 + col * 90, y: 80 + row * 100, ip: d.ip_address });
-  });
-  return nodes;
+export async function getTopologyMap(tenantId) {
+  return buildMap(tenantId);
 }
 
+export async function getTopologyNodes(tenantId) {
+  return (await buildMap(tenantId)).nodes;
+}
+
+/** Real connections only (LLDP/CDP or the monitoring tool); never inferred. */
 export async function getTopologyLinks(tenantId) {
-  const devices = await prisma.networkDevice.findMany({
-    where:  { tenantId },
-    select: { id: true, device_type: true, cloud_provider: true, bandwidth_mbps: true },
-    take:   30,
-  });
-  const routers = devices.filter(d => ["router","switch","firewall"].includes(d.device_type));
-  const servers = devices.filter(d => !["router","switch","firewall"].includes(d.device_type));
-  const links = [];
-  // Connect each router/switch to 1-2 servers (inferred edges; no fabricated utilization)
-  servers.forEach((s, i) => {
-    const hub = routers[i % Math.max(routers.length, 1)] ?? devices[0];
-    links.push({ source: hub.id, target: s.id, utilization: null });
-  });
-  // Inter-router links
-  for (let i = 1; i < routers.length; i++) {
-    links.push({ source: routers[0].id, target: routers[i].id, utilization: null });
-  }
-  return links;
+  return (await buildMap(tenantId)).links;
 }
 
 // ── Incident Timeline ─────────────────────────────────────────────────────────
@@ -509,7 +513,7 @@ export async function getServiceHealth(tenantId, id) {
 // Pre-built automation recipes (product presets, not per-tenant data).
 const AUTOMATION_TEMPLATES = [
   { id: "tpl-backup",   name: "Nightly Config Backup",       category: "Backup",      trigger: "schedule", targets: "All devices",   description: "Back up the running config of every managed device each night and retain 30 days.", steps: ["Snapshot device configs", "Diff against last backup", "Store & retain 30 days"] },
-  { id: "tpl-discover", name: "Network Discovery",            category: "Inventory",   trigger: "schedule", targets: "All subnets",   description: "Sweep subnets and add newly discovered devices to inventory automatically.",        steps: ["Sweep subnets", "Identify device type", "Add to inventory"] },
+  { id: "tpl-discover", name: "Network Discovery",            category: "Inventory",   trigger: "manual",   targets: "Subnets in network settings", description: "Sweep the subnets in network settings now and add what answers to inventory. Runs on your collector.", steps: ["Sweep subnets", "Identify device type", "Add to inventory"], kind: "discovery" },
   { id: "tpl-reboot",   name: "Restart Degraded Servers",     category: "Remediation", trigger: "event",    targets: "Servers",       description: "Reboot servers that stay in a degraded state for more than 15 minutes.",             steps: ["Detect degraded status", "Notify owner", "Graceful reboot"] },
   { id: "tpl-patch",    name: "Patch Window",                 category: "Maintenance", trigger: "schedule", targets: "Endpoints",     description: "Apply approved patches to endpoints during the maintenance window.",                 steps: ["Pull approved patches", "Apply to targets", "Verify health"] },
   { id: "tpl-cert",     name: "Certificate Renewal Check",    category: "Security",    trigger: "schedule", targets: "Public services", description: "Check TLS certificates and raise an alert for any expiring within 30 days.",        steps: ["Enumerate certificates", "Check expiry", "Open alert if < 30 days"] },
@@ -524,6 +528,9 @@ function automationJobShape(j) {
     status: j.status,
     lastRun: j.lastRun ? new Date(j.lastRun).toLocaleString() : "Never",
     duration: j.duration ?? "—",
+    kind: j.kind ?? null,
+    runnable: j.kind === "discovery",
+    lastResult: j.lastResult ?? null,
   };
 }
 
@@ -532,8 +539,17 @@ export async function listAutomationJobs(tenantId) {
   return jobs.map(automationJobShape);
 }
 
+/**
+ * Only templates with a runner can run. Discovery runs on the collector; the
+ * rest need device credentials and actions ExecUI doesn't have yet, so they're
+ * listed as planned rather than offered as working.
+ */
 export async function listAutomationTemplates(_tenantId) {
-  return AUTOMATION_TEMPLATES;
+  return AUTOMATION_TEMPLATES.map((t) => ({
+    ...t,
+    runnable: t.kind === "discovery",
+    availability: t.kind === "discovery" ? "Runs on your collector" : "Not available yet — ExecUI has no runner for this",
+  }));
 }
 
 export async function createAutomationJob(tenantId, data = {}) {
@@ -547,21 +563,26 @@ export async function createAutomationJob(tenantId, data = {}) {
       trigger:     data.trigger     ?? tpl?.trigger     ?? "manual",
       targets:     data.targets     ?? tpl?.targets     ?? null,
       steps:       data.steps       ?? tpl?.steps       ?? [],
+      kind:        tpl?.kind ?? null,
       status:      "pending",
     },
   });
   return automationJobShape(job);
 }
 
+/**
+ * Queue a job for a runner. This used to mark every job "success" on the spot
+ * without doing anything. Now: discovery is queued for the collector, which
+ * runs it and reports back; anything without a runner is refused, saying why.
+ */
 export async function runAutomationJob(tenantId, id) {
   const job = await prisma.networkAutomationJob.findFirst({ where: { id, tenantId } });
   if (!job) throw new Error("Automation job not found");
-  const steps = Array.isArray(job.steps) ? job.steps : [];
-  // Record the run. Duration is derived from the step count (deterministic, not fabricated).
-  const duration = `${(steps.length * 0.6 + 0.4).toFixed(1)}s`;
-  const updated = await prisma.networkAutomationJob.update({
-    where: { id }, data: { status: "success", lastRun: new Date(), duration },
-  });
+  if (job.kind !== "discovery") throw fail("ExecUI can't run this job yet — there's no runner for it. Only Network Discovery runs today, on your collector.");
+  const online = await prisma.networkCollector.count({ where: { tenantId, revokedAt: null, lastSeenAt: { gte: new Date(Date.now() - 5 * 60_000) } } });
+  if (!online) throw fail("No collector is online to run this. Set one up in Network → Settings.");
+  if (job.status === "queued" || job.status === "running") return automationJobShape(job);
+  const updated = await prisma.networkAutomationJob.update({ where: { id }, data: { status: "queued" } });
   return automationJobShape(updated);
 }
 
@@ -587,48 +608,37 @@ export async function listPolicies(tenantId) {
   return [];
 }
 
+/** There are no policy checks to run, so there's no verdict — it used to answer "compliant". */
 export async function checkPolicy(tenantId, id) {
-  return { id, compliant: true, score: null, lastCheck: "just now" };
+  throw fail("No compliance checks are configured, so there's nothing to evaluate.");
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
-const DEFAULT_SETTINGS = {
-  snmpVersion: "v2c",
-  snmpCommunity: "public",
-  pollingInterval: 60,
-  alertRetentionDays: 90,
-  autoResolveAlerts: true,
-  notificationEmail: "ops@company.com",
-  timezone: "UTC",
-  maxDevices: 500,
-};
-
-const DEFAULT_PROFILES = [
-  { id: "prof-1", name: "Default",           description: "Standard monitoring for all devices",             pollingInterval: 60,  snmpVersion: "v2c", alertThresholds: { cpu: 85, mem: 90, bw: 90 } },
-  { id: "prof-2", name: "High-Frequency",    description: "Aggressive 15s polling for critical infrastructure", pollingInterval: 15,  snmpVersion: "v3",  alertThresholds: { cpu: 75, mem: 80, bw: 85 } },
-  { id: "prof-3", name: "Low-Bandwidth",     description: "5-minute polling for bandwidth-constrained sites",  pollingInterval: 300, snmpVersion: "v2c", alertThresholds: { cpu: 90, mem: 95, bw: 95 } },
-  { id: "prof-4", name: "Cloud Workloads",   description: "Tailored for cloud-native services with HTTP checks", pollingInterval: 30, snmpVersion: "v3",  alertThresholds: { cpu: 80, mem: 85, bw: 80 } },
-];
-
+// Saved per organization and used by the collectors (see network.settings.js).
 export async function getNetworkSettings(tenantId) {
-  return DEFAULT_SETTINGS;
+  return netSettings.getSettings(tenantId);
 }
 
 export async function updateNetworkSettings(tenantId, data) {
-  return { ...DEFAULT_SETTINGS, ...data, updated: true };
+  return netSettings.updateSettings(tenantId, data);
 }
 
-export async function listSettingsProfiles(tenantId) {
-  return DEFAULT_PROFILES;
+/** Presets a person can apply to the settings above. */
+export async function listSettingsProfiles(_tenantId) {
+  return netSettings.PRESETS;
 }
 
-export async function getSettingsProfile(tenantId, id) {
-  return DEFAULT_PROFILES.find(p => p.id === id) ?? DEFAULT_PROFILES[0];
+export async function getSettingsProfile(_tenantId, id) {
+  const preset = netSettings.PRESETS.find((p) => p.id === id);
+  if (!preset) throw fail("No such preset", 404);
+  return preset;
 }
 
-export async function updateSettingsProfile(tenantId, id, data) {
-  return { ...(DEFAULT_PROFILES.find(p => p.id === id) ?? DEFAULT_PROFILES[0]), ...data, updated: true };
+/** Apply a preset's intervals and thresholds to the saved settings. */
+export async function updateSettingsProfile(tenantId, id) {
+  const { pollingIntervalSec, discoveryIntervalMin, cpuThreshold, memThreshold } = await getSettingsProfile(tenantId, id);
+  return netSettings.updateSettings(tenantId, { pollingIntervalSec, discoveryIntervalMin, cpuThreshold, memThreshold });
 }
 
 // ── Server Management ─────────────────────────────────────────────────────────
@@ -733,25 +743,33 @@ export async function deleteServer(tenantId, id) {
   return { deleted: true };
 }
 
+/**
+ * ExecUI has no way to reboot a server, so it doesn't pretend to. (This used to
+ * set the status to "rebooting" and nothing else.) Raise a change request instead.
+ */
 export async function restartServer(tenantId, id) {
   await prisma.networkServer.findFirstOrThrow({ where: { id, tenantId } });
-  const s = await prisma.networkServer.update({
-    where: { id },
-    data: { status: "rebooting", cpu_util: 5, mem_util: 20 },
-  });
-  return serverShape(s);
+  throw fail("ExecUI can't restart servers. Raise a change request in Network → Changes, and restart it from the server itself.");
 }
 
+/**
+ * Copy measured CPU/memory from the same machine as seen by a collector or the
+ * monitoring tool. This used to write random numbers.
+ */
 export async function syncServerMetrics(tenantId, id) {
-  await prisma.networkServer.findFirstOrThrow({ where: { id, tenantId } });
-  const cpu  = Math.round(Math.random() * 80 + 5);
-  const mem  = Math.round(Math.random() * 70 + 15);
-  const disk = Math.round(Math.random() * 60 + 10);
-  const s = await prisma.networkServer.update({
-    where: { id },
-    data: { cpu_util: cpu, mem_util: mem, disk_util: disk, status: "online" },
+  const server = await prisma.networkServer.findFirstOrThrow({ where: { id, tenantId } });
+  const live = await prisma.networkDevice.findFirst({
+    where: { tenantId, ip_address: server.ip_address, metricsAt: { not: null } },
+    orderBy: { metricsAt: "desc" },
   });
-  return serverShape(s);
+  if (!live) {
+    throw fail(`No live metrics for ${server.ip_address}. Add its subnet to a collector (with SNMP enabled on the server) or connect a monitoring tool.`);
+  }
+  const s2 = await prisma.networkServer.update({
+    where: { id },
+    data: { cpu_util: live.cpu_util, mem_util: live.mem_util, status: live.status === "down" ? "offline" : "online" },
+  });
+  return { ...serverShape(s2), metricsAt: live.metricsAt, metricsSource: live.source };
 }
 
 export async function getServerMetrics(tenantId) {
@@ -780,7 +798,7 @@ export async function getMonitorOverview(tenantId) {
   const [devices, servers, alertCounts, incidents] = await Promise.all([
     prisma.networkDevice.findMany({
       where: { tenantId },
-      select: { id: true, hostname: true, device_type: true, status: true, cpu_util: true, mem_util: true, bandwidth_mbps: true, region: true, ip_address: true },
+      select: { id: true, hostname: true, device_type: true, status: true, cpu_util: true, mem_util: true, bandwidth_mbps: true, region: true, ip_address: true, metricsAt: true, source: true },
     }),
     prisma.networkServer.findMany({
       where: { tenantId },
@@ -802,12 +820,13 @@ export async function getMonitorOverview(tenantId) {
       label:    d.hostname,
       type:     d.device_type,
       status:   d.status === "up" ? "online" : d.status === "down" ? "offline" : "warning",
-      cpu:      d.cpu_util,
-      mem:      d.mem_util,
-      bw:       d.bandwidth_mbps,
+      cpu:      d.metricsAt ? d.cpu_util : null,
+      mem:      d.metricsAt ? d.mem_util : null,
+      bw:       d.metricsAt ? d.bandwidth_mbps : null,
       region:   d.region,
       ip:       d.ip_address,
       source:   "device",
+      dataSource: d.source,
     })),
     ...servers.map(s => ({
       id:     s.id,
@@ -838,8 +857,8 @@ export async function getMonitorOverview(tenantId) {
 
 export async function getMonitorMetrics(tenantId) {
   const devices = await prisma.networkDevice.findMany({
-    where: { tenantId },
-    select: { id: true, hostname: true, device_type: true, cpu_util: true, mem_util: true, bandwidth_mbps: true, status: true, region: true },
+    where: { tenantId, metricsAt: { not: null } }, // measured devices only
+    select: { id: true, hostname: true, device_type: true, cpu_util: true, mem_util: true, bandwidth_mbps: true, status: true, region: true, source: true, metricsAt: true },
     orderBy: { cpu_util: "desc" },
   });
   const servers = await prisma.networkServer.findMany({
@@ -1001,23 +1020,12 @@ export async function getFirewallZones(tenantId) {
   return { zones, summary: { activeRules, blockRules, totalDevices: devices + servers } };
 }
 
-export async function getFirewallLogs(tenantId) {
-  const rules = await prisma.firewallRule.findMany({
-    where: { tenantId, log_traffic: true, enabled: true },
-    select: { id: true, name: true, action: true, chain: true, protocol: true, src_ip: true, dst_ip: true },
-    orderBy: { updatedAt: "desc" },
-    take: 50,
-  });
-  return rules.map((r, i) => ({
-    id:       `log-${r.id}-${i}`,
-    rule:     r.name,
-    action:   r.action,
-    chain:    r.chain,
-    protocol: r.protocol,
-    src:      r.src_ip ?? "any",
-    dst:      r.dst_ip ?? "any",
-    time:     new Date(Date.now() - i * 60000).toISOString(),
-  }));
+/**
+ * ExecUI doesn't receive firewall logs. This used to list the rules with made-up
+ * timestamps a minute apart, presented as log lines.
+ */
+export async function getFirewallLogs(_tenantId) {
+  return [];
 }
 
 // ── Global Network Sync ───────────────────────────────────────────────────────

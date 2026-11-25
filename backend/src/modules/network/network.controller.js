@@ -1,4 +1,6 @@
 import * as svc from "./network.service.js";
+import * as collectors from "./network.collectors.js";
+import { syncMonitoring as runMonitoringSync } from "./network.monitoring.js";
 
 const tid = (req) => req.user.tenantId;
 
@@ -124,3 +126,10 @@ export const getFirewallLogs    = handle((req) => svc.getFirewallLogs(tid(req)))
 
 // Global sync
 export const syncAllNetwork = handle((req) => svc.syncAllNetwork(tid(req)));
+
+// Topology map + collection
+export const getTopologyMap  = handle((req) => svc.getTopologyMap(tid(req)));
+export const listCollectors  = handle((req) => collectors.listCollectors(tid(req)));
+export const createCollector = handle((req) => collectors.createCollector(tid(req), req.user.userId, req.body ?? {}));
+export const revokeCollector = handle((req) => collectors.revokeCollector(tid(req), req.user.userId, req.params.id));
+export const syncMonitoring  = handle((req) => runMonitoringSync(tid(req)));

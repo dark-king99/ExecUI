@@ -601,6 +601,8 @@ export const network = {
     regions: () => get('/network/topology/regions'),
     nodes:   () => get('/network/topology/nodes'),
     links:   () => get('/network/topology/links'),
+    // Nodes + real links + layout in one call.
+    map:     () => get('/network/topology/map'),
   },
   incidents: {
     list:     (params) => get('/network/incidents', params),
@@ -640,6 +642,15 @@ export const network = {
   policies: {
     list:  ()   => get('/network/policies'),
     check: (id) => post(`/network/policies/${id}/check`),
+  },
+  // On-site collectors. create() returns { collector, token } — the token once.
+  collectors: {
+    list:   ()     => get('/network/collectors'),
+    create: (data) => post('/network/collectors', data),
+    revoke: (id)   => post(`/network/collectors/${id}/revoke`, {}),
+  },
+  monitoring: {
+    sync: () => post('/network/monitoring/sync', {}),
   },
   settings: {
     get:      ()     => get('/network/settings'),
