@@ -1,5 +1,6 @@
 import express from "express";
 import emailRoutes from "./email/email.routes.js";
+import journeyRoutes from "./journeys/journeys.routes.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import * as c from "./marketing.controller.js";
 import socialRouter from "./social/social.routes.js";
@@ -8,6 +9,8 @@ const router = express.Router();
 
 // Email Studio engine, consent and audience rules (see email/email.routes.js).
 router.use("/", emailRoutes);
+// Journey Builder and Automation Studio (see journeys/journeys.routes.js).
+router.use("/journeys", journeyRoutes);
 const auth = authenticate;
 
 // ── Social media marketing (additive — core marketing routes below unchanged) ─
@@ -104,12 +107,6 @@ router.get("/cdp/sources",   auth, c.getCdpSources);
 router.post("/cdp/sources",  auth, c.createCdpSource);
 router.post("/cdp/segments", auth, c.createCdpSegment);
 
-// ── Flows ─────────────────────────────────────────────────────────────────
-router.get("/flows",              auth, c.listFlows);
-router.get("/flows/:id/stats",    auth, c.getFlowStats);
-router.get("/flows/:id",          auth, c.getFlow);
-router.post("/flows",             auth, c.createFlow);
-router.put("/flows/:id",          auth, c.updateFlow);
 
 // ── AI ────────────────────────────────────────────────────────────────────
 router.post("/ai/generate", auth, c.generateAi);

@@ -115,12 +115,5 @@ export const getCdpSources    = handle((req) => svc.getCdpSources(tid(req)));
 export const createCdpSource  = handle((req) => svc.createCdpSource(tid(req), req.body));
 export const createCdpSegment = handle((req) => svc.createCdpSegment(tid(req), req.body));
 
-// Flows
-export const listFlows    = handle((req) => svc.listFlows(tid(req)));
-export const getFlow      = handle((req) => svc.getFlow(tid(req), req.params.id));
-export const getFlowStats = handle((req) => svc.getFlowStats(tid(req), req.params.id));
-export const createFlow   = handle((req) => svc.createFlow(tid(req), req.body));
-export const updateFlow   = handle((req) => svc.updateFlow(tid(req), req.params.id, req.body));
-
 // AI
 export const generateAi = handle((req) => svc.generateAi(tid(req), req.body));

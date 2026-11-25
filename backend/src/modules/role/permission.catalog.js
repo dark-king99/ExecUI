@@ -24,6 +24,10 @@ const SCREEN_CAPABILITIES = {
     "Send, schedule, pause and cancel email campaigns to consented contacts",
     "Send test emails to workspace members",
   ],
+  "marketing.journey.manage": [
+    "Publish, pause, resume and archive journeys and automations",
+    "Enroll contacts into a journey, or remove them from one",
+  ],
   "marketing.settings.manage": [
     "Add and verify marketing sending domains",
     "Set the postal address and default sender for marketing email",
@@ -48,6 +52,8 @@ export const GRANTABLE = [
     description: "Create audience segments as drafts. Activating one stays manual." },
   { key: "marketing.email.send", group: "Marketing", label: "Send marketing email",
     description: "Send, schedule and stop email campaigns. Only contacts with recorded consent ever receive them." },
+  { key: "marketing.journey.manage", group: "Marketing", label: "Run journeys and automations",
+    description: "Publish, pause and archive journeys, and enroll contacts. Journey emails still only reach contacts with recorded consent." },
   { key: "marketing.settings.manage", group: "Marketing", label: "Manage marketing settings",
     description: "Sending domains and email settings for the organization." },
   { key: "marketing.experiment.write", group: "Marketing", label: "Draft experiments",

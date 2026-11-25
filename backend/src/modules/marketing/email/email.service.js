@@ -10,6 +10,11 @@
  *   failed     it couldn't run (e.g. the domain lost verification) — see lastError
  *   cancelled  stopped for good; unsent recipients skipped
  *
+ * A "triggered" campaign (mode) is a journey email: it has no audience and is
+ * never started. Activating it lets journeys send it, one delivery per journey
+ * step, through the same worker, consent checks and webhooks:
+ *   draft → active ⇄ paused → cancelled
+ *
  * Starting a campaign validates it, resolves the audience to contacts with
  * email consent and no suppression, and writes one delivery row per
  * recipient. Sending happens in the background worker, never in the request.
@@ -85,8 +90,8 @@ export async function checkDomain(tenantId, id) {
 export async function removeDomain(tenantId, id) {
   const d = await prisma.marketingSendingDomain.findFirst({ where: { id: String(id), tenantId } });
   if (!d) throw err("Domain not found", 404);
-  const inUse = await prisma.marketingCampaign.count({ where: { tenantId, sendingDomainId: d.id, status: { in: ["scheduled", "running", "paused"] } } });
-  if (inUse) throw err("A scheduled or running campaign uses this domain", 409);
+  const inUse = await prisma.marketingCampaign.count({ where: { tenantId, sendingDomainId: d.id, status: { in: ["scheduled", "running", "paused", "active"] } } });
+  if (inUse) throw err("A scheduled, running or active campaign uses this domain", 409);
   await emailProvider().deleteDomain(d.providerDomainId);
   await prisma.marketingSendingDomain.delete({ where: { id: d.id } });
   return { deleted: true };
@@ -102,8 +107,10 @@ async function load(tenantId, id) {
 export async function createEmailCampaign(tenantId, userId, body = {}) {
   const name = String(body.name ?? "").trim();
   if (!name) throw err("Give the campaign a name");
+  const mode = body.mode === "triggered" ? "triggered" : "batch";
   const data = pick(body);
-  return prisma.marketingCampaign.create({ data: { tenantId, ...data, name: name.slice(0, 160), channel: "email", status: "draft", objective: data.objective ?? "engagement", createdById: userId } });
+  if (mode === "triggered") data.audienceId = null;
+  return prisma.marketingCampaign.create({ data: { tenantId, ...data, mode, name: name.slice(0, 160), channel: "email", status: "draft", objective: data.objective ?? "engagement", createdById: userId } });
 }
 
 function pick(body) {
@@ -135,8 +142,8 @@ export async function problems(tenantId, c) {
   const domain = c.sendingDomainId ? await prisma.marketingSendingDomain.findFirst({ where: { id: c.sendingDomainId, tenantId } }) : null;
   if (!domain) out.push("Choose a sending domain.");
   else if (domain.status !== "verified") out.push(`The sending domain ${domain.domain} isn't verified yet.`);
-  const audience = c.audienceId ? await prisma.marketingAudience.findFirst({ where: { id: c.audienceId, tenantId } }) : null;
-  if (!audience) out.push("Choose an audience.");
+  const audience = c.mode !== "triggered" && c.audienceId ? await prisma.marketingAudience.findFirst({ where: { id: c.audienceId, tenantId } }) : null;
+  if (c.mode !== "triggered" && !audience) out.push("Choose an audience.");
   const settings = await getSettings(tenantId);
   if (!settings.postalAddress) out.push("Add your organization's postal address in Email settings (it's required in marketing email).");
   return { problems: out, domain, audience, settings };
@@ -145,6 +152,7 @@ export async function problems(tenantId, c) {
 export async function readiness(tenantId, id) {
   const c = await load(tenantId, id);
   const { problems: list, audience } = await problems(tenantId, c);
+  if (c.mode === "triggered") return { ready: list.length === 0, problems: list, audience: null, triggered: true };
   const preview = audience ? await previewAudience(tenantId, audience, await suppressedSet(tenantId)) : null;
   return { ready: list.length === 0 && (preview?.sendable ?? 0) > 0, problems: list, audience: preview ? { members: preview.members, sendable: preview.sendable } : null };
 }
@@ -176,6 +184,7 @@ export async function sendTest(tenantId, userId, id, { to } = {}) {
 
 export async function schedule(tenantId, id, at) {
   const c = await load(tenantId, id);
+  if (c.mode === "triggered") throw err("A journey email is sent by journeys, not scheduled. Activate it instead.", 409);
   if (c.status !== "draft") throw err(`Only a draft can be scheduled (this one is ${c.status}).`, 409);
   const when = new Date(at);
   if (Number.isNaN(when.getTime()) || when.getTime() < Date.now() + 60_000) throw err("Schedule it at least a minute from now");
@@ -197,6 +206,7 @@ export async function unschedule(tenantId, id) {
  */
 export async function start(tenantId, id, { from = ["draft"] } = {}) {
   const c = await load(tenantId, id);
+  if (c.mode === "triggered") throw err("A journey email is sent by journeys, not started. Activate it instead.", 409);
   if (!from.includes(c.status)) throw err(`A ${c.status} campaign can't be started.`, 409);
   const { problems: list, audience } = await problems(tenantId, c);
   if (list.length) {
@@ -218,7 +228,7 @@ export async function start(tenantId, id, { from = ["draft"] } = {}) {
   for (;;) {
     const page = await prisma.contact.findMany({ where, select: { id: true, email: true }, orderBy: { id: "asc" }, take: 1000, ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}) });
     if (!page.length) break;
-    const rows = page.filter((p) => isEmail(p.email)).map((p) => ({ tenantId, campaignId: c.id, contactId: p.id, email: p.email.trim().toLowerCase() }));
+    const rows = page.filter((p) => isEmail(p.email)).map((p) => ({ tenantId, campaignId: c.id, contactId: p.id, sendKey: p.id, email: p.email.trim().toLowerCase() }));
     if (rows.length) queued += (await prisma.marketingEmailDelivery.createMany({ data: rows, skipDuplicates: true })).count;
     cursor = page.at(-1).id;
   }
@@ -233,11 +243,31 @@ async function transition(tenantId, id, fromStatus, toStatus, extra = {}) {
   return c;
 }
 
-export const pause = (tenantId, id) => transition(tenantId, id, ["running"], "paused").then(() => ({ status: "paused" }));
-export const resume = (tenantId, id) => transition(tenantId, id, ["paused"], "running").then(() => ({ status: "running" }));
+export const pause = (tenantId, id) => transition(tenantId, id, ["running", "active"], "paused").then(() => ({ status: "paused" }));
+export async function resume(tenantId, id) {
+  const c = await load(tenantId, id);
+  const to = c.mode === "triggered" ? "active" : "running";
+  if (c.mode === "triggered") {
+    const { problems: list } = await problems(tenantId, c);
+    if (list.length) throw err(list.join(" "));
+  }
+  await transition(tenantId, id, ["paused"], to, { lastError: null });
+  return { status: to };
+}
+
+/** Let journeys send this journey email. Validated like a send. */
+export async function activate(tenantId, id) {
+  const c = await load(tenantId, id);
+  if (c.mode !== "triggered") throw err("Only a journey email can be activated. Send or schedule a regular campaign.", 409);
+  if (c.status !== "draft") throw err(`A ${c.status} journey email can't be activated.`, 409);
+  const { problems: list } = await problems(tenantId, c);
+  if (list.length) throw err(list.join(" "));
+  await prisma.marketingCampaign.update({ where: { id: c.id }, data: { status: "active", sendStartedAt: new Date(), lastError: null } });
+  return { status: "active" };
+}
 
 export async function cancel(tenantId, id) {
-  const c = await transition(tenantId, id, ["scheduled", "running", "paused"], "cancelled", { sendCompletedAt: new Date() });
+  const c = await transition(tenantId, id, ["scheduled", "running", "paused", "active"], "cancelled", { sendCompletedAt: new Date() });
   const skipped = await prisma.marketingEmailDelivery.updateMany({ where: { campaignId: c.id, status: "queued" }, data: { status: "skipped", lastError: "Campaign cancelled" } });
   return { status: "cancelled", skipped: skipped.count };
 }
@@ -245,12 +275,12 @@ export async function cancel(tenantId, id) {
 export async function duplicate(tenantId, userId, id) {
   const c = await load(tenantId, id);
   const copy = Object.fromEntries(EDITABLE.map((k) => [k, c[k]]));
-  return prisma.marketingCampaign.create({ data: { tenantId, ...copy, name: `${c.name} (copy)`.slice(0, 160), channel: c.channel, status: "draft", createdById: userId } });
+  return prisma.marketingCampaign.create({ data: { tenantId, ...copy, mode: c.mode, name: `${c.name} (copy)`.slice(0, 160), channel: c.channel, status: "draft", createdById: userId } });
 }
 
 export async function remove(tenantId, id) {
   const c = await load(tenantId, id);
-  if (["scheduled", "running", "paused"].includes(c.status)) throw err("Cancel the campaign before deleting it", 409);
+  if (["scheduled", "running", "paused", "active"].includes(c.status)) throw err("Cancel the campaign before deleting it", 409);
   await prisma.marketingCampaign.delete({ where: { id: c.id } });
   return { deleted: true };
 }
@@ -290,7 +320,7 @@ export async function deliveries(tenantId, id, { status, limit = 100 } = {}) {
 export async function listEmailCampaigns(tenantId) {
   return prisma.marketingCampaign.findMany({
     where: { tenantId, channel: "email" }, orderBy: { updatedAt: "desc" },
-    select: { id: true, name: true, status: true, subject: true, audienceId: true, scheduledAt: true, sendStartedAt: true, sendCompletedAt: true, lastError: true, updatedAt: true, createdAt: true },
+    select: { id: true, name: true, status: true, mode: true, subject: true, audienceId: true, scheduledAt: true, sendStartedAt: true, sendCompletedAt: true, lastError: true, updatedAt: true, createdAt: true },
   });
 }
 

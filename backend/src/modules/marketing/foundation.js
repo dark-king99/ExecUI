@@ -18,12 +18,22 @@ export const CONSENT_SOURCES = ["form", "import", "manual", "unsubscribe_link", 
 export const isEmail = (s) => /^[^@\s<>"]+@[^@\s<>"]+\.[^@\s<>"]+$/.test(String(s ?? "").trim());
 export const normEmail = (s) => String(s ?? "").trim().toLowerCase();
 
+// Listeners for newly recorded events (the journey engine). Fire-and-forget:
+// a listener can never fail the write that recorded the event.
+const listeners = new Set();
+export function onMarketingEvent(fn) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
 /** Record one event. With an idempotency key, recording twice is a no-op. */
 export async function recordEvent({ tenantId, type, channel = null, contactId = null, email = null, campaignId = null, deliveryId = null, source, properties = {}, idempotencyKey = null, occurredAt = new Date() }) {
   try {
-    return await prisma.marketingEvent.create({
+    const row = await prisma.marketingEvent.create({
       data: { tenantId, type, channel, contactId, email: email ? normEmail(email) : null, campaignId, deliveryId, source, properties, idempotencyKey, occurredAt },
     });
+    for (const fn of listeners) { try { const p = fn(row); p?.catch?.(() => {}); } catch { /* isolated */ } }
+    return row;
   } catch (e) {
     if (e.code === "P2002") return null; // already recorded
     throw e;
