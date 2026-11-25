@@ -365,6 +365,7 @@ model User {
   mfaEnabled        Boolean   @default(false)
   mfaSecret         String? // TOTP secret (base32); set during enrollment
   passwordChangedAt DateTime?
+  emailVerifiedAt   DateTime? // set when the address was proven by a code sent to it
 
   // ── Identity federation ────────────────────────────────────────────────
   // externalId  — the IdP's stable id for this user (SCIM "externalId").
@@ -3010,4 +3011,25 @@ model MarketingAssetVersion {
   asset  MarketingAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
   @@unique([assetId, version])
+}
+
+// A sign-up waiting for its email address to be proven. Nothing — no tenant,
+// no user — exists until the 6-digit code sent to the address is entered.
+// The code is stored only as an HMAC; the password only as a bcrypt hash.
+model SignupVerification {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  companyName  String
+  firstName    String
+  lastName     String
+  passwordHash String
+  codeHash     String
+  attempts     Int      @default(0)
+  sends        Int      @default(1)
+  lastSentAt   DateTime @default(now())
+  expiresAt    DateTime
+  ip           String?
+  createdAt    DateTime @default(now())
+
+  @@index([expiresAt])
 }

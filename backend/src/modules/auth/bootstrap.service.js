@@ -35,11 +35,13 @@ export async function bootstrapEnterprise({
   companySlug,
   email,
   password,
+  passwordHash: givenHash,
   firstName,
-  lastName
+  lastName,
+  emailVerifiedAt = null,
 }) {
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = givenHash ?? await bcrypt.hash(password, 10);
 
   return prisma.$transaction(async (tx) => {
 
@@ -121,6 +123,8 @@ export async function bootstrapEnterprise({
         lastName,
         employeeId: genEmployeeId(),
         status: "active",
+        emailVerifiedAt,
+        provisionedVia: "signup",
         tenantId: tenant.id,
         roleId: adminRole.id
       }

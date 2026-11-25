@@ -17,6 +17,15 @@ export const enterpriseSignupSchema = z.object({
   lastName: z.string().max(60).optional(),
 });
 
+export const signupVerifySchema = z.object({
+  email: z.string().email().max(254),
+  code: z.string().min(6).max(12),
+});
+
+export const signupResendSchema = z.object({
+  email: z.string().email().max(254),
+});
+
 export const employeeSignupSchema = z.object({
   enterpriseCode: z.string().min(4).max(20),
   employeeId: z.string().min(1).max(50),
