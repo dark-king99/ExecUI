@@ -52,7 +52,6 @@ export const RECORD_ROUTES = {
   project: { path: "/services/team",      param: "open" },
   bizTask: { path: "/services/team",      param: "task" },
   sop:     { path: "/services/operation", param: "open" },
-  client:  { path: "/services/marketing", param: "open" },
 
   // Network.
   device:   { path: "/network/inventory",       param: "open" },
@@ -92,7 +91,6 @@ export const ENTITY_KINDS = {
   project: "project",
   task: "bizTask",
   campaign: "campaign",
-  client: "client",
   ticket: "ticket",
   person: "person",
   sop: "sop",

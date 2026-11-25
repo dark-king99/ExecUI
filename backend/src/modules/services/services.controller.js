@@ -35,9 +35,6 @@ export const createSOP = handle((req) => svc.createSOP(tid(req), req.body));
 export const updateSOP = handle((req) => svc.updateSOP(tid(req), req.params.id, req.body));
 export const deleteSOP = handle(async (req) => { await svc.deleteSOP(tid(req), req.params.id); });
 
-export const listWorkflows  = handle((req) => svc.listWorkflows(tid(req)));
-export const createWorkflow = handle((req) => svc.createWorkflow(tid(req), req.body));
-export const deleteWorkflow = handle(async (req) => { await svc.deleteWorkflow(tid(req), req.params.id); });
 
 // ── Strategic ─────────────────────────────────────────────────────────────────
 export const listGoals  = handle((req) => svc.listGoals(tid(req)));
@@ -49,22 +46,8 @@ export const listMarketAnalysis   = handle((req) => svc.listMarketAnalysis(tid(r
 export const createMarketAnalysis = handle((req) => svc.createMarketAnalysis(tid(req), req.body));
 export const deleteMarketAnalysis = handle(async (req) => { await svc.deleteMarketAnalysis(tid(req), req.params.id); });
 
-// ── Marketing / Sales ─────────────────────────────────────────────────────────
-export const listCampaigns  = handle((req) => svc.listCampaigns(tid(req)));
-export const createCampaign = handle((req) => svc.createCampaign(tid(req), req.body));
-export const updateCampaign = handle((req) => svc.updateCampaign(tid(req), req.params.id, req.body));
-export const deleteCampaign = handle(async (req) => { await svc.deleteCampaign(tid(req), req.params.id); });
-
-export const listClients  = handle((req) => svc.listClients(tid(req)));
-export const createClient = handle((req) => svc.createClient(tid(req), req.body));
-export const updateClient = handle((req) => svc.updateClient(tid(req), req.params.id, req.body));
-export const deleteClient = handle(async (req) => { await svc.deleteClient(tid(req), req.params.id); });
-
 // ── Team ──────────────────────────────────────────────────────────────────────
 export const listMembers  = handle((req) => svc.listMembers(tid(req)));
-export const createMember = handle((req) => svc.createMember(tid(req), req.body));
-export const updateMember = handle((req) => svc.updateMember(tid(req), req.params.id, req.body));
-export const deleteMember = handle(async (req) => { await svc.deleteMember(tid(req), req.params.id); });
 
 export const listProjects  = handle((req) => svc.listProjects(tid(req)));
 export const createProject = handle((req) => svc.createProject(tid(req), req.body));

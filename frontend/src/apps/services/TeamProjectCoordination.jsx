@@ -13,12 +13,8 @@ import {
   CheckCircle,
   Clock,
   Calendar,
-  UserPlus,
   CheckSquare,
-  AlertCircle,
-  User,
-  Mail,
-  Building2
+  AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/cards';
 import { Button } from '../../components/ui/button';
@@ -45,137 +41,9 @@ const authHeaders = () => ({
   'Content-Type': 'application/json',
 });
 
-const departments = ['Operations', 'Finance', 'HR', 'IT', 'Sales', 'Marketing', 'Customer Service', 'Legal', 'Engineering', 'Executive'];
 const projectStatuses = ['planning', 'in_progress', 'review', 'completed'];
 const taskStatuses = ['todo', 'in_progress', 'review', 'done'];
 const priorities = ['low', 'medium', 'high', 'urgent'];
-
-const TeamMemberForm = ({ onSubmit, onClose, initialData, isDarkMode }) => {
-  const [formData, setFormData] = useState(initialData || {
-    name: '',
-    role: '',
-    department: '',
-    email: '',
-    status: 'active',
-    skills: [],
-    avatar_url: ''
-  });
-  const [skillInput, setSkillInput] = useState('');
-
-  const addSkill = () => {
-    if (skillInput.trim() && !formData.skills.includes(skillInput.trim())) {
-      setFormData({ ...formData, skills: [...formData.skills, skillInput.trim()] });
-      setSkillInput('');
-    }
-  };
-
-  const removeSkill = (skill) => {
-    setFormData({ ...formData, skills: formData.skills.filter(s => s !== skill) });
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>Full Name</Label>
-          <Input
-            data-testid="member-name-input"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className={isDarkMode ? 'bg-slate-800 border-slate-700' : ''}
-            required
-          />
-        </div>
-        <div>
-          <Label className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>Role</Label>
-          <Input
-            data-testid="member-role-input"
-            value={formData.role}
-            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-            className={isDarkMode ? 'bg-slate-800 border-slate-700' : ''}
-            placeholder="e.g., Project Manager"
-            required
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>Department</Label>
-          <Select value={formData.department} onValueChange={(v) => setFormData({ ...formData, department: v })}>
-            <SelectTrigger data-testid="member-department-select" className={isDarkMode ? 'bg-slate-800 border-slate-700' : ''}>
-              <SelectValue placeholder="Select department" />
-            </SelectTrigger>
-            <SelectContent>
-              {departments.map((dept) => (
-                <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>Status</Label>
-          <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
-            <SelectTrigger data-testid="member-status-select" className={isDarkMode ? 'bg-slate-800 border-slate-700' : ''}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-              <SelectItem value="on_leave">On Leave</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div>
-        <Label className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>Email</Label>
-        <Input
-          data-testid="member-email-input"
-          type="email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          className={isDarkMode ? 'bg-slate-800 border-slate-700' : ''}
-          required
-        />
-      </div>
-      <div>
-        <Label className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>Skills</Label>
-        <div className="flex gap-2 mt-1">
-          <Input
-            value={skillInput}
-            onChange={(e) => setSkillInput(e.target.value)}
-            className={isDarkMode ? 'bg-slate-800 border-slate-700' : ''}
-            placeholder="Add a skill"
-            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
-          />
-          <Button type="button" variant="outline" onClick={addSkill}>Add</Button>
-        </div>
-        {formData.skills.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {formData.skills.map((skill) => (
-              <Badge key={skill} variant="secondary" className="gap-1">
-                {skill}
-                <button type="button" onClick={() => removeSkill(skill)} className="ml-1 hover:text-rose-500">
-                  <X className="w-3 h-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="flex gap-2 justify-end">
-        <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-        <Button type="submit" data-testid="save-member-btn" className="bg-amber-600 hover:bg-amber-700">
-          Save Member
-        </Button>
-      </div>
-    </form>
-  );
-};
 
 const ProjectForm = ({ onSubmit, onClose, initialData, teamMembers, isDarkMode }) => {
   const [formData, setFormData] = useState(initialData || {
@@ -541,11 +409,9 @@ export const TeamProjectCoordination = () => {
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showMemberModal, setShowMemberModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showAIAdvisor, setShowAIAdvisor] = useState(false);
-  const [editingMember, setEditingMember] = useState(null);
   const [editingProject, setEditingProject] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
   const [activeTab, setActiveTab] = useState('projects');
@@ -564,40 +430,13 @@ export const TeamProjectCoordination = () => {
         fetch(`${API}/team/projects`, { headers: authHeaders() }).then(r => r.json()),
         fetch(`${API}/team/tasks`, { headers: authHeaders() }).then(r => r.json()),
       ]);
-      setTeamMembers(membersData);
+      setTeamMembers(Array.isArray(membersData) ? membersData : []);
       setProjects(projectsData);
       setTasks(tasksData);
     } catch (error) {
       console.error('Error fetching team data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCreateMember = async (data) => {
-    try {
-      if (editingMember) {
-        await fetch(`${API}/team/members/${editingMember.id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(data) });
-        toast.success('Team member updated');
-      } else {
-        await fetch(`${API}/team/members`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(data) });
-        toast.success('Team member added');
-      }
-      setShowMemberModal(false);
-      setEditingMember(null);
-      fetchData();
-    } catch (error) {
-      toast.error('Failed to save team member');
-    }
-  };
-
-  const handleDeleteMember = async (id) => {
-    try {
-      await fetch(`${API}/team/members/${id}`, { method: 'DELETE', headers: authHeaders() });
-      toast.success('Team member removed');
-      fetchData();
-    } catch (error) {
-      toast.error('Failed to remove team member');
     }
   };
 
@@ -798,7 +637,7 @@ export const TeamProjectCoordination = () => {
             Projects ({projects.length})
           </TabsTrigger>
           <TabsTrigger data-testid="tab-team" value="team" className="data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-500">
-            Team ({teamMembers.length})
+            Workload ({teamMembers.length})
           </TabsTrigger>
           <TabsTrigger data-testid="tab-tasks" value="tasks" className="data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-500">
             Tasks ({tasks.length})
@@ -952,38 +791,15 @@ export const TeamProjectCoordination = () => {
           </div>
         </TabsContent>
 
-        {/* Team Tab */}
+        {/* Workload — the workspace's own members, read-only. People are managed in Account → Members. */}
         <TabsContent value="team" className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
-              Team Members
+              Team workload
             </h3>
-            <Dialog open={showMemberModal} onOpenChange={(open) => {
-              setShowMemberModal(open);
-              if (!open) setEditingMember(null);
-            }}>
-              <DialogTrigger asChild>
-                <Button data-testid="add-member-btn" className="gap-2 bg-amber-600 hover:bg-amber-700">
-                  <UserPlus className="w-4 h-4" /> Add Member
-                </Button>
-              </DialogTrigger>
-              <DialogContent className={`max-w-lg ${isDarkMode ? 'bg-slate-900 border-slate-800' : ''}`}>
-                <DialogHeader>
-                  <DialogTitle className={isDarkMode ? 'text-slate-50' : ''}>
-                    {editingMember ? 'Edit Team Member' : 'Add Team Member'}
-                  </DialogTitle>
-                </DialogHeader>
-                <TeamMemberForm 
-                  onSubmit={handleCreateMember} 
-                  onClose={() => {
-                    setShowMemberModal(false);
-                    setEditingMember(null);
-                  }}
-                  initialData={editingMember}
-                  isDarkMode={isDarkMode}
-                />
-              </DialogContent>
-            </Dialog>
+            <p className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+              Everyone in your workspace. Add or remove people in Account → Members.
+            </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -991,80 +807,40 @@ export const TeamProjectCoordination = () => {
               <Card className={`md:col-span-2 lg:col-span-3 ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
                 <CardContent className="p-8 text-center">
                   <Users className={`w-12 h-12 mx-auto mb-3 ${isDarkMode ? 'text-slate-700' : 'text-slate-300'}`} />
-                  <p className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>No team members yet</p>
+                  <p className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>No members yet</p>
                 </CardContent>
               </Card>
             ) : (
               teamMembers.map((member) => (
-                <Card key={member.id} className={`${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                <Card key={member.id} data-testid={`member-${member.id}`} className={`${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
-                      <Avatar className="w-12 h-12">
+                      <Avatar className="w-11 h-11">
                         <AvatarFallback className="text-sm bg-amber-500/20 text-amber-500">
                           {getInitials(member.name)}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h4 className={`font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
-                              {member.name}
-                            </h4>
-                            <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                              {member.role}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h4 className={`truncate font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>{member.name}</h4>
+                            <p className={`truncate text-sm capitalize ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                              {[member.role, member.department].filter(Boolean).join(' · ') || member.email}
                             </p>
                           </div>
-                          <Badge variant="outline" className={`${member.status === 'active' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-slate-500/10 text-slate-500 border-slate-500/20'}`}>
-                            {member.status}
-                          </Badge>
+                          {member.status !== 'active' && (
+                            <Badge variant="outline" className="bg-slate-500/10 text-slate-500 border-slate-500/20">inactive</Badge>
+                          )}
                         </div>
-                        <div className="mt-2 space-y-1">
-                          <div className={`flex items-center gap-2 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                            <Building2 className="w-3 h-3" />
-                            {member.department}
-                          </div>
-                          <div className={`flex items-center gap-2 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                            <Mail className="w-3 h-3" />
-                            {member.email}
-                          </div>
+                        <div className="mt-3 flex items-center gap-4 text-xs">
+                          <span className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>
+                            <strong>{member.open_tasks ?? 0}</strong> open
+                          </span>
+                          <span className={(member.overdue_tasks ?? 0) > 0 ? 'text-rose-500' : (isDarkMode ? 'text-slate-500' : 'text-slate-400')}>
+                            <strong>{member.overdue_tasks ?? 0}</strong> overdue
+                          </span>
                         </div>
-                        {member.skills?.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {member.skills.slice(0, 3).map((skill) => (
-                              <Badge key={skill} variant="secondary" className="text-xs">
-                                {skill}
-                              </Badge>
-                            ))}
-                            {member.skills.length > 3 && (
-                              <Badge variant="secondary" className="text-xs">
-                                +{member.skills.length - 3}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
                       </div>
-                    </div>
-                    <div className="flex gap-1 justify-end mt-3 pt-3 border-t border-slate-800">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => {
-                          setEditingMember(member);
-                          setShowMemberModal(true);
-                        }}
-                        className="h-7 text-slate-500 hover:text-amber-500"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        data-testid={`delete-member-${member.id}`}
-                        onClick={() => handleDeleteMember(member.id)}
-                        className="h-7 text-slate-500 hover:text-rose-500"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>

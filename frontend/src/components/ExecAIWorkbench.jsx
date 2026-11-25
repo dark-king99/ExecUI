@@ -321,6 +321,20 @@ export default function ExecAIWorkbench() {
   const [section, setSection] = useState("run");
   const pane = isAdmin ? section : "run";
 
+  // Other pages can open the workbench on a given section (e.g. Operations →
+  // "Open Automation") without importing it: window.dispatchEvent(
+  // new CustomEvent("execai:open", { detail: { section: "automation" } })).
+  useEffect(() => {
+    const onOpen = (event) => {
+      const wanted = event.detail?.section;
+      setSection(wanted === "automation" ? "automation" : "run");
+      setOpen(true);
+      setMinimized(false);
+    };
+    window.addEventListener("execai:open", onOpen);
+    return () => window.removeEventListener("execai:open", onOpen);
+  }, []);
+
   const shell = isDark
     ? "border-slate-700 bg-slate-950 text-slate-100"
     : "border-slate-200 bg-slate-50 text-slate-900";

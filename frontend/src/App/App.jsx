@@ -93,7 +93,6 @@ const SingleSignOn        = lazy(() => import("../apps/account/SingleSignOn"));
 
 // Services
 const FinancialManagement             = lazy(() => import("../apps/services/FinancialManagement"));
-const MarketingSales           = lazy(() => import("../apps/services/MarketingSales"));
 const OperationsSystem             = lazy(() => import("../apps/services/OperationsSystem"));
 const StrategicPlanning       = lazy(() => import("../apps/services/StrategicPlanning"));
 const TeamProjectCoordination     = lazy(() => import("../apps/services/TeamProjectCoordination"));
@@ -283,7 +282,6 @@ function AppLayout({ user, setUser, roleToUse, effectiveRole, setEffectiveRole }
                 <Route path="/services/financial"  element={guard("services", <FinancialManagement />, "financial")} />
                 <Route path="/services/operation"  element={guard("services", <OperationsSystem />, "operation")} />
                 <Route path="/services/strategic"  element={guard("services", <StrategicPlanning />, "strategic")} />
-                <Route path="/services/marketing"  element={guard("services", <MarketingSales />, "marketing")} />
                 <Route path="/services/team"       element={guard("services", <TeamProjectCoordination />, "team")} />
 
                 <Route path="/botwidget" element={<Navigate to="/botwidget/botmessage" replace />} />

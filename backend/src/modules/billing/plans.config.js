@@ -37,7 +37,6 @@ export const SERVICES_SOLUTIONS = [
   { id: "financial", name: "Financial Management" },
   { id: "operation", name: "Operations System" },
   { id: "strategic", name: "Strategic Planning" },
-  { id: "marketing", name: "Marketing & Sales" },
   { id: "team",      name: "Team & Project" },
 ];
 

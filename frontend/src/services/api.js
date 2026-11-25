@@ -1228,11 +1228,6 @@ export const services = {
       update: (id, data) => put(`/services/operations/sops/${id}`, data),
       delete: (id)       => del(`/services/operations/sops/${id}`),
     },
-    workflows: {
-      list:   ()     => get('/services/operations/workflows'),
-      create: (data) => post('/services/operations/workflows', data),
-      delete: (id)   => del(`/services/operations/workflows/${id}`),
-    },
   },
   strategic: {
     goals: {
@@ -1247,26 +1242,10 @@ export const services = {
       delete: (id)   => del(`/services/strategic/market-analysis/${id}`),
     },
   },
-  marketing: {
-    campaigns: {
-      list:   ()         => get('/services/marketing/campaigns'),
-      create: (data)     => post('/services/marketing/campaigns', data),
-      update: (id, data) => put(`/services/marketing/campaigns/${id}`, data),
-      delete: (id)       => del(`/services/marketing/campaigns/${id}`),
-    },
-    clients: {
-      list:   ()         => get('/services/marketing/clients'),
-      create: (data)     => post('/services/marketing/clients', data),
-      update: (id, data) => put(`/services/marketing/clients/${id}`, data),
-      delete: (id)       => del(`/services/marketing/clients/${id}`),
-    },
-  },
   team: {
+    // The workspace's own members, with open/overdue task counts. Read-only.
     members: {
       list:   ()         => get('/services/team/members'),
-      create: (data)     => post('/services/team/members', data),
-      update: (id, data) => put(`/services/team/members/${id}`, data),
-      delete: (id)       => del(`/services/team/members/${id}`),
     },
     projects: {
       list:   ()         => get('/services/team/projects'),

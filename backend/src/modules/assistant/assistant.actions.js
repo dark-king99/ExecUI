@@ -57,7 +57,6 @@ const num = (min, max, o = {}) => ({ type: "number", min, max, ...o });
 const int = (min, max, o = {}) => ({ type: "integer", min, max, ...o });
 const oneOf = (values, o = {}) => ({ type: "enum", values, ...o });
 const date = (o = {}) => ({ type: "date", ...o });
-const email = (o = {}) => ({ type: "email", max: 160, ...o });
 const list = (max, itemMax, o = {}) => ({ type: "list", max, itemMax, ...o });
 const required = { required: true };
 
@@ -282,18 +281,68 @@ export const ACTIONS = {
     run: (ctx, input) => services.createSOP(ctx.tenantId, { ...input, steps: input.steps ?? [], status: "draft", version: "0.1" }),
   },
 
-  services_create_client: {
-    section: "services", solution: "marketing", permission: null, effect: "create", title: "Client",
-    description: "Add a business client.",
+  // Team & projects — coordinating people is the managerial core. Assignees
+  // are workspace members (ids from services_team_workload); the service
+  // refuses anyone outside this workspace and notifies the person assigned.
+  services_create_project: {
+    section: "services", solution: "team", permission: null, effect: "create", title: "Project",
+    description: "Create a project in planning status at 0% progress.",
     input: {
       name: str(160, required),
-      company: str(160),
-      email: email(),
-      annualValue: num(0, 1e12),
-      industry: str(60),
+      description: str(1000),
+      priority: oneOf(["low", "medium", "high", "urgent"]),
+      budget: num(0, 1e12),
+      startDate: date(),
+      endDate: date(),
     },
-    run: (ctx, { annualValue, ...input }) =>
-      services.createClient(ctx.tenantId, { ...input, annual_value: annualValue ?? 0, status: "active" }),
+    run: (ctx, { startDate, endDate, ...input }) =>
+      services.createProject(ctx.tenantId, { ...input, start_date: startDate ?? null, end_date: endDate ?? null, status: "planning", progress: 0 }),
+  },
+
+  services_update_project_progress: {
+    section: "services", solution: "team", permission: null, effect: "update", title: "Project",
+    description: "Record progress (0–100) on a project, optionally with a new status.",
+    input: {
+      id: id(required),
+      progress: int(0, 100, required),
+      status: oneOf(["planning", "in_progress", "review", "completed"]),
+    },
+    async run(ctx, { id: projectId, ...changes }) {
+      await findInTenant("bizProject", ctx.tenantId, projectId, "project");
+      return services.updateProject(ctx.tenantId, projectId, changes);
+    },
+  },
+
+  services_assign_task: {
+    section: "services", solution: "team", permission: null, effect: "create", title: "Team task",
+    description: "Create a team task and assign it to a workspace member (they are notified).",
+    input: {
+      title: str(200, required),
+      assigneeId: id(required),
+      projectId: id(),
+      description: str(1000),
+      priority: oneOf(["low", "medium", "high", "urgent"]),
+      dueDate: date(),
+    },
+    async run(ctx, { assigneeId, projectId, dueDate, ...input }) {
+      if (projectId) await findInTenant("bizProject", ctx.tenantId, projectId, "project");
+      return services.createTask(ctx.tenantId, {
+        ...input, assignee: assigneeId, project_id: projectId ?? null, due_date: dueDate ?? null, status: "todo",
+      }, ctx.userId);
+    },
+  },
+
+  services_update_task_status: {
+    section: "services", solution: "team", permission: null, effect: "update", title: "Team task",
+    description: "Move a team task to todo, in_progress, review or done.",
+    input: {
+      id: id(required),
+      status: oneOf(["todo", "in_progress", "review", "done"], required),
+    },
+    async run(ctx, { id: taskId, status }) {
+      await findInTenant("bizTask", ctx.tenantId, taskId, "task");
+      return services.updateTask(ctx.tenantId, taskId, { status }, ctx.userId);
+    },
   },
 };
 

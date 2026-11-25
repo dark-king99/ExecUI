@@ -31,7 +31,6 @@ export const STATIC_DESTINATIONS = [
   { label: "Financial Management", path: "/services/financial", section: "services", solution: "financial", keywords: "finance revenue expenses cash flow" },
   { label: "Operations System",  path: "/services/operation", section: "services", solution: "operation", keywords: "operations sop process" },
   { label: "Strategic Planning", path: "/services/strategic", section: "services", solution: "strategic", keywords: "strategy goals okr roadmap" },
-  { label: "Marketing & Sales",  path: "/services/marketing", section: "services", solution: "marketing", keywords: "marketing sales revenue" },
   { label: "Team & Project",     path: "/services/team",      section: "services", solution: "team", keywords: "team project coordination tasks" },
 
   // Company-wide pages that live outside the module sidebars. These were

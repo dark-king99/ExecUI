@@ -5,48 +5,67 @@ import { randomUUID } from "crypto";
 import { notify } from "../notifications/notifications.service.js";
 import { assistText } from "../../lib/aiAssist.js";
 
-// BizTask.assignee is a display name — resolve it to a tenant user and drop a
-// notification in their bell. Fire-and-forget: a notify failure never blocks
-// the task mutation itself.
-async function notifyAssignee(tenantId, task, actorId, action) {
+/**
+ * Business Services — the managers' workspace.
+ *
+ * It covers work that belongs to running the business rather than to one
+ * department: finances, SOPs, strategic goals and market analysis, and the
+ * projects that coordinate people across teams. It deliberately does NOT keep
+ * its own copies of things the core modules own — clients live in CRM,
+ * campaigns in Marketing, automation in ExecAI, and people are the workspace's
+ * own members (Account → Members), not a separate roster.
+ */
+
+const OPEN_TASK = { not: "done" };
+const nameOf = (u) => `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() || u.email;
+
+/**
+ * A task's assignee is a workspace member id. Ids that don't belong to this
+ * tenant are refused, so a task can't be pointed at someone in another
+ * organization. Older tasks may hold a display name instead; they still show.
+ */
+async function assertMember(tenantId, userId) {
+  if (userId == null || userId === "") return null;
+  const user = await prisma.user.findFirst({ where: { id: String(userId), tenantId }, select: { id: true } });
+  if (!user) throw Object.assign(new Error("Assign the task to a member of this workspace."), { status: 400 });
+  return user.id;
+}
+
+// Drop a notification in the assignee's bell. Fire-and-forget: a notify
+// failure never blocks the task mutation itself.
+async function notifyAssignee(tenantId, task, actorId) {
   try {
-    if (!task?.assignee) return;
-    const [first, ...rest] = String(task.assignee).trim().split(/\s+/);
-    const user = await prisma.user.findFirst({
-      where: {
-        tenantId,
-        firstName: { equals: first, mode: "insensitive" },
-        ...(rest.length ? { lastName: { equals: rest.join(" "), mode: "insensitive" } } : {}),
-      },
-    });
-    if (!user || user.id === actorId) return; // unknown name or self-assignment
+    if (!task?.assignee || task.assignee === actorId) return;
+    const user = await prisma.user.findFirst({ where: { id: task.assignee, tenantId } });
+    if (!user) return;
     const actor = actorId ? await prisma.user.findUnique({ where: { id: actorId } }) : null;
     await notify({
       tenantId,
       userId: user.id,
       type: "task",
-      title: action === "assigned" ? "New task assigned to you" : "A task of yours was updated",
+      title: "New task assigned to you",
       body: `${task.title}${task.due_date ? ` · due ${task.due_date}` : ""}`,
       link: "/services/team",
-      actorName: actor ? `${actor.firstName} ${actor.lastName}`.trim() : null,
+      actorName: actor ? nameOf(actor) : null,
     });
   } catch { /* never break the task flow over a notification */ }
 }
 
-// ── Seed data ─────────────────────────────────────────────────────────────────
-
-// ── Lazy seeding ──────────────────────────────────────────────────────────────
+/** The page reads `assigned_to`; the column is `assignee`. */
+const shapeTask = (t) => ({ ...t, assigned_to: t.assignee });
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export async function getDashboardStats(tenantId) {
 
   const [
-    transactions, projects, members, clients, goals, sops,
+    transactions, projects, activeMembers, totalMembers, openTasks, overdueTasks, goals, sops,
   ] = await Promise.all([
     prisma.bizTransaction.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } }),
     prisma.bizProject.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } }),
-    prisma.bizMember.findMany({ where: { tenantId } }),
-    prisma.bizClient.findMany({ where: { tenantId } }),
+    prisma.user.count({ where: { tenantId, isActive: true } }),
+    prisma.user.count({ where: { tenantId } }),
+    prisma.bizTask.count({ where: { tenantId, status: OPEN_TASK } }),
+    prisma.bizTask.count({ where: { tenantId, status: OPEN_TASK, due_date: { lt: new Date().toISOString().slice(0, 10), not: null } } }),
     prisma.bizGoal.findMany({ where: { tenantId } }),
     prisma.bizSOP.count({ where: { tenantId } }),
   ]);
@@ -70,14 +89,11 @@ export async function getDashboardStats(tenantId) {
       completed: projects.filter(p => p.status === "completed").length,
       total:     projects.length,
     },
-    team:     {
-      active_members: members.filter(m => m.status === "active").length,
-      total:          members.length,
-    },
-    clients: {
-      active:      clients.filter(c => c.status === "active").length,
-      total:       clients.length,
-      total_value: clients.filter(c => c.status === "active").reduce((s, c) => s + c.annual_value, 0),
+    team: {
+      active_members: activeMembers,
+      total:          totalMembers,
+      open_tasks:     openTasks,
+      overdue_tasks:  overdueTasks,
     },
     operations: { sops_count: sops },
     strategic: {
@@ -201,30 +217,6 @@ export async function deleteSOP(tenantId, id) {
   await prisma.bizSOP.deleteMany({ where: { id, tenantId } });
 }
 
-// ── Operations – Workflows ────────────────────────────────────────────────────
-export async function listWorkflows(tenantId) {
-  return prisma.bizWorkflow.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
-}
-
-export async function createWorkflow(tenantId, data) {
-  return prisma.bizWorkflow.create({
-    data: {
-      name:         data.name,
-      description:  data.description ?? null,
-      department:   data.department ?? null,
-      trigger:      data.trigger ?? null,
-      steps:        data.steps ?? [],
-      status:       data.status ?? 'active',
-      is_automated: data.is_automated ?? false,
-      tenantId,
-    },
-  });
-}
-
-export async function deleteWorkflow(tenantId, id) {
-  await prisma.bizWorkflow.deleteMany({ where: { id, tenantId } });
-}
-
 // ── Strategic – Goals ─────────────────────────────────────────────────────────
 export async function listGoals(tenantId) {
   return prisma.bizGoal.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
@@ -287,118 +279,40 @@ export async function deleteMarketAnalysis(tenantId, id) {
   await prisma.bizMarketAnalysis.deleteMany({ where: { id, tenantId } });
 }
 
-// ── Marketing / Sales – Campaigns ────────────────────────────────────────────
-export async function listCampaigns(tenantId) {
-  const campaigns = await prisma.bizCampaign.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
-  return campaigns.map((c) => ({ ...c, type: c.platform }));
-}
-
-export async function createCampaign(tenantId, data) {
-  return prisma.bizCampaign.create({
-    data: {
-      name:       data.name,
-      platform:   data.type ?? data.platform ?? 'email',
-      status:     data.status ?? 'draft',
-      budget:     Number(data.budget) || 0,
-      spent:      Number(data.spent) || 0,
-      start_date: data.start_date ?? null,
-      end_date:   data.end_date ?? null,
-      tenantId,
-    },
-  });
-}
-
-export async function updateCampaign(tenantId, id, data) {
-  const updateData = {};
-  if (data.name !== undefined)       updateData.name       = data.name;
-  if (data.type !== undefined)       updateData.platform   = data.type;
-  if (data.platform !== undefined)   updateData.platform   = data.platform;
-  if (data.status !== undefined)     updateData.status     = data.status;
-  if (data.budget !== undefined)     updateData.budget     = Number(data.budget) || 0;
-  if (data.spent !== undefined)      updateData.spent      = Number(data.spent) || 0;
-  if (data.start_date !== undefined) updateData.start_date = data.start_date;
-  if (data.end_date !== undefined)   updateData.end_date   = data.end_date;
-  return prisma.bizCampaign.update({ where: { id }, data: updateData });
-}
-
-export async function deleteCampaign(tenantId, id) {
-  await prisma.bizCampaign.deleteMany({ where: { id, tenantId } });
-}
-
-// ── Marketing / Sales – Clients ───────────────────────────────────────────────
-export async function listClients(tenantId) {
-  const clients = await prisma.bizClient.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
-  return clients.map((c) => ({ ...c, value: c.annual_value }));
-}
-
-export async function createClient(tenantId, data) {
-  return prisma.bizClient.create({
-    data: {
-      name:         data.name,
-      company:      data.company ?? null,
-      email:        data.email ?? null,
-      phone:        data.phone ?? null,
-      annual_value: Number(data.annual_value ?? data.value) || 0,
-      status:       data.status ?? 'active',
-      contract_end: data.contract_end ?? null,
-      industry:     data.industry ?? null,
-      tenantId,
-    },
-  });
-}
-
-export async function updateClient(tenantId, id, data) {
-  const updateData = {};
-  if (data.name !== undefined)         updateData.name         = data.name;
-  if (data.company !== undefined)      updateData.company      = data.company;
-  if (data.email !== undefined)        updateData.email        = data.email;
-  if (data.phone !== undefined)        updateData.phone        = data.phone;
-  const av = data.annual_value ?? data.value;
-  if (av !== undefined)                updateData.annual_value = Number(av) || 0;
-  if (data.status !== undefined)       updateData.status       = data.status;
-  if (data.contract_end !== undefined) updateData.contract_end = data.contract_end;
-  if (data.industry !== undefined)     updateData.industry     = data.industry;
-  return prisma.bizClient.update({ where: { id }, data: updateData });
-}
-
-export async function deleteClient(tenantId, id) {
-  await prisma.bizClient.deleteMany({ where: { id, tenantId } });
-}
-
-// ── Team – Members ────────────────────────────────────────────────────────────
+// ── Team – Members (the workspace's own people) ───────────────────────────
+/**
+ * Everyone in the workspace, with their open and overdue task counts — the
+ * workload view a manager plans from. Read-only here: people are added and
+ * removed in Account → Members.
+ */
 export async function listMembers(tenantId) {
-  return prisma.bizMember.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
-}
-
-export async function createMember(tenantId, data) {
-  return prisma.bizMember.create({
-    data: {
-      name:       data.name,
-      role:       data.role ?? '',
-      department: data.department || 'General',
-      email:      data.email ?? null,
-      status:     data.status ?? 'active',
-      skills:     data.skills ?? [],
-      avatar_url: data.avatar_url ?? null,
-      tenantId,
-    },
-  });
-}
-
-export async function updateMember(tenantId, id, data) {
-  const updateData = {};
-  if (data.name !== undefined)       updateData.name       = data.name;
-  if (data.role !== undefined)       updateData.role       = data.role;
-  if (data.department !== undefined) updateData.department = data.department;
-  if (data.email !== undefined)      updateData.email      = data.email;
-  if (data.status !== undefined)     updateData.status     = data.status;
-  if (data.skills !== undefined)     updateData.skills     = data.skills;
-  if (data.avatar_url !== undefined) updateData.avatar_url = data.avatar_url;
-  return prisma.bizMember.update({ where: { id }, data: updateData });
-}
-
-export async function deleteMember(tenantId, id) {
-  await prisma.bizMember.deleteMany({ where: { id, tenantId } });
+  const today = new Date().toISOString().slice(0, 10);
+  const [users, tasks] = await Promise.all([
+    prisma.user.findMany({
+      where: { tenantId },
+      select: { id: true, firstName: true, lastName: true, email: true, isActive: true, department: true, jobTitle: true, role: { select: { name: true } } },
+    }),
+    prisma.bizTask.findMany({ where: { tenantId, status: OPEN_TASK, assignee: { not: null } }, select: { assignee: true, due_date: true } }),
+  ]);
+  const load = new Map();
+  for (const t of tasks) {
+    const entry = load.get(t.assignee) ?? { open: 0, overdue: 0 };
+    entry.open += 1;
+    if (t.due_date && t.due_date < today) entry.overdue += 1;
+    load.set(t.assignee, entry);
+  }
+  return users
+    .map((u) => ({
+      id: u.id,
+      name: nameOf(u),
+      email: u.email,
+      role: u.jobTitle || (u.role?.name ?? "").replaceAll("_", " "),
+      department: u.department ?? null,
+      status: u.isActive ? "active" : "inactive",
+      open_tasks: load.get(u.id)?.open ?? 0,
+      overdue_tasks: load.get(u.id)?.overdue ?? 0,
+    }))
+    .sort((a, b) => (b.status === "active") - (a.status === "active") || a.name.localeCompare(b.name));
 }
 
 // ── Team – Projects ───────────────────────────────────────────────────────────
@@ -443,7 +357,8 @@ export async function deleteProject(tenantId, id) {
 
 // ── Team – Tasks ──────────────────────────────────────────────────────────────
 export async function listTasks(tenantId) {
-  return prisma.bizTask.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+  const tasks = await prisma.bizTask.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+  return tasks.map(shapeTask);
 }
 
 export async function createTask(tenantId, data, actorId = null) {
@@ -454,13 +369,13 @@ export async function createTask(tenantId, data, actorId = null) {
       project_id:  data.project_id ?? null,
       status:      data.status ?? 'todo',
       priority:    data.priority ?? 'medium',
-      assignee:    data.assignee ?? data.assigned_to ?? null,
+      assignee:    await assertMember(tenantId, data.assignee ?? data.assigned_to),
       due_date:    data.due_date ?? null,
       tenantId,
     },
   });
-  notifyAssignee(tenantId, task, actorId, "assigned");
-  return task;
+  notifyAssignee(tenantId, task, actorId);
+  return shapeTask(task);
 }
 
 export async function updateTask(tenantId, id, data, actorId = null) {
@@ -473,13 +388,13 @@ export async function updateTask(tenantId, id, data, actorId = null) {
   if (data.priority !== undefined)    updateData.priority    = data.priority;
   if (data.due_date !== undefined)    updateData.due_date    = data.due_date;
   const assignee = data.assignee ?? data.assigned_to;
-  if (assignee !== undefined)         updateData.assignee    = assignee;
+  if (assignee !== undefined)         updateData.assignee    = await assertMember(tenantId, assignee);
   const task = await prisma.bizTask.update({ where: { id }, data: updateData });
   // Notify on reassignment to a new person (not on every status touch).
-  if (assignee !== undefined && assignee && assignee !== before?.assignee) {
-    notifyAssignee(tenantId, task, actorId, "assigned");
+  if (updateData.assignee && updateData.assignee !== before?.assignee) {
+    notifyAssignee(tenantId, task, actorId);
   }
-  return task;
+  return shapeTask(task);
 }
 
 export async function deleteTask(tenantId, id) {

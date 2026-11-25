@@ -21,7 +21,7 @@ const MODULES = {
 
 const SERVICES_PAGES = {
   dashboard: "Dashboard", financial: "Financial Management", operation: "Operations System",
-  strategic: "Strategic Planning", marketing: "Marketing & Sales", team: "Team & Project",
+  strategic: "Strategic Planning", team: "Team & Project",
 };
 
 function crumbsFor(pathname) {
