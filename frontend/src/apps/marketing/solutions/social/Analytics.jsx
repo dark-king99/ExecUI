@@ -33,7 +33,11 @@ export default function Analytics() {
           {followerBars.length ? <BarList items={followerBars} color="violet" format={fmtNum} /> : <p className="text-sm text-slate-400 py-6 text-center">Connect accounts to see following.</p>}
         </Section>
         <Section title="Engagement breakdown" icon={Heart}>
-          {a.engagements ? <BarList items={engagementBars} color="rose" format={fmtNum} /> : <p className="text-sm text-slate-400 py-6 text-center">Publish posts to see engagement.</p>}
+          {a.engagements ? <BarList items={engagementBars} color="rose" format={fmtNum} /> : (
+            <p className="text-sm text-slate-400 py-6 text-center">
+              {a.publishedCount ? "Reach and engagement appear once a platform's live API reports them. ExecUI doesn't estimate them." : "Publish posts to see engagement."}
+            </p>
+          )}
         </Section>
       </div>
 
