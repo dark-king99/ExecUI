@@ -7,13 +7,13 @@ import { useToast } from "../../../../components/ui/Toast";
 import { SolutionShell, PrimaryBtn, GhostBtn, Loading } from "../../components/mkt-ui";
 import { platformMeta } from "./platformMeta";
 
-const SOURCE_LABEL = { einstein: "Einstein AI", engagement: "Content Builder", manual: "" };
+const SOURCE_LABEL = { einstein: "Einstein AI", engagement: "Content Studio", manual: "" };
 
 export default function Composer() {
   const location = useLocation();
   const navigate = useNavigate();
   const toast = useToast();
-  const incoming = location.state || {}; // { content, source, mediaUrl } from Einstein / Content Builder
+  const incoming = location.state || {}; // { content, source, mediaUrl } from Einstein / Content Studio
 
   const { data: platforms, loading: lp } = useApi(() => marketing.social.platforms(), []);
   const { data: accounts, loading: la } = useApi(() => marketing.social.accounts(), []);

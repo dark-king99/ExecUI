@@ -2,7 +2,7 @@
  * Social media marketing service — connected accounts, a publishing queue that
  * pushes generated content to the business's social platforms, and engagement
  * analytics. Content typically flows in from Einstein (AI) or the Engagement
- * Content Builder via createPost({ source }).
+ * Content Studio via createPost({ source }).
  *
  * Publishing goes through lib/social.js, which posts for real when a platform's
  * API credentials are configured and otherwise records a clearly-labelled

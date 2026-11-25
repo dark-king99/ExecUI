@@ -44,7 +44,7 @@ export default function JourneyBuilder() {
   ];
 
   return (
-    <SolutionShell solutionId="engagement" title="Journey Builder" subtitle="Visual multi-step automated customer journeys"
+    <SolutionShell solutionId="engagement" title="Journey Tab" subtitle="Visual multi-step automated customer journeys"
       actions={<PrimaryBtn onClick={() => setShowModal(true)}><Plus size={15} /> New Journey</PrimaryBtn>}>
       {showModal && (
         <Modal title="New Journey" onClose={() => setShowModal(false)}

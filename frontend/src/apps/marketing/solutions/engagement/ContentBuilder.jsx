@@ -35,7 +35,7 @@ export default function ContentBuilder() {
   ];
 
   return (
-    <SolutionShell solutionId="engagement" title="Content Builder" subtitle="Centralized library for every marketing asset"
+    <SolutionShell solutionId="engagement" title="Content Studio" subtitle="Centralized library for every marketing asset"
       actions={<PrimaryBtn onClick={() => setShowModal(true)}><Plus size={15} /> Add Asset</PrimaryBtn>}>
       {showModal && (
         <Modal title="Add Content Asset" onClose={() => setShowModal(false)}

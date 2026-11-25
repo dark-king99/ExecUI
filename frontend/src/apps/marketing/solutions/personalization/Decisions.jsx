@@ -19,14 +19,14 @@ export default function Decisions() {
   ];
 
   return (
-    <SolutionShell solutionId="personalization" title="Einstein Decisions" subtitle="Interaction-time decisioning powered by predictive models">
+    <SolutionShell solutionId="personalization" title="JARVIS Insights" subtitle="Interaction-time decisioning powered by predictive models">
       <MetricGrid items={metrics} cols={4} loading={loading && !cdp} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Section title="Recommended Next Best Action" icon={Target} className="lg:col-span-1">
           {loading && !cdp ? <Loading rows={2} /> : (
             <div className="rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 p-5 text-white">
-              <div className="text-xs uppercase tracking-wide opacity-80">Einstein recommends</div>
+              <div className="text-xs uppercase tracking-wide opacity-80">JARVIS recommends</div>
               <div className="text-lg font-bold mt-1">{p.nextBestAction ?? "—"}</div>
               <div className="text-xs opacity-80 mt-2">{cdp?.confidence != null ? `Confidence ${cdp.confidence}%` : "Connect a model to generate recommendations"}</div>
             </div>
