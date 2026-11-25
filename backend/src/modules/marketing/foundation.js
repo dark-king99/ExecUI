@@ -68,8 +68,19 @@ export async function importConsent(tenantId, { emails, status = "subscribed", e
   const wanted = [...new Set((Array.isArray(emails) ? emails : String(emails ?? "").split(/[\s,;]+/)).map(normEmail).filter(isEmail))].slice(0, 10_000);
   const contacts = await prisma.contact.findMany({ where: { tenantId, email: { in: wanted, mode: "insensitive" } }, select: { id: true, email: true } });
   const matched = new Set(contacts.map((c) => normEmail(c.email)));
-  for (const c of contacts) await setConsent(tenantId, c.id, { status, source: "import", evidence, actorId });
-  return { requested: wanted.length, recorded: contacts.length, unmatched: wanted.filter((e) => !matched.has(e)).slice(0, 50), unmatchedCount: wanted.length - matched.size };
+  // An import can record consent people gave elsewhere, but never overrides an
+  // unsubscribe, bounce or complaint, and never subscribes a suppressed address.
+  const suppressed = await suppressedSet(tenantId);
+  const existing = new Map((await prisma.marketingConsent.findMany({ where: { tenantId, channel: "email", contactId: { in: contacts.map((c) => c.id) } } })).map((r) => [r.contactId, r.status]));
+  let recorded = 0;
+  const kept = [];
+  for (const c of contacts) {
+    const cur = existing.get(c.id);
+    if (status === "subscribed" && ((cur && cur !== "subscribed") || suppressed.has(normEmail(c.email)))) { kept.push({ email: normEmail(c.email), status: cur ?? "suppressed" }); continue; }
+    await setConsent(tenantId, c.id, { status, source: "import", evidence, actorId });
+    recorded += 1;
+  }
+  return { requested: wanted.length, recorded, kept: kept.slice(0, 50), keptCount: kept.length, unmatched: wanted.filter((e) => !matched.has(e)).slice(0, 50), unmatchedCount: wanted.length - matched.size };
 }
 
 export async function suppress(tenantId, email, reason, detail = null) {

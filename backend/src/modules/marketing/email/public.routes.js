@@ -8,6 +8,7 @@
 import express from "express";
 import { verifySvix, handleProviderEvent, unsubscribeByToken, unsubscribePage, logWebhookFailure } from "./webhook.js";
 import { verifyUnsubscribeToken } from "./render.js";
+import streamsPublic from "../streams/public.routes.js";
 
 const router = express.Router();
 
@@ -32,5 +33,8 @@ router.post("/unsubscribe/:token", express.urlencoded({ extended: false, limit: 
   const r = await unsubscribeByToken(req.params.token).catch(() => ({ ok: false }));
   res.status(r.ok ? 200 : 400).type("html").send(unsubscribePage({ done: r.ok, invalid: !r.ok, email: r.email }));
 });
+
+// Data Streams: hosted signup forms and the events API.
+router.use("/", streamsPublic);
 
 export default router;

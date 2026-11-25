@@ -1,58 +1,42 @@
-import { Database, Fingerprint, Share2, Activity, Code2 } from "lucide-react";
+/**
+ * Data Cloud overview: what's actually in the customer data layer — CRM
+ * contacts, consent, data streams and the event stream. Counted live; nothing
+ * here is estimated. Identity resolution and predictive scores appear when
+ * those phases have real data behind them.
+ */
+import { Database, Share2, Activity, MailCheck, PieChart } from "lucide-react";
 import { useApi } from "../../../../hooks/useApi";
 import { marketing } from "../../../../services/api";
-import { SolutionShell, MetricGrid, Section, Loading, fmtNum } from "../../components/mkt-ui";
+import { SolutionShell, MetricGrid, Section, Loading, BarList, ErrorNote, fmtNum } from "../../components/mkt-ui";
 
 export default function Overview() {
-  const { data: m, loading } = useApi(() => marketing.cdp.metrics(), [], { pollingInterval: 120000 });
-  const d = m ?? {};
-  const p = d.predictiveLayer ?? {};
+  const { data: d, loading, error } = useApi(() => marketing.streams.overview(), [], { pollingInterval: 60000 });
 
   const metrics = [
-    { label: "Unified Profiles", value: fmtNum(d.totalProfiles ?? 0), icon: Database, color: "indigo" },
-    { label: "Resolved Identities", value: fmtNum(d.resolvedIdentities ?? 0), icon: Fingerprint, color: "violet" },
-    { label: "Connected Sources", value: `${d.activeSources ?? 0}/${d.totalSources ?? 0}`, icon: Share2, color: "sky" },
-    { label: "Events Ingested", value: fmtNum(d.totalEvents ?? 0), icon: Activity, color: "emerald" },
+    { label: "CRM contacts", value: fmtNum(d?.profiles), icon: Database, color: "indigo" },
+    { label: "With email consent", value: fmtNum(d?.consented), icon: MailCheck, color: "emerald" },
+    { label: "Active data streams", value: d ? `${fmtNum(d.activeSources)}/${fmtNum(d.sources)}` : "—", icon: Share2, color: "sky" },
+    { label: "Events, last 30 days", value: fmtNum(d?.events30), icon: Activity, color: "violet" },
   ];
 
   return (
-    <SolutionShell solutionId="datacloud" title="Data Cloud Overview" subtitle="One unified, real-time view of every customer">
-      <MetricGrid items={metrics} cols={4} loading={loading && !m} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Section title="Audience Health" icon={Database} className="lg:col-span-1">
-          {loading && !m ? <Loading rows={2} /> : (
-            <div className="space-y-3">
-              {[
-                ["Addressable Audience", fmtNum(d.audience ?? 0)],
-                ["Growth (30d)", d.audienceDelta != null ? `+${d.audienceDelta}%` : "—"],
-                ["Match Confidence", d.confidence != null ? `${d.confidence}%` : "—"],
-                ["Active Models", d.activeModels ?? "—"],
-                ["Active Segments", d.activeSegments ?? "—"],
-              ].map(([label, val]) => (
-                <div key={label} className="flex items-center justify-between text-sm py-1.5 border-b border-slate-50 dark:border-slate-800 last:border-0">
-                  <span className="text-slate-500">{label}</span>
-                  <span className="font-medium text-slate-900 dark:text-white">{val}</span>
-                </div>
-              ))}
-            </div>
-          )}
+    <SolutionShell solutionId="datacloud" title="Data Cloud Overview" subtitle="Your customer data: CRM contacts, consent, data streams and every recorded event">
+      {error && <ErrorNote error={error} />}
+      <MetricGrid items={metrics} cols={4} loading={loading && !d} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Section title="Events by type (30 days)" icon={Activity} className="lg:col-span-2">
+          {loading && !d ? <Loading rows={4} /> : d?.eventsByType?.length
+            ? <BarList items={d.eventsByType.map((e) => ({ label: e.type, value: e.count }))} color="indigo" format={fmtNum} />
+            : <p className="py-6 text-center text-sm text-slate-400">No events yet. They arrive from email sends, signup forms and the events API.</p>}
         </Section>
-
-        <Section title="Predictive Layer" subtitle="AI-derived scores across the audience" icon={Activity} className="lg:col-span-2">
-          {loading && !m ? <Loading rows={2} /> : (
-            <>
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                {[["Churn Risk", `${p.churnRisk ?? "—"}%`, "amber"], ["Upsell Probability", `${p.upsellProbability ?? "—"}%`, "emerald"], ["Projected Lift", `+${d.projectedLift ?? "—"}%`, "indigo"]].map(([l, v]) => (
-                  <div key={l} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-center">
-                    <div className="text-xl font-bold text-slate-900 dark:text-white">{v}</div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">{l}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2"><Code2 size={14} /> Segment Query Preview</div>
-              <pre className="text-[11px] bg-slate-900 dark:bg-slate-950 text-emerald-300 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">{d.sqlPreview ?? "—"}</pre>
-            </>
+        <Section title="At a glance" icon={PieChart}>
+          {d && (
+            <div className="space-y-2 text-sm">
+              {[["Events recorded, all time", fmtNum(d.events)], ["Audiences", fmtNum(d.audiences)], ["Consent rate", d.profiles ? `${((d.consented / d.profiles) * 100).toFixed(1)}%` : "—"]].map(([l, v]) => (
+                <div key={l} className="flex items-center justify-between border-b border-slate-50 py-1.5 last:border-0 dark:border-slate-800"><span className="text-slate-500">{l}</span><span className="font-medium text-slate-900 dark:text-white">{v}</span></div>
+              ))}
+              <p className="pt-2 text-[11px] text-slate-400">Identity resolution across sources and predictive scores aren't built yet, so they aren't shown.</p>
+            </div>
           )}
         </Section>
       </div>

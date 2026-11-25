@@ -1,6 +1,8 @@
 import express from "express";
 import emailRoutes from "./email/email.routes.js";
 import journeyRoutes from "./journeys/journeys.routes.js";
+import streamRoutes from "./streams/streams.routes.js";
+import contentRoutes from "./content/content.routes.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import * as c from "./marketing.controller.js";
 import socialRouter from "./social/social.routes.js";
@@ -11,6 +13,9 @@ const router = express.Router();
 router.use("/", emailRoutes);
 // Journey Builder and Automation Studio (see journeys/journeys.routes.js).
 router.use("/journeys", journeyRoutes);
+// Data Streams and Content Studio (streams/, content/).
+router.use("/streams", streamRoutes);
+router.use("/content", contentRoutes);
 const auth = authenticate;
 
 // ── Social media marketing (additive — core marketing routes below unchanged) ─
@@ -87,10 +92,6 @@ router.get("/b2b/journeys/:id",       auth, c.getB2BJourney);
 router.post("/b2b/journeys",          auth, c.createB2BJourney);
 
 // ── Content assets ────────────────────────────────────────────────────────
-router.get("/content/assets",         auth, c.listContentAssets);
-router.get("/content/assets/:id",     auth, c.getContentAsset);
-router.post("/content/assets",        auth, c.uploadContentAsset);
-router.delete("/content/assets/:id",  auth, c.deleteContentAsset);
 
 // ── Commerce ──────────────────────────────────────────────────────────────
 router.get("/commerce/orders",   auth, c.listOrders);
@@ -103,9 +104,6 @@ router.post("/personalization",         auth, c.createPersonalization);
 
 // ── CDP ───────────────────────────────────────────────────────────────────
 router.get("/cdp/metrics",   auth, c.getCdpMetrics);
-router.get("/cdp/sources",   auth, c.getCdpSources);
-router.post("/cdp/sources",  auth, c.createCdpSource);
-router.post("/cdp/segments", auth, c.createCdpSegment);
 
 
 // ── AI ────────────────────────────────────────────────────────────────────

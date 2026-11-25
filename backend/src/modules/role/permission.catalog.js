@@ -28,8 +28,13 @@ const SCREEN_CAPABILITIES = {
     "Publish, pause, resume and archive journeys and automations",
     "Enroll contacts into a journey, or remove them from one",
   ],
+  "marketing.content.approve": [
+    "Approve Content Studio assets so they can be inserted into email",
+    "Delete assets that haven't gone out in an email",
+  ],
   "marketing.settings.manage": [
     "Add and verify marketing sending domains",
+    "Create, change and delete Data Streams (signup forms, API keys, CSV sources)",
     "Set the postal address and default sender for marketing email",
   ],
   "network.settings.manage": [
@@ -54,6 +59,8 @@ export const GRANTABLE = [
     description: "Send, schedule and stop email campaigns. Only contacts with recorded consent ever receive them." },
   { key: "marketing.journey.manage", group: "Marketing", label: "Run journeys and automations",
     description: "Publish, pause and archive journeys, and enroll contacts. Journey emails still only reach contacts with recorded consent." },
+  { key: "marketing.content.approve", group: "Marketing", label: "Approve marketing content",
+    description: "Approve brand assets for use in email, and delete unused ones." },
   { key: "marketing.settings.manage", group: "Marketing", label: "Manage marketing settings",
     description: "Sending domains and email settings for the organization." },
   { key: "marketing.experiment.write", group: "Marketing", label: "Draft experiments",

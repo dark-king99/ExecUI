@@ -36,7 +36,7 @@ const TYPES = {
   post_chat: { label: "Post to a channel", icon: MessageSquare, exits: [["next", null]] },
   webhook: { label: "Call a webhook", icon: Webhook, exits: [["next", null]] },
 };
-const EVENT_LABEL = { "email.sent": "email sent", "email.delivered": "email delivered", "email.opened": "email opened", "email.clicked": "email link clicked", "email.bounced": "email bounced", "email.complained": "marked as spam", "email.unsubscribed": "unsubscribed", "consent.changed": "consent changed" };
+const EVENT_LABEL = { "form.submitted": "submitted a signup form", "email.sent": "email sent", "email.delivered": "email delivered", "email.opened": "email opened", "email.clicked": "email link clicked", "email.bounced": "email bounced", "email.complained": "marked as spam", "email.unsubscribed": "unsubscribed", "consent.changed": "consent changed" };
 
 function defaults(type) {
   switch (type) {
@@ -186,7 +186,7 @@ function NodeSettings({ node, pick, onChange, onDelete }) {
       )}
       {node.type === "wait_for_event" && (
         <>
-          <Field label="Wait until the contact"><SelectInput value={node.event} onChange={(e) => set({ event: e.target.value })}>{pick.events.map((ev) => <option key={ev} value={ev}>{EVENT_LABEL[ev] ?? ev}</option>)}</SelectInput></Field>
+          <Field label="Wait until the contact"><SelectInput value={node.event} onChange={(e) => set({ event: e.target.value })}>{pick.events.map((ev) => <option key={ev} value={ev}>{EVENT_LABEL[ev] ?? (ev.startsWith("custom:") ? `${ev.slice(7).replace(/_/g, " ")} (your event)` : ev)}</option>)}</SelectInput></Field>
           <Field label="Only for this email (optional)"><SelectInput value={node.campaignId ?? ""} onChange={(e) => set({ campaignId: e.target.value || undefined })}>
             <option value="">Any email</option>
             {pick.emails.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
@@ -266,8 +266,9 @@ function TriggerSettings({ def, setDef, pick, kind }) {
       </SelectInput></Field>
       {t.type === "event" && (
         <>
-          <Field label="When the contact"><SelectInput value={t.event} onChange={(e) => set({ event: e.target.value })}>{pick.events.map((ev) => <option key={ev} value={ev}>{EVENT_LABEL[ev] ?? ev}</option>)}</SelectInput></Field>
-          <Field label="From this email (optional)"><SelectInput value={t.campaignId ?? ""} onChange={(e) => set({ campaignId: e.target.value || undefined })}><option value="">Any email</option>{pick.allEmails.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</SelectInput></Field>
+          <Field label="When the contact"><SelectInput value={t.event} onChange={(e) => set({ event: e.target.value })}>{pick.events.map((ev) => <option key={ev} value={ev}>{EVENT_LABEL[ev] ?? (ev.startsWith("custom:") ? `${ev.slice(7).replace(/_/g, " ")} (your event)` : ev)}</option>)}</SelectInput></Field>
+          {t.event?.startsWith("email.") && <Field label="From this email (optional)"><SelectInput value={t.campaignId ?? ""} onChange={(e) => set({ campaignId: e.target.value || undefined })}><option value="">Any email</option>{pick.allEmails.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</SelectInput></Field>}
+          {t.event === "form.submitted" && <Field label="This form (optional)"><SelectInput value={t.sourceId ?? ""} onChange={(e) => set({ sourceId: e.target.value || undefined })}><option value="">Any signup form</option>{pick.forms.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</SelectInput></Field>}
         </>
       )}
       {t.type === "audience" && (
@@ -394,6 +395,8 @@ export default function JourneyEditor({ id, kind, onClose, onChanged }) {
   const { data: j, refetch } = useApi(() => marketing.journeys.get(id), [id]);
   const { data: catalog } = useApi(() => marketing.journeys.catalog(), []);
   const { data: pickers } = useApi(() => marketing.journeys.pickers(), [id]);
+  const { data: custom } = useApi(() => marketing.streams.customEvents().catch(() => []), []);
+  const { data: streams } = useApi(() => marketing.streams.list().catch(() => []), []);
   const { data: stats, refetch: restat } = useApi(() => marketing.journeys.stats(id), [id, j?.status], { pollingInterval: j?.status === "active" ? 10000 : null });
   const [def, setDefState] = useState(null);
   const [name, setName] = useState("");
@@ -410,8 +413,9 @@ export default function JourneyEditor({ id, kind, onClose, onChanged }) {
     emails: pickers?.emails ?? [],
     allEmails: pickers?.emails ?? [],
     audiences: pickers?.audiences ?? [], members: pickers?.members ?? [], routes: pickers?.routes ?? [],
-    events: catalog?.events ?? Object.keys(EVENT_LABEL),
-  }), [pickers, catalog]);
+    events: [...(catalog?.events ?? Object.keys(EVENT_LABEL)), ...(custom ?? []).map((c) => c.type)],
+    forms: (streams ?? []).filter((s) => s.kind === "form"),
+  }), [pickers, catalog, custom, streams]);
 
   if (!j || !def) return <Loading rows={6} />;
   const readOnly = j.status === "archived";

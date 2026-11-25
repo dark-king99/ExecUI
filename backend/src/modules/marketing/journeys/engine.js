@@ -114,7 +114,7 @@ export async function onEvent(evt) {
     data: { waitUntil: new Date() },
   }));
   return enrollByTrigger(evt.tenantId, "event", evt.type, evt.contactId, { type: "event", event: evt.type, eventId: evt.id },
-    (t) => !t.campaignId || t.campaignId === evt.campaignId);
+    (t) => (!t.campaignId || t.campaignId === evt.campaignId) && (!t.sourceId || t.sourceId === evt.properties?.sourceId));
 }
 
 /** Scheduled audience triggers whose time has come. */

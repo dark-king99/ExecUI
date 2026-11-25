@@ -56,5 +56,11 @@ export const uploadImage = uploader(
   (_req, file, cb) => (file.mimetype.startsWith("image/") ? cb(null, true) : cb(new Error("Only image files are allowed"))),
 );
 
+// CSV files for Data Streams imports, kept in memory (req.file.buffer), up to 10 MB.
+export const uploadCsv = !multer ? [unavailable] : [
+  multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }).single("file"),
+  resumeTenantContext,
+];
+
 // General-purpose uploads (documents, video), up to 100 MB.
 export const uploadFile = uploader("upload", "file", { fileSize: 100 * 1024 * 1024 }, undefined);

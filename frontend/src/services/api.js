@@ -162,6 +162,13 @@ const get    = (path, params) => {
   return request(`${path}${qs}`);
 };
 const post   = (path, body)   => request(path, { method: 'POST',   body: JSON.stringify(body) });
+// Multipart upload: one file in "file" plus plain string fields.
+const upload = (path, file, fields = {}) => {
+  const form = new FormData();
+  form.append('file', file);
+  for (const [k, v] of Object.entries(fields)) if (v != null) form.append(k, v);
+  return request(path, { method: 'POST', body: form, headers: {} });
+};
 const put    = (path, body)   => request(path, { method: 'PUT',    body: JSON.stringify(body) });
 const patch  = (path, body)   => request(path, { method: 'PATCH',  body: JSON.stringify(body) });
 const del    = (path)         => request(path, { method: 'DELETE' });
@@ -567,11 +574,35 @@ export const marketing = {
   },
   content: {
     assets: {
-      list:   (params) => get('/marketing/content/assets', params),
-      get:    (id)     => get(`/marketing/content/assets/${id}`),
-      upload: (data)   => post('/marketing/content/assets', data),
-      delete: (id)     => del(`/marketing/content/assets/${id}`),
+      list:    (params)       => get('/marketing/content/assets', params),
+      summary: ()             => get('/marketing/content/assets/summary'),
+      get:     (id)           => get(`/marketing/content/assets/${id}`),
+      // upload(file, { name, tags, altText }) — multipart; the server checks the file's bytes.
+      upload:  (file, fields = {}) => upload('/marketing/content/assets', file, fields),
+      newVersion: (id, file, note) => upload(`/marketing/content/assets/${id}/versions`, file, note ? { note } : {}),
+      update:  (id, data)     => put(`/marketing/content/assets/${id}`, data),
+      approve: (id)           => post(`/marketing/content/assets/${id}/approve`, {}),
+      unapprove: (id)         => post(`/marketing/content/assets/${id}/unapprove`, {}),
+      archive: (id)           => post(`/marketing/content/assets/${id}/archive`, {}),
+      restore: (id)           => post(`/marketing/content/assets/${id}/restore`, {}),
+      delete:  (id)           => del(`/marketing/content/assets/${id}`),
     },
+  },
+  streams: {
+    list:      ()          => get('/marketing/streams'),
+    overview:  ()          => get('/marketing/streams/overview'),
+    customEvents: ()       => get('/marketing/streams/custom-events'),
+    get:       (id)        => get(`/marketing/streams/${id}`),
+    create:    (data)      => post('/marketing/streams', data),
+    update:    (id, data)  => put(`/marketing/streams/${id}`, data),
+    remove:    (id)        => del(`/marketing/streams/${id}`),
+    rotateKey: (id)        => post(`/marketing/streams/${id}/rotate-key`, {}),
+    runs:      (id)        => get(`/marketing/streams/${id}/runs`),
+    recent:    (id)        => get(`/marketing/streams/${id}/recent`),
+    previewCsv: (file)     => upload('/marketing/streams/csv/preview', file),
+    // importCsv(id, file, { mapping, consentEvidence?, attested? })
+    importCsv: (id, file, { mapping, consentEvidence, attested } = {}) =>
+      upload(`/marketing/streams/${id}/import`, file, { mapping: JSON.stringify(mapping ?? {}), ...(consentEvidence ? { consentEvidence, attested: attested ? '1' : '0' } : {}) }),
   },
   commerce: {
     orders:  (params) => get('/marketing/commerce/orders', params),
@@ -584,9 +615,6 @@ export const marketing = {
   },
   cdp: {
     metrics:  () => get('/marketing/cdp/metrics'),
-    sources:  () => get('/marketing/cdp/sources'),
-    addSource: (data) => post('/marketing/cdp/sources', data),
-    createSegment: (data) => post('/marketing/cdp/segments', data),
   },
   journeys: {
     catalog:     ()            => get('/marketing/journeys/catalog'),
