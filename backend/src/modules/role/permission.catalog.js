@@ -18,6 +18,15 @@ const RECORD_WRITES = {
   "marketing.campaign.create": "Create marketing campaigns through ExecAI",
 };
 
+// Keys that gate screens rather than agent actions.
+const SCREEN_CAPABILITIES = {
+  "network.settings.manage": [
+    "Create and revoke network collectors",
+    "Change subnets, polling, SNMP and alert thresholds",
+    "Connect and sync a monitoring tool",
+  ],
+};
+
 export const GRANTABLE = [
   { key: "crm.contact.write", group: "CRM", label: "Edit contacts & account notes",
     description: "Create and update CRM contacts, and add notes to accounts." },
@@ -37,6 +46,8 @@ export const GRANTABLE = [
     description: "Open new network incidents." },
   { key: "network.changes.request", group: "Network", label: "Request changes",
     description: "Submit network change requests. They are always created pending; approving stays manual." },
+  { key: "network.settings.manage", group: "Network", label: "Manage network collection",
+    description: "Set up collectors, network settings and the monitoring-tool connection. Collector tokens can read the SNMP community." },
 ];
 
 const BY_KEY = new Map(GRANTABLE.map((p) => [p.key, p]));
@@ -48,7 +59,7 @@ export function unlocksFor(key) {
   const actions = Object.values(ACTIONS)
     .filter((a) => a.permission === key || a.elevated === key)
     .map((a) => a.description);
-  return RECORD_WRITES[key] ? [RECORD_WRITES[key], ...actions] : actions;
+  return [...(RECORD_WRITES[key] ? [RECORD_WRITES[key]] : []), ...(SCREEN_CAPABILITIES[key] ?? []), ...actions];
 }
 
 /** Catalog for the admin UI, grouped in display order. */

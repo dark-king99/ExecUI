@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Users, Search, DollarSign, Briefcase, Clock, Send } from "lucide-react";
+import { Users, Search, DollarSign, Briefcase, Clock, Send, Mail, CalendarDays, StickyNote } from "lucide-react";
 import StatusBadge from "../../../../components/ui/StatusBadge";
 import { useToast } from "../../../../components/ui/Toast";
 import { useApi, useMutation } from "../../../../hooks/useApi";
 import { crm } from "../../../../services/api";
 import { SolutionShell, Section, Loading, fmtDate } from "../../components/crm-ui";
+import AccountFiles from "./AccountFiles";
+
+const TIMELINE_ICON = { email: Mail, meeting: CalendarDays, note: StickyNote };
 
 export default function Account360() {
   const toast = useToast();
@@ -13,9 +16,9 @@ export default function Account360() {
   const [note, setNote] = useState("");
   const { data: accounts, loading } = useApi(() => crm.accounts.list(), [], { pollingInterval: 120000 });
   const { data: detail, loading: dLoading } = useApi(() => (selected ? crm.accounts.get(selected) : Promise.resolve(null)), [selected]);
-  const { data: timeline } = useApi(() => (selected ? crm.accounts.timeline(selected) : Promise.resolve(null)), [selected]);
+  const { data: timeline, refetch: refetchTimeline } = useApi(() => (selected ? crm.accounts.timeline(selected) : Promise.resolve(null)), [selected]);
   const { mutate: addNote, loading: saving } = useMutation((d) => crm.accounts.addNote(selected, d), {
-    onSuccess: () => { toast({ message: "Note added", type: "success" }); setNote(""); },
+    onSuccess: () => { toast({ message: "Note added", type: "success" }); setNote(""); refetchTimeline(); },
   });
 
   const list = (accounts ?? []).filter((a) => !query || a.name?.toLowerCase().includes(query.toLowerCase()));
@@ -81,18 +84,31 @@ export default function Account360() {
             )}
           </Section>
 
+          {selected && <AccountFiles accountId={selected} />}
+
           {selected && (
             <Section title="Timeline & Notes" icon={Clock}>
               <div className="space-y-3 mb-4">
-                {(timeline ?? []).map((t, i) => (
-                  <div key={i} className="flex items-start gap-2 text-sm">
-                    <span className="h-2 w-2 rounded-full bg-sky-500 mt-1.5 shrink-0" />
-                    <div>
-                      <p className="text-slate-700 dark:text-slate-200">{t.description}</p>
-                      <p className="text-[11px] text-slate-400">{fmtDate(t.timestamp)}</p>
+                {(timeline ?? []).map((t, i) => {
+                  const Icon = TIMELINE_ICON[t.type];
+                  return (
+                    <div key={t.id ?? i} className="flex items-start gap-2 text-sm">
+                      {Icon
+                        ? <Icon size={14} className="mt-0.5 shrink-0 text-sky-500" />
+                        : <span className="h-2 w-2 rounded-full bg-sky-500 mt-1.5 shrink-0" />}
+                      <div className="min-w-0">
+                        <p className="text-slate-700 dark:text-slate-200">{t.description}</p>
+                        {t.detail && <p className="truncate text-xs text-slate-500">{t.detail}</p>}
+                        <p className="text-[11px] text-slate-400">{fmtDate(t.timestamp)}{t.author ? ` · ${t.author}` : ""}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
+                {timeline?.length === 1 && (
+                  <p className="text-xs text-slate-400">
+                    Emails and meetings with this account appear here once someone connects their mailbox in Account → Connected accounts.
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note…" className="flex-1 text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500" />

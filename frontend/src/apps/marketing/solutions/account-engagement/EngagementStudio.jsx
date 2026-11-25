@@ -27,7 +27,7 @@ export default function EngagementStudio() {
   ];
 
   return (
-    <SolutionShell solutionId="account-engagement" title="Engagement Studio" subtitle="Build multi-touch nurture programs for B2B prospects"
+    <SolutionShell solutionId="account-engagement" title="Engagement 3D" subtitle="Build multi-touch nurture programs for B2B prospects"
       actions={<PrimaryBtn color="sky" onClick={() => setShowModal(true)}><Plus size={15} /> New Program</PrimaryBtn>}>
       {showModal && (
         <Modal title="New Engagement Program" onClose={() => setShowModal(false)}

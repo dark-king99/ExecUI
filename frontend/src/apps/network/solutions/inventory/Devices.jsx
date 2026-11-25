@@ -6,6 +6,9 @@ import { network } from "../../../../services/api";
 import { Link } from "react-router-dom";
 import { SolutionShell, MetricGrid, Section, Loading, ErrorNote, UtilBar, Pill, fmtNum } from "../../components/net-ui";
 import useRecordFocus from "../../../../hooks/useRecordFocus";
+import ConfigHistory from "./ConfigHistory";
+
+const BACKED_UP_TYPES = new Set(["router", "switch", "firewall", "wireless"]);
 
 const STATUS_VARIANT = { Online: "success", Offline: "danger", Warning: "warning" };
 const TYPES = ["all", "server", "endpoint", "cloud", "router", "switch", "firewall"];
@@ -25,6 +28,7 @@ export default function Devices() {
   const alertsFor = (id) => alertCounts.get(id) ?? 0;
   const [search, setSearch] = useState("");
   const [type, setType] = useState("all");
+  const [configFor, setConfigFor] = useState(null);
   const { data: devices, loading, error, refetch } = useApi(() => network.devices.list({ limit: 500 }), [], { pollingInterval: 60000 });
 
   const all = devices ?? [];
@@ -76,7 +80,12 @@ export default function Devices() {
                   <tr key={d.id} data-record-id={d.id} className={focus.className(d.id, "hover:bg-slate-50 dark:hover:bg-slate-800/40 transition")}>
                     <td className="px-5 py-3">
                       <div className="font-medium text-slate-900 dark:text-white">{d.name}</div>
-                      <div className="text-xs text-slate-400">{d.ip}{d.os ? ` · ${d.os}` : ""}</div>
+                      <div className="text-xs text-slate-400">{d.ip}{d.vendor ? ` · ${d.vendor}` : ""}{d.os ? ` · ${d.os}` : ""}</div>
+                      {/* Where this row's data comes from — a typed-in entry isn't a reading. */}
+                      <div className="mt-0.5 text-[10px] text-slate-400">
+                        {d.source === "collector" ? `Discovered · seen ${d.lastSeen}` : d.source === "monitoring" ? `From monitoring tool · seen ${d.lastSeen}` : "Entered by hand · not monitored"}
+                        {d.externalUrl && <> · <a href={d.externalUrl} target="_blank" rel="noreferrer" className="text-indigo-500 hover:underline">Open in LibreNMS</a></>}
+                      </div>
                     </td>
                     <td className="px-5 py-3"><Pill color="sky">{d.type}</Pill></td>
                     <td className="px-5 py-3 text-slate-500">{d.location}</td>
@@ -92,7 +101,14 @@ export default function Devices() {
                         </Link>
                       ) : <span className="text-xs text-slate-300 dark:text-slate-600">—</span>}
                     </td>
-                    <td className="px-5 py-3"><StatusBadge label={d.status} variant={STATUS_VARIANT[d.status] ?? "neutral"} dot /></td>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-2">
+                        <StatusBadge label={d.status} variant={STATUS_VARIANT[d.status] ?? "neutral"} dot />
+                        {BACKED_UP_TYPES.has(d.type) && (
+                          <button type="button" onClick={() => setConfigFor(d)} className="text-[11px] text-indigo-600 hover:underline dark:text-indigo-400">Config</button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -100,6 +116,7 @@ export default function Devices() {
           </div>
         )}
       </Section>
+      {configFor && <ConfigHistory device={configFor} onClose={() => setConfigFor(null)} />}
     </SolutionShell>
   );
 }

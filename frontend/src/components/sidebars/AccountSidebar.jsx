@@ -4,7 +4,7 @@ import { useUser } from "../../context/UserContext";
 import {
 
   ArrowLeft, User, ShieldCheck, Key, KeyRound, Bell, Users, Plug, MessagesSquare,
-  CreditCard, FileText, ChevronLeft, ChevronRight, Building2, IdCard, Scale,
+  CreditCard, FileText, ChevronLeft, ChevronRight, Building2, IdCard, Scale, Link2,
 
   BadgeCheck,
 } from "lucide-react";
@@ -16,6 +16,8 @@ const personalItems = [
   // rather than in a People Ops module you have no business opening.
   { id: "my-hr",         label: "My HR",         icon: BadgeCheck,     path: "/account/my-hr" },
   { id: "messaging",     label: "Messaging",     icon: MessagesSquare, path: "/account/messaging" },
+  // Your own Gmail/Outlook and calendar (admins also manage the support inbox here).
+  { id: "connections",   label: "Connected accounts", icon: Link2,     path: "/account/connections" },
   { id: "security",      label: "Security",      icon: ShieldCheck,    path: "/account/security" },
   { id: "notifications", label: "Notifications", icon: Bell,           path: "/account/notifications" },
 ];

@@ -57,6 +57,7 @@ const num = (min, max, o = {}) => ({ type: "number", min, max, ...o });
 const int = (min, max, o = {}) => ({ type: "integer", min, max, ...o });
 const oneOf = (values, o = {}) => ({ type: "enum", values, ...o });
 const date = (o = {}) => ({ type: "date", ...o });
+const bool = (o = {}) => ({ type: "boolean", ...o });
 const list = (max, itemMax, o = {}) => ({ type: "list", max, itemMax, ...o });
 const required = { required: true };
 
@@ -151,13 +152,19 @@ export const ACTIONS = {
 
   crm_schedule_meeting: {
     section: "crm", solution: "activities", permission: null, effect: "create", title: "Meeting",
-    description: "Put a meeting on the signed-in user's CRM calendar.",
+    description: "Put a meeting on the signed-in user's CRM calendar. zoom=true also creates a Zoom meeting hosted by them (needs their Zoom connected).",
     input: {
       title: str(160, required),
       scheduledAt: date(required),
       notes: str(1000),
+      zoom: bool(),
     },
-    run: (ctx, input) => crm.createMeeting(ctx.tenantId, { ...input, userId: ctx.userId }, ctx.userId),
+    async run(ctx, { zoom, ...input }) {
+      const meeting = await crm.createMeeting(ctx.tenantId, { ...input, userId: ctx.userId }, ctx.userId);
+      if (!zoom) return meeting;
+      const { addZoomMeeting } = await import("../connections/workspace.service.js");
+      return addZoomMeeting({ tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role }, meeting.id);
+    },
   },
 
   crm_add_account_note: {
@@ -403,6 +410,11 @@ function coerceField(name, spec, raw) {
     case "enum": {
       if (!spec.values.includes(raw)) throw err(`${name} must be one of: ${spec.values.join(", ")}.`);
       return raw;
+    }
+    case "boolean": {
+      if (raw === true || raw === "true") return true;
+      if (raw === false || raw === "false") return false;
+      throw err(`${name} must be true or false.`);
     }
     case "date": {
       if (typeof raw !== "string" || raw.length > 40) throw err(`${name} must be an ISO date.`);

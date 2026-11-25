@@ -2,7 +2,7 @@
  * Social media marketing service — connected accounts, a publishing queue that
  * pushes generated content to the business's social platforms, and engagement
  * analytics. Content typically flows in from Einstein (AI) or the Engagement
- * Content Builder via createPost({ source }).
+ * Content Studio via createPost({ source }).
  *
  * Publishing goes through lib/social.js, which posts for real when a platform's
  * API credentials are configured and otherwise records a clearly-labelled
@@ -127,41 +127,23 @@ export async function deletePost(tenantId, id) {
   return { deleted: true };
 }
 
-// Seed plausible engagement for a delivered platform (simulated analytics).
-function seedMetrics(followers) {
-  const base = Math.max(followers, 200);
-  const reach = Math.round(base * (0.25 + Math.random() * 0.4));
-  const likes = Math.round(reach * (0.03 + Math.random() * 0.05));
-  const comments = Math.round(likes * (0.05 + Math.random() * 0.1));
-  const shares = Math.round(likes * (0.02 + Math.random() * 0.06));
-  return { reach, likes, comments, shares };
-}
-
 export async function publishPost(tenantId, id) {
   const post = await prisma.socialPost.findFirst({ where: { id, tenantId } });
   if (!post) throw new NotFoundError("Post not found");
   const accounts = await prisma.socialAccount.findMany({ where: { tenantId, platform: { in: post.platforms } } });
   const byPlatform = Object.fromEntries(accounts.map((a) => [a.platform, a]));
 
+  // Reach, likes and follower counts are NOT invented here. They used to be:
+  // every publish recorded random engagement and bumped followers by 0.2%.
+  // Metrics stay empty until a platform's API reports real numbers.
   const results = {};
-  const metrics = {};
   let anyOk = false;
-  let anyFollowerGain = 0;
 
   for (const platform of post.platforms) {
     const account = byPlatform[platform] ?? null;
     const res = await publishToPlatform(platform, account, post);
     results[platform] = res;
-    if (res.ok) {
-      anyOk = true;
-      metrics[platform] = seedMetrics(account?.followers ?? 0);
-      // A published post nudges following upward (simulated growth signal).
-      if (account) {
-        const gain = Math.max(1, Math.round((account.followers || 100) * 0.002));
-        anyFollowerGain += gain;
-        await prisma.socialAccount.update({ where: { id: account.id }, data: { followers: (account.followers || 0) + gain } });
-      }
-    }
+    if (res.ok) anyOk = true;
   }
 
   const row = await prisma.socialPost.update({
@@ -169,10 +151,10 @@ export async function publishPost(tenantId, id) {
     data: {
       status: anyOk ? "published" : "failed",
       publishedAt: anyOk ? new Date() : null,
-      results, metrics,
+      results,
     },
   });
-  return { ...postShape(row), followerGain: anyFollowerGain };
+  return postShape(row);
 }
 
 // ── Engagement / analytics ───────────────────────────────────────────────────
@@ -227,29 +209,6 @@ const engShape = (e) => ({
   createdAt: e.createdAt,
 });
 
-const SAMPLE = {
-  positive: [
-    "This is exactly what our team needed — love it! 🙌",
-    "Been using you for a month, huge time saver. Keep it up!",
-    "Just recommended you to my whole network 👏",
-    "The new update is 🔥. Any plans for an Android app?",
-  ],
-  neutral: [
-    "How much is the enterprise plan?",
-    "Do you integrate with our existing CRM?",
-    "Is there a free trial for teams?",
-    "What regions/currencies do you support?",
-  ],
-  negative: [
-    "Support hasn't replied in 2 days — a bit frustrated.",
-    "Login was down this morning, is it fixed?",
-    "Pricing feels steep for a small team.",
-  ],
-};
-const HANDLES = ["kwame_ops", "amara.b", "j_dev", "sarah_pm", "moses.t", "the_grace", "d_kollie", "aria.k"];
-const NAMES = ["Kwame O.", "Amara B.", "James D.", "Sarah P.", "Moses T.", "Grace L.", "Daniel K.", "Aria N."];
-const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
 export async function listEngagements(tenantId, query = {}) {
   const where = { tenantId };
   if (query.status) where.status = String(query.status);
@@ -271,29 +230,21 @@ export async function engagementStats(tenantId) {
 }
 
 /**
- * Pull new interactions into the inbox. Real when platform APIs are wired;
- * otherwise seeds a few clearly-labelled sample interactions from the connected
- * platforms so the team can work the growth loop today.
+ * Pull new interactions into the inbox from platforms with live API access.
+ *
+ * This used to invent a handful of sample comments (tagged "simulated") every
+ * time someone pressed Sync. A made-up customer message in a real inbox is
+ * worse than an empty one, so without live access it now reports that and
+ * creates nothing.
  */
 export async function syncEngagements(tenantId) {
   const accounts = await prisma.socialAccount.findMany({ where: { tenantId } });
-  const platforms = accounts.length ? accounts.map((a) => a.platform) : ["facebook", "instagram", "whatsapp"];
-  const n = 3 + Math.floor(Math.random() * 3);
-  const created = [];
-  for (let i = 0; i < n; i++) {
-    const sentiment = pick(["positive", "positive", "neutral", "neutral", "negative"]);
-    const kind = pick(["comment", "comment", "mention", "dm"]);
-    const idx = Math.floor(Math.random() * NAMES.length);
-    const row = await prisma.socialEngagement.create({
-      data: {
-        tenantId, platform: pick(platforms), kind,
-        authorName: NAMES[idx], authorHandle: HANDLES[idx],
-        text: pick(SAMPLE[sentiment]), sentiment, status: "new", simulated: true,
-      },
-    });
-    created.push(engShape(row));
+  const live = accounts.filter((a) => platformConfigured(a.platform));
+  if (!live.length) {
+    return { synced: 0, live: false, items: [], message: "No platform has live API access yet, so there is nothing to pull. Connect a platform's API to receive real comments and messages." };
   }
-  return { synced: created.length, live: false, items: created };
+  // Live pull is per-platform work that isn't built yet; say so rather than pretend.
+  return { synced: 0, live: true, items: [], message: "Pulling comments from live platforms isn't available yet." };
 }
 
 export async function replyEngagement(tenantId, id, text) {
@@ -346,7 +297,6 @@ function lastNDays(n) {
   return out;
 }
 // deterministic 0..1 from a string, so a synthesized series is stable across loads
-const hash01 = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 1000) / 1000; };
 
 export async function growth(tenantId) {
   const [accounts, posts] = await Promise.all([
@@ -372,19 +322,14 @@ export async function growth(tenantId) {
   const realDays = Object.keys(realByDay).length;
   const projected = realDays < 3;
 
-  // Build a smooth 14-day series ending at the current total; overlay real days.
-  const start = Math.max(0, Math.round(totalFollowers * 0.86));
-  const series = days.map((day, i) => {
-    if (realByDay[day] != null) return { day, followers: realByDay[day] };
-    const t = days.length > 1 ? i / (days.length - 1) : 1;
-    const base = start + (totalFollowers - start) * t;
-    const jitter = (hash01(day) - 0.5) * Math.max(4, totalFollowers * 0.004);
-    return { day, followers: Math.max(0, Math.round(base + jitter)) };
-  });
-  if (series.length) series[series.length - 1].followers = totalFollowers; // anchor to reality
-  const first = series[0]?.followers ?? 0;
-  const netNew = totalFollowers - first;
-  const growthPct = first ? +((netNew / first) * 100).toFixed(1) : 0;
+  // Only days with a recorded snapshot have a value. This used to draw a smooth
+  // invented curve rising 14% to today's total whenever history was missing.
+  const series = days.map((day) => ({ day, followers: realByDay[day] ?? null }));
+  const measured = series.filter((p) => p.followers != null);
+  const first = measured[0]?.followers ?? null;
+  const last = measured.at(-1)?.followers ?? null;
+  const netNew = first != null && measured.length > 1 ? last - first : null;
+  const growthPct = netNew != null && first ? +((netNew / first) * 100).toFixed(1) : null;
 
   // Engagement rate from published posts.
   const sum = (key) => posts.reduce((s, p) => s + Object.values(p.metrics ?? {}).reduce((a, m) => a + (m[key] || 0), 0), 0);

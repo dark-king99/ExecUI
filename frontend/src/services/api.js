@@ -594,13 +594,16 @@ export const network = {
   traffic: {
     overview:    () => get('/network/traffic/overview'),
     topTalkers:  () => get('/network/traffic/top-talkers'),
-    protocols:   () => get('/network/traffic/protocols'),
+    protocols: (params) => get('/network/traffic/protocols', params),
+    conversations: (params) => get('/network/traffic/conversations', params),
     anomalies:   () => get('/network/traffic/anomalies'),
   },
   topology: {
     regions: () => get('/network/topology/regions'),
     nodes:   () => get('/network/topology/nodes'),
     links:   () => get('/network/topology/links'),
+    // Nodes + real links + layout in one call.
+    map:     () => get('/network/topology/map'),
   },
   incidents: {
     list:     (params) => get('/network/incidents', params),
@@ -640,6 +643,21 @@ export const network = {
   policies: {
     list:  ()   => get('/network/policies'),
     check: (id) => post(`/network/policies/${id}/check`),
+  },
+  // On-site collectors. create() returns { collector, token } — the token once.
+  collectors: {
+    list:   ()     => get('/network/collectors'),
+    create: (data) => post('/network/collectors', data),
+    revoke: (id)   => post(`/network/collectors/${id}/revoke`, {}),
+  },
+  monitoring: {
+    sync: () => post('/network/monitoring/sync', {}),
+  },
+  // Device configuration backups (need "Manage network collection").
+  configs: {
+    versions: (deviceId) => get(`/network/devices/${deviceId}/configs`),
+    get:      (id)       => get(`/network/configs/${id}`),
+    diff:     (id)       => get(`/network/configs/${id}/diff`),
   },
   settings: {
     get:      ()     => get('/network/settings'),
@@ -1121,6 +1139,34 @@ export const attachments = {
 };
 
 // ── Account ───────────────────────────────────────────────────────────────
+// ── Connected accounts (Google / Microsoft) ───────────────────────────────
+export const connections = {
+  list:   ()                    => get('/connections'),
+  // Returns { url } — the browser is sent to the provider to sign in.
+  start:  (provider, purpose)   => post(`/connections/oauth/${provider}/start`, { purpose }),
+  update: (id, data)            => patch(`/connections/${id}`, data),
+  remove: (id)                  => del(`/connections/${id}`),
+  sync:   (id)                  => post(`/connections/${id}/sync`, {}),
+  // start(provider, purpose, features) — e.g. features ["files"] adds Drive/OneDrive search.
+  startWith: (provider, purpose, features) => post(`/connections/oauth/${provider}/start`, { purpose, features }),
+  // Slack / Teams channel routing (admins).
+  chat: {
+    get:          ()          => get('/connections/chat'),
+    slackChannels: ()         => get('/connections/chat/slack/channels'),
+    addRoute:     (data)      => post('/connections/chat/routes', data),
+    toggleRoute:  (id, enabled) => patch(`/connections/chat/routes/${id}`, { enabled }),
+    removeRoute:  (id)        => del(`/connections/chat/routes/${id}`),
+    testRoute:    (id)        => post(`/connections/chat/routes/${id}/test`, {}),
+  },
+  files: {
+    search: (q)    => get('/connections/files/search', { q }),
+    attach: (data) => post('/connections/files/attach', data),
+  },
+  zoom: {
+    createMeeting: (followUpId) => post(`/connections/zoom/meetings`, { followUpId }),
+  },
+};
+
 export const account = {
   profile: {
     get:    ()     => get('/account/profile'),

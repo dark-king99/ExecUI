@@ -14,22 +14,23 @@ export default function Overview() {
   const kpis = (o.kpis ?? []).map((k, i) => ({ label: k.label, value: k.value, icon: KPI_ICON[i] ?? Activity, color: KPI_COLOR[i] ?? "violet" }));
   const top = (talkers ?? []).slice(0, 6);
 
-  const split = [
-    { label: "Inbound", value: o.inboundMbps ?? 0 },
-    { label: "Outbound", value: o.outboundMbps ?? 0 },
-  ];
+  const split = o.measured ? [
+    { label: "Inbound", value: o.inboundMbps },
+    { label: "Outbound", value: o.outboundMbps },
+  ] : [];
 
   return (
     <SolutionShell solutionId="traffic" title="Traffic Overview" subtitle="Live bandwidth and throughput across the network">
       <MetricGrid items={kpis.length ? kpis : [{ label: "Throughput", value: "—", icon: Gauge, color: "violet" }]} cols={4} loading={loading && !overview} />
+      {o.note && <p className="text-xs text-slate-500">{o.note}</p>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Section title="Bandwidth Direction" subtitle="Inbound vs outbound" icon={Activity}>
           {loading && !overview ? <Loading rows={2} /> : (
             <>
-              <BarList items={split} color="violet" format={(v) => `${v} Mbps`} />
-              <div className="grid grid-cols-3 gap-2 mt-4">
-                {[["Inbound", o.bandwidth?.inbound], ["Outbound", o.bandwidth?.outbound], ["Internal", o.bandwidth?.internal]].map(([l, v]) => (
+              {split.length ? <BarList items={split} color="violet" format={(v) => `${v} Mbps`} /> : <p className="py-4 text-center text-sm text-slate-400">No measured traffic yet.</p>}
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                {[["Inbound", o.bandwidth?.inbound], ["Outbound", o.bandwidth?.outbound]].map(([l, v]) => (
                   <div key={l} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-center">
                     <div className="text-sm font-bold text-slate-900 dark:text-white">{v ?? "—"}</div>
                     <div className="text-[11px] text-slate-500 mt-0.5">{l}</div>

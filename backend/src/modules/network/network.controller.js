@@ -1,4 +1,7 @@
 import * as svc from "./network.service.js";
+import * as collectors from "./network.collectors.js";
+import { syncMonitoring as runMonitoringSync } from "./network.monitoring.js";
+import * as backups from "./network.backups.js";
 
 const tid = (req) => req.user.tenantId;
 
@@ -31,7 +34,8 @@ export const resolveAlert     = handle((req) => svc.resolveAlert(tid(req), req.p
 // Traffic
 export const getTrafficOverview  = handle((req) => svc.getTrafficOverview(tid(req)));
 export const getTopTalkers       = handle((req) => svc.getTopTalkers(tid(req)));
-export const getTrafficProtocols = handle((req) => svc.getTrafficProtocols(tid(req)));
+export const getTrafficProtocols = handle((req) => svc.getTrafficProtocols(tid(req), req.query));
+export const getTrafficConversations = handle((req) => svc.getTrafficConversations(tid(req), req.query));
 export const getTrafficAnomalies = handle((req) => svc.getTrafficAnomalies(tid(req)));
 
 // Topology
@@ -124,3 +128,13 @@ export const getFirewallLogs    = handle((req) => svc.getFirewallLogs(tid(req)))
 
 // Global sync
 export const syncAllNetwork = handle((req) => svc.syncAllNetwork(tid(req)));
+
+// Topology map + collection
+export const getTopologyMap  = handle((req) => svc.getTopologyMap(tid(req)));
+export const listCollectors  = handle((req) => collectors.listCollectors(tid(req)));
+export const createCollector = handle((req) => collectors.createCollector(tid(req), req.user.userId, req.body ?? {}));
+export const revokeCollector = handle((req) => collectors.revokeCollector(tid(req), req.user.userId, req.params.id));
+export const syncMonitoring  = handle((req) => runMonitoringSync(tid(req)));
+export const listConfigVersions = handle((req) => backups.listVersions(tid(req), req.params.id));
+export const getConfigVersion   = handle((req) => backups.getVersion(tid(req), req.params.id, req.user.userId));
+export const diffConfigVersion  = handle((req) => backups.diffVersion(tid(req), req.params.id, req.user.userId));

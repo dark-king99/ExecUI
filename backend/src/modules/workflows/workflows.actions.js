@@ -26,6 +26,7 @@ export const ACTION_TYPES = {
   notify:           "Send an in-app notification",
   send_email:       "Send an email",
   request_approval: "Require approval",
+  post_chat:        "Post to a Slack or Teams channel",
 };
 
 const isEmail = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(s).trim());
@@ -155,6 +156,14 @@ export function validateAction(triggerResourceId, action = {}) {
       };
     }
 
+    case "post_chat": {
+      // The channel is one an admin set up under Integrations → Chat channels;
+      // that it still exists is checked when the action runs.
+      if (typeof action.routeId !== "string" || !action.routeId) throw err("Choose a channel to post to");
+      if (!String(action.text || "").trim()) throw err("Write the message to post");
+      return { type, routeId: action.routeId, text: String(action.text).slice(0, 600) };
+    }
+
     default:
       throw err(`Unknown action "${type}"`);
   }
@@ -244,6 +253,13 @@ export async function executeAction(action, ctx) {
         ctx,
       });
       return { type: action.type, requestId: request.id, steps: request.steps.length };
+    }
+
+    case "post_chat": {
+      const { postToRoute } = await import("../connections/chat.service.js");
+      const text = renderTemplate(action.text, tpl);
+      await postToRoute(tenantId, action.routeId, { title: text.split("\n")[0], text: text.split("\n").slice(1).join("\n"), link: null });
+      return { type: action.type, routeId: action.routeId, posted: true };
     }
 
     default:

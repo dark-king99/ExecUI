@@ -31,8 +31,8 @@ export const SOLUTIONS = [
     pages: [
       { id: "overview",   label: "Overview",          icon: LayoutDashboard, path: "/marketing/engagement",            component: lazy(() => import("./solutions/engagement/Overview")) },
       { id: "email",      label: "Email Studio",       icon: Mail,            path: "/marketing/engagement/email",      component: lazy(() => import("./solutions/engagement/EmailStudio")) },
-      { id: "journeys",   label: "Journey Builder",    icon: Workflow,        path: "/marketing/engagement/journeys",   component: lazy(() => import("./solutions/engagement/JourneyBuilder")) },
-      { id: "content",    label: "Content Builder",    icon: Image,           path: "/marketing/engagement/content",    component: lazy(() => import("./solutions/engagement/ContentBuilder")) },
+      { id: "journeys",   label: "Journey Tab",        icon: Workflow,        path: "/marketing/engagement/journeys",   component: lazy(() => import("./solutions/engagement/JourneyBuilder")) },
+      { id: "content",    label: "Content Studio",     icon: Image,           path: "/marketing/engagement/content",    component: lazy(() => import("./solutions/engagement/ContentBuilder")) },
       { id: "automation", label: "Automation Studio",  icon: CalendarClock,   path: "/marketing/engagement/automation", component: lazy(() => import("./solutions/engagement/AutomationStudio")) },
     ],
   },
@@ -48,7 +48,7 @@ export const SOLUTIONS = [
     pages: [
       { id: "overview",  label: "Overview",           icon: LayoutDashboard, path: "/marketing/account-engagement",          component: lazy(() => import("./solutions/account-engagement/Overview")) },
       { id: "prospects", label: "Prospects",          icon: Users,           path: "/marketing/account-engagement/prospects", component: lazy(() => import("./solutions/account-engagement/Prospects")) },
-      { id: "studio",    label: "Engagement Studio",  icon: GitBranch,       path: "/marketing/account-engagement/studio",    component: lazy(() => import("./solutions/account-engagement/EngagementStudio")) },
+      { id: "studio",    label: "Engagement 3D",      icon: GitBranch,       path: "/marketing/account-engagement/studio",    component: lazy(() => import("./solutions/account-engagement/EngagementStudio")) },
       { id: "scoring",   label: "Scoring & Grading",  icon: Target,          path: "/marketing/account-engagement/scoring",   component: lazy(() => import("./solutions/account-engagement/Scoring")) },
     ],
   },
@@ -65,7 +65,7 @@ export const SOLUTIONS = [
       { id: "overview",  label: "Overview",          icon: LayoutDashboard, path: "/marketing/personalization",            component: lazy(() => import("./solutions/personalization/Overview")) },
       { id: "campaigns", label: "Web Campaigns",     icon: Sparkles,        path: "/marketing/personalization/campaigns",  component: lazy(() => import("./solutions/personalization/Campaigns")) },
       { id: "recipes",   label: "Recipes",           icon: Layers,          path: "/marketing/personalization/recipes",    component: lazy(() => import("./solutions/personalization/Recipes")) },
-      { id: "decisions", label: "Einstein Decisions", icon: Brain,          path: "/marketing/personalization/decisions",  component: lazy(() => import("./solutions/personalization/Decisions")) },
+      { id: "decisions", label: "JARVIS Insights",    icon: Brain,          path: "/marketing/personalization/decisions",  component: lazy(() => import("./solutions/personalization/Decisions")) },
     ],
   },
   {
@@ -138,7 +138,7 @@ export const SOLUTIONS = [
     short: "Social",
     tagline: "Publish, schedule & grow social",
     description:
-      "Push Einstein- and Content-Builder-generated content to Facebook, Instagram, WhatsApp, X, LinkedIn and more — schedule, publish, and grow engagement and following from one hub.",
+      "Push Einstein- and Content Studio-generated content to Facebook, Instagram, WhatsApp, X, LinkedIn and more — schedule, publish, and grow engagement and following from one hub.",
     icon: Share2,
     color: "sky",
     pages: [

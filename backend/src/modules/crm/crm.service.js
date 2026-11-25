@@ -642,13 +642,43 @@ export const getAccountDeals = async (tenantId, accountId) => {
   return opps.map(dealShape);
 };
 
+/**
+ * What actually happened with an account, newest first: notes people added,
+ * emails and meetings logged from connected mailboxes and calendars, and when
+ * the account was created. (This used to return a fixed "Last contacted via
+ * email" line stamped with the current time.)
+ */
 export const getAccountTimeline = async (tenantId, accountId) => {
   const c = await prisma.contact.findFirst({ where: { id: accountId, tenantId } });
   if (!c) return [];
+  const [notes, emails, meetings] = await Promise.all([
+    prisma.auditLog.findMany({
+      where: { tenantId, action: "note", resource: "account", resourceId: accountId },
+      orderBy: { createdAt: "desc" }, take: 50,
+      select: { id: true, detail: true, createdAt: true, user: { select: { firstName: true, lastName: true } } },
+    }),
+    prisma.mailActivity.findMany({
+      where: { tenantId, contactId: accountId },
+      orderBy: { occurredAt: "desc" }, take: 50,
+      select: { id: true, direction: true, subject: true, snippet: true, occurredAt: true, fromEmail: true },
+    }),
+    prisma.crmFollowUp.findMany({
+      where: { tenantId, contactId: accountId },
+      orderBy: { scheduled_date: "desc" }, take: 50,
+      select: { id: true, notes: true, status: true, scheduled_date: true },
+    }),
+  ]);
+  const who = (u) => (u ? `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() : null);
   return [
-    { type: "created", description: `Account ${c.name} created`, timestamp: c.createdAt },
-    { type: "activity", description: "Last contacted via email", timestamp: new Date() },
-  ];
+    ...notes.map((n) => ({ id: n.id, type: "note", description: n.detail, author: who(n.user), timestamp: n.createdAt })),
+    ...emails.map((e) => ({
+      id: e.id, type: "email", direction: e.direction,
+      description: `${e.direction === "outbound" ? "Email sent" : "Email received"}: ${e.subject}`,
+      detail: e.snippet, timestamp: e.occurredAt,
+    })),
+    ...meetings.map((m) => ({ id: m.id, type: "meeting", description: `Meeting (${m.status}): ${m.notes ?? "untitled"}`, timestamp: m.scheduled_date })),
+    { id: `created-${c.id}`, type: "created", description: `Account ${c.name} created`, timestamp: c.createdAt },
+  ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 };
 
 export const addAccountNote = async (tenantId, accountId, data, actorId = null) => {
@@ -1038,7 +1068,10 @@ export const listMeetings = async (tenantId, params = {}) => {
     id: m.id, title: m.notes ?? "Meeting", notes: m.notes,
     scheduledAt: m.scheduled_date, status: m.status,
     owner: m.user ? `${m.user.firstName} ${m.user.lastName}` : null,
+    ownerId: m.userId,
     type: m.follow_up_type,
+    meetingUrl: m.meetingUrl ?? null,
+    meetingProvider: m.meetingProvider ?? null,
   }));
 };
 

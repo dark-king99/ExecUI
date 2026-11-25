@@ -7,8 +7,10 @@ import { SolutionShell, MetricGrid, Section, BarList, Loading, ErrorNote, fmtNum
 import { platformMeta } from "./platformMeta";
 
 // Lightweight SVG area chart for the follower trend.
-function TrendChart({ series }) {
-  if (!series || series.length < 2) return <p className="text-sm text-slate-400 py-8 text-center">Not enough data yet.</p>;
+function TrendChart({ series: all }) {
+  // Only days with a recorded follower count are plotted; nothing is filled in.
+  const series = (all ?? []).filter((d) => d.followers != null);
+  if (series.length < 2) return <p className="text-sm text-slate-400 py-8 text-center">Not enough history yet — follower counts are recorded once a day.</p>;
   const W = 640, H = 160, pad = 6;
   const ys = series.map((d) => d.followers);
   const min = Math.min(...ys), max = Math.max(...ys);
@@ -48,7 +50,7 @@ export default function Growth() {
 
   const metrics = [
     { label: "Total followers", value: fmtNum(g.totalFollowers ?? 0), icon: Users, color: "violet" },
-    { label: "Net new (14d)", value: `${(g.netNew ?? 0) >= 0 ? "+" : ""}${fmtNum(g.netNew ?? 0)}`, icon: UserPlus, color: "emerald", delta: g.growthPct != null ? `${g.growthPct >= 0 ? "+" : ""}${g.growthPct}%` : undefined },
+    { label: "Net new (14d)", value: g.netNew == null ? "—" : `${g.netNew >= 0 ? "+" : ""}${fmtNum(g.netNew)}`, icon: UserPlus, color: "emerald", delta: g.growthPct != null ? `${g.growthPct >= 0 ? "+" : ""}${g.growthPct}%` : undefined },
     { label: "Engagement rate", value: `${g.engagementRate ?? 0}%`, icon: TrendingUp, color: "sky" },
     { label: "Posts published", value: fmtNum(g.publishedCount ?? 0), icon: Send, color: "amber" },
   ];
@@ -65,7 +67,7 @@ export default function Growth() {
       <Section
         title="Follower growth"
         subtitle="Last 14 days"
-        actions={g.projected ? <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">projected until history builds</span> : null}
+        actions={g.projected ? <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">not enough history yet</span> : null}
       >
         <TrendChart series={g.series} />
       </Section>

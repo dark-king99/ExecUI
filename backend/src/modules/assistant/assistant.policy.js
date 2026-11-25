@@ -3,6 +3,7 @@ import { listResources } from "../api/api.resources.js";
 import { hasSolutionAccess, solutionCatalog } from "./assistant.solutions.js";
 import { actionCatalog, describeAction } from "./assistant.actions.js";
 import { automationTools } from "./assistant.automation.js";
+import { mailboxTools } from "./assistant.mailbox.js";
 
 /**
  * Tools that change data. After the first turn these are withdrawn, so a model
@@ -54,7 +55,7 @@ export function writableResources(access = {}, { role, permissions = [] } = {}) 
   }));
 }
 
-export function assistantTools(access = {}, { pythonEnabled = false, writable = [], role, permissions = new Set() } = {}) {
+export function assistantTools(access = {}, { pythonEnabled = false, writable = [], role, permissions = new Set(), mailbox = null, chatRoutes = [] } = {}) {
   const resources = overviewCatalog(access);
   const ids = resources.map(({ id }) => id);
   const searchFilters = resources.map((resource) => {
@@ -155,7 +156,7 @@ export function assistantTools(access = {}, { pythonEnabled = false, writable = 
         },
       },
     });
-    tools.push(...automationTools(role));
+    tools.push(...automationTools(role, { chatRoutes }));
   }
   if (createIds.length) {
     tools.push(
@@ -221,6 +222,8 @@ export function assistantTools(access = {}, { pythonEnabled = false, writable = 
       },
     });
   }
+  // The signed-in person's own mailbox and calendar, when they've connected one.
+  tools.push(...mailboxTools(mailbox));
   if (pythonEnabled) {
     tools.push({
       type: "function",

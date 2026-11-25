@@ -107,6 +107,20 @@ export const CATEGORIES = [
     pii: true,
   }),
 
+  // Emails with CRM contacts, logged from people's connected mailboxes. Subject
+  // line and a short snippet only. A contact asking to be forgotten is matched
+  // as sender or recipient, and their rows are deleted outright.
+  cat("mail_activity", {
+    label: "Logged emails (connected mailboxes)",
+    model: "mailActivity",
+    dateField: "occurredAt",
+    subject: { by: "email", field: "fromEmail", listFields: ["toEmails"] },
+    onErase: "delete",
+    exportFields: ["id", "direction", "fromEmail", "toEmails", "subject", "snippet", "occurredAt"],
+    defaultRetentionDays: 730,
+    pii: true,
+  }),
+
   cat("direct_messages", {
     label: "Direct messages",
     model: "directMessage",
@@ -343,6 +357,17 @@ export const CATEGORIES = [
     note: "The record of how each contract reached its current status.",
   }),
 
+  cat("network_metric_samples", {
+    label: "Network metric history",
+    model: "networkMetricSample",
+    dateField: "at",
+    subject: null,
+    onErase: null,
+    defaultRetentionDays: 30,
+    pii: false,
+    note: "CPU, memory, traffic and reachability readings from collectors. Network settings also prune these on their own schedule.",
+  }),
+
   cat("workflow_runs", {
     label: "Automation run history",
     model: "workflowRun",
@@ -401,6 +426,12 @@ export function subjectWhere(category, { userId, email }) {
   if (!s) return null;
   if (s.by === "self") return userId ? { id: userId } : email ? { email } : null;
   if (s.by === "userId") return userId ? { [s.field || "userId"]: userId } : null;
+  if (s.by === "email" && s.listFields) {
+    // The address can sit in a scalar field or inside an address list.
+    if (!email) return null;
+    const e = String(email).trim().toLowerCase();
+    return { OR: [{ [s.field]: e }, ...s.listFields.map((f) => ({ [f]: { has: e } }))] };
+  }
   if (s.by === "email") return email ? { [s.field]: email } : null;
   return null;
 }

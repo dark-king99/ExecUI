@@ -118,7 +118,12 @@ export default function Inbox() {
   const refreshAll = () => { refresh(); refreshStats(); };
   const sync = async () => {
     setSyncing(true);
-    try { const r = await marketing.social.syncEngagements(); toast.success(`${r.synced} new ${r.synced === 1 ? "message" : "messages"}${r.live ? "" : " (sample)"}`); refreshAll(); }
+    try {
+      const r = await marketing.social.syncEngagements();
+      if (r.message && !r.synced) toast({ message: r.message, type: "info" });
+      else toast.success(`${r.synced} new ${r.synced === 1 ? "message" : "messages"}`);
+      refreshAll();
+    }
     catch (e) { toast.error(e.message || "Couldn't sync"); }
     finally { setSyncing(false); }
   };
