@@ -5,7 +5,7 @@ Network data comes from one of three places, and every device says which:
 | Source | Shown as | Has live metrics? |
 |---|---|---|
 | **Collector** — an agent run inside the customer's network (`collector/`) | "Discovered · seen …" | Yes, when the device answers SNMP |
-| **Monitoring tool** — LibreNMS, imported every 10 minutes | "From monitoring tool · seen …" | Status, traffic, links (CPU/memory come from collectors) |
+| **Monitoring tool** — LibreNMS, imported every 10 minutes | "From monitoring tool · seen …" + "Open in LibreNMS" | Status, traffic, links, open alerts (CPU/memory come from collectors) |
 | **Manual** — typed in by a person | "Entered by hand · not monitored" | No |
 
 Averages, capacity, traffic and top talkers use **measured devices only**; a
@@ -28,6 +28,18 @@ Social marketing had the same problem and was fixed at the same time:
 publishing no longer records random reach/likes or bumps follower counts,
 the growth chart only plots recorded days, and "Sync" no longer creates sample
 customer comments.
+
+## LibreNMS
+
+Connect it in **Network → Settings → Existing monitoring tool** (address +
+API token). Every 10 minutes ExecUI imports devices, per-device traffic, LLDP/
+CDP/xDP links, and **open alerts** — each becomes an ExecUI alert (and a chat
+post, if channels are set up) and is resolved when LibreNMS clears it.
+
+With **Add devices the collector discovers** on, SNMP devices an ExecUI
+collector finds are added to LibreNMS with the v2c/v3 credentials from network
+settings (up to 20 per sync; a failed add is retried a day later), so LibreNMS
+starts graphing them. Once LibreNMS has a device, the next import links the two.
 
 ## Alerts
 

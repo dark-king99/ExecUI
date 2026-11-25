@@ -6,6 +6,11 @@
  *   devices   hostname, address, OS, hardware, up/down, uptime
  *   traffic   per-device in/out rates, summed from its ports
  *   links     the LLDP/CDP/xDP neighbours LibreNMS discovered — onto the map
+ *   alerts    LibreNMS's open alerts, resolved here when LibreNMS clears them
+ * and, when "add discovered devices" is on, pushes devices an ExecUI collector
+ * found into LibreNMS (with the SNMP v2c/v3 credentials from network settings)
+ * so LibreNMS starts polling and graphing them.
+ *
  * CPU and memory are not imported: LibreNMS exposes them per-sensor through
  * graph endpoints that differ by device, so those come from an ExecUI
  * collector instead. Imported devices are marked "monitoring" so it's always
@@ -14,14 +19,17 @@
 import prisma from "../../config/database.js";
 import { runUnscoped, runWithTenant } from "../../lib/tenantContext.js";
 import { log } from "../../lib/logger.js";
-import { loadSettings, monitoringToken } from "./network.settings.js";
+import { loadSettings, monitoringToken, snmpForCollector } from "./network.settings.js";
+import { notifyChat } from "../connections/chat.service.js";
 import { typeFrom, vendorFrom, osFrom } from "./network.classify.js";
 
 const err = (message, status = 400) => Object.assign(new Error(message), { status });
 
-async function librenms(base, token, path) {
+async function librenms(base, token, path, { method = "GET", json } = {}) {
   const res = await fetch(`${base}/api/v0${path}`, {
-    headers: { "X-Auth-Token": token, Accept: "application/json" },
+    method,
+    headers: { "X-Auth-Token": token, Accept: "application/json", ...(json ? { "Content-Type": "application/json" } : {}) },
+    body: json ? JSON.stringify(json) : undefined,
     signal: AbortSignal.timeout(20_000),
   });
   const body = await res.json().catch(() => null);
@@ -106,6 +114,10 @@ export async function syncMonitoring(tenantId) {
         out.links += 1;
       }
 
+      // Alerts and auto-add are extras: their failure is reported, not fatal.
+      out.alerts = await syncAlerts(tenantId, base, token, byLibreId).catch((e) => ({ error: e.message }));
+      if (settings.monitoringAutoAdd) out.added = await pushDiscovered(tenantId, base, token, settings).catch((e) => ({ error: e.message }));
+
       await prisma.networkSettings.update({ where: { tenantId }, data: { monitoringLastSyncAt: now, monitoringLastError: null } });
       return out;
     } catch (e) {
@@ -113,6 +125,86 @@ export async function syncMonitoring(tenantId) {
       throw e;
     }
   });
+}
+
+const SEVERITY = { critical: "critical", warning: "warning", ok: "info", info: "info" };
+
+/**
+ * Mirror LibreNMS's open alerts. Each becomes one ExecUI alert (kind
+ * "librenms:<id>") on the matching device; when it's no longer open in
+ * LibreNMS, it's resolved here.
+ */
+export async function syncAlerts(tenantId, base, token, byLibreId = new Map()) {
+  const [{ alerts = [] }, rules] = await Promise.all([
+    librenms(base, token, "/alerts?state=1"),
+    librenms(base, token, "/rules").catch(() => ({ rules: [] })),
+  ]);
+  const ruleName = new Map((rules?.rules ?? []).map((r) => [String(r.id), r.name]));
+  const seen = new Set();
+  let opened = 0, resolved = 0;
+  for (const a of alerts) {
+    const kind = `librenms:${a.id}`;
+    seen.add(kind);
+    const exists = await prisma.networkAlert.findFirst({ where: { tenantId, kind, status: { not: "resolved" } } });
+    if (exists) continue;
+    const device = byLibreId.get(String(a.device_id))
+      ?? await prisma.networkDevice.findFirst({ where: { tenantId, externalRef: `librenms:${a.device_id}` } });
+    const severity = SEVERITY[String(a.severity ?? "").toLowerCase()] ?? "warning";
+    const title = `${ruleName.get(String(a.rule_id)) ?? a.name ?? "LibreNMS alert"}${device ? ` on ${device.hostname}` : ""}`.slice(0, 200);
+    await prisma.networkAlert.create({
+      data: { tenantId, kind, deviceId: device?.id ?? null, severity, status: "open", title, message: `Raised by LibreNMS${a.timestamp ? ` at ${a.timestamp}` : ""}.` },
+    });
+    notifyChat(tenantId, "network_alerts", { title: `${severity === "critical" ? "🔴" : "🟠"} ${title}`, text: "From LibreNMS", link: "/network/alerts" });
+    opened += 1;
+  }
+  const open = await prisma.networkAlert.findMany({ where: { tenantId, kind: { startsWith: "librenms:" }, status: { not: "resolved" } }, select: { id: true, kind: true } });
+  for (const a of open) {
+    if (seen.has(a.kind)) continue;
+    await prisma.networkAlert.update({ where: { id: a.id }, data: { status: "resolved", resolvedAt: new Date() } });
+    resolved += 1;
+  }
+  return { open: alerts.length, opened, resolved };
+}
+
+const LIBRE_AUTH = { md5: "MD5", sha: "SHA", sha224: "SHA-224", sha256: "SHA-256", sha384: "SHA-384", sha512: "SHA-512" };
+
+/** The add-device body LibreNMS expects, from ExecUI's SNMP settings. */
+export function librenmsDeviceBody(hostname, snmp) {
+  if (snmp.version !== "v3") return { hostname, version: snmp.version ?? "v2c", community: snmp.community ?? "public" };
+  return {
+    hostname, version: "v3", authlevel: snmp.level, authname: snmp.user,
+    ...(snmp.level !== "noAuthNoPriv" ? { authpass: snmp.authPassword, authalgo: LIBRE_AUTH[snmp.authProtocol] } : {}),
+    ...(snmp.level === "authPriv" ? { cryptopass: snmp.privPassword, cryptoalgo: "AES" } : {}),
+  };
+}
+
+/**
+ * Ask LibreNMS to monitor devices the collector found that it doesn't know
+ * yet. At most 20 per sync; a device is retried a day after a failed attempt.
+ * Once LibreNMS has it, the next import links the two by address.
+ */
+export async function pushDiscovered(tenantId, base, token, settings) {
+  const snmp = snmpForCollector(settings);
+  if (snmp.error) return { added: 0, skipped: snmp.error };
+  const candidates = await prisma.networkDevice.findMany({
+    where: {
+      tenantId, source: "collector", snmp: true, externalRef: null, ip_address: { not: "" },
+      OR: [{ monitoringAddedAt: null }, { monitoringAddedAt: { lt: new Date(Date.now() - 86_400_000) } }],
+    },
+    take: 20,
+  });
+  let added = 0;
+  for (const d of candidates) {
+    try {
+      await librenms(base, token, "/devices", { method: "POST", json: librenmsDeviceBody(d.ip_address, snmp) });
+      added += 1;
+    } catch (e) {
+      // "already exists" is success for our purposes; anything else is retried tomorrow.
+      if (!/exist/i.test(e.message)) log.warn?.("librenms_add_failed", { tenantId, ip: d.ip_address, error: e.message });
+    }
+    await prisma.networkDevice.update({ where: { id: d.id }, data: { monitoringAddedAt: new Date() } });
+  }
+  return { added, tried: candidates.length };
 }
 
 /** Scheduler entry: sync every tenant that has a monitoring tool connected. */

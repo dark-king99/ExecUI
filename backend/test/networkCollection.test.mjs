@@ -223,21 +223,41 @@ test("network collection against the database", { skip: !HAS_DB && "DATABASE_URL
     await inT(() => settings.updateSettings(tenantId, { monitoring: { tool: "librenms", url: "https://nms.example.test", token: "lnms-token" } }));
     const original = globalThis.fetch;
     const seen = [];
+    const added = [];
+    let openAlerts = [{ id: 501, device_id: 8, rule_id: 4, state: 1, severity: "critical", timestamp: "2026-11-25 10:00:00" }];
     globalThis.fetch = async (url, init) => {
       seen.push([String(url), init.headers["X-Auth-Token"]]);
       const path = new URL(url).pathname + new URL(url).search;
       const json = (b) => new Response(JSON.stringify(b), { headers: { "Content-Type": "application/json" } });
+      if (path === "/api/v0/devices" && init.method === "POST") { added.push(JSON.parse(init.body)); return json({ status: "ok" }); }
       if (path.startsWith("/api/v0/devices")) return json({ status: "ok", devices: [
         { device_id: 7, hostname: "10.0.5.1", sysName: "branch-fw", ip: "10.0.5.1", status: 1, uptime: 86400, type: "firewall", sysDescr: "FortiGate-40F", location: "Branch" },
         { device_id: 8, hostname: "10.0.5.2", sysName: "branch-sw", ip: "10.0.5.2", status: 0, type: "network", sysDescr: "Cisco IOS Software, C1000" },
       ] });
       if (path.startsWith("/api/v0/ports")) return json({ status: "ok", ports: [{ device_id: 7, ifInOctets_rate: 1000, ifOutOctets_rate: 500 }] });
       if (path.startsWith("/api/v0/resources/links")) return json({ status: "ok", links: [{ local_device_id: 7, local_port_id: 3, remote_device_id: 8, remote_port: "Gi1/0/1", protocol: "lldp" }] });
+      if (path.startsWith("/api/v0/alerts")) return json({ status: "ok", alerts: openAlerts });
+      if (path.startsWith("/api/v0/rules")) return json({ status: "ok", rules: [{ id: 4, name: "Device Down! Due to no ICMP response." }] });
       return new Response("{}", { status: 404 });
     };
     try {
+      // A collector-found SNMP device LibreNMS doesn't know yet gets pushed to it.
+      await runUnscoped(() => prisma.networkDevice.create({ data: { tenantId, hostname: "lab-sw", ip_address: "10.0.5.40", device_type: "switch", source: "collector", snmp: true } }));
+      await inT(() => settings.updateSettings(tenantId, { monitoring: { tool: "librenms", url: "https://nms.example.test", autoAdd: true } }));
       const out = await syncMonitoring(tenantId);
-      assert.deepEqual(out, { devices: 2, created: 2, links: 1 });
+      assert.equal(out.devices, 2);
+      assert.equal(out.links, 1);
+      assert.deepEqual(out.alerts, { open: 1, opened: 1, resolved: 0 });
+      // Every collector-found SNMP device LibreNMS doesn't have yet — the router from earlier and lab-sw.
+      assert.deepEqual(added.map((a) => [a.hostname, a.version]).sort(), [["10.0.5.40", "v2c"], ["192.168.1.1", "v2c"]]);
+      const down = await runUnscoped(() => prisma.networkAlert.findFirst({ where: { tenantId, kind: "librenms:501" } }));
+      assert.equal(down.severity, "critical");
+      assert.match(down.title, /Device Down.*branch-sw/);
+      // Cleared in LibreNMS → resolved here; the pushed device isn't pushed again.
+      openAlerts = [];
+      const again = await syncMonitoring(tenantId);
+      assert.equal(again.alerts.resolved, 1);
+      assert.equal(added.length, 2, "nothing is pushed twice");
     } finally { globalThis.fetch = original; }
     assert.ok(seen.every(([, tok]) => tok === "lnms-token"));
     const fw = await runUnscoped(() => prisma.networkDevice.findFirst({ where: { tenantId, externalRef: "librenms:7" } }));
@@ -247,6 +267,8 @@ test("network collection against the database", { skip: !HAS_DB && "DATABASE_URL
     const sw = await runUnscoped(() => prisma.networkDevice.findFirst({ where: { tenantId, externalRef: "librenms:8" } }));
     assert.equal(sw.status, "down");
     assert.ok(!JSON.stringify(await inT(() => svc.getNetworkSettings(tenantId))).includes("lnms-token"));
+    const listed = await inT(() => svc.listDevices(tenantId));
+    assert.equal(listed.find((d) => d.externalRef === "librenms:7").externalUrl, "https://nms.example.test/device/device=7/");
   });
 });
 

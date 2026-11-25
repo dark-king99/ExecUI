@@ -143,6 +143,7 @@ function deviceShape(d) {
     mac:        d.mac ?? null,
     source:     d.source,
     measured:   !!d.metricsAt,
+    externalRef: d.externalRef ?? null,
   };
 }
 
@@ -164,7 +165,13 @@ export async function listDevices(tenantId, query = {}) {
     take: Number(limit ?? take),
     skip: Number(skip),
   });
-  return rows.map(deviceShape);
+  // A device imported from LibreNMS links to its page there.
+  const settings = await prisma.networkSettings.findUnique({ where: { tenantId }, select: { monitoringTool: true, monitoringUrl: true } });
+  const libre = settings?.monitoringTool === "librenms" && settings.monitoringUrl ? settings.monitoringUrl : null;
+  return rows.map((d) => ({
+    ...deviceShape(d),
+    externalUrl: libre && d.externalRef?.startsWith("librenms:") ? `${libre}/device/device=${d.externalRef.slice(9)}/` : null,
+  }));
 }
 
 export async function getDevice(tenantId, id) {

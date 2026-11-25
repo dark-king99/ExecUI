@@ -80,6 +80,7 @@ export default function Devices() {
                       {/* Where this row's data comes from — a typed-in entry isn't a reading. */}
                       <div className="mt-0.5 text-[10px] text-slate-400">
                         {d.source === "collector" ? `Discovered · seen ${d.lastSeen}` : d.source === "monitoring" ? `From monitoring tool · seen ${d.lastSeen}` : "Entered by hand · not monitored"}
+                        {d.externalUrl && <> · <a href={d.externalUrl} target="_blank" rel="noreferrer" className="text-indigo-500 hover:underline">Open in LibreNMS</a></>}
                       </div>
                     </td>
                     <td className="px-5 py-3"><Pill color="sky">{d.type}</Pill></td>
