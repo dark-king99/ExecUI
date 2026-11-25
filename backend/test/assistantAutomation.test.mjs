@@ -42,6 +42,14 @@ test("the guide names every trigger the engine accepts", () => {
   for (const event of eventTypes()) assert.ok(guide.includes(event), event);
 });
 
+test("the guide lists the organization's chat channels for post_chat, and only then", () => {
+  assert.ok(!automationGuide().includes("post_chat"), "no channels, no post_chat");
+  const guide = automationGuide({ chatRoutes: [{ id: "route-1", label: "#it-alerts", provider: "slack" }, { id: "route-2", label: "IT › Alerts", provider: "teams" }] });
+  assert.match(guide, /post_chat/);
+  assert.match(guide, /route-1 \(Slack #it-alerts\)/);
+  assert.match(guide, /route-2 \(Teams IT › Alerts\)/);
+});
+
 test("a non-admin is refused even if the tool is called anyway", async () => {
   await assert.rejects(
     runAutomationTool("draft_automation_workflow", { name: "x", triggerEvent: "contacts.created", actions: [] }, { role: "employee" }),

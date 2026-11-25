@@ -55,7 +55,7 @@ export function writableResources(access = {}, { role, permissions = [] } = {}) 
   }));
 }
 
-export function assistantTools(access = {}, { pythonEnabled = false, writable = [], role, permissions = new Set(), mailbox = null } = {}) {
+export function assistantTools(access = {}, { pythonEnabled = false, writable = [], role, permissions = new Set(), mailbox = null, chatRoutes = [] } = {}) {
   const resources = overviewCatalog(access);
   const ids = resources.map(({ id }) => id);
   const searchFilters = resources.map((resource) => {
@@ -156,7 +156,7 @@ export function assistantTools(access = {}, { pythonEnabled = false, writable = 
         },
       },
     });
-    tools.push(...automationTools(role));
+    tools.push(...automationTools(role, { chatRoutes }));
   }
   if (createIds.length) {
     tools.push(

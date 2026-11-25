@@ -27,7 +27,12 @@ const DRAFT_FIELDS = ["name", "description", "triggerEvent", "match", "condition
  * write, and write tools are offered on the first turn only, so the model can't
  * look anything up first — the guide has to be in the tool description.
  */
-export function automationGuide() {
+/**
+ * `chatRoutes` are this organization's Slack/Teams channels ({ id, label,
+ * provider }), so the model can name a real channel for a post_chat action.
+ * Without them, post_chat isn't offered at all — there'd be nowhere to post.
+ */
+export function automationGuide({ chatRoutes = [] } = {}) {
   const c = catalog();
   const fields = Object.entries(c.resourceFields)
     .map(([id, list]) => `${id}: ${list.map((f) => `${f.key}${f.writable ? "*" : ""}${f.enum ? `(${f.enum.join("|")})` : ""}`).join(", ")}`)
@@ -40,13 +45,16 @@ export function automationGuide() {
       "{type:\"create_record\", resource, fields:{...all required fields}} | " +
       "{type:\"notify\", audience, title, body?, link?} | " +
       "{type:\"send_email\", to:[emails], subject, body} | " +
-      "{type:\"request_approval\", title, summary?, steps:[{name, approvers:audience, requiredCount?}] (1–5 steps)}.",
+      "{type:\"request_approval\", title, summary?, steps:[{name, approvers:audience, requiredCount?}] (1–5 steps)}" +
+      (chatRoutes.length
+        ? ` | {type:\"post_chat\", routeId, text} where routeId is one of: ${chatRoutes.map((r) => `${r.id} (${r.provider === "slack" ? "Slack" : "Teams"} ${r.label})`).join(", ")}; the first line of text is the headline.`
+        : "") + ".",
     `audience is {type, value?}; type is one of ${c.audiences.join(", ")} (role, department and user need a value).`,
     "Text and field values may use {{record.<field>}}, {{event}} and {{now}} placeholders.",
   ].join(" ");
 }
 
-export function automationTools(role) {
+export function automationTools(role, { chatRoutes = [] } = {}) {
   if (!canAutomate(role)) return [];
   return [
     {
@@ -54,7 +62,7 @@ export function automationTools(role) {
       function: {
         name: "draft_automation_workflow",
         description: "Save ONE automation rule (\"when this happens, do that\") as a PAUSED draft for an administrator to review and turn on " +
-          "in the Automation tab. Only draft a rule the user asked for; never enable one. " + automationGuide(),
+          "in the Automation tab. Only draft a rule the user asked for; never enable one. " + automationGuide({ chatRoutes }),
         parameters: {
           type: "object",
           properties: {

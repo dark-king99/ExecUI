@@ -634,7 +634,11 @@ export async function chat({
   const writable = await writableResourcesFor({ userId, role, access, permissions });
   // Only ever this person's own connection — ExecAI can't reach anyone else's mail.
   const mailbox = await personalConnection(tenantId, userId).catch(() => null);
-  const tools = assistantTools(access, { pythonEnabled, writable, role, permissions, mailbox });
+  // Admins drafting automations can post to the organization's chat channels.
+  const chatRoutes = ["enterprise_admin", "system_admin"].includes(role)
+    ? await prisma.chatRoute.findMany({ where: { tenantId, enabled: true }, select: { id: true, label: true, provider: true }, take: 25 }).catch(() => [])
+    : [];
+  const tools = assistantTools(access, { pythonEnabled, writable, role, permissions, mailbox, chatRoutes });
   reservation = await consume(tenantId);
 
   for (let turn = 0; turn < 3; turn += 1) {
