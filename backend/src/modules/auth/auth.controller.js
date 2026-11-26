@@ -1,6 +1,6 @@
 import prisma from "../../config/database.js";
 import bcrypt from "bcrypt";
-import { bootstrapEnterprise } from "./bootstrap.service.js";
+import { startSignup, resendCode, verifySignup } from "./signup.service.js";
 import jwt from "jsonwebtoken";
 
 const signToken = (user, roleName) =>
@@ -11,37 +11,28 @@ const signToken = (user, roleName) =>
   );
 
 // ── Register a new enterprise (first account = the organization) ───────────────
+// Two steps: POST /auth/signup emails a code (nothing is created yet), then
+// POST /auth/signup/verify with that code creates the enterprise and signs in.
 export const registerEnterprise = async (req, res) => {
   try {
-    const { companyName, company, email, password, firstName, lastName } = req.body;
+    res.status(202).json(await startSignup(req.body ?? {}, { ip: req.ip }));
+  } catch (error) {
+    res.status(error.status ?? 500).json({ message: error.message });
+  }
+};
 
-    // Accept either 'companyName' (API callers) or 'company' (Login.jsx form field)
-    const resolvedCompany = companyName || company;
+export const resendSignupCode = async (req, res) => {
+  try {
+    res.json(await resendCode(req.body?.email));
+  } catch (error) {
+    res.status(error.status ?? 500).json({ message: error.message });
+  }
+};
 
-    if (!resolvedCompany || !email || !password) {
-      return res.status(400).json({
-        message: "Company name, email and password are required"
-      });
-    }
-
-    const baseSlug = resolvedCompany
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "");
-
-    const slug = `${baseSlug}-${Date.now()}`;
-
-    const result = await bootstrapEnterprise({
-      companyName: resolvedCompany,
-      companySlug: slug,
-      email,
-      password,
-      firstName: firstName || email.split("@")[0],
-      lastName:  lastName  || "User"
-    });
-
+export const verifyEnterpriseSignup = async (req, res) => {
+  try {
+    const result = await verifySignup(req.body ?? {});
     const token = signToken(result.adminUser, "enterprise_admin");
-
     res.status(201).json({
       token,
       enterpriseCode: result.tenant.code,
@@ -55,12 +46,11 @@ export const registerEnterprise = async (req, res) => {
         enterprise: result.tenant.name,
         enterpriseCode: result.tenant.code,
         trialEndsAt: result.tenant.trialEndsAt,
+        emailVerified: true,
         role:       "enterprise_admin"
       }
     });
-
   } catch (error) {
-    // Friendly duplicate-email message
     if (error.message?.includes("already exists")) {
       return res.status(409).json({ message: "An account with that email already exists." });
     }

@@ -15,6 +15,10 @@ import prisma from "../config/database.js";
 const API_KEY = process.env.RESEND_API_KEY || "";
 const FROM = process.env.RESEND_FROM || "ExecUI <onboarding@resend.dev>";
 
+// EmailLog belongs to a tenant; system mail sent before one exists (sign-up
+// verification) isn't logged there.
+const logEmail = ({ data }) => (data.tenantId ? prisma.emailLog.create({ data }) : Promise.resolve({ id: null }));
+
 export function emailConfigured() {
   return !!API_KEY;
 }
@@ -38,7 +42,7 @@ export async function sendEmail({ tenantId, to, subject, html, text, from, conte
 
   // Not configured → record + return gracefully (never throw).
   if (!API_KEY) {
-    const log = await prisma.emailLog.create({ data: { ...base, status: "skipped", error: "RESEND_API_KEY not set" } });
+    const log = await logEmail({ data: { ...base, status: "skipped", error: "RESEND_API_KEY not set" } });
     return { sent: false, skipped: true, id: log.id, message: "Email is not configured on this server (set RESEND_API_KEY)." };
   }
 
@@ -61,13 +65,13 @@ export async function sendEmail({ tenantId, to, subject, html, text, from, conte
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) {
       const error = data?.message || data?.name || `HTTP ${resp.status}`;
-      const log = await prisma.emailLog.create({ data: { ...base, status: "failed", error } });
+      const log = await logEmail({ data: { ...base, status: "failed", error } });
       return { sent: false, error, id: log.id };
     }
-    const log = await prisma.emailLog.create({ data: { ...base, status: "sent", providerId: data?.id || null } });
+    const log = await logEmail({ data: { ...base, status: "sent", providerId: data?.id || null } });
     return { sent: true, id: log.id, providerId: data?.id || null };
   } catch (e) {
-    const log = await prisma.emailLog.create({ data: { ...base, status: "failed", error: e.message } });
+    const log = await logEmail({ data: { ...base, status: "failed", error: e.message } });
     return { sent: false, error: e.message, id: log.id };
   }
 }

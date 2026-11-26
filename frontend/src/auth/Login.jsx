@@ -136,6 +136,11 @@ export default function Login({ onLogin }) {
   const [apiError, setApiError] = useState(null);
   const [mfaStep, setMfaStep] = useState(false); // password OK, awaiting TOTP code
   const [mfaCode, setMfaCode] = useState("");
+  // Enterprise sign-up: after the details are accepted, a code is emailed and
+  // nothing exists until it's entered here.
+  const [verify, setVerify] = useState(null); // { email, sentTo, expiresAt }
+  const [verifyCode, setVerifyCode] = useState("");
+  const [verifyNote, setVerifyNote] = useState(null);
   const [ssoBusy, setSsoBusy] = useState(false);
   const [ssoNote, setSsoNote] = useState(null);
 
@@ -180,8 +185,16 @@ export default function Login({ onLogin }) {
         if (!company.trim() || !email.trim() || !password.trim()) {
           return setApiError("Company name, email and password are required.");
         }
+        if (!verify) {
+          setSubmitting(true);
+          const pending = await auth.signup({ company, email, password, firstName, lastName });
+          setVerify(pending); setVerifyCode(""); setVerifyNote(null);
+          return;
+        }
+        if (verifyCode.length !== 6) return setApiError("Enter the 6-digit code we emailed you.");
         setSubmitting(true);
-        const res = await auth.signup({ company, email, password, firstName, lastName });
+        const res = await auth.verifySignup(verify.email, verifyCode);
+        track("enterprise_signup_verified");
         const onboarding = {
           token: res.token,
           user: res.user,
@@ -205,7 +218,14 @@ export default function Login({ onLogin }) {
     }
   };
 
-  const switchMode = (m) => { setMode(m); setApiError(null); setMfaStep(false); setMfaCode(""); };
+  const switchMode = (m) => { setMode(m); setApiError(null); setMfaStep(false); setMfaCode(""); setVerify(null); setVerifyCode(""); setVerifyNote(null); };
+  const resendSignup = async () => {
+    setApiError(null); setVerifyNote(null);
+    try {
+      const r = await auth.resendSignupCode(verify.email);
+      setVerify(r); setVerifyCode(""); setVerifyNote(`A new code is on its way to ${r.sentTo}.`);
+    } catch (e) { setApiError(e?.message ?? "Couldn't send a new code."); }
+  };
   const handleKeyDown = (e) => { if (e.key === "Enter") handleSubmit(); };
 
   // ── Enterprise SSO ─────────────────────────────────────────────────────────
@@ -237,7 +257,9 @@ export default function Login({ onLogin }) {
 
   const heading = {
     signin:     { title: "Welcome back", sub: "Sign in with your email, password, and employee ID." },
-    enterprise: { title: "Create your enterprise", sub: "The first account is your organization. You become its admin." },
+    enterprise: verify
+      ? { title: "Check your email", sub: "Confirm your address to finish creating your enterprise." }
+      : { title: "Create your enterprise", sub: "The first account is your organization. You become its admin. We'll email you a code to verify your address." },
     employee:   { title: "Join your enterprise", sub: "Use the enterprise code and employee ID your admin gave you." },
   }[mode];
   const activeIndex = MODES.findIndex((m) => m.id === mode);
@@ -326,6 +348,20 @@ export default function Login({ onLogin }) {
           </div>
 
           <div className="flex flex-col gap-4">
+            {mode === "enterprise" && verify ? (
+            <div key="verify" className="flex flex-col gap-4 stagger">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                We sent a 6-digit code to <span className="font-medium text-slate-900 dark:text-white">{verify.sentTo}</span>. Enter it to confirm the address and create <span className="font-medium text-slate-900 dark:text-white">{company}</span>. Nothing is created until you do.
+              </p>
+              <InputField label="Verification code" value={verifyCode} onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))} onKeyDown={handleKeyDown}
+                placeholder="123456" autoComplete="one-time-code" hint="The code expires in 15 minutes. Check spam if you don't see it." />
+              {verifyNote && <p className="text-xs text-teal-700 dark:text-teal-300">{verifyNote}</p>}
+              <div className="flex items-center justify-between text-xs">
+                <button type="button" onClick={resendSignup} className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">Send a new code</button>
+                <button type="button" onClick={() => { setVerify(null); setVerifyCode(""); setApiError(null); setVerifyNote(null); }} className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Change details</button>
+              </div>
+            </div>
+            ) : (
             <div key={`fields-${mode}`} className="flex flex-col gap-4 stagger">
               {mode === "enterprise" && (
                 <>
@@ -362,6 +398,7 @@ export default function Login({ onLogin }) {
                 />
               )}
             </div>
+            )}
 
             {apiError && (
               <div className="flex items-start gap-2.5 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-sm text-red-600 dark:text-red-400 animate-shake">
@@ -374,7 +411,7 @@ export default function Login({ onLogin }) {
               <span className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-white/25 blur-md -translate-x-full transition-transform duration-700 ease-out group-hover:translate-x-[400%]" />
               {submitting ? <Loader2 size={16} className="animate-spin" /> : (
                 <>
-                  {mode === "signin" ? (mfaStep ? "Verify code" : "Sign in") : mode === "enterprise" ? "Create enterprise" : "Activate account"}
+                  {mode === "signin" ? (mfaStep ? "Verify code" : "Sign in") : mode === "enterprise" ? (verify ? "Verify email & create enterprise" : "Continue — verify email") : "Activate account"}
                   <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
                 </>
               )}

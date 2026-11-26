@@ -1,10 +1,10 @@
 import express from "express";
-import { registerEnterprise, employeeSignup } from "./auth.controller.js";
+import { registerEnterprise, employeeSignup, verifyEnterpriseSignup, resendSignupCode } from "./auth.controller.js";
 import { login } from "./login.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import { authRateLimit, rateLimit } from "../../middleware/ratelimit.middleware.js";
-import { loginSchema, enterpriseSignupSchema, employeeSignupSchema } from "./auth.schema.js";
+import { loginSchema, enterpriseSignupSchema, employeeSignupSchema, signupVerifySchema, signupResendSchema } from "./auth.schema.js";
 import ssoRoutes from "../sso/sso.routes.js";
 import prisma from "../../config/database.js";
 
@@ -18,11 +18,13 @@ router.use("/sso", ssoRoutes);
 // creation without bothering a real admin onboarding a company.
 const signupLimit = rateLimit({ windowMs: 60_000, max: 5 });
 
-// Register a new enterprise tenant + admin user
+// Register a new enterprise, in two steps. Step 1 checks the address and emails
+// a 6-digit code — nothing is created. Step 2 (verify) proves the address and
+// creates the enterprise + admin. An enterprise can't exist without a verified email.
 router.post("/register-enterprise", signupLimit, validate(enterpriseSignupSchema), registerEnterprise);
-
-// Alias so frontend /auth/signup works
 router.post("/signup", signupLimit, validate(enterpriseSignupSchema), registerEnterprise);
+router.post("/signup/verify", rateLimit({ windowMs: 60_000, max: 10 }), validate(signupVerifySchema), verifyEnterpriseSignup);
+router.post("/signup/resend", rateLimit({ windowMs: 60_000, max: 3 }), validate(signupResendSchema), resendSignupCode);
 
 // Employee completes signup ("join enterprise") against an admin-issued ID
 router.post("/employee-signup", signupLimit, validate(employeeSignupSchema), employeeSignup);
